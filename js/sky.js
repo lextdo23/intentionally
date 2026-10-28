@@ -40,9 +40,12 @@ export function planet(id, i, r, c, lit = { x: -.78, y: -.62 }) {
   const bands = look === 1
     ? [[-.62, .2, 1], [-.22, .14, 0], [.12, .22, 1], [.5, .14, 0]].map(([y, h, l]) => `<rect x="${-r}" y="${f2(y * r)}" width="${2 * r}" height="${f2(h * r)}" fill="${l ? "#fff" : "#000"}" opacity="${l ? .1 : .12}"/>`).join("")
     : look === 2 ? `<rect x="${-r}" y="${f2(-.14 * r)}" width="${2 * r}" height="${f2(.28 * r)}" fill="#fff" opacity=".1"/>` : "";
+  // The sun's direction, turned into the planet's tilted frame, so each crater and bump is lit on the right side.
+  const L = Math.hypot(lit.x, lit.y) || 1, t = -TILT[i] * Math.PI / 180, lx = lit.x / L, ly = lit.y / L;
+  const sun = `data-sx="${f2(lx * Math.cos(t) - ly * Math.sin(t))}" data-sy="${f2(lx * Math.sin(t) + ly * Math.cos(t))}"`;
   return `<g class="wob" style="--wd:${TURN[i] / 2}s"><defs><clipPath id="${k}c"><circle r="${r}"/></clipPath>
     <mask id="${k}m"><rect x="${-2 * r}" y="${-2 * r}" width="${4 * r}" height="${4 * r}" fill="#fff"/><circle cx="${f2(lit.x * .38 * r)}" cy="${f2(lit.y * .38 * r)}" r="${f2(r * 1.04)}" fill="#000"/></mask></defs>
-    <g clip-path="url(#${k}c)"><circle r="${r}" fill="${c}"/><g transform="rotate(${TILT[i]})">${bands}<g data-spin="${look}" data-turn="${TURN[i]}" data-r="${r}"></g></g>
+    <g clip-path="url(#${k}c)"><circle r="${r}" fill="${c}"/><g transform="rotate(${TILT[i]})">${bands}<g data-spin="${look}" data-seed="${i}" data-turn="${TURN[i]}" data-r="${r}" ${sun}></g></g>
     <circle r="${r}" fill="#000" opacity=".3" mask="url(#${k}m)"/></g></g>`;
 }
 
@@ -69,6 +72,17 @@ export function layout(pillars) {
 // Thoughts never pass behind the sun or a planet: close to one, space bends outward like a lens,
 // so a star glides round the edge and carries on. Set each time the sky is drawn.
 let bodies = [];
+
+// Texture: small craters and bumps scattered over each planet, drawn flat like the other marks.
+// A crater is a dip (shadow on the wall nearest the sun, light on the far wall); a bump is a mound (lit top, shadow behind).
+function spots(seed) {
+  let n = seed * 7919 + 17;
+  const r = () => (n = (n * 16807) % 2147483647) / 2147483647;
+  return Array.from({ length: 22 }, () => ({ lon: r() * Math.PI * 2, lat: Math.asin(r() * 2 - 1) * .85, s: .07 + r() * r() * .13, bump: r() < .5 }));
+}
+// Each part of a spot: [fill, opacity, size, how far it shifts towards (+) or away from (-) the sun].
+const CRATER = [["#000", .13, 1, 0], ["#fff", .12, .8, -1], ["#000", .14, .72, .45]];
+const BUMP = [["#000", .2, 1, -1], ["#fff", .2, .78, .35]];
 
 let spinning = 0;
 export function startSpin(root) {
@@ -99,15 +113,17 @@ export function startSpin(root) {
   };
   const els = [...root.querySelectorAll("[data-spin]")].map((g) => {
     const look = +g.dataset.spin;
-    g.innerHTML = FEAT[look].map(([, , , l]) => `<ellipse fill="${l ? "#fff" : "#000"}"/>`).join("");
-    return { look, r: +g.dataset.r, turn: +g.dataset.turn, kids: [...g.children] };
+    const tex = spots(+g.dataset.seed);
+    g.innerHTML = FEAT[look].map(([, , , l]) => `<ellipse fill="${l ? "#fff" : "#000"}"/>`).join("")
+      + tex.map((p) => (p.bump ? BUMP : CRATER).map(([c]) => `<ellipse fill="${c}"/>`).join("")).join("");
+    return { look, tex, r: +g.dataset.r, turn: +g.dataset.turn, sx: +g.dataset.sx, sy: +g.dataset.sy, kids: [...g.children] };
   });
   const frame = (ms) => {
     for (const r of roamers) {
       const [dx, dy] = place(r, still ? r.born : Date.now());
       r.g.setAttribute("transform", `translate(${f2(dx)},${f2(dy)})`);
     }
-    for (const { look, r, turn, kids } of els) {
+    for (const { look, tex, r, turn, sx, sy, kids } of els) {
       const t = (ms / 1000) * Math.PI * 2 / turn;
       FEAT[look].forEach(([lon, lat, s, l, e = 1], n) => {
         const a = lon + t, z = Math.cos(a), el = kids[n];
@@ -118,6 +134,18 @@ export function startSpin(root) {
         el.setAttribute("ry", f2(s * r));
         el.setAttribute("opacity", ((l ? .2 : .16) * Math.min(1, z * 3)).toFixed(3));
       });
+      let k = FEAT[look].length;
+      for (const p of tex) {
+        const parts = p.bump ? BUMP : CRATER, a = p.lon + t, z = Math.cos(a);
+        if (z <= 0) { for (let q = 0; q < parts.length; q++) kids[k++].setAttribute("opacity", 0); continue; }
+        const x = r * Math.cos(p.lat) * Math.sin(a), y = r * Math.sin(p.lat), rx = p.s * r * z, ry = p.s * r, d = p.s * r * .4, fade = Math.min(1, z * 3);
+        for (const [, op, size, shift] of parts) {
+          const el = kids[k++];
+          el.setAttribute("cx", f2(x + sx * d * shift * z)); el.setAttribute("cy", f2(y + sy * d * shift));
+          el.setAttribute("rx", f2(rx * size)); el.setAttribute("ry", f2(ry * size));
+          el.setAttribute("opacity", (op * fade).toFixed(3));
+        }
+      }
     }
     if (!still) spinning = requestAnimationFrame(frame);
   };
