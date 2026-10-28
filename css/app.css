@@ -14,8 +14,10 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html, body { height: 100%; overflow: hidden; background: #0e0f11; }
+/* The app is pinned to the screen like a native app: the page never scrolls or bounces. */
 body {
+  position: fixed; inset: 0;
   margin: 0; background: var(--bg-deep); color: var(--ink); font-family: var(--ui);
   font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -25,7 +27,8 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-#app { position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden; }
+#app { position: absolute; inset: 0; overflow: hidden; }
+.welcome { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; }
 /* The sky fills the largest the screen can be, so no strip shows below it when the browser bars hide. */
 .sky-wrap { position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100lvh; min-height: 100%; }
 
@@ -36,7 +39,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 
 /* ---------- First day ---------- */
 .welcome-body {
-  position: relative; display: flex; flex-direction: column; min-height: 100dvh;
+  position: relative; display: flex; flex-direction: column; min-height: 100%;
   padding: calc(env(safe-area-inset-top, 0px) + 40px) var(--edge) calc(env(safe-area-inset-bottom, 0px) + 24px);
   background: linear-gradient(rgba(8, 9, 10, .35), rgba(8, 9, 10, .7) 50%, rgba(8, 9, 10, .88));
   max-width: 520px; margin: 0 auto;
@@ -122,6 +125,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   transform: translateY(100%); transition: transform .32s cubic-bezier(.2, .8, .3, 1);
 }
 .sheet-back.in { opacity: 1; }
+.sheet.kb { padding-bottom: 16px; }
 .sheet.in { transform: none; }
 .sh-head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .sh-head > svg { width: 44px; height: 44px; overflow: visible; flex: none; }
@@ -146,9 +150,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .kinds .chip .kstar { opacity: .7; }
 .kinds .chip[aria-pressed="true"] .kstar { opacity: 1; }
 .catchform textarea:focus { outline: 2px solid color-mix(in srgb, var(--gold) 55%, transparent); outline-offset: 0; }
+/* Size, padding and corners are set in main.js (see unzoom) so the typing cursor lines up on iPhone. */
 .catchform textarea {
-  display: block; width: 100%; resize: none; border: 0; border-radius: 12px; padding: 16px;
-  background: var(--glass); font-size: 20px; line-height: 1.35; color: var(--ink);
+  display: block; width: 100%; resize: none; border: 0;
+  background: var(--glass); line-height: 1.35; color: var(--ink);
 }
 .catchform textarea::placeholder { color: var(--dim); }
 .catchform .primary { margin-top: 24px; }

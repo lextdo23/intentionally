@@ -10,7 +10,11 @@ let testMode = params.has("test");
 setOffsetDays(store.get().test.offsetDays);
 
 // Keep the approved proportions: everything was designed on a 300-wide screen.
-const fit = () => document.documentElement.style.setProperty("--z", Math.min(Math.max(innerWidth / 300, 1), 1.4).toFixed(3));
+let zoom = 1;
+const fit = () => {
+  zoom = Math.min(Math.max(innerWidth / 300, 1), 1.4);
+  document.documentElement.style.setProperty("--z", zoom.toFixed(3));
+};
 fit();
 addEventListener("resize", fit);
 
@@ -57,6 +61,7 @@ function renderWelcome() {
     else return toast(`You can pick up to ${MAX_PILLARS}.`);
     renderWelcome();
   }));
+  unzoom(app.querySelector("#own-name"), { font: 16, padY: 0, padX: 16, radius: 12, height: 44 });
   app.querySelector("#own").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = app.querySelector("#own-name").value.trim().slice(0, MAX_NAME);
@@ -216,6 +221,19 @@ function openPillar(id) {
   });
 }
 
+// iPhone draws the typing cursor in the wrong place inside zoomed boxes, so text fields undo the zoom
+// and are sized directly instead: same look, cursor where you type.
+function unzoom(el, { font, padY, padX, radius, height }) {
+  const z = zoom;
+  Object.assign(el.style, {
+    zoom: String(1 / z), fontSize: `${font * z}px`, padding: `${padY * z}px ${padX * z}px`, borderRadius: `${radius * z}px`,
+    ...(height && { height: `${height * z}px` }),
+  });
+}
+
+// After the keyboard goes away, iPhone can leave the screen nudged up. Put it back.
+addEventListener("focusout", () => setTimeout(() => { if (!document.activeElement?.matches?.("input, textarea")) scrollTo(0, 0); }, 60));
+
 /* ---------- Catching a thought: write it down, and it becomes a star ---------- */
 
 const MAX_THOUGHT = 120;
@@ -227,7 +245,7 @@ function openCatch() {
     <header class="sh-head"><div><h2 id="sheet-title">New thought</h2><p>Whatever's on your mind, in your own words.</p></div>${CLOSE}</header>
     <form class="catchform">
       <label for="thought" class="sr">Your thought</label>
-      <textarea id="thought" rows="3" maxlength="${MAX_THOUGHT}" placeholder="What's on your mind?" autofocus></textarea>
+      <textarea id="thought" rows="2" maxlength="${MAX_THOUGHT}" placeholder="What's on your mind?" autofocus></textarea>
       <h3>This feels like</h3>
       <div class="chips kinds" role="group" aria-label="Kind of thought">${["kind", "worry", "want"].map((k) =>
         `<button type="button" class="chip" data-kind="${k}" aria-pressed="${k === kind}">${starIcon(k)}${KIND_LABEL[k]}</button>`).join("")}</div>
@@ -235,6 +253,7 @@ function openCatch() {
       <button type="submit" class="primary" disabled>Add to my sky</button>
     </form>`);
   const form = sheet.querySelector("form"), box = sheet.querySelector("textarea"), go = form.querySelector(".primary");
+  unzoom(box, { font: 20, padY: 14, padX: 16, radius: 12 });
   const showKind = () => sheet.querySelectorAll("[data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
   box.addEventListener("input", () => {
     go.disabled = !box.value.trim();
@@ -321,6 +340,19 @@ function openSheet(html, tint) {
   sheet.innerHTML = html;
   document.body.append(back, sheet);
   requestAnimationFrame(() => { back.classList.add("in"); sheet.classList.add("in"); });
+  // When the keyboard is up, sit the sheet just above it and let it scroll inside, rather than being pushed off the top.
+  const vv = window.visualViewport;
+  const above = () => {
+    if (!vv) return;
+    const covered = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+    sheet.style.bottom = `${covered / zoom}px`;
+    sheet.style.maxHeight = `${(vv.height - 8) / zoom}px`;
+    sheet.classList.toggle("kb", covered > 80);
+  };
+  above();
+  vv?.addEventListener("resize", above);
+  vv?.addEventListener("scroll", above);
+  sheet.unwatch = () => { vv?.removeEventListener("resize", above); vv?.removeEventListener("scroll", above); };
   const close = () => { closeSheet(); opener?.focus?.(); };
   back.addEventListener("click", close);
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -332,6 +364,7 @@ function openSheet(html, tint) {
 const CLOSE = `<button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
 
 function closeSheet() {
+  document.querySelectorAll(".sheet").forEach((el) => el.unwatch?.());
   document.querySelectorAll(".sheet, .sheet-back").forEach((el) => el.remove());
 }
 
@@ -395,4 +428,15 @@ function toast(msg) {
 store.onChange(render);
 render();
 
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+// Offline support. When a newer version has been published, it is picked up the next time the app opens,
+// and the screen reloads once to show it.
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  const had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update(); });
+  }).catch(() => {});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (had && !reloaded && !document.querySelector(".sheet")) { reloaded = true; location.reload(); }
+  });
+}

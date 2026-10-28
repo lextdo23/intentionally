@@ -1,6 +1,6 @@
-// Keeps the app working offline: the app's own files are cached on install and served from the cache first.
-// Bump VERSION whenever any file below changes, so phones pick up the new copy.
-const VERSION = "v5";
+// Keeps the app working offline. Files come fresh from the internet when there is a connection (so updates
+// show straight away) and from the saved copy when there isn't. Bump VERSION whenever any file below changes.
+const VERSION = "v6";
 const FILES = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/main.js", "js/store.js", "js/sky.js", "js/clock.js", "js/pillars.js", "js/thoughts.js",
@@ -19,5 +19,15 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
-  e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+  e.respondWith(
+    fetch(e.request, { cache: "no-cache" })
+      .then((res) => {
+        if (res.ok && new URL(e.request.url).origin === location.origin) {
+          const copy = res.clone();
+          caches.open(VERSION).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request, { ignoreSearch: true })),
+  );
 });
