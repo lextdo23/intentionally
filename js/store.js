@@ -13,7 +13,7 @@ const fresh = () => ({
   sessions: [],     // finished timers: { pillarId, start, end, activity?, manual? }
   running: null,    // the one timer allowed at a time: { pillarId, start, activity? }
   thoughts: [],     // { id, text, kind: "kind"|"worry"|"want", pillarId, status: "active"|"settled"|"let-go",
-                    //   count, x, y, createdAt, helped: [{ text, at }] }
+                    //   count, seen: [times it came up], x, y, createdAt, helped: [{ text, at }] }
   season: null,     // { name, startedAt } once seasons have opened up
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
   test: { offsetDays: 0 },
@@ -90,6 +90,26 @@ export function addTime(pillarId, minutes, daysAgo = 0) {
     const end = now() - daysAgo * 86400000;
     s.sessions.push({ pillarId, start: end - minutes * 60000, end, manual: true });
   });
+}
+
+// Thoughts: each one caught becomes a star. A thought that comes up again joins its star, which grows.
+export function addThought(text, kind, spot, id = uid()) {
+  const t = { id, text, kind, pillarId: null, status: "active", count: 1, seen: [now()], ...spot, createdAt: now(), helped: [] };
+  update((s) => { s.thoughts.push(t); });
+  return t;
+}
+
+export function thoughtCameBack(id) {
+  update((s) => {
+    const t = s.thoughts.find((x) => x.id === id);
+    t.count = (t.count || 1) + 1;
+    (t.seen ??= []).push(now());
+    t.status = "active";
+  });
+}
+
+export function removeThought(id) {
+  update((s) => { s.thoughts = s.thoughts.filter((t) => t.id !== id); });
 }
 
 // Time given to a pillar since `from`, including a timer that is still running.

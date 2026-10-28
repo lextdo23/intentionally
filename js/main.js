@@ -1,6 +1,7 @@
 import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, sparkle, placeStar, esc } from "./sky.js";
+import { renderSky, fitTags, startSpin, planet, sparkle, placeStar, esc, POINTS } from "./sky.js";
+import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
 import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
 const app = document.getElementById("app");
@@ -74,6 +75,8 @@ function renderWelcome() {
 
 // Which timer the screen showed last time, so the running view only animates in when a timer has just started.
 let shownRunning = null;
+// A thought caught a moment ago, so its star floats up the next time the sky is drawn.
+let arriving = null;
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function renderHome(s) {
@@ -83,7 +86,7 @@ function renderHome(s) {
   const was = shownRunning, starting = run && was !== run.id, ending = !run && was;
   shownRunning = run?.id ?? null;
   app.innerHTML = `<section class="home ${run && !starting || ending ? "timing" : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id })}</div>
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving })}</div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
@@ -98,7 +101,7 @@ function renderHome(s) {
       </div>
       <div class="actions">
         <button type="button" class="round" data-soon="Sort" aria-label="Sort">${ICON.sort}</button>
-        <button type="button" class="catch" data-soon="New thought" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
+        <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
         <button type="button" class="round" data-soon="Record" aria-label="Record">${ICON.record}</button>
       </div>
     </nav></section>`;
@@ -117,11 +120,15 @@ function renderHome(s) {
     else start(id);
   }));
   app.querySelector("#stop")?.addEventListener("click", stop);
-  // Planets in the sky open their card: ideas, and adding time by hand.
-  app.querySelectorAll("[data-planet]").forEach((el) => {
-    el.addEventListener("click", () => openPillar(el.dataset.planet));
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPillar(el.dataset.planet); } });
+  arriving = null;
+  // Planets in the sky open their card (ideas, adding time by hand); stars open the thought they hold.
+  const tappable = (sel, key, open) => app.querySelectorAll(sel).forEach((el) => {
+    el.addEventListener("click", () => open(el.dataset[key]));
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
   });
+  tappable("[data-planet]", "planet", openPillar);
+  tappable("[data-star]", "star", openStar);
+  app.querySelector("#catch").addEventListener("click", openCatch);
   app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));
   let taps = 0;
   app.querySelector("#greet").addEventListener("click", () => { if (++taps >= 5) { taps = 0; testMode = true; renderTestPanel(); } });
@@ -166,24 +173,14 @@ setInterval(tick, 1000);
 /* ---------- A pillar's card: start a timer, pick an idea, or add time you forgot to track ---------- */
 
 function openPillar(id) {
-  closeSheet();
   const s = store.get(), i = s.pillars.findIndex((p) => p.id === id), p = s.pillars[i];
   if (!p) return;
   const running = s.running?.pillarId === id, ideas = ACTIVITIES[p.name] ?? [];
-  const opener = document.activeElement;
-  const back = document.createElement("div");
-  back.className = "sheet-back";
-  const sheet = document.createElement("section");
-  sheet.className = "sheet";
-  sheet.setAttribute("role", "dialog");
-  sheet.setAttribute("aria-modal", "true");
-  sheet.setAttribute("aria-labelledby", "sheet-title");
-  sheet.style.setProperty("--c", p.tint);
-  sheet.innerHTML = `
+  const { sheet, close } = openSheet(`
     <header class="sh-head">
       <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("sheet", i, 11, p.tint)}</svg>
       <div><h2 id="sheet-title">${esc(p.name)}</h2><p>This week <span data-week="${id}"></span></p></div>
-      <button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      ${CLOSE}
     </header>
     <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
     ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
@@ -193,17 +190,9 @@ function openPillar(id) {
       <fieldset><legend>How long?</legend><div class="chips">${[15, 30, 45, 60, 90].map((m, k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 1}">${formatTotal(m * 60000)}</button>`).join("")}</div></fieldset>
       <fieldset><legend>When?</legend><div class="chips">${["Today", "Yesterday"].map((d, k) => `<button type="button" class="chip" data-ago="${k}" aria-pressed="${k === 0}">${d}</button>`).join("")}</div></fieldset>
       <button type="submit" class="primary">Add time</button>
-    </form>`;
-  document.body.append(back, sheet);
+    </form>`, p.tint);
   startSpin(document.body);
   tick();
-  requestAnimationFrame(() => { back.classList.add("in"); sheet.classList.add("in"); });
-  sheet.querySelector("[data-close]").focus();
-
-  const close = () => { closeSheet(); opener?.focus?.(); };
-  back.addEventListener("click", close);
-  sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  sheet.querySelector("[data-close]").addEventListener("click", close);
   sheet.querySelector("[data-go]").addEventListener("click", () => { close(); running ? stop() : start(id); });
   sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { close(); start(id, b.dataset.idea); }));
   const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
@@ -226,6 +215,121 @@ function openPillar(id) {
     toast(`Added ${formatTotal(min * 60000)} to ${p.name}.`);
   });
 }
+
+/* ---------- Catching a thought: write it down, and it becomes a star ---------- */
+
+const MAX_THOUGHT = 120;
+const starIcon = (kind, size = 16) => `<svg class="kstar k-${kind}" viewBox="-12 -12 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${sparkle(POINTS[kind], 10)}"/></svg>`;
+
+function openCatch() {
+  let kind = "kind", chosen = false;
+  const { sheet, close } = openSheet(`
+    <header class="sh-head"><div><h2 id="sheet-title">New thought</h2><p>Whatever's on your mind, in your own words.</p></div>${CLOSE}</header>
+    <form class="catchform">
+      <label for="thought" class="sr">Your thought</label>
+      <textarea id="thought" rows="3" maxlength="${MAX_THOUGHT}" placeholder="What's on your mind?" autofocus></textarea>
+      <h3>This feels like</h3>
+      <div class="chips kinds" role="group" aria-label="Kind of thought">${["kind", "worry", "want"].map((k) =>
+        `<button type="button" class="chip" data-kind="${k}" aria-pressed="${k === kind}">${starIcon(k)}${KIND_LABEL[k]}</button>`).join("")}</div>
+      <p class="hint" id="kind-hint">We'll guess from your words. Tap to change it.</p>
+      <button type="submit" class="primary" disabled>Add to my sky</button>
+    </form>`);
+  const form = sheet.querySelector("form"), box = sheet.querySelector("textarea"), go = form.querySelector(".primary");
+  const showKind = () => sheet.querySelectorAll("[data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+  box.addEventListener("input", () => {
+    go.disabled = !box.value.trim();
+    if (!chosen && box.value.trim()) { kind = guessKind(box.value); showKind(); }
+  });
+  sheet.querySelector(".kinds").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-kind]");
+    if (!b) return;
+    kind = b.dataset.kind; chosen = true; showKind();
+    sheet.querySelector("#kind-hint").textContent = "Got it.";
+  });
+  box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = box.value.trim().replace(/\s+/g, " ");
+    if (!text) return;
+    const echo = findSimilar(text, store.get().thoughts);
+    if (echo) return familiar(sheet, close, echo, text, kind);
+    close();
+    catchIt(text, kind);
+  });
+}
+
+function catchIt(text, kind) {
+  arriving = store.uid();
+  store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving);
+  toast(kind === "worry" ? "It's in your sky now. You don't have to hold it in your head."
+    : kind === "want" ? "It's in your sky. Something to grow towards." : "Kept. That one's worth remembering.");
+}
+
+// The same thought has come up before: offer to join it to that star instead of adding a new one.
+function familiar(sheet, close, echo, text, kind) {
+  const settled = echo.status === "settled";
+  sheet.innerHTML = `
+    <header class="sh-head"><div><h2 id="sheet-title">This feels familiar</h2><p>${settled ? "You've settled this one before." : "It's a lot like one already in your sky."}</p></div>${CLOSE}</header>
+    <figure class="quote k-${echo.kind}">
+      <figcaption>${starIcon(echo.kind, 14)}${KIND_LABEL[echo.kind]}</figcaption>
+      <blockquote>“${esc(echo.text)}”</blockquote>
+      <p class="meta">${cameUp(echo, now())}</p>
+    </figure>
+    <p class="soft">${echo.kind === "worry" ? "That's okay. It coming back just means it matters to you." : "Thoughts often come back around. That's normal."}</p>
+    <button type="button" class="primary" data-same autofocus>Yes, it's the same thought</button>
+    <button type="button" class="ghost wide" data-diff>No, it's a different one</button>`;
+  sheet.querySelector("[data-same]").focus();
+  sheet.querySelector("[data-same]").addEventListener("click", () => {
+    close();
+    store.thoughtCameBack(echo.id);
+    toast(settled ? "It's back in your sky. Look at what helped last time when you're ready." : "Added to that star. It's grown a little.");
+  });
+  sheet.querySelector("[data-diff]").addEventListener("click", () => { close(); catchIt(text, kind); });
+}
+
+/* ---------- A star: the thought it holds ---------- */
+
+function openStar(id) {
+  const t = store.get().thoughts.find((x) => x.id === id);
+  if (!t) return;
+  const { sheet, close } = openSheet(`
+    <header class="sh-head star-head"><div><p class="eyebrow k-${t.kind}">${starIcon(t.kind, 14)}${KIND_LABEL[t.kind]}</p></div>${CLOSE}</header>
+    <blockquote class="big-quote" id="sheet-title">“${esc(t.text)}”</blockquote>
+    <p class="meta">${cameUp(t, now())}</p>
+    <p class="hint later">You'll sort it and decide what to do with it at your weekly reflection.</p>
+    <button type="button" class="link" data-remove>Remove this star</button>`);
+  const rm = sheet.querySelector("[data-remove]");
+  rm.addEventListener("click", () => {
+    if (rm.dataset.sure) { close(); store.removeThought(id); return toast("Removed."); }
+    rm.dataset.sure = "1";
+    rm.textContent = "Tap again to remove it for good";
+  });
+}
+
+// A sheet rises from the bottom over a dimmed screen. Tapping outside, the close button or Escape puts it away.
+function openSheet(html, tint) {
+  closeSheet();
+  const opener = document.activeElement;
+  const back = document.createElement("div");
+  back.className = "sheet-back";
+  const sheet = document.createElement("section");
+  sheet.className = "sheet";
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-labelledby", "sheet-title");
+  if (tint) sheet.style.setProperty("--c", tint);
+  sheet.innerHTML = html;
+  document.body.append(back, sheet);
+  requestAnimationFrame(() => { back.classList.add("in"); sheet.classList.add("in"); });
+  const close = () => { closeSheet(); opener?.focus?.(); };
+  back.addEventListener("click", close);
+  sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) close(); });
+  (sheet.querySelector("[autofocus]") ?? sheet.querySelector("[data-close]"))?.focus();
+  return { sheet, close };
+}
+
+const CLOSE = `<button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
 
 function closeSheet() {
   document.querySelectorAll(".sheet, .sheet-back").forEach((el) => el.remove());

@@ -85,16 +85,22 @@ export function placeStar(existing = []) {
   return { x: Math.random(), y: 0.2 + Math.random() * 0.4 };
 }
 
-function star(t, i) {
+// A star for a thought. `arriving` marks one just caught: it floats up from the button and settles into place.
+function star(t, i, arriving) {
   const r = 1.4 + Math.min(t.count - 1, 4) * 0.7, big = t.count > 1, x = t.x * W, y = t.y * H;
   const R = big ? r * 1.35 + .6 : r * .9 + .9;
-  return `<g class="tw" style="--d:${(7 + (i * 1.7) % 6).toFixed(1)}s;--dd:${(18 + (i * 3.1) % 12).toFixed(1)}s;animation-delay:-${(i * 1.3) % 9}s,-${(i * 2.7) % 20}s">
-    <title>${t.kind === "worry" ? "A worry" : t.kind === "want" ? "A want" : "A kind thought"}</title>
+  const kind = t.kind === "worry" ? "A worry" : t.kind === "want" ? "A want" : "A kind thought";
+  const times = t.count > 1 ? `, came up ${t.count} times` : "";
+  const body = `<g class="tw" style="--d:${(7 + (i * 1.7) % 6).toFixed(1)}s;--dd:${(18 + (i * 3.1) % 12).toFixed(1)}s;animation-delay:-${(i * 1.3) % 9}s,-${(i * 2.7) % 20}s">
     <circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 1.3)}" fill="${GLOW[t.kind]}" opacity="${big ? .26 : .12}" filter="url(#soft)"/>
-    <path transform="translate(${f2(x)},${f2(y)})" d="${sparkle(POINTS[t.kind], R)}" fill="${TINT[t.kind]}"/></g>`;
+    <path transform="translate(${f2(x)},${f2(y)})" d="${sparkle(POINTS[t.kind], R)}" fill="${TINT[t.kind]}"/></g>
+    <circle class="hit" data-star="${t.id}" role="button" tabindex="0" aria-label="${kind}: “${esc(t.text)}”${times}" cx="${f2(x)}" cy="${f2(y)}" r="17" fill="transparent"/>`;
+  if (t.id !== arriving) return body;
+  const ring = `<circle class="burst" cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 3)}" fill="none" stroke="${TINT[t.kind]}" stroke-width=".8"/>`;
+  return `<g class="arrive" style="--dx:${f2(CX - x)}px;--dy:${f2(H * 0.9 - y)}px">${body}</g>${ring}`;
 }
 
-export function renderSky({ pillars, thoughts, runningId }) {
+export function renderSky({ pillars, thoughts, runningId, arriving }) {
   const n = pillars.length;
   const orbits = pillars.map((p, i) => orbit(i, n));
   const defs = `<defs>
@@ -111,7 +117,7 @@ export function renderSky({ pillars, thoughts, runningId }) {
     <filter id="wide" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="16"/></filter></defs>`;
   const base = `<rect width="${W}" height="${H}" fill="url(#bg)"/><g mask="url(#neb)"><rect width="${W}" height="${H}" filter="url(#cloud)" opacity=".75"/><rect width="${W}" height="${H}" filter="url(#cloud2)" opacity=".22"/></g>`;
   const rings = orbits.map((o) => `<path d="${ellipse(o)}" fill="none" stroke="${INK}" stroke-opacity=".07" stroke-width=".8"/>`).join("");
-  const stars = thoughts.filter((t) => t.status === "active").map(star).join("");
+  const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving)).join("");
   const sun = `<circle cx="${CX}" cy="${CY}" r="34" fill="${SUN}" opacity=".22" filter="url(#wide)"/><circle cx="${CX}" cy="${CY}" r="7" fill="${SUN}" opacity=".6" filter="url(#soft)"/><circle cx="${CX}" cy="${CY}" r="4" fill="#fff8f0"/>`;
   // Orbits are timed from the wall clock, so redrawing the sky never makes a planet jump.
   // With reduced motion on, planets rest at a fixed point on their orbit and the timer glow holds still.
@@ -130,7 +136,7 @@ export function renderSky({ pillars, thoughts, runningId }) {
     const hit = `<rect class="hit" data-planet="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}: ideas and add time" x="-30" y="-22" width="60" height="${f2(o.size + 44)}" rx="12" fill="transparent"/>`;
     return `<g${at(o)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="0" y="${f2(o.size + 16.5)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}${move(o)}</g>`;
   }).join("");
-  const grain = `<rect width="${W}" height="${H}" filter="url(#grain)" opacity=".07"/>`;
+  const grain = `<rect width="${W}" height="${H}" filter="url(#grain)" opacity=".07" pointer-events="none"/>`;
   return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${sun}${planets}${tags}${grain}</svg>`;
 }
 

@@ -20,9 +20,9 @@ body {
   font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
-button, input { font: inherit; color: inherit; }
+button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; }
-button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 #app { position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden; }
@@ -124,7 +124,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .sheet-back.in { opacity: 1; }
 .sheet.in { transform: none; }
 .sh-head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.sh-head svg { width: 44px; height: 44px; overflow: visible; flex: none; }
+.sh-head > svg { width: 44px; height: 44px; overflow: visible; flex: none; }
 .sh-head div { flex: 1; min-width: 0; }
 .sh-head h2 { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.2; }
 .sh-head p { margin: 2px 0 0; font-size: 15px; color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -137,10 +137,42 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .manual legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .manual .primary { margin-top: 8px; }
 
+/* ---------- Thoughts ---------- */
+.kstar { flex: none; }
+.k-kind { --k: #fff3e2; } .k-worry { --k: #ffd6c8; } .k-want { --k: #dbe8ff; }
+.kstar path { fill: var(--k); }
+.kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kinds .chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px; font-size: 14px; white-space: nowrap; }
+.kinds .chip .kstar { opacity: .7; }
+.kinds .chip[aria-pressed="true"] .kstar { opacity: 1; }
+.catchform textarea:focus { outline: 2px solid color-mix(in srgb, var(--gold) 55%, transparent); outline-offset: 0; }
+.catchform textarea {
+  display: block; width: 100%; resize: none; border: 0; border-radius: 12px; padding: 16px;
+  background: var(--glass); font-size: 20px; line-height: 1.35; color: var(--ink);
+}
+.catchform textarea::placeholder { color: var(--dim); }
+.catchform .primary { margin-top: 24px; }
+.sh-head p.eyebrow, .quote figcaption { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 600; color: var(--k); }
+.star-head { margin-bottom: 8px; }
+.big-quote { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.3; text-wrap: pretty; }
+.meta { margin: 8px 0 0; font-size: 15px; color: var(--dim); }
+.later { margin-top: 24px !important; }
+.quote { margin: 0; padding: 16px; border-radius: 16px; background: var(--glass); display: flex; flex-direction: column; gap: 8px; }
+.quote blockquote { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; }
+.quote .meta { margin: 0; }
+.soft { margin: 16px 0 24px; font-size: 16px; color: var(--ink-2); }
+.ghost.wide { width: 100%; height: 52px; margin-top: 8px; }
+
+/* A thought just caught floats up from the button, then a soft ring opens where it lands. */
+.arrive { animation: arrive 1.6s cubic-bezier(.22, .8, .3, 1) both; }
+@keyframes arrive { from { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: 0; } 15% { opacity: 1; } }
+.burst { opacity: 0; animation: burst 1.4s ease-out 1.1s; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+@keyframes burst { 0% { opacity: .6; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.2); } }
+
 /* ---------- Toast and test mode ---------- */
 .toast {
   position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 112px); transform: translateX(-50%);
-  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 14px; z-index: 40;
+  width: max-content; max-width: min(300px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 14px; z-index: 40;
   background: rgba(36, 38, 43, .92); color: var(--ink); font-size: 15px; text-align: center;
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
@@ -175,6 +207,6 @@ button:active:not(:disabled) { transform: scale(.96); }
 @media (prefers-reduced-motion: reduce) {
   .tw, .wob { animation: none }
   .sheet, .sheet-back, .sky-wrap::after, button, .toast { transition: none }
-  .running.enter, .running.leave, .toast { animation: none }
+  .running.enter, .running.leave, .toast, .arrive, .burst { animation: none }
   button:active:not(:disabled) { transform: none }
 }

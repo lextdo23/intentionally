@@ -21,5 +21,6 @@ Add `?test` to the end of the link, or tap the greeting at the top of the home s
 
 1. Groundwork: welcome and pillar picking, the home sky, one-tap timers, test mode, installable and offline.
 2. Timers: tap a planet in the sky for its card (start a timer, ideas to start from, add time you forgot to track), and a calm running-timer view with a Stop button. Timers under a minute aren't kept.
+3. New thought: tap the gold star, type a thought (its kind is guessed from the words, one tap to change), and it floats up into the sky as a star. A thought much like one already caught offers to join that star, which grows. Tap a star to read it, or remove it.
 
 The full plan lives in the "Intentionally: what we're building" doc.
