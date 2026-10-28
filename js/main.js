@@ -1,7 +1,7 @@
 import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
 import { renderSky, fitTags, startSpin, planet, sparkle, placeStar, esc } from "./sky.js";
-import { TINTS, SUGGESTED, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
+import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
 const app = document.getElementById("app");
 const params = new URLSearchParams(location.search);
@@ -70,13 +70,18 @@ function renderWelcome() {
 function renderHome(s) {
   const active = s.thoughts.filter((t) => t.status === "active").length;
   const sub = active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
-  app.innerHTML = `<section class="home">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: s.running?.pillarId })}</div>
+  const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
+  app.innerHTML = `<section class="home ${run ? "timing" : ""}">
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id })}</div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
+    ${run ? `<div class="running" style="--c:${run.tint}">
+      <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
+      <p class="big" data-run aria-label="Time so far"></p>
+      <button type="button" class="stop" id="stop">Stop</button></div>` : ""}
     <nav class="dock" aria-label="Your pillars and actions">
       <div class="pillars">${s.pillars.map((p, i) => `
-        <button type="button" class="pl ${s.running?.pillarId === p.id ? "run" : ""}" data-timer="${p.id}" style="--c:${p.tint}"
-          aria-label="${esc(p.name)}: ${s.running?.pillarId === p.id ? "timer running, tap to stop" : "tap to start a timer"}">
+        <button type="button" class="pl ${run?.id === p.id ? "run" : ""}" data-timer="${p.id}" style="--c:${p.tint}"
+          aria-label="${esc(p.name)}: ${run?.id === p.id ? "timer running, tap to stop" : "tap to start a timer"}">
           <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("dock", i, 8, p.tint)}</svg>
           <b>${esc(p.name)}</b><small data-time="${p.id}"></small></button>`).join("")}
       </div>
@@ -90,25 +95,115 @@ function renderHome(s) {
   startSpin(app);
   tick();
   app.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
-    const p = store.get().pillars.find((x) => x.id === b.dataset.timer);
-    const starting = store.get().running?.pillarId !== p.id;
-    store.toggleTimer(p.id);
-    toast(starting ? `Timing ${p.name}. Tap again to stop.` : `${p.name} timer stopped.`);
+    const id = b.dataset.timer;
+    if (store.get().running?.pillarId === id) stopped(store.stopTimer());
+    else start(id);
   }));
+  app.querySelector("#stop")?.addEventListener("click", () => stopped(store.stopTimer()));
+  // Planets in the sky open their card: ideas, and adding time by hand.
+  app.querySelectorAll("[data-planet]").forEach((el) => {
+    el.addEventListener("click", () => openPillar(el.dataset.planet));
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPillar(el.dataset.planet); } });
+  });
   app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));
   let taps = 0;
   app.querySelector("#greet").addEventListener("click", () => { if (++taps >= 5) { taps = 0; testMode = true; renderTestPanel(); } });
 }
 
-// Only the time labels change every second; the sky is left alone so its motion stays smooth.
+function start(pillarId, activity) {
+  const before = store.get().running;
+  const ran = store.startTimer(pillarId, activity);
+  if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
+}
+
+function stopped(ms) {
+  const name = pillarName(store.get().sessions.at(-1)?.pillarId);
+  toast(ms >= 60000 ? `Logged ${formatTotal(ms)} to ${name}.` : "Stopped. Under a minute, so it wasn't kept.");
+}
+
+const pillarName = (id) => store.get().pillars.find((p) => p.id === id)?.name ?? "";
+
+// Only the times change every second; the sky is left alone so its motion stays smooth.
 function tick() {
   const s = store.get(), from = weekStart();
   app.querySelectorAll("[data-time]").forEach((el) => {
     const id = el.dataset.time, run = s.running?.pillarId === id;
     el.textContent = run ? formatRunning(now() - s.running.start) : formatTotal(store.timeSince(id, from));
   });
+  const big = app.querySelector("[data-run]");
+  if (big && s.running) big.textContent = formatRunning(now() - s.running.start);
+  const sheetTime = document.querySelector("[data-week]");
+  if (sheetTime) sheetTime.textContent = formatTotal(store.timeSince(sheetTime.dataset.week, from));
 }
 setInterval(tick, 1000);
+
+/* ---------- A pillar's card: start a timer, pick an idea, or add time you forgot to track ---------- */
+
+function openPillar(id) {
+  closeSheet();
+  const s = store.get(), i = s.pillars.findIndex((p) => p.id === id), p = s.pillars[i];
+  if (!p) return;
+  const running = s.running?.pillarId === id, ideas = ACTIVITIES[p.name] ?? [];
+  const opener = document.activeElement;
+  const back = document.createElement("div");
+  back.className = "sheet-back";
+  const sheet = document.createElement("section");
+  sheet.className = "sheet";
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-labelledby", "sheet-title");
+  sheet.style.setProperty("--c", p.tint);
+  sheet.innerHTML = `
+    <header class="sh-head">
+      <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("sheet", i, 11, p.tint)}</svg>
+      <div><h2 id="sheet-title">${esc(p.name)}</h2><p>This week <span data-week="${id}"></span></p></div>
+      <button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
+    ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
+    <div class="chips">${ideas.map((a) => `<button type="button" class="chip" data-idea="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}
+    <button type="button" class="link" data-manual aria-expanded="false">Forgot to start a timer? Add time</button>
+    <form class="manual" hidden>
+      <fieldset><legend>How long?</legend><div class="chips">${[15, 30, 45, 60, 90].map((m, k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 1}">${formatTotal(m * 60000)}</button>`).join("")}</div></fieldset>
+      <fieldset><legend>When?</legend><div class="chips">${["Today", "Yesterday"].map((d, k) => `<button type="button" class="chip" data-ago="${k}" aria-pressed="${k === 0}">${d}</button>`).join("")}</div></fieldset>
+      <button type="submit" class="primary">Add time</button>
+    </form>`;
+  document.body.append(back, sheet);
+  startSpin(document.body);
+  tick();
+  requestAnimationFrame(() => { back.classList.add("in"); sheet.classList.add("in"); });
+  sheet.querySelector("[data-close]").focus();
+
+  const close = () => { closeSheet(); opener?.focus?.(); };
+  back.addEventListener("click", close);
+  sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  sheet.querySelector("[data-close]").addEventListener("click", close);
+  sheet.querySelector("[data-go]").addEventListener("click", () => { close(); running ? stopped(store.stopTimer()) : start(id); });
+  sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { close(); start(id, b.dataset.idea); }));
+  const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
+  toggle.addEventListener("click", () => {
+    form.hidden = !form.hidden;
+    toggle.setAttribute("aria-expanded", String(!form.hidden));
+    if (!form.hidden) form.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+  form.querySelectorAll(".chips").forEach((g) => g.addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (!b) return;
+    g.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
+  }));
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const min = +form.querySelector("[data-min][aria-pressed=true]").dataset.min;
+    const ago = +form.querySelector("[data-ago][aria-pressed=true]").dataset.ago;
+    store.addTime(id, min, ago);
+    close();
+    toast(`Added ${formatTotal(min * 60000)} to ${p.name}.`);
+  });
+}
+
+function closeSheet() {
+  document.querySelectorAll(".sheet, .sheet-back").forEach((el) => el.remove());
+}
 
 /* ---------- Test mode: example data and time travel, for checking weeks and seasons quickly ---------- */
 

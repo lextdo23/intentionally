@@ -10,8 +10,8 @@ const fresh = () => ({
   createdAt: now(),
   name: "",
   pillars: [],      // { id, name, tint, focus }
-  sessions: [],     // finished timers: { pillarId, start, end }
-  running: null,    // the one timer allowed at a time: { pillarId, start }
+  sessions: [],     // finished timers: { pillarId, start, end, activity?, manual? }
+  running: null,    // the one timer allowed at a time: { pillarId, start, activity? }
   thoughts: [],     // { id, text, kind: "kind"|"worry"|"want", pillarId, status: "active"|"settled"|"let-go",
                     //   count, x, y, createdAt, helped: [{ text, at }] }
   season: null,     // { name, startedAt } once seasons have opened up
@@ -56,11 +56,39 @@ export function reset() {
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 // Timers: starting one stops whichever was running, so only one ever runs.
-export function toggleTimer(pillarId) {
+// Anything under a minute is treated as a mis-tap and not kept.
+const MIN_SESSION = 60000;
+
+function finish(s) {
+  const r = s.running;
+  if (!r) return 0;
+  const ms = now() - r.start;
+  if (ms >= MIN_SESSION) s.sessions.push({ pillarId: r.pillarId, start: r.start, end: now(), ...(r.activity && { activity: r.activity }) });
+  s.running = null;
+  return ms;
+}
+
+// Returns how long the stopped timer ran (0 if none), so the screen can say what was logged.
+export function startTimer(pillarId, activity) {
+  let stopped = 0;
   update((s) => {
-    const was = s.running;
-    if (was) s.sessions.push({ pillarId: was.pillarId, start: was.start, end: now() });
-    s.running = was && was.pillarId === pillarId ? null : { pillarId, start: now() };
+    stopped = finish(s);
+    s.running = { pillarId, start: now(), ...(activity && { activity }) };
+  });
+  return stopped;
+}
+
+export function stopTimer() {
+  let stopped = 0;
+  update((s) => { stopped = finish(s); });
+  return stopped;
+}
+
+// For time given without a timer running: ends now (or `daysAgo` days back) and lasts `minutes`.
+export function addTime(pillarId, minutes, daysAgo = 0) {
+  update((s) => {
+    const end = now() - daysAgo * 86400000;
+    s.sessions.push({ pillarId, start: end - minutes * 60000, end, manual: true });
   });
 }
 

@@ -4,6 +4,22 @@ export const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9"];
 
 export const SUGGESTED = ["Friends", "Family", "Health", "Rest", "Career", "Study", "Creativity", "Money", "Home", "Love", "Fun", "Purpose"];
 
+// A few gentle ideas per suggested pillar, shown when you tap its planet. Pillars people name themselves have none.
+export const ACTIVITIES = {
+  Friends: ["Message someone", "Call a friend", "Catch up in person", "Plan something"],
+  Family: ["Call home", "Visit", "Share a meal", "Send a photo"],
+  Health: ["Walk", "Stretch", "Exercise", "Cook something good"],
+  Rest: ["Nap", "Read for fun", "Bath or shower", "Sit outside"],
+  Career: ["Focused work", "Learn a skill", "Update my CV", "Plan my week"],
+  Study: ["Study session", "Revise notes", "Assignment work", "Read"],
+  Creativity: ["Draw", "Write", "Make music", "Try something new"],
+  Money: ["Check my budget", "Pay bills", "Plan savings", "Sell something"],
+  Home: ["Tidy one space", "Laundry", "Cook", "Fix something"],
+  Love: ["Quality time", "Date", "Write a note", "Talk properly"],
+  Fun: ["Game", "Watch something", "Go out", "Play"],
+  Purpose: ["Volunteer", "Journal", "Think about goals", "Help someone"],
+};
+
 export const MIN_PILLARS = 3, MAX_PILLARS = 5, MAX_NAME = 12;
 
 // Orbit for the pillar at position i of n: inner planets orbit faster, outer ones slower.

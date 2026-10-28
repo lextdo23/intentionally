@@ -24,12 +24,12 @@ export function greeting(t = now()) {
   return "Good evening";
 }
 
-// 40m, 1h 10, or a running clock like 12:40.
+// 40m, 1h, 1h 10, or a running clock like 12:40.
 export function formatTotal(ms) {
   const m = Math.floor(ms / 60000);
   if (m < 1) return "–";
   if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}`;
+  return m % 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}` : `${m / 60}h`;
 }
 
 export function formatRunning(ms) {

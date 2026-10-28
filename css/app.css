@@ -89,10 +89,53 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 .dot svg { width: 24px; height: 24px; fill: currentColor; }
 .lab { font-size: 11px; color: color-mix(in srgb, var(--ink) 50%, transparent); white-space: nowrap; margin-top: 1px; }
 
+/* A timer running: the sky steps back and the time takes the focus. Only the running planet glows. */
+.sky-wrap::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s ease;
+  background: linear-gradient(transparent 25%, rgba(8, 9, 10, .55) 70%); }
+.timing .sky-wrap::after { opacity: 1; }
+.running {
+  position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 244px);
+  display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 var(--edge);
+}
+.running p { margin: 0; }
+.rl { font-size: 15px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 8px; }
+.rl i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.big { font-size: 56px; font-weight: 300; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin: 4px 0 16px !important; }
+.stop { min-height: 44px; padding: 0 24px; border-radius: 14px; background: rgba(255, 255, 255, .08); font-size: 15px; font-weight: 500; }
+
+/* The sky's planets can be tapped (and reached by keyboard) to open their card. */
+.hit { cursor: pointer; outline: none; }
+.hit:focus-visible { stroke: var(--gold); stroke-width: 1.5; }
+
+/* ---------- A pillar's card: a sheet from the bottom ---------- */
+.sheet-back { position: fixed; inset: 0; z-index: 30; background: rgba(8, 9, 10, .55); opacity: 0; transition: opacity .25s ease; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; max-width: 520px; margin: 0 auto;
+  max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 24px var(--edge) calc(env(safe-area-inset-bottom, 0px) + 24px);
+  border-radius: 26px 26px 0 0; background: #1c1d21;
+  transform: translateY(100%); transition: transform .32s cubic-bezier(.2, .8, .3, 1);
+}
+.sheet-back.in { opacity: 1; }
+.sheet.in { transform: none; }
+.sh-head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.sh-head svg { width: 44px; height: 44px; overflow: visible; flex: none; }
+.sh-head div { flex: 1; min-width: 0; }
+.sh-head h2 { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.2; }
+.sh-head p { margin: 2px 0 0; font-size: 15px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.x { width: 44px; height: 44px; margin-right: -10px; border-radius: 50%; display: grid; place-items: center; color: var(--dim); flex: none; }
+.x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.sheet h3 { margin: 24px 0 0; font-size: 15px; font-weight: 600; }
+.sheet .hint { margin: 2px 0 8px; font-size: 13px; color: var(--dim); }
+.link { display: block; min-height: 44px; margin-top: 16px; font-size: 15px; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; text-align: left; }
+.manual fieldset { border: 0; padding: 0; margin: 8px 0 16px; }
+.manual legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.manual .primary { margin-top: 8px; }
+
 /* ---------- Toast and test mode ---------- */
 .toast {
-  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 224px); transform: translateX(-50%);
-  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 14px; z-index: 20;
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 112px); transform: translateX(-50%);
+  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 14px; z-index: 40;
   background: rgba(36, 38, 43, .92); color: var(--ink); font-size: 15px; text-align: center;
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
@@ -115,4 +158,5 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 @keyframes wob { 0%, 100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }
 @media (prefers-reduced-motion: reduce) {
   .tw, .wob { animation: none }
+  .sheet, .sheet-back, .sky-wrap::after { transition: none }
 }
