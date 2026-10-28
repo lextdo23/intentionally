@@ -84,7 +84,7 @@ function renderWelcome() {
 // Which timer the screen showed last time, so the running view only animates in when a timer has just started.
 let shownRunning = null;
 // A thought caught a moment ago, so its star floats up the next time the sky is drawn.
-let arriving = null;
+let arriving = null, arriveFrom = null;
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function renderHome(s) {
@@ -94,7 +94,7 @@ function renderHome(s) {
   const was = shownRunning, starting = run && was !== run.id, ending = !run && was;
   shownRunning = run?.id ?? null;
   app.innerHTML = `<section class="home ${run && !starting || ending ? "timing" : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, labels: s.test.labels })}</div>
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels })}</div><div class="seam"></div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
@@ -128,7 +128,7 @@ function renderHome(s) {
     else start(id);
   }));
   app.querySelector("#stop")?.addEventListener("click", stop);
-  arriving = null;
+  arriving = arriveFrom = null;
   // Planets in the sky open their card (ideas, adding time by hand); stars open the thought they hold.
   const tappable = (sel, key, open) => app.querySelectorAll(sel).forEach((el) => {
     el.addEventListener("click", () => open(el.dataset[key]));
@@ -270,31 +270,38 @@ function openCatch() {
       <div class="cc-row">
         <div class="kindpick"></div>
         <button type="submit" class="send" aria-label="Add to my sky" disabled>${ICON.star}</button>
-      </div></form>`;
+      </div>
+      <div class="kfold"><div><div class="klist" role="radiogroup" aria-label="What kind of thought">${["kind", "worry", "want"].map((k) =>
+        `<button type="button" class="kopt k-${k}" role="radio" data-kind="${k}" aria-checked="false" tabindex="-1">${starIcon(k, 14)}${KIND_LABEL[k]}</button>`).join("")}</div></div></div></form>`;
     const form = card.querySelector("form"), box = card.querySelector("textarea"), go = card.querySelector(".send"), pick = card.querySelector(".kindpick");
+    const fold = card.querySelector(".kfold"), opts = [...card.querySelectorAll(".kopt")];
     unzoom(box, { font: 19, padY: 0, padX: 0, radius: 0 });
-    // One quiet line: our guess. Tapped, it opens into the three choices; choosing closes it again.
+    // One quiet line: our guess. Tapped, the three kinds unfold underneath; choosing one folds them away.
     const showGuess = () => {
-      pick.innerHTML = box.value.trim() ? `<button type="button" class="guess" aria-label="Kind: ${KIND_LABEL[kind]}. Tap to change.">${starIcon(kind, 13)}${KIND_LABEL[kind]}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>` : "";
+      pick.innerHTML = box.value.trim() ? `<button type="button" class="guess" aria-expanded="${fold.classList.contains("open")}" aria-label="Kind: ${KIND_LABEL[kind]}. Tap to change.">${starIcon(kind, 13)}${KIND_LABEL[kind]}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>` : "";
+      opts.forEach((o) => o.setAttribute("aria-checked", o.dataset.kind === kind));
     };
-    pick.addEventListener("click", (e) => {
-      const b = e.target.closest("button");
+    const unfold = (open) => {
+      fold.classList.toggle("open", open);
+      opts.forEach((o) => { o.tabIndex = open ? 0 : -1; });
+      pick.querySelector(".guess")?.setAttribute("aria-expanded", open);
+    };
+    pick.addEventListener("click", (e) => { if (e.target.closest(".guess")) unfold(!fold.classList.contains("open")); });
+    fold.addEventListener("click", (e) => {
+      const b = e.target.closest(".kopt");
       if (!b) return;
-      if (b.classList.contains("guess")) {
-        form.classList.add("choosing");
-        pick.innerHTML = ["kind", "worry", "want"].map((k) => `<button type="button" class="opt" data-kind="${k}" aria-pressed="${k === kind}">${starIcon(k, 13)}${KIND_LABEL[k]}</button>`).join("");
-        return pick.querySelector("[aria-pressed=true]").focus();
-      }
       kind = b.dataset.kind; chosen = true;
-      form.classList.remove("choosing");
       showGuess();
-      box.focus();
+      pick.querySelector(".guess")?.setAttribute("aria-expanded", true);
+      // A moment to see the choice land, then fold away and carry on writing.
+      setTimeout(() => { unfold(false); box.focus(); }, 220);
     });
     box.value = draft;
     const changed = () => {
       go.disabled = !box.value.trim();
       if (!chosen && box.value.trim()) kind = guessKind(box.value);
-      if (!pick.querySelector(".opt")) showGuess();
+      if (!box.value.trim()) unfold(false);
+      showGuess();
     };
     changed();
     box.addEventListener("input", changed);
@@ -306,8 +313,7 @@ function openCatch() {
       const echo = findSimilar(text, store.get().thoughts);
       if (echo) return familiar(echo, text);
       draft = "";
-      closeSheet();
-      catchIt(text, kind);
+      launch(go, () => catchIt(text, kind, go));
     });
     box.focus();
   };
@@ -327,17 +333,32 @@ function openCatch() {
       store.thoughtCameBack(echo.id);
       toast(settled ? "It's back in your sky. Look at what helped last time when you're ready." : "Added to that star. It's grown a little.");
     });
-    card.querySelector("[data-diff]").addEventListener("click", () => { draft = ""; closeSheet(); catchIt(text, kind); });
+    const diff = card.querySelector("[data-diff]");
+    diff.addEventListener("click", () => { draft = ""; launch(diff, () => catchIt(text, kind, diff)); });
   };
 
   write();
 }
 
-function catchIt(text, kind) {
+// The card lifts away while the new star leaves the button that added it.
+function launch(button, add) {
+  button.classList.add("press");
+  document.querySelectorAll(".sheet, .sheet-back").forEach((el) => { el.classList.add("out"); el.unwatch?.(); });
+  document.activeElement?.blur?.();
+  add();
+  setTimeout(closeSheet, 600);
+}
+
+// No message: the star finding its place in the sky says it.
+function catchIt(text, kind, button) {
   arriving = store.uid();
+  arriveFrom = null;
+  const svg = document.querySelector("svg.sky"), b = button?.getBoundingClientRect();
+  if (svg && b) {
+    const p = new DOMPoint(b.left + b.width / 2, b.top + b.height / 2).matrixTransform(svg.getScreenCTM().inverse());
+    arriveFrom = { x: p.x, y: p.y };
+  }
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving);
-  toast(kind === "worry" ? "It's in your sky now. You don't have to hold it in your head."
-    : kind === "want" ? "It's in your sky. Something to grow towards." : "Kept. That one's worth remembering.");
 }
 
 /* ---------- A star: the thought it holds ---------- */

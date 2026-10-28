@@ -85,8 +85,18 @@ export function placeStar(existing = []) {
   return { x: Math.random(), y: 0.2 + Math.random() * 0.4 };
 }
 
-// A star for a thought. `arriving` marks one just caught: it floats up from the button and settles into place.
-function star(t, i, arriving) {
+// Each star wanders slowly about its spot, on its own path. Timed from the wall clock, like the orbits,
+// so redrawing the sky never makes a star jump.
+function wander(i) {
+  const a = i * 2.39996, r = 9 + (i * 5) % 6, period = 48 + (i * 13) % 34;
+  const w = (k, s) => f2(Math.cos(a + k) * r * s), v = (k, s) => f2(Math.sin(a + k) * r * s);
+  return `--wx1:${w(0, 1)}px;--wy1:${v(0, .8)}px;--wx2:${w(2.1, .7)}px;--wy2:${v(2.1, 1)}px;--wx3:${w(4.2, .9)}px;--wy3:${v(4.2, .6)}px;` +
+    `--wp:${period}s;animation-delay:-${f2((Date.now() / 1000 + i * 7.7) % period)}s`;
+}
+
+// A star for a thought. `arriving` marks one just caught: it lifts out of the gold button it was added with
+// (`from`, in sky units) and drifts down into place.
+function star(t, i, arriving, from) {
   const r = 1.4 + Math.min(t.count - 1, 4) * 0.7, big = t.count > 1, x = t.x * W, y = t.y * H;
   const R = big ? r * 1.35 + .6 : r * .9 + .9;
   const kind = t.kind === "worry" ? "A worry" : t.kind === "want" ? "A want" : "A kind thought";
@@ -95,12 +105,14 @@ function star(t, i, arriving) {
     <circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 1.3)}" fill="${GLOW[t.kind]}" opacity="${big ? .26 : .12}" filter="url(#soft)"/>
     <path transform="translate(${f2(x)},${f2(y)})" d="${sparkle(POINTS[t.kind], R)}" fill="${TINT[t.kind]}"/></g>
     <circle class="hit" data-star="${t.id}" role="button" tabindex="0" aria-label="${kind}: “${esc(t.text)}”${times}" cx="${f2(x)}" cy="${f2(y)}" r="17" fill="transparent"/>`;
-  if (t.id !== arriving) return body;
+  const roam = `<g class="wander" style="${wander(i)}">${body}</g>`;
+  if (t.id !== arriving) return roam;
+  const o = from || { x: CX, y: H * 0.9 };
   const ring = `<circle class="burst" cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 3)}" fill="none" stroke="${TINT[t.kind]}" stroke-width=".8"/>`;
-  return `<g class="arrive" style="--dx:${f2(CX - x)}px;--dy:${f2(H * 0.9 - y)}px">${body}</g>${ring}`;
+  return `<g class="arrive" style="--dx:${f2(o.x - x)}px;--dy:${f2(o.y - y)}px">${roam}</g>${ring}`;
 }
 
-export function renderSky({ pillars, thoughts, runningId, arriving, labels }) {
+export function renderSky({ pillars, thoughts, runningId, arriving, from, labels }) {
   const n = pillars.length;
   const orbits = pillars.map((p, i) => orbit(i, n));
   const defs = `<defs>
@@ -110,7 +122,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, labels }) {
   // img/sky.jpg is rendered from the original drawing; see README for how to remake it.
   const base = `<image href="img/sky.jpg" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
   const rings = orbits.map((o) => `<path d="${ellipse(o)}" fill="none" stroke="${INK}" stroke-opacity=".07" stroke-width=".8"/>`).join("");
-  const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving)).join("");
+  const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving, from)).join("");
   const sun = `<circle cx="${CX}" cy="${CY}" r="34" fill="${SUN}" opacity=".22" filter="url(#wide)"/><circle cx="${CX}" cy="${CY}" r="7" fill="${SUN}" opacity=".6" filter="url(#soft)"/><circle cx="${CX}" cy="${CY}" r="4" fill="#fff8f0"/>`;
   // Orbits are timed from the wall clock, so redrawing the sky never makes a planet jump.
   // With reduced motion on, planets rest at a fixed point on their orbit and the timer glow holds still.
@@ -130,9 +142,9 @@ export function renderSky({ pillars, thoughts, runningId, arriving, labels }) {
     return `<g${at(o)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="0" y="${f2(o.size + 16.5)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}${move(o)}</g>`;
   }).join("");
   // Test-mode only for now: each star's words on a small tag beneath it, like a planet's name but quieter.
-  const words = labels ? thoughts.filter((t) => t.status === "active").map((t) => {
+  const words = labels ? thoughts.filter((t) => t.status === "active").map((t, i) => {
     const short = t.text.length > 20 ? t.text.slice(0, 19).trimEnd() + "…" : t.text;
-    return `<g class="ttag"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
+    return `<g class="ttag wander" style="${wander(i)}"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
   return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${words}${sun}${planets}${tags}</svg>`;
 }
