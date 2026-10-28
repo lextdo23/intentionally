@@ -14,11 +14,13 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+/* #0e0f11 is the colour of the sky picture's bottom edge. iPhone fills any strip it leaves below the app with the
+   page's own background, so html and body both use it and that strip reads as more sky. */
 html, body { height: 100%; overflow: hidden; background: #0e0f11; }
 /* The app is pinned to the screen like a native app: the page never scrolls or bounces. */
 body {
   position: fixed; inset: 0;
-  margin: 0; background: var(--bg-deep); color: var(--ink); font-family: var(--ui);
+  margin: 0; background: #0e0f11; color: var(--ink); font-family: var(--ui);
   font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
