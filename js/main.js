@@ -14,6 +14,9 @@ let zoom = 1;
 const fit = () => {
   zoom = Math.min(Math.max(innerWidth / 300, 1), 1.4);
   document.documentElement.style.setProperty("--z", zoom.toFixed(3));
+  // The whole phone screen's height: on iPhone the app's own area can stop short of the bottom edge,
+  // and the sky should still reach it.
+  document.documentElement.style.setProperty("--sh", `${screen.height}px`);
 };
 fit();
 addEventListener("resize", fit);
@@ -239,42 +242,95 @@ addEventListener("focusout", () => setTimeout(() => { if (!document.activeElemen
 const MAX_THOUGHT = 120;
 const starIcon = (kind, size = 16) => `<svg class="kstar k-${kind}" viewBox="-12 -12 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${sparkle(POINTS[kind], 10)}"/></svg>`;
 
+// A small card at the top of the screen, over the dimmed sky, so the keyboard only ever covers empty space.
+// Just your words, our guess at the kind (tap to change), and a gold button to add it. Closing keeps the draft.
+let draft = "";
+
 function openCatch() {
+  closeSheet();
   let kind = "kind", chosen = false;
-  const { sheet, close } = openSheet(`
-    <header class="sh-head"><div><h2 id="sheet-title">New thought</h2><p>Whatever's on your mind, in your own words.</p></div>${CLOSE}</header>
-    <form class="catchform">
+  const opener = document.activeElement;
+  const back = document.createElement("div");
+  back.className = "sheet-back light";
+  const card = document.createElement("section");
+  card.className = "sheet catchcard";
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  card.setAttribute("aria-label", "New thought");
+  document.body.append(back, card);
+  const close = () => { draft = card.querySelector("textarea")?.value ?? ""; closeSheet(); opener?.focus?.(); };
+  back.addEventListener("click", close);
+  card.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  requestAnimationFrame(() => { back.classList.add("in"); card.classList.add("in"); });
+
+  const write = () => {
+    card.innerHTML = `<form class="cc">
       <label for="thought" class="sr">Your thought</label>
-      <textarea id="thought" rows="2" maxlength="${MAX_THOUGHT}" placeholder="What's on your mind?" autofocus></textarea>
-      <h3>This feels like</h3>
-      <div class="chips kinds" role="group" aria-label="Kind of thought">${["kind", "worry", "want"].map((k) =>
-        `<button type="button" class="chip" data-kind="${k}" aria-pressed="${k === kind}">${starIcon(k)}${KIND_LABEL[k]}</button>`).join("")}</div>
-      <p class="hint" id="kind-hint">We'll guess from your words. Tap to change it.</p>
-      <button type="submit" class="primary" disabled>Add to my sky</button>
-    </form>`);
-  const form = sheet.querySelector("form"), box = sheet.querySelector("textarea"), go = form.querySelector(".primary");
-  unzoom(box, { font: 20, padY: 14, padX: 16, radius: 12 });
-  const showKind = () => sheet.querySelectorAll("[data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
-  box.addEventListener("input", () => {
-    go.disabled = !box.value.trim();
-    if (!chosen && box.value.trim()) { kind = guessKind(box.value); showKind(); }
-  });
-  sheet.querySelector(".kinds").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-kind]");
-    if (!b) return;
-    kind = b.dataset.kind; chosen = true; showKind();
-    sheet.querySelector("#kind-hint").textContent = "Got it.";
-  });
-  box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = box.value.trim().replace(/\s+/g, " ");
-    if (!text) return;
-    const echo = findSimilar(text, store.get().thoughts);
-    if (echo) return familiar(sheet, close, echo, text, kind);
-    close();
-    catchIt(text, kind);
-  });
+      <textarea id="thought" rows="2" maxlength="${MAX_THOUGHT}" placeholder="What's on your mind?" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" spellcheck="true"></textarea>
+      <div class="cc-row">
+        <div class="kindpick"></div>
+        <button type="submit" class="send" aria-label="Add to my sky" disabled>${ICON.star}</button>
+      </div></form>`;
+    const form = card.querySelector("form"), box = card.querySelector("textarea"), go = card.querySelector(".send"), pick = card.querySelector(".kindpick");
+    unzoom(box, { font: 19, padY: 0, padX: 0, radius: 0 });
+    // One quiet line: our guess. Tapped, it opens into the three choices; choosing closes it again.
+    const showGuess = () => {
+      pick.innerHTML = box.value.trim() ? `<button type="button" class="guess" aria-label="Kind: ${KIND_LABEL[kind]}. Tap to change.">${starIcon(kind, 13)}${KIND_LABEL[kind]}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>` : "";
+    };
+    pick.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.classList.contains("guess")) {
+        form.classList.add("choosing");
+        pick.innerHTML = ["kind", "worry", "want"].map((k) => `<button type="button" class="opt" data-kind="${k}" aria-pressed="${k === kind}">${starIcon(k, 13)}${KIND_LABEL[k]}</button>`).join("");
+        return pick.querySelector("[aria-pressed=true]").focus();
+      }
+      kind = b.dataset.kind; chosen = true;
+      form.classList.remove("choosing");
+      showGuess();
+      box.focus();
+    });
+    box.value = draft;
+    const changed = () => {
+      go.disabled = !box.value.trim();
+      if (!chosen && box.value.trim()) kind = guessKind(box.value);
+      if (!pick.querySelector(".opt")) showGuess();
+    };
+    changed();
+    box.addEventListener("input", changed);
+    box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = box.value.trim().replace(/\s+/g, " ");
+      if (!text) return;
+      const echo = findSimilar(text, store.get().thoughts);
+      if (echo) return familiar(echo, text);
+      draft = "";
+      closeSheet();
+      catchIt(text, kind);
+    });
+    box.focus();
+  };
+
+  // The same thought has come up before: offer to join it to that star instead of adding a new one.
+  const familiar = (echo, text) => {
+    const settled = echo.status === "settled";
+    card.innerHTML = `<div class="cc">
+      <p class="cc-eyebrow">This feels familiar</p>
+      <blockquote class="cc-quote k-${echo.kind}">${starIcon(echo.kind, 13)}<span>“${esc(echo.text)}”</span></blockquote>
+      <p class="cc-soft">${echo.kind === "worry" ? "That's okay. It coming back just means it matters to you." : settled ? "You've settled this one before." : "Thoughts often come back around."}</p>
+      <div class="cc-choices"><button type="button" class="ghost" data-diff>It's different</button><button type="button" class="pill-gold" data-same>Same thought</button></div></div>`;
+    card.querySelector("[data-same]").focus();
+    card.querySelector("[data-same]").addEventListener("click", () => {
+      draft = "";
+      closeSheet();
+      store.thoughtCameBack(echo.id);
+      toast(settled ? "It's back in your sky. Look at what helped last time when you're ready." : "Added to that star. It's grown a little.");
+    });
+    card.querySelector("[data-diff]").addEventListener("click", () => { draft = ""; closeSheet(); catchIt(text, kind); });
+  };
+
+  write();
 }
 
 function catchIt(text, kind) {
@@ -282,28 +338,6 @@ function catchIt(text, kind) {
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving);
   toast(kind === "worry" ? "It's in your sky now. You don't have to hold it in your head."
     : kind === "want" ? "It's in your sky. Something to grow towards." : "Kept. That one's worth remembering.");
-}
-
-// The same thought has come up before: offer to join it to that star instead of adding a new one.
-function familiar(sheet, close, echo, text, kind) {
-  const settled = echo.status === "settled";
-  sheet.innerHTML = `
-    <header class="sh-head"><div><h2 id="sheet-title">This feels familiar</h2><p>${settled ? "You've settled this one before." : "It's a lot like one already in your sky."}</p></div>${CLOSE}</header>
-    <figure class="quote k-${echo.kind}">
-      <figcaption>${starIcon(echo.kind, 14)}${KIND_LABEL[echo.kind]}</figcaption>
-      <blockquote>“${esc(echo.text)}”</blockquote>
-      <p class="meta">${cameUp(echo, now())}</p>
-    </figure>
-    <p class="soft">${echo.kind === "worry" ? "That's okay. It coming back just means it matters to you." : "Thoughts often come back around. That's normal."}</p>
-    <button type="button" class="primary" data-same autofocus>Yes, it's the same thought</button>
-    <button type="button" class="ghost wide" data-diff>No, it's a different one</button>`;
-  sheet.querySelector("[data-same]").focus();
-  sheet.querySelector("[data-same]").addEventListener("click", () => {
-    close();
-    store.thoughtCameBack(echo.id);
-    toast(settled ? "It's back in your sky. Look at what helped last time when you're ready." : "Added to that star. It's grown a little.");
-  });
-  sheet.querySelector("[data-diff]").addEventListener("click", () => { close(); catchIt(text, kind); });
 }
 
 /* ---------- A star: the thought it holds ---------- */

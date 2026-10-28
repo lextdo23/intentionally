@@ -4,7 +4,7 @@ import { orbit } from "./pillars.js";
 
 // The sky is drawn on a 300-wide canvas (the size the designs were made at) and stretched to fill the screen.
 const W = 300, H = 650, CX = W / 2, CY = H * 0.36;
-const BG = ["#24262b", "#141518", "#08090a"], SUN = "#f2c08f", INK = "#efede9";
+const SUN = "#f2c08f", INK = "#efede9";
 
 // Thought stars are soft sparkles; the number of points tells the kind apart.
 export const POINTS = { kind: 4, worry: 6, want: 8 };
@@ -104,18 +104,11 @@ export function renderSky({ pillars, thoughts, runningId, arriving }) {
   const n = pillars.length;
   const orbits = pillars.map((p, i) => orbit(i, n));
   const defs = `<defs>
-    <filter id="cloud" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.006 0.011" numOctaves="5" seed="4"/>
-      <feColorMatrix values="0 0 0 0 .40  0 0 0 0 .44  0 0 0 0 .52  1.9 0 0 0 -0.92"/><feGaussianBlur stdDeviation="1.2"/></filter>
-    <filter id="cloud2" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.009 0.014" numOctaves="4" seed="21"/>
-      <feColorMatrix values="0 0 0 0 .62  0 0 0 0 .52  0 0 0 0 .44  1.6 0 0 0 -0.9"/></filter>
-    <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="2"/>
-      <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .7 -.3"/></filter>
-    <radialGradient id="fade" cx="50%" cy="44%" r="62%"><stop offset="0" stop-color="#fff"/><stop offset=".7" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <mask id="neb"><rect width="${W}" height="${H}" fill="url(#fade)"/></mask>
-    <radialGradient id="bg" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="${BG[0]}"/><stop offset=".55" stop-color="${BG[1]}"/><stop offset="1" stop-color="${BG[2]}"/></radialGradient>
     <filter id="soft" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.4"/></filter>
     <filter id="wide" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="16"/></filter></defs>`;
-  const base = `<rect width="${W}" height="${H}" fill="url(#bg)"/><g mask="url(#neb)"><rect width="${W}" height="${H}" filter="url(#cloud)" opacity=".75"/><rect width="${W}" height="${H}" filter="url(#cloud2)" opacity=".22"/></g>`;
+  // The night itself (gradient, soft cloud and film grain) is a ready-made picture: drawing it live was slow on phones.
+  // img/sky.jpg is rendered from the original drawing; see README for how to remake it.
+  const base = `<image href="img/sky.jpg" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
   const rings = orbits.map((o) => `<path d="${ellipse(o)}" fill="none" stroke="${INK}" stroke-opacity=".07" stroke-width=".8"/>`).join("");
   const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving)).join("");
   const sun = `<circle cx="${CX}" cy="${CY}" r="34" fill="${SUN}" opacity=".22" filter="url(#wide)"/><circle cx="${CX}" cy="${CY}" r="7" fill="${SUN}" opacity=".6" filter="url(#soft)"/><circle cx="${CX}" cy="${CY}" r="4" fill="#fff8f0"/>`;
@@ -136,8 +129,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving }) {
     const hit = `<rect class="hit" data-planet="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}: ideas and add time" x="-30" y="-22" width="60" height="${f2(o.size + 44)}" rx="12" fill="transparent"/>`;
     return `<g${at(o)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="0" y="${f2(o.size + 16.5)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}${move(o)}</g>`;
   }).join("");
-  const grain = `<rect width="${W}" height="${H}" filter="url(#grain)" opacity=".07" pointer-events="none"/>`;
-  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${sun}${planets}${tags}${grain}</svg>`;
+  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${sun}${planets}${tags}</svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.
