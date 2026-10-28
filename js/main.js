@@ -9,11 +9,10 @@ const params = new URLSearchParams(location.search);
 let testMode = params.has("test");
 setOffsetDays(store.get().test.offsetDays);
 
-// Keep the approved proportions: everything was designed on a 300-wide screen.
-let zoom = 1;
+// Text and controls use Apple's own sizes at every screen width, so the app feels like the phone's other apps.
+// (Only the sky scales to fill the screen.) `zoom` stays at 1; it is kept so text fields and sheets still read it.
+const zoom = 1;
 const fit = () => {
-  zoom = Math.min(Math.max(innerWidth / 300, 1), 1.4);
-  document.documentElement.style.setProperty("--z", zoom.toFixed(3));
   // The whole phone screen's height: on iPhone the app's own area can stop short of the bottom edge,
   // and the sky should still reach it.
   document.documentElement.style.setProperty("--sh", `${screen.height}px`);
@@ -64,7 +63,7 @@ function renderWelcome() {
     else return toast(`You can pick up to ${MAX_PILLARS}.`);
     renderWelcome();
   }));
-  unzoom(app.querySelector("#own-name"), { font: 16, padY: 0, padX: 16, radius: 12, height: 44 });
+  unzoom(app.querySelector("#own-name"), { font: 17, padY: 0, padX: 16, radius: 12, height: 44 });
   app.querySelector("#own").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = app.querySelector("#own-name").value.trim().slice(0, MAX_NAME);
@@ -275,7 +274,7 @@ function openCatch() {
         `<button type="button" class="kopt k-${k}" role="radio" data-kind="${k}" aria-checked="false" tabindex="-1">${starIcon(k, 14)}${KIND_LABEL[k]}</button>`).join("")}</div></div></div></form>`;
     const form = card.querySelector("form"), box = card.querySelector("textarea"), go = card.querySelector(".send"), pick = card.querySelector(".kindpick");
     const fold = card.querySelector(".kfold"), opts = [...card.querySelectorAll(".kopt")];
-    unzoom(box, { font: 19, padY: 0, padX: 0, radius: 0 });
+    unzoom(box, { font: 20, padY: 0, padX: 0, radius: 0 });
     // One quiet line: our guess. Tapped, the three kinds unfold underneath; choosing one folds them away.
     const showGuess = () => {
       pick.innerHTML = box.value.trim() ? `<button type="button" class="guess" aria-expanded="${fold.classList.contains("open")}" aria-label="Kind: ${KIND_LABEL[kind]}. Tap to change.">${starIcon(kind, 13)}${KIND_LABEL[kind]}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>` : "";

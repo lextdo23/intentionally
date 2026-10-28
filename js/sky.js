@@ -139,27 +139,31 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
   const tags = pillars.map((p, i) => {
     const o = orbits[i];
     const hit = `<rect class="hit" data-planet="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}: ideas and add time" x="-30" y="-22" width="60" height="${f2(o.size + 44)}" rx="12" fill="transparent"/>`;
-    return `<g${at(o)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="0" y="${f2(o.size + 16.5)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}${move(o)}</g>`;
+    return `<g${at(o)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="13" data-top="${f2(o.size + 3.5)}" x="0" y="${f2(o.size + 16.5)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}${move(o)}</g>`;
   }).join("");
   // Test-mode only for now: each star's words on a small tag beneath it, like a planet's name but quieter.
   const words = labels ? thoughts.filter((t) => t.status === "active").map((t, i) => {
     const short = t.text.length > 20 ? t.text.slice(0, 19).trimEnd() + "…" : t.text;
-    return `<g class="ttag wander" style="${wander(i)}"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
+    return `<g class="ttag wander" style="${wander(i)}"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
   return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${words}${sun}${planets}${tags}</svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.
+// The sky is stretched to fill the screen, so tag text is shrunk back to keep its true size on screen.
 export function fitTags(root) {
+  const k = root.querySelector("svg.sky")?.getScreenCTM()?.a || 1;
   root.querySelectorAll("text.tagt").forEach((t) => {
+    const fs = +t.dataset.fs / k;
+    t.setAttribute("font-size", f2(fs)); t.setAttribute("y", f2(+t.dataset.top + fs));
     // A thought's tag never runs off the side of the screen.
     if (t.parentNode.classList.contains("ttag")) {
       const b = t.getBBox(), shift = Math.max(8 - b.x, 0) - Math.max(b.x + b.width - (W - 8), 0);
       if (shift) t.setAttribute("x", f2(+t.getAttribute("x") + shift));
     }
-    const b = t.getBBox(), r = t.previousElementSibling;
-    r.setAttribute("x", b.x - 2.5); r.setAttribute("y", b.y - 0.5);
-    r.setAttribute("width", b.width + 5); r.setAttribute("height", b.height + 1);
+    const b = t.getBBox(), r = t.previousElementSibling, pad = 2.5 / k;
+    r.setAttribute("x", b.x - pad); r.setAttribute("y", b.y - .5 / k);
+    r.setAttribute("width", b.width + pad * 2); r.setAttribute("height", b.height + 1 / k);
   });
 }
 
