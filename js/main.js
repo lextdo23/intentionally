@@ -8,6 +8,11 @@ const params = new URLSearchParams(location.search);
 let testMode = params.has("test");
 setOffsetDays(store.get().test.offsetDays);
 
+// Keep the approved proportions: everything was designed on a 300-wide screen.
+const fit = () => document.documentElement.style.setProperty("--z", Math.min(Math.max(innerWidth / 300, 1), 1.4).toFixed(3));
+fit();
+addEventListener("resize", fit);
+
 const ICON = {
   sort: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="12" cy="19" r="2"/><path d="M6.3 7.6 10.8 17.2M17.7 7.6 13.2 17.2"/></svg>`,
   record: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11.5A2.5 2.5 0 0 1 19 6.5V20H7.5A2.5 2.5 0 0 1 5 17.5z"/><path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H19"/><path d="M9.5 8.5h5"/></svg>`,

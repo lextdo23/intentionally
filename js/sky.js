@@ -2,7 +2,8 @@
 // and one star per thought you've caught. There are no decorative stars: an empty sky means a clear head.
 import { orbit } from "./pillars.js";
 
-const W = 390, H = 844, CX = W / 2, CY = H * 0.4;
+// The sky is drawn on a 300-wide canvas (the size the designs were made at) and stretched to fill the screen.
+const W = 300, H = 650, CX = W / 2, CY = H * 0.36;
 const BG = ["#24262b", "#141518", "#08090a"], SUN = "#f2c08f", INK = "#efede9";
 
 // Thought stars are soft sparkles; the number of points tells the kind apart.
@@ -77,8 +78,8 @@ const ellipse = (o) => `M${CX - o.rx},${CY} a${o.rx},${o.ry} 0 1,0 ${2 * o.rx},0
 export function placeStar(existing = []) {
   for (let tries = 0; tries < 40; tries++) {
     const x = 0.06 + Math.random() * 0.88, y = 0.2 + Math.random() * 0.4;
-    const nearOrbits = Math.abs(y * H - CY) < 70 && Math.abs(x * W - CX) < 180;
-    const crowded = existing.some((s) => Math.hypot((s.x - x) * W, (s.y - y) * H) < 18);
+    const nearOrbits = Math.abs(y * H - CY) < 54 && Math.abs(x * W - CX) < 140;
+    const crowded = existing.some((s) => Math.hypot((s.x - x) * W, (s.y - y) * H) < 14);
     if (!nearOrbits && !crowded) return { x, y };
   }
   return { x: Math.random(), y: 0.2 + Math.random() * 0.4 };

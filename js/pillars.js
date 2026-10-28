@@ -24,7 +24,7 @@ export const MIN_PILLARS = 3, MAX_PILLARS = 5, MAX_NAME = 12;
 
 // Orbit for the pillar at position i of n: inner planets orbit faster, outer ones slower.
 export function orbit(i, n) {
-  const span = n <= 3 ? [60, 150] : [52, 165];
+  const span = n <= 3 ? [56, 120] : [50, 136];
   const rx = span[0] + (span[1] - span[0]) * (n === 1 ? 0 : i / (n - 1));
   return {
     rx, ry: rx * 0.44,
