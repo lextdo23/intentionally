@@ -1,6 +1,6 @@
 import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, sparkle, placeStar, esc, POINTS } from "./sky.js";
+import { renderSky, fitTags, startSpin, planet, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
 import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
@@ -24,6 +24,7 @@ const ICON = {
   sort: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="12" cy="19" r="2"/><path d="M6.3 7.6 10.8 17.2M17.7 7.6 13.2 17.2"/></svg>`,
   record: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11.5A2.5 2.5 0 0 1 19 6.5V20H7.5A2.5 2.5 0 0 1 5 17.5z"/><path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H19"/><path d="M9.5 8.5h5"/></svg>`,
   star: `<svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${sparkle(4, 8)}"/></svg>`,
+  stop: `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.5"/></svg>`,
 };
 
 function render() {
@@ -81,7 +82,7 @@ function renderWelcome() {
 /* ---------- Home: the sky, and the dock with timers and actions ---------- */
 
 // Which timer the screen showed last time, so the running view only animates in when a timer has just started.
-let shownRunning = null;
+let shownRunning = null, firstHome = true;
 // A thought caught a moment ago, so its star floats up the next time the sky is drawn.
 let arriving = null, arriveFrom = null;
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -90,15 +91,17 @@ function renderHome(s) {
   const active = s.thoughts.filter((t) => t.status === "active").length;
   const sub = active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
-  const was = shownRunning, starting = run && was !== run.id, ending = !run && was;
+  // Opening the app with a timer already running goes straight to the zoomed-in planet.
+  const opening = firstHome; firstHome = false;
+  const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
-  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing" : ""}">
+  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""}">
     <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels })}</div><div class="seam"></div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
       <p class="big" data-run aria-label="Time so far"></p>
-      <button type="button" class="stop" id="stop">Stop</button></div>` : ""}
+      <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
     <nav class="dock" aria-label="Your pillars and actions">
       <div class="pillars">${s.pillars.map((p, i) => `
         <button type="button" class="pl ${run?.id === p.id ? "run" : ""}" data-timer="${p.id}" style="--c:${p.tint}"
@@ -115,12 +118,15 @@ function renderHome(s) {
   fitTags(app);
   startSpin(app);
   tick();
-  // Let the sky dim (or brighten) smoothly rather than snapping.
+  // Starting a timer glides into that planet while the greeting and dock slip away; stopping glides back out.
   if (starting || ending) {
     const home = app.querySelector(".home");
     void home.offsetWidth;
     home.classList.toggle("timing", !!starting);
-  }
+    home.classList.toggle("zoomed", !!starting);
+    zoomTo(starting ? run.id : null);
+  } else if (opening) zoomNow(run?.id ?? null);
+  else runCamera();
   app.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
     const id = b.dataset.timer;
     if (store.get().running?.pillarId === id) stop();

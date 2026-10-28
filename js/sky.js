@@ -134,7 +134,6 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
   // The night itself (gradient, soft cloud and film grain) is a ready-made picture: drawing it live was slow on phones.
   // img/sky.jpg is rendered from the original drawing; see README for how to remake it.
   const base = `<image href="img/sky.jpg" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
-  const rings = orbits.map((o) => `<path d="${ellipse(o)}" fill="none" stroke="${INK}" stroke-opacity=".07" stroke-width=".8"/>`).join("");
   const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving, from)).join("");
   const sun = `<circle cx="${CX}" cy="${CY}" r="34" fill="${SUN}" opacity=".22" filter="url(#wide)"/><circle cx="${CX}" cy="${CY}" r="7" fill="${SUN}" opacity=".6" filter="url(#soft)"/><circle cx="${CX}" cy="${CY}" r="4" fill="#fff8f0"/>`;
   // Orbits are timed from the wall clock, so redrawing the sky never makes a planet jump.
@@ -147,7 +146,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     const o = orbits[i], run = p.id === runningId;
     const pulse = still ? "" : `<animate attributeName="opacity" values=".15;.4;.15" dur="3s" repeatCount="indefinite"/>`;
     const glow = run ? `<circle r="${f2(o.size * 3.4)}" fill="${p.tint}" opacity=".3" filter="url(#soft)">${pulse}</circle>` : "";
-    return `<g${at(o)}>${glow}${planet("sky", i, o.size, p.tint)}${move(o)}</g>`;
+    return `<g${at(o)} data-orbit="${p.id}" data-size="${o.size}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.size, p.tint)}${move(o)}</g>`;
   }).join("");
   const tags = pillars.map((p, i) => {
     const o = orbits[i];
@@ -159,7 +158,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     const short = t.text.length > 20 ? t.text.slice(0, 19).trimEnd() + "…" : t.text;
     return `<g class="ttag" ${roamAttrs(t)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
-  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${words}${sun}${planets}${tags}</svg>`;
+  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}<g class="world"><g class="stars">${stars}${words}</g>${sun}${planets}<g class="tags">${tags}</g></g></svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.
@@ -186,3 +185,33 @@ function skyLabel(pillars, thoughts) {
 }
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Starting a timer glides the sky in towards that planet until it fills the middle of the screen;
+// stopping glides back out. The camera keeps its place when the sky is redrawn, so nothing jumps.
+const cam = { id: null, k: 0, dir: 0, raf: 0, last: 0 };
+const FOCUS = { x: CX, y: H * 0.42 }, PLANET_R = 58, GLIDE = 1400;
+const glide = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+export function zoomTo(id) { if (id) cam.id = id; cam.dir = id ? 1 : -1; runCamera(); }
+export function zoomNow(id) { cam.id = id; cam.k = id ? 1 : 0; cam.dir = 0; runCamera(); }
+export const zoomedOn = () => cam.id;
+export function runCamera() {
+  cancelAnimationFrame(cam.raf);
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (still && cam.dir) { cam.k = cam.dir > 0 ? 1 : 0; cam.dir = 0; }
+  cam.last = performance.now();
+  const frame = (ms) => {
+    const world = document.querySelector("svg.sky .world");
+    if (!world) return;
+    cam.k = Math.max(0, Math.min(1, cam.k + cam.dir * (ms - cam.last) / GLIDE)); cam.last = ms;
+    if (cam.k === 0 && cam.dir <= 0) { cam.id = null; cam.dir = 0; }
+    const g = cam.id && world.querySelector(`[data-orbit="${cam.id}"]`);
+    if (!g) { world.removeAttribute("transform"); return; }
+    const m = world.getCTM().inverse().multiply(g.getCTM()), e = glide(cam.k), s = 1 + (PLANET_R / +g.dataset.size - 1) * e;
+    const fx = m.e + (FOCUS.x - m.e) * e, fy = m.f + (FOCUS.y - m.f) * e;
+    world.setAttribute("transform", `translate(${f2(fx - m.e * s)},${f2(fy - m.f * s)}) scale(${s.toFixed(4)})`);
+    // Keeps following the planet along its orbit while zoomed in; stops once fully zoomed out.
+    if (cam.id) cam.raf = requestAnimationFrame(frame);
+    else world.removeAttribute("transform");
+  };
+  cam.raf = requestAnimationFrame(frame);
+}

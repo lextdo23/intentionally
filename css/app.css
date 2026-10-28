@@ -104,15 +104,30 @@ button, [role="button"] { touch-action: manipulation; }
 .sky-wrap::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s ease;
   background: linear-gradient(transparent 25%, rgba(8, 9, 10, .55) 70%); }
 .timing .sky-wrap::after { opacity: 1; }
+/* Zoomed into a running planet: the greeting and dock slip away, and everything but the planet and the sun fades. */
+.home .greet { transition: opacity .5s ease, transform .6s ease; }
+.home .dock { transition: transform .6s cubic-bezier(.3, .7, .2, 1), opacity .4s ease; }
+.zoomed .greet { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+.zoomed .dock { opacity: 0; transform: translateY(115%); pointer-events: none; }
+.sky .stars, .sky .tags, .sky [data-orbit] { transition: opacity .7s ease; }
+.zoomed .sky .tags { opacity: 0; pointer-events: none; }
+.zoomed .sky .stars, .zoomed .sky [data-orbit]:not(.focus) { opacity: 0; pointer-events: none; }
+.sky .focus > circle:first-child { transition: fill-opacity .7s ease; }
+/* The running glow would swell into a haze up close. (Its opacity pulses, so it fades by its fill instead.) */
+.zoomed .sky .focus > circle:first-child { fill-opacity: 0; }
 .running {
-  position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 220px);
+  position: fixed; left: 0; right: 0; top: 58%;
   display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 var(--edge);
 }
 .running p { margin: 0; }
 .rl { font-size: 15px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 8px; }
 .rl i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
 .big { font-size: 56px; font-weight: 300; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin: 2px 0 12px !important; }
-.stop { min-height: 44px; padding: 0 24px; border-radius: 14px; background: rgba(255, 255, 255, .08); font-size: 17px; font-weight: 500; }
+/* Stop: a round frosted-glass button with a stop square, like the iPhone's own stopwatch. Icon-only buttons are round. */
+.stop { width: 64px; height: 64px; margin-top: 8px; border-radius: 50%; display: grid; place-items: center; color: var(--ink);
+  background: rgba(255, 255, 255, .1); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.stop svg { width: 20px; height: 20px; fill: currentColor; }
 
 /* The sky's planets can be tapped (and reached by keyboard) to open their card. */
 .hit { cursor: pointer; outline: none; }
@@ -243,7 +258,7 @@ button, [role="button"] { touch-action: manipulation; }
 /* ---------- Feedback: buttons give a little when pressed; things ease in and out ---------- */
 button { transition: transform .12s ease, background-color .2s ease, color .2s ease; }
 button:active:not(:disabled) { transform: scale(.96); }
-.running.enter { animation: rise .5s cubic-bezier(.2, .8, .3, 1) both; }
+.running.enter { animation: rise .6s cubic-bezier(.2, .8, .3, 1) .8s both; }
 .running.leave { animation: sink .2s ease forwards; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes sink { to { opacity: 0; transform: translateY(8px); } }
