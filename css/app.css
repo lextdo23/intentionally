@@ -252,16 +252,13 @@ button:active:not(:disabled) { transform: scale(.96); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } }
 
 /* ---------- Motion: gently alive ---------- */
-.wander { animation: wander var(--wp, 60s) ease-in-out infinite; }
-@keyframes wander { 0%, 100% { transform: translate(0, 0) } 33% { transform: translate(var(--wx1), var(--wy1)) }
-  66% { transform: translate(var(--wx2), var(--wy2)) } 83% { transform: translate(var(--wx3), var(--wy3)) } }
 .tw { animation: breathe var(--d, 9s) ease-in-out infinite, drift var(--dd, 23s) ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes breathe { 0%, 100% { opacity: .72 } 50% { opacity: 1 } }
 @keyframes drift { 0%, 100% { transform: translate(0, 0) } 33% { transform: translate(1.2px, -1px) } 66% { transform: translate(-1px, .8px) } }
 .wob { animation: wob var(--wd) ease-in-out infinite; }
 @keyframes wob { 0%, 100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }
 @media (prefers-reduced-motion: reduce) {
-  .tw, .wob, .wander { animation: none }
+  .tw, .wob { animation: none }
   .sheet, .sheet-back, .sky-wrap::after, button, .toast { transition: none }
   .running.enter, .running.leave, .toast, .arrive, .burst { animation: none }
   .sheet.catchcard, .kfold, .kopt, .guess .chev { transition: none }

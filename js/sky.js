@@ -1,6 +1,7 @@
 // The sky: a charcoal night with a warm sun (you) at the centre, a planet per pillar on a tilted orbit,
 // and one star per thought you've caught. There are no decorative stars: an empty sky means a clear head.
 import { orbit } from "./pillars.js";
+import { now } from "./clock.js";
 
 // The sky is drawn on a 300-wide canvas (the size the designs were made at) and stretched to fill the screen.
 const W = 300, H = 650, CX = W / 2, CY = H * 0.36;
@@ -48,13 +49,25 @@ export function planet(id, i, r, c) {
 let spinning = 0;
 export function startSpin(root) {
   cancelAnimationFrame(spinning);
+  const cx = (ROAM.x0 + ROAM.x1) / 2, cy = (ROAM.y0 + ROAM.y1) / 2, rx = (ROAM.x1 - ROAM.x0) / 2, ry = (ROAM.y1 - ROAM.y0) / 2;
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // With reduced motion on, every star simply rests where it landed.
+  const roamers = still ? [] : [...root.querySelectorAll("[data-roam]")].map((g) => {
+    const x = +g.dataset.x, y = +g.dataset.y, lap = +g.dataset.lap * 1000, T0 = (+g.dataset.born / lap) * Math.PI * 2;
+    const clamp = (v) => Math.max(-1, Math.min(1, v));
+    return { g, x, y, lap, a: Math.asin(clamp((x - cx) / rx)) - 3 * T0, b: Math.asin(clamp((y - cy) / ry)) - 2 * T0 };
+  });
   const els = [...root.querySelectorAll("[data-spin]")].map((g) => {
     const look = +g.dataset.spin;
     g.innerHTML = FEAT[look].map(([, , , l]) => `<ellipse fill="${l ? "#fff" : "#000"}"/>`).join("");
     return { look, r: +g.dataset.r, turn: +g.dataset.turn, kids: [...g.children] };
   });
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const frame = (ms) => {
+    const T = Date.now();
+    for (const { g, x, y, lap, a, b } of roamers) {
+      const u = (T / lap) * Math.PI * 2;
+      g.setAttribute("transform", `translate(${f2(cx + rx * Math.sin(3 * u + a) - x)},${f2(cy + ry * Math.sin(2 * u + b) - y)})`);
+    }
     for (const { look, r, turn, kids } of els) {
       const t = (ms / 1000) * Math.PI * 2 / turn;
       FEAT[look].forEach(([lon, lat, s, l, e = 1], n) => {
@@ -85,14 +98,14 @@ export function placeStar(existing = []) {
   return { x: Math.random(), y: 0.2 + Math.random() * 0.4 };
 }
 
-// Each star wanders slowly about its spot, on its own path. Timed from the wall clock, like the orbits,
-// so redrawing the sky never makes a star jump.
-function wander(i) {
-  const a = i * 2.39996, r = 9 + (i * 5) % 6, period = 48 + (i * 13) % 34;
-  const w = (k, s) => f2(Math.cos(a + k) * r * s), v = (k, s) => f2(Math.sin(a + k) * r * s);
-  return `--wx1:${w(0, 1)}px;--wy1:${v(0, .8)}px;--wx2:${w(2.1, .7)}px;--wy2:${v(2.1, 1)}px;--wx3:${w(4.2, .9)}px;--wy3:${v(4.2, .6)}px;` +
-    `--wp:${period}s;animation-delay:-${f2((Date.now() / 1000 + i * 7.7) % period)}s`;
-}
+// Each star takes a long, slow lap of the whole open sky (between the greeting and the dock): it swings
+// side to side three times and up and down twice per lap, so over one lap it passes through all of it.
+// The lap is timed from the wall clock and starts exactly where the star first landed, so a star never jumps.
+const ROAM = { x0: 18, x1: 282, y0: 105, y1: 440 };
+const roamAttrs = (t) => {
+  let h = 0; for (const c of String(t.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `data-roam data-x="${f2(t.x * W)}" data-y="${f2(t.y * H)}" data-born="${t.createdAt - (now() - Date.now())}" data-lap="${360 + h % 240}"`;
+};
 
 // A star for a thought. `arriving` marks one just caught: it lifts out of the gold button it was added with
 // (`from`, in sky units) and drifts down into place.
@@ -105,7 +118,7 @@ function star(t, i, arriving, from) {
     <circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 1.3)}" fill="${GLOW[t.kind]}" opacity="${big ? .26 : .12}" filter="url(#soft)"/>
     <path transform="translate(${f2(x)},${f2(y)})" d="${sparkle(POINTS[t.kind], R)}" fill="${TINT[t.kind]}"/></g>
     <circle class="hit" data-star="${t.id}" role="button" tabindex="0" aria-label="${kind}: “${esc(t.text)}”${times}" cx="${f2(x)}" cy="${f2(y)}" r="17" fill="transparent"/>`;
-  const roam = `<g class="wander" style="${wander(i)}">${body}</g>`;
+  const roam = `<g ${roamAttrs(t)}>${body}</g>`;
   if (t.id !== arriving) return roam;
   const o = from || { x: CX, y: H * 0.9 };
   const ring = `<circle class="burst" cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 3)}" fill="none" stroke="${TINT[t.kind]}" stroke-width=".8"/>`;
@@ -144,7 +157,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
   // Test-mode only for now: each star's words on a small tag beneath it, like a planet's name but quieter.
   const words = labels ? thoughts.filter((t) => t.status === "active").map((t, i) => {
     const short = t.text.length > 20 ? t.text.slice(0, 19).trimEnd() + "…" : t.text;
-    return `<g class="ttag wander" style="${wander(i)}"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
+    return `<g class="ttag" ${roamAttrs(t)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
   return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${words}${sun}${planets}${tags}</svg>`;
 }
