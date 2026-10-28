@@ -129,11 +129,6 @@ function renderHome(s) {
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
   });
   tappable("[data-planet]", "planet", openPillar);
-  // Touching a planet shows its name for a moment, then the sky goes quiet again.
-  app.querySelectorAll("[data-planet]").forEach((el) => el.addEventListener("click", () => {
-    const tag = el.closest("[data-tag]");
-    tag.classList.add("show"); clearTimeout(tag.hide); tag.hide = setTimeout(() => tag.classList.remove("show"), 2200);
-  }));
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
   app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));

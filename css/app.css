@@ -112,8 +112,8 @@ button, [role="button"] { touch-action: manipulation; }
 .home .dock { transition: transform .6s cubic-bezier(.3, .7, .2, 1), opacity .4s ease; }
 .zoomed .greet { opacity: 0; transform: translateY(-10px); pointer-events: none; }
 .zoomed .dock { opacity: 0; transform: translateY(115%); pointer-events: none; }
-.sky .stars, .sky .tags, .sky [data-orbit] { transition: opacity .7s ease; }
-.zoomed .sky .tags { opacity: 0; pointer-events: none; }
+.sky .stars, .sky .tags, .sky .rings, .sky [data-orbit] { transition: opacity .7s ease; }
+.zoomed .sky .tags, .zoomed .sky .rings { opacity: 0; pointer-events: none; }
 .zoomed .sky .stars, .zoomed .sky [data-orbit]:not(.focus) { opacity: 0; pointer-events: none; }
 .sky .focus > circle:first-child { transition: fill-opacity .7s ease; }
 /* The running glow would swell into a haze up close. (Its opacity pulses, so it fades by its fill instead.) */
@@ -255,9 +255,7 @@ button, [role="button"] { touch-action: manipulation; }
 .testpanel span { color: var(--dim); }
 .testpanel button[aria-pressed="true"] { color: var(--gold); }
 .sky .ttag { pointer-events: none; }
-/* Planet names wait out of sight until the planet is touched. */
-.sky .ptag .tag, .sky .ptag .tagt { opacity: 0; transition: opacity .5s ease; }
-.sky .ptag.show .tag, .sky .ptag.show .tagt { opacity: 1; }
+.sky .rings { pointer-events: none; }
 .testpanel div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .testpanel button { min-height: 36px; padding: 0 12px; border-radius: 10px; background: var(--glass); font-size: 13px; }
 

@@ -118,7 +118,35 @@ export function startSpin(root) {
       + tex.map((p) => (p.bump ? BUMP : CRATER).map(([c]) => `<ellipse fill="${c}"/>`).join("")).join("");
     return { look, tex, r: +g.dataset.r, turn: +g.dataset.turn, sx: +g.dataset.sx, sy: +g.dataset.sy, kids: [...g.children] };
   });
+  // Ring letters keep the true 13px name size on screen, however much the sky is stretched.
+  const k = root.querySelector("svg.sky")?.getScreenCTM()?.a || 1, fs = 13 / k;
+  const rings = [...root.querySelectorAll(".ring")].map((g) => {
+    const txt = (g.dataset.name + "  ·  ").repeat(2), pr = +g.dataset.pr;
+    const R = Math.max(pr * 1.75, (txt.length * fs * .56) / (Math.PI * 2)) + 2;
+    g.innerHTML = [...txt].map((ch) => `<text font-size="${f2(fs)}" font-weight="500" fill="${INK}" text-anchor="middle">${ch === " " ? "&#160;" : esc(ch)}</text>`).join("");
+    // Start with the first copy of the name centred on the near side.
+    const step = Math.PI * 2 / txt.length;
+    return { kids: [...g.children], near: g.dataset.layer === "front", x: +g.dataset.x, y: +g.dataset.y + fs * .35, R, step, th: Math.PI / 2 + (g.dataset.name.length - 1) / 2 * step, k: +g.dataset.k };
+  });
+  const placeRing = ({ kids, near, x, y, R, step, th, k }, T) => {
+    const th0 = th + (still ? 0 : (T / 40000) * Math.PI * 2 + k * 1.3);
+    kids.forEach((el, i) => {
+      const a = th0 - i * step, sn = Math.sin(a);
+      if ((sn > 0) !== near) { el.setAttribute("opacity", 0); return; }
+      el.setAttribute("transform", `translate(${f2(x + R * Math.cos(a))},${f2(y + R * .3 * sn)}) scale(${f2(Math.max(.08, Math.abs(sn)) * (near ? 1 : -1))},1)`);
+      el.setAttribute("opacity", f2(near ? Math.min(1, sn * 2.2) * .92 : Math.min(1, -sn * 2) * .22));
+    });
+  };
+  // The sun breathes: in over about four seconds, out over about five.
+  const glow = root.querySelector('[data-breath="glow"]'), disc = root.querySelector('[data-breath="disc"]');
+  const breathe = (T) => {
+    const ph = (T / 9000) % 1, b = ph < .45 ? .5 - .5 * Math.cos(Math.PI * ph / .45) : .5 + .5 * Math.cos(Math.PI * (ph - .45) / .55);
+    glow?.setAttribute("r", f2(114 + b * 14)); glow?.setAttribute("opacity", f2(.82 + b * .18)); disc?.setAttribute("r", f2(15.4 + b * 1.6));
+  };
   const frame = (ms) => {
+    const T = Date.now();
+    for (const g of rings) placeRing(g, T);
+    if (!still) breathe(T);
     for (const r of roamers) {
       const [dx, dy] = place(r, still ? r.born : Date.now());
       r.g.setAttribute("transform", `translate(${f2(dx)},${f2(dy)})`);
@@ -207,7 +235,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
   const base = `<image href="img/sky.jpg" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
   const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving, from)).join("");
   // You are the one bright thing in the sky: a wide warm glow with the sun at its heart.
-  const sun = `<circle cx="${CX}" cy="${CY}" r="120" fill="url(#sunglow)"/><circle cx="${CX}" cy="${CY}" r="16" fill="#f7d3a8"/><circle cx="${CX}" cy="${CY}" r="11" fill="#fff4e6"/>`;
+  const sun = `<circle data-breath="glow" cx="${CX}" cy="${CY}" r="120" fill="url(#sunglow)"/><circle data-breath="disc" cx="${CX}" cy="${CY}" r="16" fill="#f7d3a8"/><circle cx="${CX}" cy="${CY}" r="11" fill="#fff4e6"/>`;
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Planets hold still; only their surfaces turn. The running planet glows softly.
   const planets = pillars.map((p, i) => {
@@ -216,11 +244,14 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     const glow = run ? `<circle r="${f2(o.r * 3.4)}" fill="${p.tint}" opacity=".3" filter="url(#soft)">${pulse}</circle>` : "";
     return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}</g>`;
   }).join("");
-  // Names stay hidden so the sky stays quiet; touching a planet shows its name for a moment.
+  // Each planet wears its name as a level ring, like Saturn's, turning slowly: read on the near side,
+  // passing faintly behind the planet on the far side. The letters are laid out once the sky is on screen.
+  const ring = (layer) => `<g class="rings">${pillars.map((p, i) => { const o = at[p.id];
+    return `<g class="ring" data-layer="${layer}" data-k="${i}" data-name="${esc(p.name)}" data-x="${f2(o.x)}" data-y="${f2(o.y)}" data-pr="${o.r}"></g>`; }).join("")}</g>`;
   const tags = pillars.map((p) => {
     const o = at[p.id], s = Math.max(44, o.r * 2 + 16);
     const hit = `<rect class="hit" data-planet="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}: ideas and add time" x="${-s / 2}" y="${-s / 2}" width="${s}" height="${s}" rx="${s / 2}" fill="transparent"/>`;
-    return `<g class="ptag" data-tag="${p.id}" transform="translate(${f2(o.x)},${f2(o.y)})"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="13" data-top="${f2(o.r + 4)}" x="0" y="${f2(o.r + 17)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}</g>`;
+    return `<g transform="translate(${f2(o.x)},${f2(o.y)})">${hit}</g>`;
   }).join("");
   // Test-mode only for now: each star's words on a small tag beneath it, like a planet's name but quieter.
   const words = labels ? thoughts.filter((t) => t.status === "active").map((t, i) => {
@@ -228,7 +259,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     return `<g class="ttag" ${roamAttrs(t)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
   // Stars are drawn above the sun and planets, so even mid-curve a thought is never hidden.
-  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}<g class="world">${sun}${planets}<g class="stars">${stars}${words}</g><g class="tags">${tags}</g></g></svg>`;
+  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}<g class="world">${sun}${ring("back")}${planets}${ring("front")}<g class="stars">${stars}${words}</g><g class="tags">${tags}</g></g></svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.
