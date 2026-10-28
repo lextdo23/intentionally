@@ -129,7 +129,7 @@ export function startSpin(root) {
     return { kids: [...g.children], near: g.dataset.layer === "front", x: +g.dataset.x, y: +g.dataset.y + fs * .35, R, step, th: Math.PI / 2 + (g.dataset.name.length - 1) / 2 * step, k: +g.dataset.k };
   });
   const placeRing = ({ kids, near, x, y, R, step, th, k }, T) => {
-    const th0 = th + (still ? 0 : (T / 20000) * Math.PI * 2 + k * 1.3);
+    const th0 = th + (still ? 0 : -(T / 20000) * Math.PI * 2 + k * 1.3);
     kids.forEach((el, i) => {
       const a = th0 - i * step, sn = Math.sin(a);
       if ((sn > 0) !== near) { el.setAttribute("opacity", 0); return; }
