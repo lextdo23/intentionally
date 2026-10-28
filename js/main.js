@@ -94,7 +94,7 @@ function renderHome(s) {
   const was = shownRunning, starting = run && was !== run.id, ending = !run && was;
   shownRunning = run?.id ?? null;
   app.innerHTML = `<section class="home ${run && !starting || ending ? "timing" : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving })}</div>
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, labels: s.test.labels })}</div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
@@ -412,7 +412,7 @@ function renderTestPanel() {
   panel.setAttribute("aria-label", "Test mode");
   panel.innerHTML = `<b>Test mode</b><span>Pretend date: ${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}${s.test.offsetDays ? ` (+${s.test.offsetDays} days)` : ""}</span>
     <div><button data-t="example">Example sky</button><button data-t="day">+1 day</button><button data-t="week">+1 week</button>
-    <button data-t="today">Today</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
+    <button data-t="today">Today</button><button data-t="labels" aria-pressed="${!!s.test.labels}">Thought words: ${s.test.labels ? "on" : "off"}</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
   document.body.append(panel);
   panel.addEventListener("click", (e) => {
     const t = e.target.dataset.t;
@@ -420,6 +420,7 @@ function renderTestPanel() {
     if (t === "close") { testMode = false; return panel.remove(); }
     if (t === "reset") { store.reset(); setOffsetDays(0); return; }
     if (t === "example") return loadExample();
+    if (t === "labels") return store.update((x) => { x.test.labels = !x.test.labels; });
     const days = t === "today" ? 0 : s.test.offsetDays + (t === "day" ? 1 : 7);
     setOffsetDays(days);
     store.update((x) => { x.test.offsetDays = days; });

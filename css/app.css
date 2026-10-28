@@ -202,6 +202,8 @@ button, [role="button"] { touch-action: manipulation; }
   display: flex; flex-direction: column; gap: 4px;
 }
 .testpanel span { color: var(--dim); }
+.testpanel button[aria-pressed="true"] { color: var(--gold); }
+.sky .ttag { pointer-events: none; }
 .testpanel div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .testpanel button { min-height: 36px; padding: 0 12px; border-radius: 10px; background: var(--glass); font-size: 13px; }
 

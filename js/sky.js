@@ -100,7 +100,7 @@ function star(t, i, arriving) {
   return `<g class="arrive" style="--dx:${f2(CX - x)}px;--dy:${f2(H * 0.9 - y)}px">${body}</g>${ring}`;
 }
 
-export function renderSky({ pillars, thoughts, runningId, arriving }) {
+export function renderSky({ pillars, thoughts, runningId, arriving, labels }) {
   const n = pillars.length;
   const orbits = pillars.map((p, i) => orbit(i, n));
   const defs = `<defs>
@@ -129,12 +129,22 @@ export function renderSky({ pillars, thoughts, runningId, arriving }) {
     const hit = `<rect class="hit" data-planet="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}: ideas and add time" x="-30" y="-22" width="60" height="${f2(o.size + 44)}" rx="12" fill="transparent"/>`;
     return `<g${at(o)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="0" y="${f2(o.size + 16.5)}" text-anchor="middle" font-size="13" font-weight="500" fill="${INK}">${esc(p.name)}</text>${hit}${move(o)}</g>`;
   }).join("");
-  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${sun}${planets}${tags}</svg>`;
+  // Test-mode only for now: each star's words on a small tag beneath it, like a planet's name but quieter.
+  const words = labels ? thoughts.filter((t) => t.status === "active").map((t) => {
+    const short = t.text.length > 20 ? t.text.slice(0, 19).trimEnd() + "…" : t.text;
+    return `<g class="ttag"><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
+  }).join("") : "";
+  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}${rings}${stars}${words}${sun}${planets}${tags}</svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.
 export function fitTags(root) {
   root.querySelectorAll("text.tagt").forEach((t) => {
+    // A thought's tag never runs off the side of the screen.
+    if (t.parentNode.classList.contains("ttag")) {
+      const b = t.getBBox(), shift = Math.max(8 - b.x, 0) - Math.max(b.x + b.width - (W - 8), 0);
+      if (shift) t.setAttribute("x", f2(+t.getAttribute("x") + shift));
+    }
     const b = t.getBBox(), r = t.previousElementSibling;
     r.setAttribute("x", b.x - 2.5); r.setAttribute("y", b.y - 0.5);
     r.setAttribute("width", b.width + 5); r.setAttribute("height", b.height + 1);
