@@ -72,14 +72,20 @@ function renderWelcome() {
 
 /* ---------- Home: the sky, and the dock with timers and actions ---------- */
 
+// Which timer the screen showed last time, so the running view only animates in when a timer has just started.
+let shownRunning = null;
+const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 function renderHome(s) {
   const active = s.thoughts.filter((t) => t.status === "active").length;
   const sub = active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
-  app.innerHTML = `<section class="home ${run ? "timing" : ""}">
+  const was = shownRunning, starting = run && was !== run.id, ending = !run && was;
+  shownRunning = run?.id ?? null;
+  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing" : ""}">
     <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id })}</div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
-    ${run ? `<div class="running" style="--c:${run.tint}">
+    ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
       <p class="big" data-run aria-label="Time so far"></p>
       <button type="button" class="stop" id="stop">Stop</button></div>` : ""}
@@ -99,12 +105,18 @@ function renderHome(s) {
   fitTags(app);
   startSpin(app);
   tick();
+  // Let the sky dim (or brighten) smoothly rather than snapping.
+  if (starting || ending) {
+    const home = app.querySelector(".home");
+    void home.offsetWidth;
+    home.classList.toggle("timing", !!starting);
+  }
   app.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
     const id = b.dataset.timer;
-    if (store.get().running?.pillarId === id) stopped(store.stopTimer());
+    if (store.get().running?.pillarId === id) stop();
     else start(id);
   }));
-  app.querySelector("#stop")?.addEventListener("click", () => stopped(store.stopTimer()));
+  app.querySelector("#stop")?.addEventListener("click", stop);
   // Planets in the sky open their card: ideas, and adding time by hand.
   app.querySelectorAll("[data-planet]").forEach((el) => {
     el.addEventListener("click", () => openPillar(el.dataset.planet));
@@ -119,6 +131,15 @@ function start(pillarId, activity) {
   const before = store.get().running;
   const ran = store.startTimer(pillarId, activity);
   if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
+}
+
+// The running view eases away first, then the timer stops.
+function stop() {
+  const el = app.querySelector(".running");
+  if (el?.classList.contains("leave")) return;
+  if (!el || still()) return stopped(store.stopTimer());
+  el.classList.add("leave");
+  setTimeout(() => stopped(store.stopTimer()), 200);
 }
 
 function stopped(ms) {
@@ -183,7 +204,7 @@ function openPillar(id) {
   back.addEventListener("click", close);
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
   sheet.querySelector("[data-close]").addEventListener("click", close);
-  sheet.querySelector("[data-go]").addEventListener("click", () => { close(); running ? stopped(store.stopTimer()) : start(id); });
+  sheet.querySelector("[data-go]").addEventListener("click", () => { close(); running ? stop() : start(id); });
   sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { close(); start(id, b.dataset.idea); }));
   const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
   toggle.addEventListener("click", () => {
@@ -258,9 +279,13 @@ let toastTimer = 0;
 function toast(msg) {
   const el = document.getElementById("toast");
   el.textContent = msg;
+  el.classList.remove("out");
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+  toastTimer = setTimeout(() => {
+    el.classList.add("out");
+    toastTimer = setTimeout(() => { el.hidden = true; el.classList.remove("out"); }, 250);
+  }, 2600);
 }
 
 store.onChange(render);
