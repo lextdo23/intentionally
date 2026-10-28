@@ -1,6 +1,6 @@
 import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera } from "./sky.js";
+import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
 import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
@@ -102,13 +102,7 @@ function renderHome(s) {
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
       <p class="big" data-run aria-label="Time so far"></p>
       <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
-    <nav class="dock" aria-label="Your pillars and actions">
-      <div class="pillars">${s.pillars.map((p, i) => `
-        <button type="button" class="pl ${run?.id === p.id ? "run" : ""}" data-timer="${p.id}" style="--c:${p.tint}"
-          aria-label="${esc(p.name)}: ${run?.id === p.id ? "timer running, tap to stop" : "tap to start a timer"}">
-          <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("dock", i, 8, p.tint)}</svg>
-          <b>${esc(p.name)}</b><small data-time="${p.id}"></small></button>`).join("")}
-      </div>
+    <nav class="dock" aria-label="Actions">
       <div class="actions">
         <button type="button" class="round" data-soon="Sort" aria-label="Sort">${ICON.sort}</button>
         <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
@@ -127,11 +121,6 @@ function renderHome(s) {
     zoomTo(starting ? run.id : null);
   } else if (opening) zoomNow(run?.id ?? null);
   else runCamera();
-  app.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
-    const id = b.dataset.timer;
-    if (store.get().running?.pillarId === id) stop();
-    else start(id);
-  }));
   app.querySelector("#stop")?.addEventListener("click", stop);
   arriving = arriveFrom = null;
   // Planets in the sky open their card (ideas, adding time by hand); stars open the thought they hold.
@@ -140,6 +129,11 @@ function renderHome(s) {
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
   });
   tappable("[data-planet]", "planet", openPillar);
+  // Touching a planet shows its name for a moment, then the sky goes quiet again.
+  app.querySelectorAll("[data-planet]").forEach((el) => el.addEventListener("click", () => {
+    const tag = el.closest("[data-tag]");
+    tag.classList.add("show"); clearTimeout(tag.hide); tag.hide = setTimeout(() => tag.classList.remove("show"), 2200);
+  }));
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
   app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));
@@ -191,7 +185,7 @@ function openPillar(id) {
   const running = s.running?.pillarId === id, ideas = ACTIVITIES[p.name] ?? [];
   const { sheet, close } = openSheet(`
     <header class="sh-head">
-      <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("sheet", i, 11, p.tint)}</svg>
+      <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("sheet", i, 11, shade(p))}</svg>
       <div><h2 id="sheet-title">${esc(p.name)}</h2><p>This week <span data-week="${id}"></span></p></div>
       ${CLOSE}
     </header>
@@ -456,7 +450,9 @@ function renderTestPanel() {
 function loadExample() {
   const t0 = now();
   store.update((s) => {
-    if (!s.pillars.length) s.pillars = ["Friends", "Health", "Career", "Creativity"].map((name, i) => ({ id: store.uid(), name, tint: TINTS[i], focus: false }));
+    if (!s.pillars.length) s.pillars = ["Friends", "Health", "Career", "Creativity"].map((name, i) => ({ id: store.uid(), name, tint: TINTS[i], focus: i === 1 || i === 2 }));
+    // Until focus pillars can be chosen, the example sky picks the second and third.
+    if (!s.pillars.some((p) => p.focus)) s.pillars.forEach((p, i) => { p.focus = i === 1 || i === 2; });
     const [a, b, c, d] = s.pillars;
     s.sessions.push(
       { pillarId: a.id, start: t0 - 2 * DAY, end: t0 - 2 * DAY + 70 * 60000 },
@@ -466,7 +462,9 @@ function loadExample() {
     if (d) s.sessions.push({ pillarId: d.id, start: t0 - 5 * 3600000, end: t0 - 5 * 3600000 + 15 * 60000 });
     const ex = [["I'm not good enough at work", "worry", 4], ["Call Nan this weekend", "want", 1], ["I handled today well", "kind", 1],
       ["I never reply fast enough", "worry", 2], ["Start running again", "want", 1], ["Jess made me laugh", "kind", 1], ["What if I can't keep this up", "worry", 1]];
-    for (const [text, kind, count] of ex) s.thoughts.push({ id: store.uid(), text, kind, pillarId: null, status: "active", count, ...placeStar(s.thoughts), createdAt: t0, helped: [] });
+    // Two of them are already sorted, so they circle their planets.
+    const sorted = { "I'm not good enough at work": c.id, "Start running again": b.id };
+    for (const [text, kind, count] of ex) s.thoughts.push({ id: store.uid(), text, kind, pillarId: sorted[text] ?? null, ...(sorted[text] && { sortedAt: t0 }), status: "active", count, ...placeStar(s.thoughts), createdAt: t0, helped: [] });
   });
   toast("Example sky loaded.");
 }

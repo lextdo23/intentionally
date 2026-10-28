@@ -75,9 +75,10 @@ button, [role="button"] { touch-action: manipulation; }
 
 /* ---------- Home ---------- */
 .greet { position: relative; padding: calc(env(safe-area-inset-top, 0px) + 24px) var(--edge) 0; max-width: 520px; margin: 0 auto; }
-.greet h1 { margin: 0; font-size: 34px; font-weight: 700; line-height: 1.15; -webkit-user-select: none; user-select: none; }
+.greet { text-align: center; }
+.greet h1 { margin: 0; font-size: 22px; font-weight: 500; line-height: 1.25; -webkit-user-select: none; user-select: none; }
 .greet h1 span { color: var(--gold); }
-.greet p { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); }
+.greet p { margin: 4px 0 0; font-size: 15px; color: var(--ink-2); }
 
 /* The dock: one quiet glass surface low on the screen, in the thumb zone. */
 .dock {
@@ -94,7 +95,7 @@ button, [role="button"] { touch-action: manipulation; }
 .pl.run svg { filter: drop-shadow(0 0 6px var(--c)); }
 .pl.run b, .pl.run small { color: var(--ink); font-weight: 600; }
 
-.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: start; margin-top: 16px; padding: 0 20px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: start; padding: 0 20px; }
 .round { width: 44px; height: 44px; margin-top: 4px; border-radius: 50%; background: rgba(255, 255, 255, .06); display: grid; place-items: center; color: var(--dim); }
 .round svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .catch { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -254,6 +255,9 @@ button, [role="button"] { touch-action: manipulation; }
 .testpanel span { color: var(--dim); }
 .testpanel button[aria-pressed="true"] { color: var(--gold); }
 .sky .ttag { pointer-events: none; }
+/* Planet names wait out of sight until the planet is touched. */
+.sky .ptag .tag, .sky .ptag .tagt { opacity: 0; transition: opacity .5s ease; }
+.sky .ptag.show .tag, .sky .ptag.show .tagt { opacity: 1; }
 .testpanel div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .testpanel button { min-height: 36px; padding: 0 12px; border-radius: 10px; background: var(--glass); font-size: 13px; }
 
