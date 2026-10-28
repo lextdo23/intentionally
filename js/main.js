@@ -27,9 +27,13 @@ const ICON = {
   star: `<svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${sparkle(4, 8)}"/></svg>`,
 };
 
+// Which page is showing once set-up is done: the sky ("home") or Sort.
+let page = "home";
+
 function render() {
   const s = store.get();
   if (!s.pillars.length) renderWelcome();
+  else if (page === "sort") renderSort(s);
   else renderHome(s);
   if (testMode) renderTestPanel();
 }
@@ -108,7 +112,7 @@ function renderHome(s) {
           <b>${esc(p.name)}</b><small data-time="${p.id}"></small></button>`).join("")}
       </div>
       <div class="actions">
-        <button type="button" class="round" data-soon="Sort" aria-label="Sort">${ICON.sort}</button>
+        <button type="button" class="round" id="go-sort" aria-label="Sort">${ICON.sort}</button>
         <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
         <button type="button" class="round" data-soon="Record" aria-label="Record">${ICON.record}</button>
       </div>
@@ -137,6 +141,7 @@ function renderHome(s) {
   tappable("[data-planet]", "planet", openPillar);
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
+  app.querySelector("#go-sort").addEventListener("click", () => { sorting = { tab: null, skipped: new Set(), last: null, done: 0 }; page = "sort"; render(); });
   app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));
   let taps = 0;
   app.querySelector("#greet").addEventListener("click", () => { if (++taps >= 5) { taps = 0; testMode = true; renderTestPanel(); } });
@@ -338,6 +343,105 @@ function catchIt(text, kind) {
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving);
   toast(kind === "worry" ? "It's in your sky now. You don't have to hold it in your head."
     : kind === "want" ? "It's in your sky. Something to grow towards." : "Kept. That one's worth remembering.");
+}
+
+/* ---------- Sort: one thought at a time, given a home among your pillars ---------- */
+
+const KIND_TABS = [["worry", "Worries"], ["kind", "Kind"], ["want", "Wants"]];
+let sorting = { tab: null, skipped: new Set(), last: null, done: 0 };
+const BACK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>`;
+
+function renderSort(s) {
+  const waiting = s.thoughts.filter((t) => t.status === "active" && !t.pillarId);
+  const left = waiting.filter((t) => !sorting.skipped.has(t.id));
+  const count = (k) => left.filter((t) => t.kind === k).length;
+  if (!sorting.tab || !count(sorting.tab)) sorting.tab = KIND_TABS.map(([k]) => k).find(count) ?? "worry";
+  const queue = left.filter((t) => t.kind === sorting.tab).sort((a, b) => a.createdAt - b.createdAt);
+  const t = queue[0];
+  const total = sorting.done + left.length;
+  const last = sorting.last && s.pillars.find((p) => p.id === sorting.last.pillarId);
+
+  const body = t ? `
+    <div class="tabs2" role="tablist" aria-label="Kinds of thought">${KIND_TABS.filter(([k]) => count(k)).map(([k, label]) =>
+      `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === sorting.tab}">${label} <i>${count(k)}</i></button>`).join("")}</div>
+    <div class="focus">
+      ${queue.length > 1 ? `<div class="stack"></div>` : ""}${queue.length > 2 ? `<div class="stack s2"></div>` : ""}
+      <article class="fc k-${t.kind}" id="fc" aria-label="${KIND_LABEL[t.kind]}: ${esc(t.text)}">
+        <p class="eb">${starIcon(t.kind, 16)}${KIND_LABEL[t.kind]}</p>
+        <p class="fq">“${esc(t.text)}”</p>
+        <small>${cameUp(t, now())}</small>
+      </article>
+    </div>
+    <p class="ask">Which part of your life is this about?</p>
+    <div class="tp">${s.pillars.map((p, i) => `<button type="button" class="tpl" data-to="${p.id}" style="--c:${p.tint}">
+      <svg viewBox="-22 -22 44 44" aria-hidden="true">${planet("srt", i, 14, p.tint)}</svg><span>${esc(p.name)}</span></button>`).join("")}</div>
+    <button type="button" class="notyet" id="notyet">Not sure yet</button>
+    <p class="hint">${last ? `Sorted into ${esc(last.name)} · <button type="button" class="undo" id="undo">Undo</button>`
+      : `${sorting.done + 1} of ${total} · tap a planet or drag the card`}</p>`
+  : `<div class="sorted">
+      <p class="big">${sorting.done ? "All sorted." : "Nothing to sort right now."}</p>
+      <p>${sorting.done ? "Each of those stars now belongs to a part of your life." : "New thoughts wait here until you give them a home."}
+      ${sorting.skipped.size ? ` ${sorting.skipped.size === 1 ? "One is" : `${sorting.skipped.size} are`} waiting for your weekly reflection.` : ""}</p>
+      ${last ? `<button type="button" class="undo" id="undo">Undo the last one</button>` : ""}
+      <button type="button" class="primary" id="home">Back to my sky</button>
+    </div>`;
+
+  app.innerHTML = `<section class="sortpage">
+    <div class="sky-wrap">${renderSky({ pillars: [], thoughts: [] })}</div>
+    <div class="scrim"></div>
+    <div class="sp">
+      <header class="hd"><button type="button" class="bk" id="back" aria-label="Back to your sky">${BACK}</button>
+        <h1>Sort</h1><p>${waiting.length ? `${waiting.length} star${waiting.length === 1 ? "" : "s"} to sort` : "Nothing waiting"}</p></header>
+      ${body}
+    </div></section>`;
+  startSpin(app);
+
+  const home = () => { page = "home"; render(); };
+  app.querySelector("#back").addEventListener("click", home);
+  app.querySelector("#home")?.addEventListener("click", home);
+  app.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { sorting.tab = b.dataset.tab; sorting.last = null; render(); }));
+  app.querySelector("#undo")?.addEventListener("click", () => {
+    const { id } = sorting.last;
+    sorting.last = null; sorting.done = Math.max(0, sorting.done - 1);
+    store.update((x) => { x.thoughts.find((y) => y.id === id).pillarId = null; });
+  });
+  if (!t) return;
+  const give = (pillarId) => {
+    sorting.last = { id: t.id, pillarId }; sorting.done++;
+    store.update((x) => { x.thoughts.find((y) => y.id === t.id).pillarId = pillarId; });
+  };
+  app.querySelectorAll("[data-to]").forEach((b) => b.addEventListener("click", () => give(b.dataset.to)));
+  app.querySelector("#notyet").addEventListener("click", () => { sorting.skipped.add(t.id); sorting.last = null; render(); });
+  dragToPlanet(app.querySelector("#fc"), give);
+}
+
+// Drag the card onto a planet to sort it. Let go anywhere else and it slides back.
+function dragToPlanet(card, give) {
+  let start = null, over = null;
+  const planetAt = (x, y) => document.elementFromPoint(x, y)?.closest(".tpl");
+  card.addEventListener("pointerdown", (e) => { start = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  card.addEventListener("pointermove", (e) => {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (!card.classList.contains("dragging")) {
+      if (Math.hypot(dx, dy) < 8) return;
+      card.classList.add("dragging");
+      card.setPointerCapture(e.pointerId);
+    }
+    card.style.transform = `translate(${dx / zoom}px, ${dy / zoom}px) rotate(${Math.max(-4, Math.min(4, dx / 40))}deg) scale(.92)`;
+    const hit = planetAt(e.clientX, e.clientY);
+    if (hit !== over) { over?.classList.remove("hot"); hit?.classList.add("hot"); over = hit; }
+  });
+  const end = () => {
+    if (!start) return;
+    start = null;
+    if (!card.classList.contains("dragging")) return;
+    card.classList.remove("dragging");
+    if (over) return give(over.dataset.to);
+    card.style.transform = "";
+  };
+  card.addEventListener("pointerup", end);
+  card.addEventListener("pointercancel", end);
 }
 
 /* ---------- A star: the thought it holds ---------- */

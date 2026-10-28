@@ -35,7 +35,7 @@ button, [role="button"] { touch-action: manipulation; }
 
 /* The designs were drawn on a 300-wide phone. --z (set in main.js from the screen width) scales the
    text and controls up so a real phone keeps the same proportions. */
-.greet, .welcome-body, .dock, .running, .sheet, .toast { zoom: var(--z, 1); }
+.greet, .welcome-body, .dock, .running, .sheet, .toast, .sp { zoom: var(--z, 1); }
 .sky-wrap svg.sky { width: 100%; height: 100%; display: block; }
 
 /* ---------- First day ---------- */
@@ -186,6 +186,43 @@ button, [role="button"] { touch-action: manipulation; }
 @keyframes arrive { from { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: 0; } 15% { opacity: 1; } }
 .burst { opacity: 0; animation: burst 1.4s ease-out 1.1s; transform-box: fill-box; transform-origin: center; pointer-events: none; }
 @keyframes burst { 0% { opacity: .6; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.2); } }
+
+/* ---------- Sort: on the sky, dimmed; one thought at a time ---------- */
+.sortpage .scrim { position: fixed; inset: 0; background: linear-gradient(rgba(10, 11, 13, .45), rgba(10, 11, 13, .7)); }
+.sp { position: absolute; inset: 0; display: flex; flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 0 calc(env(safe-area-inset-bottom, 0px) + 16px); max-width: 520px; margin: 0 auto; }
+.sp .hd { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 var(--edge); }
+.sp .hd h1 { margin: 4px 0 0; font-size: 26px; font-weight: 700; line-height: 1.15; }
+.sp .hd p { margin: 0; font-size: 15px; color: var(--dim); }
+.bk { width: 44px; height: 44px; margin-left: -12px; display: grid; place-items: center; color: var(--dim); }
+.bk svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tabs2 { display: flex; gap: 20px; padding: 16px var(--edge) 0; }
+.tabs2 button { min-height: 36px; font-size: 14px; font-weight: 500; color: var(--dim); box-shadow: inset 0 -2px 0 transparent; white-space: nowrap; }
+.tabs2 button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--gold); }
+.tabs2 i { font-style: normal; opacity: .6; margin-left: 2px; }
+.focus { position: relative; margin: 24px var(--edge) 0; }
+.fc { position: relative; z-index: 1; margin: 0; padding: 20px; border-radius: 20px; background: rgba(40, 41, 46, .78);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); touch-action: none; cursor: grab; transition: transform .25s cubic-bezier(.2, .8, .3, 1); }
+.fc.dragging { pointer-events: none; transition: none; cursor: grabbing; box-shadow: 0 14px 30px rgba(0, 0, 0, .5); }
+.fc .eb { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--k); }
+.fc .fq { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.28; letter-spacing: -.01em; text-wrap: pretty; }
+.fc small { display: block; margin-top: 16px; font-size: 13px; color: var(--dim); }
+.stack { position: absolute; left: 12px; right: 12px; bottom: -7px; height: 30px; border-radius: 18px; background: rgba(255, 255, 255, .05); }
+.stack.s2 { left: 24px; right: 24px; bottom: -13px; background: rgba(255, 255, 255, .03); }
+.ask { margin: 40px var(--edge) 8px; text-align: center; font-size: 15px; white-space: nowrap; }
+.tp { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 6px 12px; }
+.tpl { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; border-radius: 16px; }
+.tpl svg { width: 48px; height: 48px; overflow: visible; }
+.tpl span { font-size: 13px; font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.tpl.hot { background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent); }
+.notyet { align-self: center; min-height: 44px; margin-top: 8px; padding: 0 16px; font-size: 15px; font-weight: 500; color: var(--dim); }
+.sp .hint { margin: auto 0 0; padding: 0 var(--edge); text-align: center; font-size: 13px; color: color-mix(in srgb, var(--ink) 50%, transparent); }
+.undo { min-height: 36px; font-size: 13px; font-weight: 600; color: var(--gold); }
+.sorted { margin: 40px var(--edge) 0; display: flex; flex-direction: column; gap: 8px; }
+.sorted .big { margin: 0; font-size: 22px; font-weight: 600; }
+.sorted p { margin: 0; font-size: 16px; color: var(--ink-2); }
+.sorted .undo { align-self: flex-start; }
+.sorted .primary { margin-top: 24px; }
 
 /* ---------- Toast and test mode ---------- */
 .toast {
