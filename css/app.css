@@ -234,7 +234,7 @@ button, [role="button"] { touch-action: manipulation; }
 }
 .arrive circle:first-child { animation: flyglow 1.6s ease-out both; }
 @keyframes flyglow { 0%, 50% { opacity: .9; } }
-.burst { opacity: 0; animation: burst 1.2s ease-out 1.5s; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+.burst { opacity: 0; animation: burst 1.2s ease-out 1.6s; transform-box: fill-box; transform-origin: center; pointer-events: none; }
 @keyframes burst { 0% { opacity: .6; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.2); } }
 
 /* ---------- Toast and test mode ---------- */

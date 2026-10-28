@@ -122,7 +122,8 @@ function star(t, i, arriving, from) {
   if (t.id !== arriving) return roam;
   const o = from || { x: CX, y: H * 0.9 };
   const ring = `<circle class="burst" cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 3)}" fill="none" stroke="${TINT[t.kind]}" stroke-width=".8"/>`;
-  return `<g class="arrive" style="--dx:${f2(o.x - x)}px;--dy:${f2(o.y - y)}px">${roam}</g>${ring}`;
+  // The ring rides the star's lap too, so it opens exactly where the star touches down.
+  return `<g class="arrive" style="--dx:${f2(o.x - x)}px;--dy:${f2(o.y - y)}px">${roam}</g><g ${roamAttrs(t)}>${ring}</g>`;
 }
 
 export function renderSky({ pillars, thoughts, runningId, arriving, from, labels }) {
