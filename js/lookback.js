@@ -157,7 +157,8 @@ function breathe() {
   const reset = () => { segs.forEach((x) => x.classList.remove("on")); fills.forEach((f) => { f.style.transition = "none"; f.style.transform = "scaleX(0)"; }); };
   // The sun grows as you breathe in and shrinks as you breathe out (transform only, so it stays smooth).
   const grow = (k, n, ease) => { w.style.transition = `transform ${n}ms ${ease}`; w.style.transform = `scale(${k})`; };
-  const say = (h) => { cue.style.opacity = 0; later(() => { cue.textContent = h; cue.style.opacity = 1; }, 300); };
+  // One phrase at a time: the old words fade fully out before the new ones fade in, so they never overlap.
+  const say = (h) => { cue.style.transition = "opacity .3s ease"; cue.style.opacity = 0; later(() => { cue.textContent = h; cue.style.opacity = 1; }, 350); };
   function start() {
     going = true; len.style.visibility = "hidden"; b.querySelector(".lb-ask").classList.remove("on");
     L.layer.querySelector(".lb-sunw").classList.remove("done");
@@ -392,7 +393,14 @@ function fill(t, cd, mode, d) {
 
 // The card grows to fit whichever side is showing its longest content.
 function fit(cd) {
-  requestAnimationFrame(() => { const h = Math.max(172, ...[...cd.querySelectorAll(".face")].map((f) => f.scrollHeight)); cd.style.setProperty("--h", `${h}px`); });
+  // Measured from the last thing on each side, plus the card's own 16px padding below it.
+  requestAnimationFrame(() => {
+    const h = Math.max(172, ...[...cd.querySelectorAll(".face")].map((f) => {
+      const last = [...f.children].filter((c) => c.offsetHeight > 1).at(-1);
+      return last ? last.offsetTop + last.offsetHeight + 16 : 0;
+    }));
+    cd.style.setProperty("--h", `${h}px`);
+  });
 }
 
 // What was picked on the back of the card (and anything typed into "Something else").
@@ -404,7 +412,8 @@ function picked(cd) {
 // Once it has turned over, swipe the same way again when you're done.
 function arm(t, cd, d, wait, hint) {
   later(() => {
-    if (cd.querySelector(".face.b").dataset.mode !== "about") hint(d === "r" ? "Swipe right again when you’re done" : "Swipe up again when you’re done");
+    // However the card was turned over, you finish it the same way: swipe up when you're done.
+    if (cd.querySelector(".face.b").dataset.mode !== "about") hint(d === "r" ? "Swipe up when you’re done" : "Swipe up again when you’re done");
     delete cd.dataset.busy;
     const bf = cd.querySelector(".face.b");
     if (!bf.querySelector(".sr-done")) bf.insertAdjacentHTML("beforeend", `<button type="button" class="sr sr-done">Done</button>`);
@@ -413,10 +422,10 @@ function arm(t, cd, d, wait, hint) {
       if (d === "u") done(t, "settled", got);
       else done(t, "waiting", got);
       L.body.querySelector(".tip").classList.remove("on");
-      away(cd, d);
+      away(cd, "u");
     };
     bf.querySelector(".sr-done").addEventListener("click", finish);
-    drag(cd, [d], finish);
+    drag(cd, ["u"], finish);
   }, wait);
 }
 

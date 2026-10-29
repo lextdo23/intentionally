@@ -369,9 +369,11 @@ button:active:not(:disabled) { transform: scale(.96); }
 }
 
 /* ---------- The weekly look back: a ritual in the night sky, led by the sun ---------- */
-.lb { position: fixed; inset: 0; z-index: 25; overflow: hidden; text-align: center; color: var(--ink); -webkit-user-select: none; user-select: none;
-  background: #0e0f11 url(../img/sky.jpg) center / cover; opacity: 0; transition: opacity .6s ease; }
-.lb::before { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 40%, rgba(8, 9, 10, .15), rgba(8, 9, 10, .6)); pointer-events: none; }
+.lb { position: fixed; inset: 0; z-index: 25; text-align: center; color: var(--ink); -webkit-user-select: none; user-select: none;
+  opacity: 0; transition: opacity .6s ease; }
+/* The night behind the look back reaches the screen's true bottom edge, like the home sky, so iPhone leaves no dark strip. */
+.lb::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: max(100lvh, var(--sh, 0px)); min-height: 100%; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 40%, rgba(8, 9, 10, .15), rgba(8, 9, 10, .6)), #0e0f11 url(../img/sky.jpg) center / cover; }
 .lb.in { opacity: 1; }
 .lb button { font: inherit; color: inherit; }
 .lb-path { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 26px); left: 0; right: 0; display: flex; justify-content: center; gap: 8px; z-index: 4; }
