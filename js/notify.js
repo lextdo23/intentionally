@@ -6,7 +6,7 @@ import * as store from "./store.js";
 import { now, DAY } from "./clock.js";
 
 // The service's address. Empty until it has been set up (see push/README.md); until then nothing is sent.
-export const SERVICE = "";
+export const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 
 const STILL = 3 * 3600000;
 export const LENGTHS = [0, 25, 45, 60];
