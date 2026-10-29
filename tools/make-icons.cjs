@@ -13,6 +13,7 @@ function sparkle(n, r, inner) {
   return d + "Z";
 }
 
+// The home screen icon is drawn large (512) because iPhones with big icons stretch a small one and it looks blurry.
 // Drawn on a 100 x 100 tile. The star stays inside the middle 80%, so phones that crop icons to a circle keep all of it.
 const svg = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
   <defs>
@@ -24,7 +25,7 @@ const svg = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" h
   <path transform="translate(50,50)" d="${sparkle(4, 28, 0.16)}" fill="#24262b"/>
 </svg>`;
 
-const OUT = [["icons/apple-touch-icon.png", 180], ["icons/icon-192.png", 192], ["icons/icon-512.png", 512], ["icons/icon-maskable-512.png", 512]];
+const OUT = [["icons/apple-touch-icon.png", 512], ["icons/icon-192.png", 192], ["icons/icon-512.png", 512], ["icons/icon-maskable-512.png", 512]];
 
 (async () => {
   const browser = await chromium.launch();

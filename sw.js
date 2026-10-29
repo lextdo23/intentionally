@@ -1,10 +1,10 @@
 // Keeps the app working offline. Files come fresh from the internet when there is a connection (so updates
 // show straight away) and from the saved copy when there isn't. Bump VERSION whenever any file below changes.
-const VERSION = "v25";
+const VERSION = "v26";
 const FILES = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/main.js", "js/store.js", "js/sky.js", "js/clock.js", "js/pillars.js", "js/thoughts.js", "js/sort.js", "js/helps.js", "js/week.js", "js/weekview.js", "js/lookback.js", "js/notify.js",
-  "img/sky.jpg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
+  "img/sky.jpg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png?v=2",
 ];
 
 self.addEventListener("install", (e) => {
