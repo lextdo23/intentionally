@@ -13,9 +13,11 @@ const fresh = () => ({
   sessions: [],     // finished timers: { pillarId, start, end, activity?, manual? }
   running: null,    // the one timer allowed at a time: { pillarId, start, activity? }
   thoughts: [],     // { id, text, kind: "kind"|"worry"|"want", pillarId, status: "active"|"settled"|"let-go",
-                    //   count, seen: [times it came up], x, y, createdAt, helped: [{ text, at }] }
+                    //   count, seen: [times it came up], x, y, createdAt, helped: [{ text, at }],
+                    //   sortedAt?, unsureAt?, letGoAt? }. pillarId "me" means it's just about you (it circles the sun).
   season: null,     // { name, startedAt } once seasons have opened up
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
+  tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
   test: { offsetDays: 0 },
 });
 
@@ -106,6 +108,27 @@ export function thoughtCameBack(id) {
     (t.seen ??= []).push(now());
     t.status = "active";
   });
+}
+
+// Sorting: a thought finds its part of life, waits a while ("not sure yet"), or is let go.
+// Each returns what the thought was like before, so it can be undone.
+export function editThought(id, change) {
+  let before = null;
+  update((s) => {
+    const t = s.thoughts.find((x) => x.id === id);
+    if (!t) return;
+    before = { ...t };
+    change(t);
+  });
+  return before;
+}
+
+export const sortThought = (id, pillarId) => editThought(id, (t) => { t.pillarId = pillarId; t.sortedAt = now(); delete t.unsureAt; });
+export const notSureYet = (id) => editThought(id, (t) => { t.unsureAt = now(); });
+export const letThoughtGo = (id) => editThought(id, (t) => { t.status = "let-go"; t.letGoAt = now(); });
+
+export function restoreThought(before) {
+  update((s) => { const i = s.thoughts.findIndex((x) => x.id === before.id); if (i >= 0) s.thoughts[i] = before; });
 }
 
 export function removeThought(id) {

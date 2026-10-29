@@ -18,6 +18,7 @@ The owner, alex, has no coding experience. Explain changes in plain English, no 
 - Thoughts never pass behind the sun or a planet; sorted thoughts circle their pillar.
 - Stars roam the whole open sky on slow Lissajous laps (6 to 10 minutes), starting from where they landed.
 - Running a timer zooms the sky into that planet (only the planet and the passing sun remain), then the time fades in under it.
+- Sorting (`js/sort.js`): one card at a time, in the sky or on a page (planets in a row above a stack of cards). Drag the card up onto a planet, or the sun ("Just me"), to sort; swipe left to let go, right for "not sure yet". No labels on screen: the words fade in behind the card while swiping. A one-line tip shows only on the first few sorts. The round × at the top right always stops sorting. Letting go sinks down and crumbles away, with a line of relief (worries: "That was a moment, not the truth."; others: "You felt it. You don't have to keep it.").
 - Thoughts are always shown in quotation marks.
 - One focal point per card; everything else steps down. A label is never smaller than what it labels.
 - One 20px left edge; spacing 4 / 8 / 16 / 24 / 40. Corners: sheet 26, card 16, button 14, field 12, chip 10. Buttons that are only an icon are round.

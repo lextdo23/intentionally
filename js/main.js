@@ -2,6 +2,7 @@ import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
 import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
+import * as sort from "./sort.js";
 import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
 const app = document.getElementById("app");
@@ -89,13 +90,14 @@ const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function renderHome(s) {
   const active = s.thoughts.filter((t) => t.status === "active").length;
-  const sub = active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
+  const sorting = sort.active() ? sort.view() : null;
+  const sub = sorting && sort.left() ? `${sort.left()} to sort` : active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
   // Opening the app with a timer already running goes straight to the zoomed-in planet.
   const opening = firstHome; firstHome = false;
   const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
-  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""}">
+  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""}">
     <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels })}</div><div class="seam"></div>
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
@@ -104,7 +106,7 @@ function renderHome(s) {
       <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
     <nav class="dock" aria-label="Actions">
       <div class="actions">
-        <button type="button" class="round" data-soon="Sort" aria-label="Sort">${ICON.sort}</button>
+        <button type="button" class="round" id="sort" aria-label="Sort">${ICON.sort}</button>
         <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
         <button type="button" class="round" data-soon="Record" aria-label="Record">${ICON.record}</button>
       </div>
@@ -128,7 +130,11 @@ function renderHome(s) {
     el.addEventListener("click", () => open(el.dataset[key]));
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
   });
-  tappable("[data-planet]", "planet", openPillar);
+  // While sorting, tapping a planet (or the sun) gives it the thought instead.
+  tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : openPillar(id));
+  tappable("[data-sun]", "sun", (id) => sort.active() && sort.choose(id));
+  app.querySelector("#sort").addEventListener("click", () => sort.open(toast));
+  sort.afterRender();
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
   app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));
@@ -364,7 +370,7 @@ function openStar(id) {
     <header class="sh-head star-head"><div><p class="eyebrow k-${t.kind}">${starIcon(t.kind, 14)}${KIND_LABEL[t.kind]}</p></div>${CLOSE}</header>
     <blockquote class="big-quote" id="sheet-title">“${esc(t.text)}”</blockquote>
     <p class="meta">${cameUp(t, now())}</p>
-    <p class="hint later">You'll sort it and decide what to do with it at your weekly reflection.</p>
+    <p class="hint later">${t.pillarId === "me" ? "Sorted. It's about you." : t.pillarId ? `Sorted into ${esc(pillarName(t.pillarId))}.` : "Not sorted yet. Tap Sort in the dock when you're ready."}</p>
     <button type="button" class="link" data-remove>Remove this star</button>`);
   const rm = sheet.querySelector("[data-remove]");
   rm.addEventListener("click", () => {

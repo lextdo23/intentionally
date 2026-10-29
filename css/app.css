@@ -238,6 +238,90 @@ button, [role="button"] { touch-action: manipulation; }
 .burst { opacity: 0; animation: burst 1.2s ease-out 1.6s; transform-box: fill-box; transform-origin: center; pointer-events: none; }
 @keyframes burst { 0% { opacity: .6; transform: scale(.4); } 100% { opacity: 0; transform: scale(2.2); } }
 
+/* ---------- Sorting: one card at a time, in the sky or on a page ---------- */
+/* In the sky the dock steps away for the card; the sun can be tapped ("Just me"); the star being sorted glows. */
+.home .sorting .dock, .sorting .dock { opacity: 0; transform: translateY(115%); pointer-events: none; }
+.sky .sunhit { visibility: hidden; }
+.sorting .sky .sunhit { visibility: visible; }
+.sky .halo { fill: none; stroke: var(--gold); stroke-width: 1.2; opacity: 0; transition: opacity .2s ease; pointer-events: none; }
+.sky .hot > .halo { opacity: .8; }
+.sky .now .tw { animation: nowglow 2.6s ease-in-out infinite; }
+@keyframes nowglow { 0%, 100% { transform: scale(1.7); opacity: .85; } 50% { transform: scale(2); opacity: 1; } }
+/* A soft ring slowly opens round it, like a ripple, so you can find it at a glance. */
+.sky .nowring { transform-box: fill-box; transform-origin: center; animation: nowring 2.6s ease-out infinite; pointer-events: none; }
+@keyframes nowring { 0% { transform: scale(.5); opacity: 0; } 25% { opacity: .5; } 100% { transform: scale(1.6); opacity: 0; } }
+.sky [data-gone] { pointer-events: none; }
+/* On the page, the sky goes quiet behind it: only the night and the sun's glow remain. */
+.sort-page .greet { opacity: 0; pointer-events: none; }
+.sort-page .sky .stars, .sort-page .sky .rings, .sort-page .sky [data-orbit], .sort-page .sky .tags, .sort-page .sky .sundisc { opacity: 0; pointer-events: none; }
+.sky .sundisc { transition: opacity .7s ease; }
+
+.sortlayer { position: fixed; inset: 0; z-index: 20; pointer-events: none; transition: opacity .4s ease; }
+.sortlayer > * { pointer-events: auto; }
+.sortlayer.out { opacity: 0; }
+/* Stop sorting: a small round ×, always in the same place at the top right. Small to look at, a full 44px to tap. */
+.so-x { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 20px); right: 16px; z-index: 2; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(255, 255, 255, .08); color: var(--dim); }
+.so-x::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; }
+.so-x svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.so-sky { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); max-width: 496px; margin: 0 auto; }
+.so-page { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
+  padding: calc(env(safe-area-inset-top, 0px) + 72px) var(--edge) calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: linear-gradient(rgba(8, 9, 10, .5), rgba(8, 9, 10, .82)); animation: so-in .4s ease both; }
+.so-page > * { width: 100%; max-width: 480px; margin-left: auto; margin-right: auto; }
+@keyframes so-in { from { opacity: 0; } }
+.so-ask { margin: 0; font-size: 17px; font-weight: 500; text-align: center; text-wrap: balance; }
+.so-count { margin: 4px 0 0; min-height: 18px; font-size: 13px; text-align: center; color: var(--dim); }
+.so-pls { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); margin-top: 24px; }
+.so-pls button { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 64px; padding: 4px 0; font-size: 12px; font-weight: 500; }
+.so-pls svg { width: 30px; height: 30px; overflow: visible; transition: transform .2s ease, filter .2s ease; }
+.so-pls span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.so-pls .hot svg { transform: scale(1.25); filter: drop-shadow(0 0 6px rgba(227, 196, 134, .55)); }
+.so-page .so-deck { margin-top: 16px; padding-top: 24px; }
+.so-deck { position: relative; }
+/* The cards: frosted glass. On the page the next few wait stacked up and back behind the one in front. */
+.so-card { position: relative; z-index: 1; padding: 16px; border-radius: 16px; touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab;
+  background: linear-gradient(rgba(62, 64, 70, .9), rgba(40, 42, 47, .94));
+  -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 12px 32px rgba(0, 0, 0, .3);
+  transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .45s ease; }
+.so-card.back { position: absolute; inset: 24px 0 0; z-index: 0; overflow: hidden; pointer-events: none; transform-origin: 50% 0;
+  transform: translateY(calc(var(--n) * -8px)) scale(calc(1 - var(--n) * .05)); opacity: calc(1 - var(--n) * .22); }
+.so-card.back > * { visibility: hidden; }
+.so-card.enter { opacity: 0; }
+.so-card.front.enter { transform: translateY(16px); }
+.so-card.drag { transition: none; cursor: grabbing; }
+.so-card.leave { opacity: 0; }
+.so-card.sink { opacity: 0; filter: blur(6px); transition: transform 1.1s cubic-bezier(.5, 0, .75, 0), opacity .9s ease-in .15s, filter .9s ease-in; }
+.so-card.nudge { animation: so-nudge 1.6s ease-in-out .6s; }
+@keyframes so-nudge { 0%, 100% { transform: none; } 30% { transform: translateX(-22px) rotate(-1.5deg); } 65% { transform: translateX(16px) rotate(1deg); } }
+.so-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+.so-kind { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 600; color: var(--k); }
+.so-pg { position: relative; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .08); color: var(--dim); }
+.so-pg::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+.so-pg svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.so-q { margin: 8px 0 0; font-size: 22px; font-weight: 600; line-height: 1.3; text-wrap: pretty; }
+.so-tip { margin: 8px 0 0; max-height: 20px; font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: opacity .8s ease, max-height .8s ease .3s, margin .8s ease .3s; }
+.so-tip.fade { opacity: 0; max-height: 0; margin-top: 0; }
+/* The words appear only while you swipe, in the space the card is leaving. */
+.so-rev { position: absolute; top: 50%; z-index: 0; transform: translateY(-50%); font-size: 17px; font-weight: 600; color: var(--ink); opacity: 0; pointer-events: none; white-space: nowrap; }
+.so-page .so-rev { top: calc(50% + 12px); }
+.so-rev.l { right: 8px; } .so-rev.r { left: 8px; }
+/* The quiet line under the card. */
+.so-line { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; margin: 4px 0 0; padding: 0 8px; text-align: center;
+  font-size: 15px; color: var(--ink-2); opacity: 0; transition: opacity .5s ease; }
+.so-line.on { opacity: 1; }
+.so-undo { min-height: 44px; padding: 0 4px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.so-done { margin: 24px 0 0; font-size: 17px; text-align: center; color: var(--ink-2); }
+.so-dust { position: fixed; z-index: 3; border-radius: 50%; background: var(--ink); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .so-card, .so-card.sink, .so-tip, .so-line, .sortlayer { transition: none; }
+  .so-card.nudge, .so-page, .sky .now .tw { animation: none; }
+  .sky .now .tw { transform: scale(1.7); }
+  .sky .nowring { animation: none; opacity: .4; }
+}
+
 /* ---------- Toast and test mode ---------- */
 .toast {
   position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 112px); transform: translateX(-50%);

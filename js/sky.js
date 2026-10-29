@@ -93,7 +93,7 @@ export function startSpin(root) {
   const roamers = [...root.querySelectorAll("[data-roam]")].map((g) => {
     const x = +g.dataset.x, y = +g.dataset.y, born = +g.dataset.born, lap = +g.dataset.lap * 1000, T0 = (born / lap) * Math.PI * 2;
     const home = g.dataset.home && g.dataset.home.split(",").map(Number);
-    return { g, x, y, born, lap, home, since: +g.dataset.since || 0, a: Math.asin(clamp((x - cx) / rx)) - 3 * T0, b: Math.asin(clamp((y - cy) / ry)) - 2 * T0 };
+    return { g, x, y, born, lap, home, since: +g.dataset.since || 0, gone: g.dataset.gone ? +g.dataset.gone : null, a: Math.asin(clamp((x - cx) / rx)) - 3 * T0, b: Math.asin(clamp((y - cy) / ry)) - 2 * T0 };
   });
   const ease = (t) => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   // Where a star is at time T: on its lap of the open sky, or, once sorted, drifting round its pillar's planet.
@@ -149,7 +149,10 @@ export function startSpin(root) {
     if (!still) breathe(T);
     for (const r of roamers) {
       const [dx, dy] = place(r, still ? r.born : Date.now());
-      r.g.setAttribute("transform", `translate(${f2(dx)},${f2(dy)})`);
+      // A thought let go sinks softly and fades away.
+      const g = r.gone === null ? 0 : still ? 1 : clamp((T - r.gone) / 2600);
+      r.g.setAttribute("transform", `translate(${f2(dx)},${f2(dy + (g > 0 ? ease(g) * 60 : 0))})`);
+      if (r.gone !== null) r.g.setAttribute("opacity", f2(Math.max(0, 1 - g)));
     }
     for (const { look, tex, r, turn, sx, sy, kids } of els) {
       const t = (ms / 1000) * Math.PI * 2 / turn;
@@ -201,7 +204,8 @@ const roamAttrs = (t) => {
   let h = 0; for (const c of String(t.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   const real = now() - Date.now(), p = t.pillarId && homes[t.pillarId];
   const home = p ? ` data-home="${f2(p.x)},${f2(p.y)},${f2(p.r + 14 + h % 12)},${50 + h % 30},${f2((h % 628) / 100)}" data-since="${(t.sortedAt ?? 0) - real}"` : "";
-  return `data-roam data-x="${f2(t.x * W)}" data-y="${f2(t.y * H)}" data-born="${t.createdAt - real}" data-lap="${360 + h % 240}"${home}`;
+  const gone = t.status === "let-go" ? ` data-gone="${t.letGoAt - real}"` : "";
+  return `data-roam data-x="${f2(t.x * W)}" data-y="${f2(t.y * H)}" data-born="${t.createdAt - real}" data-lap="${360 + h % 240}"${home}${gone}`;
 };
 
 // A star for a thought. `arriving` marks one just caught: it lifts out of the gold button it was added with
@@ -225,7 +229,8 @@ function star(t, i, arriving, from) {
 
 export function renderSky({ pillars, thoughts, runningId, arriving, from, labels }) {
   const at = layout(pillars);
-  homes = at;
+  // A thought that's just about you circles the sun.
+  homes = { ...at, me: { x: CX, y: CY, r: 22 } };
   bodies = [{ x: CX, y: CY, r: 16 }, ...Object.values(at)];
   const defs = `<defs>
     <filter id="soft" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.4"/></filter>
@@ -233,16 +238,19 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
   // The night itself (gradient, soft cloud and film grain) is a ready-made picture: drawing it live was slow on phones.
   // img/sky.jpg is rendered from the original drawing; see README for how to remake it.
   const base = `<image href="img/sky.jpg" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
-  const stars = thoughts.filter((t) => t.status === "active").map((t, i) => star(t, i, arriving, from)).join("");
+  // A thought let go a moment ago stays just long enough to sink away.
+  const stars = thoughts.filter((t) => t.status === "active" || (t.status === "let-go" && now() - t.letGoAt < 3500))
+    .map((t, i) => star(t, i, arriving, from)).join("");
   // You are the one bright thing in the sky: a wide warm glow with the sun at its heart.
-  const sun = `<circle data-breath="glow" cx="${CX}" cy="${CY}" r="120" fill="url(#sunglow)"/><circle data-breath="disc" cx="${CX}" cy="${CY}" r="16" fill="#f7d3a8"/><circle cx="${CX}" cy="${CY}" r="11" fill="#fff4e6"/>`;
+  const sun = `<circle data-breath="glow" cx="${CX}" cy="${CY}" r="120" fill="url(#sunglow)"/><g class="sundisc"><circle data-breath="disc" cx="${CX}" cy="${CY}" r="16" fill="#f7d3a8"/><circle cx="${CX}" cy="${CY}" r="11" fill="#fff4e6"/></g>
+    <g data-target="me" transform="translate(${CX},${CY})"><circle class="halo" r="24"/></g>`;
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Planets hold still; only their surfaces turn. The running planet glows softly.
   const planets = pillars.map((p, i) => {
     const o = at[p.id], run = p.id === runningId;
     const pulse = still ? "" : `<animate attributeName="opacity" values=".15;.4;.15" dur="3s" repeatCount="indefinite"/>`;
     const glow = run ? `<circle r="${f2(o.r * 3.4)}" fill="${p.tint}" opacity=".3" filter="url(#soft)">${pulse}</circle>` : "";
-    return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}</g>`;
+    return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-target="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}<circle class="halo" r="${o.r + 7}"/></g>`;
   }).join("");
   // Each planet wears its name as a level ring, like Saturn's, turning slowly: read on the near side,
   // passing faintly behind the planet on the far side. The letters are laid out once the sky is on screen.
@@ -252,7 +260,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     const o = at[p.id], s = Math.max(44, o.r * 2 + 16);
     const hit = `<rect class="hit" data-planet="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}: ideas and add time" x="${-s / 2}" y="${-s / 2}" width="${s}" height="${s}" rx="${s / 2}" fill="transparent"/>`;
     return `<g transform="translate(${f2(o.x)},${f2(o.y)})">${hit}</g>`;
-  }).join("");
+  }).join("") + `<rect class="hit sunhit" data-sun="me" role="button" tabindex="0" aria-label="Just me" x="${CX - 26}" y="${CY - 26}" width="52" height="52" rx="26" fill="transparent"/>`;
   // Test-mode only for now: each star's words on a small tag beneath it, like a planet's name but quieter.
   const words = labels ? thoughts.filter((t) => t.status === "active").map((t, i) => {
     const short = t.text.length > 20 ? t.text.slice(0, 19).trimEnd() + "…" : t.text;
@@ -283,6 +291,34 @@ export function fitTags(root) {
 function skyLabel(pillars, thoughts) {
   const active = thoughts.filter((t) => t.status === "active").length;
   return `Your sky: ${pillars.map((p) => p.name).join(", ")} around you. ${active ? `${active} thought${active === 1 ? "" : "s"} on your mind.` : "No thoughts on your mind right now."}`;
+}
+
+// While sorting: which planet (or the sun, "me") is under a finger, where one sits on screen, and soft rings
+// round the one a card is held over and round the star being sorted.
+export function targetAt(x, y) {
+  const m = document.querySelector("svg.sky")?.getScreenCTM();
+  if (!m) return null;
+  const q = new DOMPoint(x, y).matrixTransform(m.inverse());
+  let best = null, bd = Infinity;
+  for (const [id, o] of Object.entries(homes)) {
+    const d = Math.hypot(q.x - o.x, q.y - o.y);
+    if (d < (id === "me" ? 16 : o.r) + 22 && d < bd) { best = id; bd = d; }
+  }
+  return best;
+}
+export function targetPoint(id) {
+  const m = document.querySelector("svg.sky")?.getScreenCTM(), o = homes[id];
+  return m && o ? new DOMPoint(o.x, o.y).matrixTransform(m) : null;
+}
+export function markTarget(id) {
+  document.querySelectorAll("svg.sky [data-target]").forEach((g) => g.classList.toggle("hot", g.dataset.target === id));
+}
+export function markStar(id) {
+  document.querySelectorAll("svg.sky .now").forEach((g) => { g.classList.remove("now"); g.querySelector(".nowring")?.remove(); });
+  const hit = id && document.querySelector(`svg.sky [data-star="${id}"]`);
+  if (!hit) return;
+  hit.parentNode.classList.add("now");
+  hit.insertAdjacentHTML("beforebegin", `<circle class="nowring" cx="${hit.getAttribute("cx")}" cy="${hit.getAttribute("cy")}" r="10" fill="none" stroke="${INK}" stroke-width=".7"/>`);
 }
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
