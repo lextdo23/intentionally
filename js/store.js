@@ -11,7 +11,7 @@ const fresh = () => ({
   name: "",
   pillars: [],      // { id, name, tint, focus }
   sessions: [],     // finished timers: { pillarId, start, end, activity?, manual? }
-  running: null,    // the one timer allowed at a time: { pillarId, start, activity? }
+  running: null,    // the one timer allowed at a time: { pillarId, start, activity?, minutes? (a nudge after this long) }
   thoughts: [],     // { id, text, kind: "kind"|"worry"|"want", pillarId, status: "active"|"settled"|"let-go",
                     //   count, seen: [times it came up], x, y, createdAt, helped: [{ text, at }],
                     //   sortedAt?, unsureAt?, letGoAt? }. pillarId "me" means it's just about you (it circles the sun).
@@ -24,6 +24,9 @@ const fresh = () => ({
   intention: null,  // this week's one small thing: { text, pillarId, setAt, did: [times] }
   learned: {},      // words → struggle, from "What's this most about?" answers, so the same words match next time
   myHelps: {},      // struggle → helps the person wrote themselves ("Something else"), offered first next time
+  notify: { asked: false, timer: false, evening: null, eveningOffered: false, quiet: ["22:30", "08:00"], len: 0 },
+                    // notifications (js/notify.js): timer nudges on or off, the evening drop's time ("21:30") or null,
+                    //   quiet hours, the timer length picked last (minutes, 0 = no end), and which offers have been made
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
   tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
   test: { offsetDays: 0 },
@@ -80,11 +83,11 @@ function finish(s) {
 }
 
 // Returns how long the stopped timer ran (0 if none), so the screen can say what was logged.
-export function startTimer(pillarId, activity) {
+export function startTimer(pillarId, activity, minutes = 0) {
   let stopped = 0;
   update((s) => {
     stopped = finish(s);
-    s.running = { pillarId, start: now(), ...(activity && { activity }) };
+    s.running = { pillarId, start: now(), ...(activity && { activity }), ...(minutes && { minutes }) };
   });
   return stopped;
 }

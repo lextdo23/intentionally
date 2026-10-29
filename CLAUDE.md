@@ -26,3 +26,4 @@ The owner, alex, has no coding experience. Explain changes in plain English, no 
 - Voice: comforting at hard moments (worries, reflection, repeats), brief and steady everywhere else.
 - Features are revealed slowly and we say so up front.
 - Not therapy: crisis support (Australian lines) must always be reachable.
+- Notifications (`js/notify.js`, `push/`) are a FIRST VERSION, NOT FINAL: built as first drafted at alex's request; words and design get revisited. The service only knows times, never words; a thought never goes on the lock screen.

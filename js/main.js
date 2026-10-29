@@ -7,6 +7,7 @@ import * as look from "./lookback.js";
 import { due, times } from "./week.js";
 import { heaviness } from "./helps.js";
 import { weekHTML, recordHTML } from "./weekview.js";
+import * as notify from "./notify.js";
 import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
 const app = document.getElementById("app");
@@ -157,10 +158,14 @@ function renderHome(s) {
   app.querySelector("#greet").addEventListener("click", () => { if (++taps >= 5) { taps = 0; testMode = true; renderTestPanel(); } });
 }
 
-function start(pillarId, activity) {
-  const before = store.get().running;
-  const ran = store.startTimer(pillarId, activity);
+function start(pillarId, activity, minutes = 0) {
+  const before = store.get().running, n = store.get().notify;
+  // The length is remembered first, so starting the timer stays one smooth change on screen.
+  if (notify.supported() && n.len !== minutes) store.update((s) => { s.notify.len = minutes; });
+  const ran = store.startTimer(pillarId, activity, minutes);
   if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
+  // The first time a timer is given a length, ask once whether a nudge would help.
+  if (minutes && !n.asked && !n.timer && notify.supported() && !notify.blocked()) setTimeout(() => askTimer(minutes), still() ? 0 : 1200);
 }
 
 // The running view eases away first, then the timer stops.
@@ -205,6 +210,9 @@ function openPillar(id) {
       <div><h2 id="sheet-title">${esc(p.name)}</h2><p>This week <span data-week="${id}"></span></p></div>
       ${CLOSE}
     </header>
+    ${notify.supported() && !running ? `<p class="nl-k" id="nl-k">Nudge me after</p>
+    <div class="nl" role="radiogroup" aria-labelledby="nl-k">${notify.LENGTHS.map((m) => `<button type="button" class="chip" role="radio" aria-checked="${m === s.notify.len}" data-len="${m}">${m ? m === 60 ? "1 hr" : `${m} min` : "No end"}</button>`).join("")}</div>
+    <p class="hint">Optional. The timer keeps counting either way.</p>` : ""}
     <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
     ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
     <div class="chips">${ideas.map((a) => `<button type="button" class="chip" data-idea="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}
@@ -216,8 +224,13 @@ function openPillar(id) {
     </form>`, p.tint);
   startSpin(document.body);
   tick();
-  sheet.querySelector("[data-go]").addEventListener("click", () => { close(); running ? stop() : start(id); });
-  sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { close(); start(id, b.dataset.idea); }));
+  const len = () => +(sheet.querySelector(".nl [aria-checked=true]")?.dataset.len ?? 0);
+  sheet.querySelector(".nl")?.addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (b) sheet.querySelectorAll(".nl .chip").forEach((c) => c.setAttribute("aria-checked", String(c === b)));
+  });
+  sheet.querySelector("[data-go]").addEventListener("click", () => { const m = len(); close(); running ? stop() : start(id, undefined, m); });
+  sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { const m = len(); close(); start(id, b.dataset.idea, m); }));
   const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
   toggle.addEventListener("click", () => {
     form.hidden = !form.hidden;
@@ -377,6 +390,7 @@ function catchIt(text, kind, button) {
   const heavy = heaviness(text);
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving, heavy);
   if (heavy) setTimeout(() => quietLine(heavy), still() ? 0 : 1800);
+  else if (eveningMoment()) setTimeout(offerEvening, still() ? 0 : 2200);
 }
 
 // A heavy thought gets one calm line under the sun: no alarm, no colour, and two ways to answer.
@@ -494,6 +508,7 @@ function openRecord() {
   sheet.classList.add("wide");
   sheet.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => { const w = s.weeks[+b.dataset.week]; close(); openWeek(w.from, w.to, w.intention, "deep"); }));
   sheet.querySelector("[data-support]").addEventListener("click", openSupport);
+  sheet.querySelector("[data-notify]")?.addEventListener("click", () => { close(); openNotify(); });
 }
 
 // Always reachable: free, private lines, open day and night. (The word "crisis" is never on screen.)
@@ -515,6 +530,101 @@ function openIntention() {
     close();
     toast("Nice. That’s kept in What helped.");
   });
+}
+
+/* ---------- Notifications: a nudge when a timer is up, the evening drop, and their settings ----------
+   FIRST VERSION, NOT FINAL (alex, 29 Oct 2026): built as first drafted; words and design to be revisited. */
+
+const clock = (v) => { const [h, m] = v.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
+const notReady = () => notify.SERVICE ? "Notifications are off for now. You can turn them on any time at the bottom of Record." : "Notifications arrive in an update soon.";
+
+// A small card near the bottom of the screen, over the sky: one question, a gold yes and a quiet no.
+function offer({ title, text, extra = "", yes, no, onYes, onNo }) {
+  document.querySelector(".offer")?.remove();
+  const el = document.createElement("section");
+  el.className = "offer";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-labelledby", "offer-title");
+  el.innerHTML = `<h2 id="offer-title">${esc(title)}</h2><p>${esc(text)}</p>${extra}
+    <button type="button" class="primary" data-yes>${esc(yes)}</button><button type="button" class="of-no" data-no>${esc(no)}</button>`;
+  document.body.append(el);
+  requestAnimationFrame(() => el.classList.add("in"));
+  const go = () => { el.classList.remove("in"); setTimeout(() => el.remove(), still() ? 0 : 300); };
+  el.querySelector("[data-yes]").addEventListener("click", () => { onYes(el); go(); });
+  el.querySelector("[data-no]").addEventListener("click", () => { onNo(); go(); });
+  el.querySelector("[data-yes]").focus();
+  return el;
+}
+
+function askTimer(minutes) {
+  offer({
+    title: `Want a quiet nudge when your ${minutes === 60 ? "hour is" : `${minutes} minutes are`} up?`,
+    text: "Your phone will ask if Intentionally can send notifications. We’ll only send the ones you turn on, and your thoughts never show on your lock screen.",
+    yes: "Yes, nudge me", no: "Not now",
+    onYes: async () => {
+      const ok = await notify.enable();
+      store.update((s) => { s.notify.asked = true; s.notify.timer = ok; });
+      if (!ok) toast(notReady());
+    },
+    onNo: () => store.update((s) => { s.notify.asked = true; }),
+  });
+}
+
+// Offered once, on an evening when a few thoughts have been caught.
+function eveningMoment() {
+  const s = store.get(), n = s.notify;
+  return notify.supported() && !notify.blocked() && !n.eveningOffered && !n.evening && s.thoughts.length >= 3 && new Date(now()).getHours() >= 17;
+}
+
+function offerEvening() {
+  const yes = (v) => `Yes, at ${clock(v || "21:30")}`;
+  const el = offer({
+    title: "Would an evening nudge help?",
+    text: "Once a day, a quiet question before bed: anything on your mind? Skip it whenever you like.",
+    extra: `<label class="of-time"><span>Time</span><input type="time" value="21:30" data-tp></label>`,
+    yes: yes(), no: "No thanks",
+    onYes: async (card) => {
+      const v = card.querySelector("[data-tp]").value || "21:30";
+      const ok = await notify.enable();
+      store.update((s) => { s.notify.eveningOffered = true; if (ok) s.notify.evening = v; });
+      toast(ok ? `Evening drop set for ${clock(v)}.` : notReady());
+    },
+    onNo: () => store.update((s) => { s.notify.eveningOffered = true; }),
+  });
+  const pick = el.querySelector("[data-tp]");
+  pick.addEventListener("input", () => { el.querySelector("[data-yes]").textContent = yes(pick.value); });
+}
+
+function openNotify() {
+  const n = store.get().notify, off = !notify.supported() || notify.blocked() ? "disabled" : "";
+  const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Notifications</h2></div>${CLOSE}</header>
+    ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`
+      : notify.blocked() ? `<p class="nt-why">Notifications are turned off for Intentionally in your phone’s Settings. Turn them on there, then come back.</p>` : ""}
+    <div class="nt-card"><label class="nt-row"><span>Timer nudges</span><input type="checkbox" class="sw" role="switch" data-n="timer" ${n.timer ? "checked" : ""} ${off}></label>
+      <p class="nt-note">When a timer you gave a length is up, and a check if one has run for 3 hours.</p></div>
+    <div class="nt-card"><label class="nt-row"><span>Evening drop</span><input type="checkbox" class="sw" role="switch" data-n="evening" ${n.evening ? "checked" : ""} ${off}></label>
+      <label class="nt-row nt-sub"><span>Time</span><input type="time" class="nt-time" data-nt="evening" value="${n.evening ?? "21:30"}"></label></div>
+    <div class="nt-card"><p class="nt-row">Quiet hours</p>
+      <label class="nt-row nt-sub"><span>From</span><input type="time" class="nt-time" data-nt="q0" value="${n.quiet[0]}"></label>
+      <label class="nt-row nt-sub"><span>Until</span><input type="time" class="nt-time" data-nt="q1" value="${n.quiet[1]}"></label></div>
+    <p class="nt-foot">Your words never appear on your lock screen. No counts on the app icon, and we’ll never tell you you’ve missed anything.</p>
+    <p class="nt-foot">More will arrive here as the rest of the app opens up.</p>`);
+  sheet.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("change", async () => {
+    const on = b.checked, k = b.dataset.n;
+    if (on && !await notify.enable()) { b.checked = false; return toast(notReady()); }
+    store.update((s) => {
+      s.notify.asked = true;
+      if (k === "timer") s.notify.timer = on;
+      else { s.notify.eveningOffered = true; s.notify.evening = on ? sheet.querySelector("[data-nt=evening]").value || "21:30" : null; }
+    });
+  }));
+  sheet.querySelectorAll("[data-nt]").forEach((el) => el.addEventListener("change", () => {
+    if (!el.value) return;
+    store.update((s) => {
+      if (el.dataset.nt === "evening") { if (s.notify.evening) s.notify.evening = el.value; }
+      else s.notify.quiet[el.dataset.nt === "q0" ? 0 : 1] = el.value;
+    });
+  }));
 }
 
 /* ---------- Set-up: a name, a day for the look back, and the Home Screen ---------- */

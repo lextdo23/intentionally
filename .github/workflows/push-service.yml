@@ -1,0 +1,23 @@
+# Puts the notifications service (push/) on Cloudflare. Runs when push/ changes on main, or by hand from the Actions tab.
+# It needs two repository secrets, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see push/README.md); without them it does nothing.
+name: Push service
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["push/**"]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      READY: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: env.READY == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: push
+      - if: env.READY != 'true'
+        run: echo "Cloudflare secrets aren't set yet, so nothing was deployed. See push/README.md."
