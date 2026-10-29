@@ -1,8 +1,12 @@
 import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera } from "./sky.js";
+import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
 import * as sort from "./sort.js";
+import * as look from "./lookback.js";
+import { due, times } from "./week.js";
+import { heaviness } from "./helps.js";
+import { weekHTML, recordHTML } from "./weekview.js";
 import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
 const app = document.getElementById("app");
@@ -31,6 +35,7 @@ const ICON = {
 function render() {
   const s = store.get();
   if (!s.pillars.length) renderWelcome();
+  else if (!s.setup) renderSetup(s);
   else renderHome(s);
   if (testMode) renderTestPanel();
 }
@@ -91,14 +96,22 @@ const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function renderHome(s) {
   const active = s.thoughts.filter((t) => t.status === "active").length;
   const sorting = sort.active() ? sort.view() : null;
-  const sub = sorting && sort.left() ? `${sort.left()} to sort` : active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
+  // The look back, when it's ready: the sun calls on the day and the day after, then waits quietly.
+  const ready = due(s), calling = ready && ready.days <= 1 && !sorting;
+  const sub = sorting && sort.left() ? `${sort.left()} to sort`
+    : ready ? (calling ? "Your week is ready. Tap the sun when you are." : "Your week is still here, whenever you’re ready.")
+    : active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
+  const mine = s.intention && s.pillars.some((p) => p.id === s.intention.pillarId) ? s.intention : null;
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
   // Opening the app with a timer already running goes straight to the zoomed-in planet.
   const opening = firstHome; firstHome = false;
   const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
-  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels })}</div><div class="seam"></div>
+  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels,
+      gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId })}</div><div class="seam"></div>
+    ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
+    ${mine && !sorting ? `<button type="button" class="intent" id="intent"><span class="k">${dotFor(mine.pillarId)}This week</span><span class="i">${esc(mine.text)}</span>${mine.did.length ? `<span class="n">Done ${times(mine.did.length)}</span>` : ""}</button>` : ""}
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
@@ -108,7 +121,7 @@ function renderHome(s) {
       <div class="actions">
         <button type="button" class="round" id="sort" aria-label="Sort">${ICON.sort}</button>
         <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
-        <button type="button" class="round" data-soon="Record" aria-label="Record">${ICON.record}</button>
+        <button type="button" class="round" id="record" aria-label="Record">${ICON.record}</button>
       </div>
     </nav></section>`;
   fitTags(app);
@@ -132,12 +145,14 @@ function renderHome(s) {
   });
   // While sorting, tapping a planet (or the sun) gives it the thought instead.
   tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : openPillar(id));
-  tappable("[data-sun]", "sun", (id) => sort.active() && sort.choose(id));
+  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : ready && openLook());
+  placeHome();
+  app.querySelector("#intent")?.addEventListener("click", openIntention);
+  app.querySelector("#record").addEventListener("click", openRecord);
   app.querySelector("#sort").addEventListener("click", () => sort.open(toast));
   sort.afterRender();
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
-  app.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(`${b.dataset.soon} arrives in an upcoming step.`)));
   let taps = 0;
   app.querySelector("#greet").addEventListener("click", () => { if (++taps >= 5) { taps = 0; testMode = true; renderTestPanel(); } });
 }
@@ -310,7 +325,8 @@ function openCatch() {
       e.preventDefault();
       const text = box.value.trim().replace(/\s+/g, " ");
       if (!text) return;
-      const echo = findSimilar(text, store.get().thoughts);
+      // A heavy thought never joins another star: it lands like any other, quietly.
+      const echo = !heaviness(text) && findSimilar(text, store.get().thoughts);
       if (echo) return familiar(echo, text);
       draft = "";
       launch(go, () => catchIt(text, kind, go));
@@ -358,7 +374,27 @@ function catchIt(text, kind, button) {
     const p = new DOMPoint(b.left + b.width / 2, b.top + b.height / 2).matrixTransform(svg.getScreenCTM().inverse());
     arriveFrom = { x: p.x, y: p.y };
   }
-  store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving);
+  const heavy = heaviness(text);
+  store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving, heavy);
+  if (heavy) setTimeout(() => quietLine(heavy), still() ? 0 : 1800);
+}
+
+// A heavy thought gets one calm line under the sun: no alarm, no colour, and two ways to answer.
+function quietLine(heavy) {
+  document.querySelector(".hush")?.remove();
+  const el = document.createElement("div");
+  el.className = "hush";
+  el.setAttribute("role", "status");
+  el.innerHTML = heavy === "heavy"
+    ? `<p class="h">That sounds really heavy.</p><p class="s">You don’t have to carry it on your own.</p>
+      <div class="q-row"><button type="button" class="ghost2" data-talk>Talk to someone</button><button type="button" class="q-link" data-ok>I’m okay for now</button></div>`
+    : `<p class="h">Sounds like you need a break.</p><p class="s">If it’s more than that, you can talk to someone any time.</p>
+      <div class="q-row"><button type="button" class="q-link" data-talk>Talk to someone</button><button type="button" class="q-link" data-ok>Okay</button></div>`;
+  document.body.append(el);
+  requestAnimationFrame(() => el.classList.add("in"));
+  const go = () => { el.classList.remove("in"); setTimeout(() => el.remove(), 800); };
+  el.querySelector("[data-talk]").addEventListener("click", () => { go(); openSupport(); });
+  el.querySelector("[data-ok]").addEventListener("click", go);
 }
 
 /* ---------- A star: the thought it holds ---------- */
@@ -423,6 +459,96 @@ function closeSheet() {
   document.querySelectorAll(".sheet, .sheet-back").forEach((el) => el.remove());
 }
 
+/* ---------- The weekly look back, Record, and the week's one small thing ---------- */
+
+const dotFor = (pid) => { const p = store.get().pillars.find((x) => x.id === pid); return p ? `<i style="background:${shade(p)}"></i>` : ""; };
+
+// The sun's call and the intention's words sit over the sky, so they're placed once the sky is on screen.
+function placeHome() {
+  const sun = skyPoint("sun"), call = app.querySelector(".suncall");
+  if (sun && call) Object.assign(call.style, { left: `${sun.x}px`, top: `${sun.y}px` });
+  const words = app.querySelector("#intent"), low = skyPoint("below");
+  if (words && low) words.style.top = `${low.y}px`;
+}
+addEventListener("resize", () => app.querySelector(".home") && placeHome());
+
+function openLook() {
+  closeSheet();
+  if (sort.active()) sort.close();
+  look.open({ support: openSupport, weekInFull: (from, to) => openWeek(from, to, store.get().intention), record: openRecord, done: render });
+}
+
+function openWeek(from, to, intention, view = "over") {
+  const { sheet } = openSheet(weekHTML(store.get(), from, to, intention, view));
+  sheet.classList.add("wide");
+  // Overview and In depth swap in place; the close button keeps working through the sheet's own listener.
+  sheet.addEventListener("click", (e) => {
+    const b = e.target.closest(".wv-seg [data-v]");
+    if (b) sheet.innerHTML = weekHTML(store.get(), from, to, intention, b.dataset.v);
+  });
+}
+
+function openRecord() {
+  const s = store.get();
+  const { sheet, close } = openSheet(recordHTML(s));
+  sheet.classList.add("wide");
+  sheet.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => { const w = s.weeks[+b.dataset.week]; close(); openWeek(w.from, w.to, w.intention, "deep"); }));
+  sheet.querySelector("[data-support]").addEventListener("click", openSupport);
+}
+
+// Always reachable: free, private lines, open day and night. (The word "crisis" is never on screen.)
+function openSupport() {
+  openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Someone’s there, any time</h2></div>${CLOSE}</header>
+    <p class="sup-s">Free and private. You can just say you’re having a hard time.</p>${look.LINES}
+    <p class="sup-n">This app isn’t therapy. If you’re in danger right now, call 000.</p>`);
+}
+
+// This week's one small thing. "Did it" can be tapped every time it happens.
+function openIntention() {
+  const s = store.get(), it = s.intention, p = s.pillars.find((x) => x.id === it?.pillarId);
+  if (!it) return;
+  const said = () => it.did.length ? `Kept in What helped. Done ${times(it.did.length)} so far.` : "Not yet. There’s time.";
+  const { sheet, close } = openSheet(`<header class="sh-head"><div><p class="eyebrow-i">${p ? `<i style="background:${shade(p)}"></i>${esc(p.name)} · ` : ""}this week</p><h2 id="sheet-title">${esc(it.text)}</h2><p data-said>${said()}</p></div>${CLOSE}</header>
+    <div class="i-row"><button type="button" class="pill-gold" data-did>${it.did.length ? "Did it again" : "Did it"}</button><button type="button" class="ghost" data-close>Not today</button></div>`);
+  sheet.querySelector("[data-did]").addEventListener("click", () => {
+    store.didIntention();
+    close();
+    toast("Nice. That’s kept in What helped.");
+  });
+}
+
+/* ---------- Set-up: a name, a day for the look back, and the Home Screen ---------- */
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+let setupDay = 0;
+function renderSetup(s) {
+  const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  app.innerHTML = `<section class="welcome">
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: [] })}</div>
+    <form class="welcome-body" id="setup">
+      <h1>Two small things</h1>
+      <p class="intro">Then your sky is ready.</p>
+      <h2><label for="name">What should we call you?</label></h2>
+      <p class="hint">Optional. It only lives on this phone.</p>
+      <input id="name" class="field" maxlength="24" autocomplete="given-name" value="${esc(s.name)}" placeholder="Your name">
+      <h2>Which day suits a look back?</h2>
+      <p class="hint">Once a week, about ten minutes, to notice your week and set one small thing. The sky lets you know, gently.</p>
+      <div class="chips" role="radiogroup" aria-label="Look back day">${DAYS.map((d, i) => `<button type="button" class="chip" role="radio" aria-checked="${i === setupDay}" aria-pressed="${i === setupDay}" data-day="${i}">${d}</button>`).join("")}</div>
+      ${installed ? "" : `<h2>Add it to your Home Screen</h2><p class="hint">In Safari, tap Share, then “Add to Home Screen”. It opens like an app from there, and works offline.</p>`}
+      <button type="submit" class="primary">Done</button>
+    </form></section>`;
+  unzoom(app.querySelector("#name"), { font: 17, padY: 0, padX: 16, radius: 12, height: 44 });
+  app.querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => {
+    setupDay = +b.dataset.day;
+    app.querySelectorAll("[data-day]").forEach((c) => { c.setAttribute("aria-checked", c === b); c.setAttribute("aria-pressed", c === b); });
+  }));
+  app.querySelector("#setup").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = app.querySelector("#name").value.trim().slice(0, 24);
+    store.update((x) => { x.name = name; x.lookDay = setupDay; x.setup = true; });
+  });
+}
+
 /* ---------- Test mode: example data and time travel, for checking weeks and seasons quickly ---------- */
 
 function renderTestPanel() {
@@ -433,7 +559,7 @@ function renderTestPanel() {
   panel.setAttribute("aria-label", "Test mode");
   panel.innerHTML = `<b>Test mode</b><span>Pretend date: ${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}${s.test.offsetDays ? ` (+${s.test.offsetDays} days)` : ""}</span>
     <div><button data-t="example">Example sky</button><button data-t="day">+1 day</button><button data-t="week">+1 week</button>
-    <button data-t="today">Today</button><button data-t="labels" aria-pressed="${!!s.test.labels}">Thought words: ${s.test.labels ? "on" : "off"}</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
+    <button data-t="today">Today</button><button data-t="look">Look back now</button><button data-t="labels" aria-pressed="${!!s.test.labels}">Thought words: ${s.test.labels ? "on" : "off"}</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
   document.body.append(panel);
   panel.addEventListener("click", (e) => {
     const t = e.target.dataset.t;
@@ -441,6 +567,7 @@ function renderTestPanel() {
     if (t === "close") { testMode = false; return panel.remove(); }
     if (t === "reset") { store.reset(); setOffsetDays(0); return; }
     if (t === "example") return loadExample();
+    if (t === "look") return openLook();
     if (t === "labels") return store.update((x) => { x.test.labels = !x.test.labels; });
     const days = t === "today" ? 0 : s.test.offsetDays + (t === "day" ? 1 : 7);
     setOffsetDays(days);

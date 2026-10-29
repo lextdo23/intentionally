@@ -47,7 +47,8 @@ export function findSimilar(text, thoughts) {
   if (!mine.size) return null;
   let best = null, bestScore = 0;
   for (const t of thoughts) {
-    if (t.status === "let-go") continue;
+    // Heavy thoughts never join or grow: no repeat count gives them power.
+    if (t.status === "let-go" || t.heavy) continue;
     const theirs = words(t.text);
     // "I'm good enough" is not the same thought as "I'm not good enough".
     if (NEG.some((w) => mine.has(w)) !== NEG.some((w) => theirs.has(w))) continue;

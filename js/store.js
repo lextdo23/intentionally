@@ -3,7 +3,7 @@
 import { now } from "./clock.js";
 
 const KEY = "intentionally";
-const SCHEMA = 1;
+const SCHEMA = 2;
 
 const fresh = () => ({
   schema: SCHEMA,
@@ -16,6 +16,14 @@ const fresh = () => ({
                     //   count, seen: [times it came up], x, y, createdAt, helped: [{ text, at }],
                     //   sortedAt?, unsureAt?, letGoAt? }. pillarId "me" means it's just about you (it circles the sun).
   season: null,     // { name, startedAt } once seasons have opened up
+  setup: false,     // name, look-back day and Home Screen asked once
+  lookDay: 0,       // the day of the week for the look back (0 Sunday to 6 Saturday)
+  lookShort: null,  // true once someone picks the five-minute look back, so it's remembered
+  weeks: [],        // finished look backs: { from, to, at, feel, wrote, prompt, intention (the one being looked back on), short,
+                    //   notes: [{ id, outcome, helped?, next? }] }
+  intention: null,  // this week's one small thing: { text, pillarId, setAt, did: [times] }
+  learned: {},      // words → struggle, from "What's this most about?" answers, so the same words match next time
+  myHelps: {},      // struggle → helps the person wrote themselves ("Something else"), offered first next time
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
   tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
   test: { offsetDays: 0 },
@@ -29,7 +37,8 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh();
     const saved = JSON.parse(raw);
-    return saved.schema === SCHEMA ? { ...fresh(), ...saved } : fresh();
+    // Older saves keep everything they had and gain the new fields with their starting values.
+    return saved.schema <= SCHEMA ? { ...fresh(), ...saved, schema: SCHEMA } : fresh();
   } catch {
     return fresh();
   }
@@ -95,8 +104,9 @@ export function addTime(pillarId, minutes, daysAgo = 0) {
 }
 
 // Thoughts: each one caught becomes a star. A thought that comes up again joins its star, which grows.
-export function addThought(text, kind, spot, id = uid()) {
-  const t = { id, text, kind, pillarId: null, status: "active", count: 1, seen: [now()], ...spot, createdAt: now(), helped: [] };
+// `heavy` ("heavy" or "soft") marks a thought that gets quiet care instead of suggestions; it never grows or counts.
+export function addThought(text, kind, spot, id = uid(), heavy = null) {
+  const t = { id, text, kind, pillarId: null, status: "active", count: 1, seen: [now()], ...spot, createdAt: now(), helped: [], ...(heavy && { heavy }) };
   update((s) => { s.thoughts.push(t); });
   return t;
 }
@@ -142,4 +152,12 @@ export function timeSince(pillarId, from) {
   const r = state.running;
   if (r && r.pillarId === pillarId) ms += now() - Math.max(r.start, from);
   return ms;
+}
+
+// The intention: one small thing for the week, shown on the sky. "Did it" can be tapped as often as it happens.
+export function setIntention(text, pillarId) {
+  update((s) => { s.intention = text ? { text, pillarId, setAt: now(), did: [] } : null; });
+}
+export function didIntention() {
+  update((s) => { s.intention?.did.push(now()); });
 }

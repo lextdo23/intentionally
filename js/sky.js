@@ -200,10 +200,12 @@ export function placeStar(existing = []) {
 const ROAM = { x0: 18, x1: 282, y0: 130, y1: 450 };
 // A sorted thought leaves its lap and settles into a slow loop round its pillar's planet.
 let homes = {};
+// When the look back is ready, the week's stars leave their laps and gather slowly round the sun.
+let gathering = null;
 const roamAttrs = (t) => {
   let h = 0; for (const c of String(t.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  const real = now() - Date.now(), p = t.pillarId && homes[t.pillarId];
-  const home = p ? ` data-home="${f2(p.x)},${f2(p.y)},${f2(p.r + 14 + h % 12)},${50 + h % 30},${f2((h % 628) / 100)}" data-since="${(t.sortedAt ?? 0) - real}"` : "";
+  const real = now() - Date.now(), gather = gathering && t.status === "active", p = gather ? homes.me : t.pillarId && homes[t.pillarId];
+  const home = p ? ` data-home="${f2(p.x)},${f2(p.y)},${f2(p.r + 14 + h % 12)},${50 + h % 30},${f2((h % 628) / 100)}" data-since="${(gather ? gathering : t.sortedAt ?? 0) - real}"` : "";
   const gone = t.status === "let-go" ? ` data-gone="${t.letGoAt - real}"` : "";
   return `data-roam data-x="${f2(t.x * W)}" data-y="${f2(t.y * H)}" data-born="${t.createdAt - real}" data-lap="${360 + h % 240}"${home}${gone}`;
 };
@@ -227,8 +229,9 @@ function star(t, i, arriving, from) {
   return `<g class="arrive" style="--dx:${f2(o.x - x)}px;--dy:${f2(o.y - y)}px">${roam}</g><g ${roamAttrs(t)}>${ring}</g>`;
 }
 
-export function renderSky({ pillars, thoughts, runningId, arriving, from, labels }) {
+export function renderSky({ pillars, thoughts, runningId, arriving, from, labels, gather = null, intent = null }) {
   const at = layout(pillars);
+  gathering = gather;
   // A thought that's just about you circles the sun.
   homes = { ...at, me: { x: CX, y: CY, r: 22 } };
   bodies = [{ x: CX, y: CY, r: 16 }, ...Object.values(at)];
@@ -250,7 +253,9 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     const o = at[p.id], run = p.id === runningId;
     const pulse = still ? "" : `<animate attributeName="opacity" values=".15;.4;.15" dur="3s" repeatCount="indefinite"/>`;
     const glow = run ? `<circle r="${f2(o.r * 3.4)}" fill="${p.tint}" opacity=".3" filter="url(#soft)">${pulse}</circle>` : "";
-    return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-target="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}<circle class="halo" r="${o.r + 7}"/></g>`;
+    // This week's intention is a small warm light beside its planet.
+    const light = p.id === intent ? `<g class="ilight" transform="translate(${f2(o.r + 6)},${f2(-o.r + 1)})"><circle r="5" fill="#e3c486" opacity=".35" filter="url(#soft)"/><circle r="2.2" fill="#f3dca8"/></g>` : "";
+    return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-target="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}${light}<circle class="halo" r="${o.r + 7}"/></g>`;
   }).join("");
   // Each planet wears its name as a level ring, like Saturn's, turning slowly: read on the near side,
   // passing faintly behind the planet on the far side. The letters are laid out once the sky is on screen.
@@ -305,6 +310,14 @@ export function targetAt(x, y) {
     if (d < (id === "me" ? 16 : o.r) + 22 && d < bd) { best = id; bd = d; }
   }
   return best;
+}
+// Where a point of the sky sits on screen: the sun, or just below the lowest planet (for the intention's words).
+export function skyPoint(where) {
+  const m = document.querySelector("svg.sky")?.getScreenCTM();
+  if (!m) return null;
+  const lowest = Math.max(CY, ...Object.values(homes).filter((o) => o !== homes.me).map((o) => o.y + o.r));
+  const p = where === "sun" ? { x: CX, y: CY } : { x: CX, y: lowest + 30 };
+  return new DOMPoint(p.x, p.y).matrixTransform(m);
 }
 export function targetPoint(id) {
   const m = document.querySelector("svg.sky")?.getScreenCTM(), o = homes[id];
