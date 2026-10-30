@@ -1,4 +1,4 @@
-// Remakes the app icons in icons/: a bold black sparkle on flat warm paper.
+// Remakes the app icons in icons/: a warm light sparkle on a flat charcoal tile, like a star in the app's sky.
 // Run from the project folder:  node tools/make-icons.cjs   (needs Playwright)
 const { chromium } = require("playwright");
 
@@ -13,9 +13,10 @@ function sparkle(n, r, inner) {
   return d + "Z";
 }
 
-// Flat colours only: the newest iOS lays a glass effect over home screen icons, and it turns gradients and glows
-// into a grey blur. A flat tile with a solid star stays crisp (tested on alex's iPhone, Oct 2026).
-const PAPER = "#f3ece1", STAR = "#000", R = 36, WAIST = 0.2;
+// Flat colours only, and a light star on dark: the newest iOS lays a glass effect over home screen icons. It turns
+// gradients and glows into a grey blur and makes dark shapes on light look soft; a light star on charcoal stays
+// crisp (tested on alex's iPhone, Oct 2026).
+const PAPER = "#24262b", STAR = "#efe6d8", R = 28, WAIST = 0.16;
 
 // Drawn on a 100 x 100 tile. The star stays inside the middle 80%, so phones that crop icons to a circle keep all of it.
 const svg = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
