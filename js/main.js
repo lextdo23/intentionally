@@ -8,7 +8,8 @@ import { due, times } from "./week.js";
 import { heaviness } from "./helps.js";
 import { weekHTML, recordHTML } from "./weekview.js";
 import * as notify from "./notify.js";
-import { TINTS, SUGGESTED, ACTIVITIES, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
+import { TINTS, ACTIVITIES } from "./pillars.js";
+import * as welcome from "./welcome.js";
 
 const app = document.getElementById("app");
 const params = new URLSearchParams(location.search);
@@ -35,56 +36,15 @@ const ICON = {
 
 function render() {
   const s = store.get();
-  if (!s.pillars.length) renderWelcome();
-  else if (!s.setup) renderSetup(s);
+  if (!s.setup) welcome.show(app, { support: openSupport, done: () => { justBorn = true; } });
   else renderHome(s);
   if (testMode) renderTestPanel();
 }
 
-/* ---------- First day: say it will open up slowly, then pick pillars ---------- */
+/* ---------- First day: the sky is born (js/welcome.js) ---------- */
 
-let picked = [];
-function renderWelcome() {
-  const all = [...new Set([...SUGGESTED, ...picked])];
-  const ok = picked.length >= MIN_PILLARS;
-  app.innerHTML = `<section class="welcome">
-    <div class="sky-wrap">${renderSky({ pillars: [], thoughts: [] })}</div>
-    <div class="welcome-body">
-      <h1>Welcome</h1>
-      <p class="intro">We'll keep this simple. Today you'll just pick what matters to you and catch your first thought. The rest will open up gently over the next few weeks, when you're ready for it.</p>
-      <h2>What do you want to look after?</h2>
-      <p class="hint">Pick ${MIN_PILLARS} to ${MAX_PILLARS}. You can change them later.</p>
-      <div class="chips" role="group" aria-label="Parts of life">
-        ${all.map((n) => `<button type="button" class="chip" aria-pressed="${picked.includes(n)}" data-pick="${esc(n)}">${esc(n)}</button>`).join("")}
-      </div>
-      <form class="own" id="own">
-        <label for="own-name" class="sr">Add your own</label>
-        <input id="own-name" maxlength="${MAX_NAME}" placeholder="Add your own" autocomplete="off">
-        <button type="submit" class="ghost">Add</button>
-      </form>
-      <button type="button" class="primary" id="begin" ${ok ? "" : "disabled"}>${ok ? "Begin" : `Pick ${MIN_PILLARS - picked.length} more`}</button>
-    </div></section>`;
-  app.querySelectorAll("[data-pick]").forEach((b) => b.addEventListener("click", () => {
-    const n = b.dataset.pick;
-    if (picked.includes(n)) picked = picked.filter((x) => x !== n);
-    else if (picked.length < MAX_PILLARS) picked.push(n);
-    else return toast(`You can pick up to ${MAX_PILLARS}.`);
-    renderWelcome();
-  }));
-  unzoom(app.querySelector("#own-name"), { font: 17, padY: 0, padX: 16, radius: 12, height: 44 });
-  app.querySelector("#own").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const v = app.querySelector("#own-name").value.trim().slice(0, MAX_NAME);
-    if (!v) return;
-    if (picked.length >= MAX_PILLARS) return toast(`You can pick up to ${MAX_PILLARS}.`);
-    if (!picked.some((x) => x.toLowerCase() === v.toLowerCase())) picked.push(v);
-    renderWelcome();
-  });
-  app.querySelector("#begin").addEventListener("click", () => {
-    store.update((s) => { s.pillars = picked.map((name, i) => ({ id: store.uid(), name, tint: TINTS[i], focus: false })); });
-    picked = [];
-  });
-}
+// Set when set-up has just finished, so the home sky's greeting and dock fade in the first time.
+let justBorn = false;
 
 /* ---------- Home: the sky, and the dock with timers and actions ---------- */
 
@@ -101,14 +61,16 @@ function renderHome(s) {
   const ready = due(s), calling = ready && ready.days <= 1 && !sorting;
   const sub = sorting && sort.left() ? `${sort.left()} to sort`
     : ready ? (calling ? "Your week is ready. Tap the sun when you are." : "Your week is still here, whenever you’re ready.")
+    : justBorn ? "Your sky. It grows with you."
     : active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
   const mine = s.intention && s.pillars.some((p) => p.id === s.intention.pillarId) ? s.intention : null;
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
   // Opening the app with a timer already running goes straight to the zoomed-in planet.
   const opening = firstHome; firstHome = false;
+  const fresh = justBorn; justBorn = false;
   const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
-  app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
+  app.innerHTML = `<section class="home ${fresh ? "fresh" : ""} ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
     <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels !== false,
       gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId })}</div><div class="seam"></div>
     ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
@@ -668,38 +630,6 @@ function openNotify() {
   }));
 }
 
-/* ---------- Set-up: a name, a day for the look back, and the Home Screen ---------- */
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-let setupDay = 0;
-function renderSetup(s) {
-  const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  app.innerHTML = `<section class="welcome">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: [] })}</div>
-    <form class="welcome-body" id="setup">
-      <h1>Two small things</h1>
-      <p class="intro">Then your sky is ready.</p>
-      <h2><label for="name">What should we call you?</label></h2>
-      <p class="hint">Optional. It only lives on this phone.</p>
-      <input id="name" class="field" maxlength="24" autocomplete="given-name" value="${esc(s.name)}" placeholder="Your name">
-      <h2>Which day suits a look back?</h2>
-      <p class="hint">Once a week, about ten minutes, to notice your week and set one small thing. The sky lets you know, gently.</p>
-      <div class="chips" role="radiogroup" aria-label="Look back day">${DAYS.map((d, i) => `<button type="button" class="chip" role="radio" aria-checked="${i === setupDay}" aria-pressed="${i === setupDay}" data-day="${i}">${d}</button>`).join("")}</div>
-      ${installed ? "" : `<h2>Add it to your Home Screen</h2><p class="hint">In Safari, tap Share, then “Add to Home Screen”. It opens like an app from there, and works offline.</p>`}
-      <button type="submit" class="primary">Done</button>
-    </form></section>`;
-  unzoom(app.querySelector("#name"), { font: 17, padY: 0, padX: 16, radius: 12, height: 44 });
-  app.querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => {
-    setupDay = +b.dataset.day;
-    app.querySelectorAll("[data-day]").forEach((c) => { c.setAttribute("aria-checked", c === b); c.setAttribute("aria-pressed", c === b); });
-  }));
-  app.querySelector("#setup").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = app.querySelector("#name").value.trim().slice(0, 24);
-    store.update((x) => { x.name = name; x.lookDay = setupDay; x.setup = true; });
-  });
-}
-
 /* ---------- Test mode: example data and time travel, for checking weeks and seasons quickly ---------- */
 
 function renderTestPanel() {
@@ -719,7 +649,8 @@ function renderTestPanel() {
     if (t === "reset") { store.reset(); setOffsetDays(0); return; }
     if (t === "example") return loadExample();
     if (t === "look") return openLook();
-    if (t === "labels") return store.update((x) => { x.test.labels = x.test.labels === false; // on unless turned off here });
+    // Thought words are on unless turned off here.
+    if (t === "labels") return store.update((x) => { x.test.labels = x.test.labels === false; });
     const days = t === "today" ? 0 : s.test.offsetDays + (t === "day" ? 1 : 7);
     setOffsetDays(days);
     store.update((x) => { x.test.offsetDays = days; });
@@ -729,6 +660,7 @@ function renderTestPanel() {
 function loadExample() {
   const t0 = now();
   store.update((s) => {
+    s.setup = true;
     if (!s.pillars.length) s.pillars = ["Friends", "Health", "Career", "Creativity"].map((name, i) => ({ id: store.uid(), name, tint: TINTS[i], focus: i === 1 || i === 2 }));
     // Until focus pillars can be chosen, the example sky picks the second and third.
     if (!s.pillars.some((p) => p.focus)) s.pillars.forEach((p, i) => { p.focus = i === 1 || i === 2; });
