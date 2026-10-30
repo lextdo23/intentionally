@@ -34,8 +34,10 @@
   <main>
     <h1>Screen check</h1>
     <p>Please screenshot this from the home screen, once now and once after typing in the box and closing the keyboard.</p>
-    <input type="text" placeholder="Tap here, type, then tap Done" style="box-sizing: border-box; font: inherit; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 0; background: rgba(255,255,255,.1); color: inherit;">
+    <input type="text" placeholder="Tap here, type, then tap Done" style="box-sizing: border-box; font: inherit; font-size: 17px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 0; background: rgba(255,255,255,.1); color: inherit;">
     <dl id="nums"></dl>
+    <button type="button" id="ping" style="font: inherit; font-size: 17px; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 0; background: #e3c486; color: #17150f;">Test notifications</button>
+    <p id="pingsay"></p>
   </main>
   <script>
     const full = document.getElementById("full");
@@ -53,6 +55,21 @@
       document.getElementById("nums").innerHTML = Object.entries(rows).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     };
     show();
+    // Can a home-screen app with no manifest ask for notifications and sign up for pings, like the real app does?
+    const say = (t) => { document.getElementById("pingsay").textContent = t; };
+    document.getElementById("ping").addEventListener("click", async () => {
+      try {
+        if (!("Notification" in window) || !("PushManager" in window)) return say("Not supported here: notifications would not work.");
+        const reg = await navigator.serviceWorker.register("check-sw.js", { scope: "./check" });
+        if (await Notification.requestPermission() !== "granted") return say("Permission was not given.");
+        await navigator.serviceWorker.ready;
+        const { key } = await (await fetch("https://intentionally-push.lextdo.workers.dev/key")).json();
+        const raw = atob(key.replace(/-/g, "+").replace(/_/g, "/"));
+        const sub = (await reg.pushManager.getSubscription()) ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(raw, (c) => c.charCodeAt(0)) });
+        await reg.showNotification("Screen check", { body: "Notifications work here." });
+        say(sub ? "Notifications work: signed up for pings and showed one." : "Signing up for pings failed.");
+      } catch (e) { say(`Something failed: ${e.message}`); }
+    });
     addEventListener("resize", show);
     visualViewport?.addEventListener("resize", show);
   </script>
