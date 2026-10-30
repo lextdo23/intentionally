@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e0f11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Screen check">
+  <title>Screen check</title>
+  <!-- Temporary page: finds out where iPhone lets a home-screen app draw at the bottom of the screen.
+       Each colour shows how far one way of sizing reaches. Remove once the bottom strip is fixed. -->
+  <style>
+    html { background: #b33; }
+    body { position: fixed; inset: 0; margin: 0; background: #1d2a44; color: #efede9; font: 15px/1.4 -apple-system, system-ui, sans-serif; }
+    .full { position: fixed; top: 0; left: 0; width: 50%; pointer-events: none; }
+    .full::after { content: "yellow: whole screen"; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: #d9b13a; color: #111; padding: 8px; font-weight: 600; }
+    .lvh { position: fixed; top: 0; right: 0; width: 50%; height: 100lvh; pointer-events: none; }
+    .lvh::after { content: "purple: 100lvh"; position: absolute; left: 0; right: 0; bottom: 0; height: 60px; background: #8a5bb5; padding: 8px; font-weight: 600; }
+    .dock { position: fixed; left: 12px; right: 12px; bottom: 0; height: 30px; background: #3a8a5c; border-radius: 8px 8px 0 0; padding: 4px 8px; font-weight: 600; }
+    main { padding: calc(env(safe-area-inset-top) + 16px) 20px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 16px; margin: 16px 0; }
+    dt { color: #b9b6b0; }
+    dd { margin: 0; font-variant-numeric: tabular-nums; }
+    #sab { position: fixed; bottom: 0; height: env(safe-area-inset-bottom); }
+  </style>
+</head>
+<body>
+  <div class="full" id="full"></div>
+  <div class="lvh"></div>
+  <div class="dock">green: the app's bottom edge</div>
+  <div id="sab"></div>
+  <main>
+    <h1>Screen check</h1>
+    <p>Please screenshot this from the home screen, once now and once after typing in the box and closing the keyboard.</p>
+    <input type="text" placeholder="Tap here, type, then tap Done" style="box-sizing: border-box; font: inherit; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 0; background: rgba(255,255,255,.1); color: inherit;">
+    <dl id="nums"></dl>
+  </main>
+  <script>
+    const full = document.getElementById("full");
+    const show = () => {
+      full.style.height = `${screen.height}px`;
+      const rows = {
+        "Home screen app": String(navigator.standalone ?? matchMedia("(display-mode: standalone)").matches),
+        "Screen height": screen.height,
+        "App height": innerHeight,
+        "Visible height": Math.round(visualViewport?.height ?? 0),
+        "Page height": document.documentElement.clientHeight,
+        "Home bar space": document.getElementById("sab").offsetHeight,
+        "Short by": screen.height - innerHeight,
+      };
+      document.getElementById("nums").innerHTML = Object.entries(rows).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    };
+    show();
+    addEventListener("resize", show);
+    visualViewport?.addEventListener("resize", show);
+  </script>
+</body>
+</html>
