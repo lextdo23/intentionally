@@ -33,6 +33,39 @@ const FEAT = [
 ];
 const TILT = [-8, -12, -18, -6, -14], TURN = [30, 22, 36, 26, 28];
 const f2 = (n) => n.toFixed(2);
+// The sky moves every frame, so it only touches what has actually changed: writing the same value again
+// still makes the phone redo work, and that is what made the motion stutter.
+const put = (el, name, v) => { const c = el._v || (el._v = {}); if (c[name] !== v) { c[name] = v; el.setAttribute(name, v); } };
+const unput = (el, name) => { if (el._v) delete el._v[name]; el.removeAttribute(name); };
+
+// The shadow is the planet minus a slightly larger circle nudged towards the sun: drawn as one shape with a hole,
+// which phones paint far faster than a mask. (Inside the planet's outline the two look exactly alike.)
+const circ = (x, y, r) => `M${f2(x - r)},${f2(y)}a${f2(r)},${f2(r)} 0 1,0 ${f2(2 * r)},0a${f2(r)},${f2(r)} 0 1,0 ${f2(-2 * r)},0Z`;
+
+// A soft glow: what a blurred circle looks like, painted with a ready-made fade instead of blurring it live
+// (live blur on moving things was one of the slow parts on phones). `a` is the circle's size before blurring.
+const BLUR = 2.4;
+let glows = new Map();
+function soft(a, color) {
+  const id = `g${color.slice(1)}${Math.round(a * 20)}`;
+  if (!glows.has(id)) {
+    // How bright a blurred circle is at each distance from its centre, worked out once per size.
+    const out = a + 3 * BLUR, at = (d) => {
+      let sum = 0;
+      for (let i = 0; i < 14; i++) {
+        const p = (i + .5) / 14 * a;
+        for (let j = 0; j < 32; j++) {
+          const q = j / 32 * Math.PI * 2, dx = d - p * Math.cos(q), dy = p * Math.sin(q);
+          sum += Math.exp(-(dx * dx + dy * dy) / (2 * BLUR * BLUR)) * p;
+        }
+      }
+      return sum * (a / 14) * (Math.PI * 2 / 32) / (2 * Math.PI * BLUR * BLUR);
+    };
+    const stops = Array.from({ length: 13 }, (_, i) => `<stop offset="${f2(i / 12)}" stop-color="${color}" stop-opacity="${Math.min(1, at(i / 12 * out)).toFixed(3)}"/>`).join("");
+    glows.set(id, `<radialGradient id="${id}">${stops}</radialGradient>`);
+  }
+  return `r="${f2(a + 3 * BLUR)}" fill="url(#${id})"`;
+}
 
 // `lit` is the direction the sun is in, so the lit side faces it and the shadow falls on the far side.
 export function planet(id, i, r, c, lit = { x: -.78, y: -.62 }) {
@@ -44,9 +77,9 @@ export function planet(id, i, r, c, lit = { x: -.78, y: -.62 }) {
   const L = Math.hypot(lit.x, lit.y) || 1, t = -TILT[i] * Math.PI / 180, lx = lit.x / L, ly = lit.y / L;
   const sun = `data-sx="${f2(lx * Math.cos(t) - ly * Math.sin(t))}" data-sy="${f2(lx * Math.sin(t) + ly * Math.cos(t))}"`;
   return `<g class="wob" style="--wd:${TURN[i] / 2}s"><defs><clipPath id="${k}c"><circle r="${r}"/></clipPath>
-    <mask id="${k}m"><rect x="${-2 * r}" y="${-2 * r}" width="${4 * r}" height="${4 * r}" fill="#fff"/><circle cx="${f2(lit.x * .38 * r)}" cy="${f2(lit.y * .38 * r)}" r="${f2(r * 1.04)}" fill="#000"/></mask></defs>
+</defs>
     <g clip-path="url(#${k}c)"><circle r="${r}" fill="${c}"/><g transform="rotate(${TILT[i]})">${bands}<g data-spin="${look}" data-seed="${i}" data-turn="${TURN[i]}" data-r="${r}" ${sun}></g></g>
-    <circle r="${r}" fill="#000" opacity=".3" mask="url(#${k}m)"/></g></g>`;
+    <path d="${circ(0, 0, r)}${circ(lit.x * .38 * r, lit.y * .38 * r, r * 1.04)}" fill="#000" fill-rule="evenodd" opacity=".3"/></g></g>`;
 }
 
 // Where each planet rests, as offsets from the sun. The two focus pillars take the places either side of you;
@@ -83,6 +116,24 @@ function spots(seed) {
 // Each part of a spot: [fill, opacity, size, how far it shifts towards (+) or away from (-) the sun].
 const CRATER = [["#000", .13, 1, 0], ["#fff", .12, .8, -1], ["#000", .14, .72, .45]];
 const BUMP = [["#000", .2, 1, -1], ["#fff", .2, .78, .35]];
+
+// A ring letter drawn once as a crisp picture, in the same font, size and colour the text would have.
+// `k` is how much the sky is stretched on screen; pictures are drawn sharp enough to stay crisp as the camera glides in.
+const letters = new Map();
+function letter(ch, k) {
+  const key = ch + k, got = letters.get(key);
+  if (got) return got;
+  const S = Math.min(8, (devicePixelRatio || 1) * 2), px = 13 * S, c = document.createElement("canvas"), x = c.getContext("2d");
+  const font = `500 ${px}px ${getComputedStyle(document.body).fontFamily}`;
+  x.font = font;
+  const m = x.measureText(ch), up = Math.ceil(m.fontBoundingBoxAscent ?? px), down = Math.ceil(m.fontBoundingBoxDescent ?? px * .3);
+  c.width = Math.ceil(m.width) + 4; c.height = up + down;
+  x.font = font; x.fillStyle = INK; x.textAlign = "center"; x.textBaseline = "alphabetic";
+  x.fillText(ch, c.width / 2, up);
+  const u = 1 / (k * S), l = { href: c.toDataURL(), w: c.width * u, h: c.height * u, up: up * u };
+  letters.set(key, l);
+  return l;
+}
 
 let spinning = 0;
 export function startSpin(root) {
@@ -123,26 +174,34 @@ export function startSpin(root) {
   const rings = [...root.querySelectorAll(".ring")].map((g) => {
     const txt = (g.dataset.name + "  ·  ").repeat(2), pr = +g.dataset.pr;
     const R = Math.max(pr * 1.75, (txt.length * fs * .56) / (Math.PI * 2)) + 2;
-    g.innerHTML = [...txt].map((ch) => `<text font-size="${f2(fs)}" font-weight="500" fill="${INK}" text-anchor="middle">${ch === " " ? "&#160;" : esc(ch)}</text>`).join("");
+    // Each letter is a small picture that sits still inside its own group, and only the group moves.
+    // Moving live text makes the phone lay the words out again every frame, which is what made the sky stutter.
+    g.innerHTML = [...txt].map((ch) => { if (ch === " ") return ""; const l = letter(ch, k);
+      return `<g><image href="${l.href}" x="${f2(-l.w / 2)}" y="${f2(-l.up)}" width="${f2(l.w)}" height="${f2(l.h)}"/></g>`; }).join("");
     // Start with the first copy of the name centred on the near side.
     const step = Math.PI * 2 / txt.length;
-    return { kids: [...g.children], near: g.dataset.layer === "front", x: +g.dataset.x, y: +g.dataset.y + fs * .35, R, step, th: Math.PI / 2 + (g.dataset.name.length - 1) / 2 * step, k: +g.dataset.k };
+    // Spaces draw nothing, so they need no letter, only their place on the ring.
+    const els = [...g.children], kids = [...txt].map((ch) => ch === " " ? null : els.shift());
+    return { kids, near: g.dataset.layer === "front", x: +g.dataset.x, y: +g.dataset.y + fs * .35, R, step, th: Math.PI / 2 + (g.dataset.name.length - 1) / 2 * step, k: +g.dataset.k };
   });
   const placeRing = ({ kids, near, x, y, R, step, th, k }, T) => {
     const th0 = th + (still ? 0 : -(T / 20000) * Math.PI * 2 + k * 1.3);
     kids.forEach((el, i) => {
+      if (!el) return;
       const a = th0 - i * step, sn = Math.sin(a);
-      if ((sn > 0) !== near) { el.setAttribute("opacity", 0); return; }
-      el.setAttribute("transform", `translate(${f2(x + R * Math.cos(a))},${f2(y + R * .3 * sn)}) scale(${f2(Math.max(.08, Math.abs(sn)) * (near ? 1 : -1))},1)`);
-      el.setAttribute("opacity", f2(near ? Math.min(1, sn * 2.2) * .92 : Math.min(1, -sn * 2) * .22));
+      if ((sn > 0) !== near) { put(el, "opacity", "0"); return; }
+      put(el, "transform", `translate(${f2(x + R * Math.cos(a))},${f2(y + R * .3 * sn)}) scale(${f2(Math.max(.08, Math.abs(sn)) * (near ? 1 : -1))},1)`);
+      put(el, "opacity", f2(near ? Math.min(1, sn * 2.2) * .92 : Math.min(1, -sn * 2) * .22));
     });
   };
   // The sun breathes: in over about four seconds, out over about five.
   const glow = root.querySelector('[data-breath="glow"]'), disc = root.querySelector('[data-breath="disc"]');
   const breathe = (T) => {
     const ph = (T / 9000) % 1, b = ph < .45 ? .5 - .5 * Math.cos(Math.PI * ph / .45) : .5 + .5 * Math.cos(Math.PI * (ph - .45) / .55);
-    glow?.setAttribute("r", f2(114 + b * 14)); glow?.setAttribute("opacity", f2(.82 + b * .18)); disc?.setAttribute("r", f2(15.4 + b * 1.6));
+    if (glow) { put(glow, "r", f2(114 + b * 14)); put(glow, "opacity", f2(.82 + b * .18)); }
+    if (disc) put(disc, "r", f2(15.4 + b * 1.6));
   };
+  let n = 0, first = true;
   const frame = (ms) => {
     const T = Date.now();
     for (const g of rings) placeRing(g, T);
@@ -151,33 +210,38 @@ export function startSpin(root) {
       const [dx, dy] = place(r, still ? r.born : Date.now());
       // A thought let go sinks softly and fades away.
       const g = r.gone === null ? 0 : still ? 1 : clamp((T - r.gone) / 2600);
-      r.g.setAttribute("transform", `translate(${f2(dx)},${f2(dy + (g > 0 ? ease(g) * 60 : 0))})`);
-      if (r.gone !== null) r.g.setAttribute("opacity", f2(Math.max(0, 1 - g)));
+      put(r.g, "transform", `translate(${f2(dx)},${f2(dy + (g > 0 ? ease(g) * 60 : 0))})`);
+      if (r.gone !== null) put(r.g, "opacity", f2(Math.max(0, 1 - g)));
     }
-    for (const { look, tex, r, turn, sx, sy, kids } of els) {
+    // Planet surfaces turn very slowly (a mark moves about a twentieth of a pixel a frame), so each planet
+    // is redrawn every third frame, taking turns: the motion looks the same and costs a third as much.
+    n++;
+    els.forEach(({ look, tex, r, turn, sx, sy, kids }, j) => {
+      if ((n + j) % 3 && !first) return;
       const t = (ms / 1000) * Math.PI * 2 / turn;
       FEAT[look].forEach(([lon, lat, s, l, e = 1], n) => {
         const a = lon + t, z = Math.cos(a), el = kids[n];
-        if (z <= 0) { el.setAttribute("opacity", 0); return; }
-        el.setAttribute("cx", f2(r * Math.cos(lat) * Math.sin(a)));
-        el.setAttribute("cy", f2(r * Math.sin(lat)));
-        el.setAttribute("rx", f2(s * r * e * z));
-        el.setAttribute("ry", f2(s * r));
-        el.setAttribute("opacity", ((l ? .2 : .16) * Math.min(1, z * 3)).toFixed(3));
+        if (z <= 0) { put(el, "opacity", "0"); return; }
+        put(el, "cx", f2(r * Math.cos(lat) * Math.sin(a)));
+        put(el, "cy", f2(r * Math.sin(lat)));
+        put(el, "rx", f2(s * r * e * z));
+        put(el, "ry", f2(s * r));
+        put(el, "opacity", ((l ? .2 : .16) * Math.min(1, z * 3)).toFixed(3));
       });
       let k = FEAT[look].length;
       for (const p of tex) {
         const parts = p.bump ? BUMP : CRATER, a = p.lon + t, z = Math.cos(a);
-        if (z <= 0) { for (let q = 0; q < parts.length; q++) kids[k++].setAttribute("opacity", 0); continue; }
+        if (z <= 0) { for (let q = 0; q < parts.length; q++) put(kids[k++], "opacity", "0"); continue; }
         const x = r * Math.cos(p.lat) * Math.sin(a), y = r * Math.sin(p.lat), rx = p.s * r * z, ry = p.s * r, d = p.s * r * .4, fade = Math.min(1, z * 3);
         for (const [, op, size, shift] of parts) {
           const el = kids[k++];
-          el.setAttribute("cx", f2(x + sx * d * shift * z)); el.setAttribute("cy", f2(y + sy * d * shift));
-          el.setAttribute("rx", f2(rx * size)); el.setAttribute("ry", f2(ry * size));
-          el.setAttribute("opacity", (op * fade).toFixed(3));
+          put(el, "cx", f2(x + sx * d * shift * z)); put(el, "cy", f2(y + sy * d * shift));
+          put(el, "rx", f2(rx * size)); put(el, "ry", f2(ry * size));
+          put(el, "opacity", (op * fade).toFixed(3));
         }
       }
-    }
+    });
+    first = false;
     if (!still) spinning = requestAnimationFrame(frame);
   };
   spinning = requestAnimationFrame(frame);
@@ -218,7 +282,7 @@ function star(t, i, arriving, from) {
   const kind = t.kind === "worry" ? "A worry" : t.kind === "want" ? "A want" : "A kind thought";
   const times = t.count > 1 ? `, came up ${t.count} times` : "";
   const body = `<g class="tw" style="--d:${(7 + (i * 1.7) % 6).toFixed(1)}s;--dd:${(18 + (i * 3.1) % 12).toFixed(1)}s;animation-delay:-${(i * 1.3) % 9}s,-${(i * 2.7) % 20}s">
-    <circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(R * 1.3)}" fill="${GLOW[t.kind]}" opacity="${big ? .26 : .12}" filter="url(#soft)"/>
+    <circle cx="${f2(x)}" cy="${f2(y)}" ${soft(R * 1.3, GLOW[t.kind])} opacity="${big ? .26 : .12}"/>
     <path transform="translate(${f2(x)},${f2(y)})" d="${sparkle(POINTS[t.kind], R)}" fill="${TINT[t.kind]}"/></g>
     <circle class="hit" data-star="${t.id}" role="button" tabindex="0" aria-label="${kind}: “${esc(t.text)}”${times}" cx="${f2(x)}" cy="${f2(y)}" r="17" fill="transparent"/>`;
   const roam = `<g ${roamAttrs(t)}>${body}</g>`;
@@ -232,11 +296,11 @@ function star(t, i, arriving, from) {
 export function renderSky({ pillars, thoughts, runningId, arriving, from, labels, gather = null, intent = null }) {
   const at = layout(pillars);
   gathering = gather;
+  glows = new Map();
   // A thought that's just about you circles the sun.
   homes = { ...at, me: { x: CX, y: CY, r: 22 } };
   bodies = [{ x: CX, y: CY, r: 16 }, ...Object.values(at)];
   const defs = `<defs>
-    <filter id="soft" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.4"/></filter>
     <radialGradient id="sunglow"><stop offset="0" stop-color="#f6cf9f" stop-opacity=".55"/><stop offset=".35" stop-color="${SUN}" stop-opacity=".18"/><stop offset="1" stop-color="${SUN}" stop-opacity="0"/></radialGradient></defs>`;
   // The night itself (gradient, soft cloud and film grain) is a ready-made picture: drawing it live was slow on phones.
   // img/sky.jpg is rendered from the original drawing; see README for how to remake it.
@@ -252,9 +316,9 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
   const planets = pillars.map((p, i) => {
     const o = at[p.id], run = p.id === runningId;
     const pulse = still ? "" : `<animate attributeName="opacity" values=".15;.4;.15" dur="3s" repeatCount="indefinite"/>`;
-    const glow = run ? `<circle r="${f2(o.r * 3.4)}" fill="${p.tint}" opacity=".3" filter="url(#soft)">${pulse}</circle>` : "";
+    const glow = run ? `<circle ${soft(o.r * 3.4, p.tint)} opacity=".3">${pulse}</circle>` : "";
     // This week's intention is a small warm light beside its planet.
-    const light = p.id === intent ? `<g class="ilight" transform="translate(${f2(o.r + 6)},${f2(-o.r + 1)})"><circle r="5" fill="#e3c486" opacity=".35" filter="url(#soft)"/><circle r="2.2" fill="#f3dca8"/></g>` : "";
+    const light = p.id === intent ? `<g class="ilight" transform="translate(${f2(o.r + 6)},${f2(-o.r + 1)})"><circle ${soft(5, "#e3c486")} opacity=".35"/><circle r="2.2" fill="#f3dca8"/></g>` : "";
     return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-target="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}${light}<circle class="halo" r="${o.r + 7}"/></g>`;
   }).join("");
   // Each planet wears its name as a level ring, like Saturn's, turning slowly: read on the near side,
@@ -272,7 +336,7 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     return `<g class="ttag" ${roamAttrs(t)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
   // Stars are drawn above the sun and planets, so even mid-curve a thought is never hidden.
-  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}${base}<g class="world">${sun}${ring("back")}${planets}${ring("front")}<g class="stars">${stars}${words}</g><g class="tags">${tags}</g></g></svg>`;
+  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}<defs>${[...glows.values()].join("")}</defs>${base}<g class="world">${sun}${ring("back")}${planets}${ring("front")}<g class="stars">${stars}${words}</g><g class="tags">${tags}</g></g></svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.
@@ -355,13 +419,13 @@ export function runCamera() {
     cam.k = Math.max(0, Math.min(1, cam.k + cam.dir * (ms - cam.last) / GLIDE)); cam.last = ms;
     if (cam.k === 0 && cam.dir <= 0) { cam.id = null; cam.dir = 0; }
     const g = cam.id && world.querySelector(`[data-orbit="${cam.id}"]`);
-    if (!g) { world.removeAttribute("transform"); return; }
+    if (!g) { unput(world, "transform"); return; }
     const m = world.getCTM().inverse().multiply(g.getCTM()), e = glide(cam.k), s = 1 + (PLANET_R / +g.dataset.size - 1) * e;
     const fx = m.e + (FOCUS.x - m.e) * e, fy = m.f + (FOCUS.y - m.f) * e;
-    world.setAttribute("transform", `translate(${f2(fx - m.e * s)},${f2(fy - m.f * s)}) scale(${s.toFixed(4)})`);
+    put(world, "transform", `translate(${f2(fx - m.e * s)},${f2(fy - m.f * s)}) scale(${s.toFixed(4)})`);
     // Keeps running while zoomed in; stops once fully zoomed out.
     if (cam.id) cam.raf = requestAnimationFrame(frame);
-    else world.removeAttribute("transform");
+    else unput(world, "transform");
   };
   cam.raf = requestAnimationFrame(frame);
 }
