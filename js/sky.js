@@ -293,7 +293,7 @@ function star(t, i, arriving, from) {
   return `<g class="arrive" style="--dx:${f2(o.x - x)}px;--dy:${f2(o.y - y)}px">${roam}</g><g ${roamAttrs(t)}>${ring}</g>`;
 }
 
-export function renderSky({ pillars, thoughts, runningId, arriving, from, labels, gather = null, intent = null }) {
+export function renderSky({ pillars, thoughts, runningId, runLen = 0, arriving, from, labels, gather = null, intent = null }) {
   const at = layout(pillars);
   gathering = gather;
   glows = new Map();
@@ -317,9 +317,13 @@ export function renderSky({ pillars, thoughts, runningId, arriving, from, labels
     const o = at[p.id], run = p.id === runningId;
     const pulse = still ? "" : `<animate attributeName="opacity" values=".15;.4;.15" dur="3s" repeatCount="indefinite"/>`;
     const glow = run ? `<circle ${soft(o.r * 3.4, p.tint)} opacity=".3">${pulse}</circle>` : "";
+    // A timer with a length wears a thin gold ring that closes as the time passes (filled in each second by main.js).
+    // Sized for the zoomed-in view, the only place it shows.
+    const w = f2(o.r * 2.5 / PLANET_R), tr = f2(o.r * 1.4);
+    const timeRing = run && runLen ? `<g class="tring" transform="rotate(-90)"><circle r="${tr}" fill="none" stroke="${INK}" stroke-opacity=".1" stroke-width="${w}"/><circle data-fill r="${tr}" fill="none" stroke="#e3c486" stroke-width="${w}" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/></g>` : "";
     // This week's intention is a small warm light beside its planet.
     const light = p.id === intent ? `<g class="ilight" transform="translate(${f2(o.r + 6)},${f2(-o.r + 1)})"><circle ${soft(5, "#e3c486")} opacity=".35"/><circle r="2.2" fill="#f3dca8"/></g>` : "";
-    return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-target="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${planet("sky", i, o.r, shade(p), o.lit)}${light}<circle class="halo" r="${o.r + 7}"/></g>`;
+    return `<g transform="translate(${f2(o.x)},${f2(o.y)})" data-orbit="${p.id}" data-target="${p.id}" data-size="${o.r}"${run ? ' class="focus"' : ""}>${glow}${timeRing}${planet("sky", i, o.r, shade(p), o.lit)}${light}<circle class="halo" r="${o.r + 7}"/></g>`;
   }).join("");
   // Each planet wears its name as a level ring, like Saturn's, turning slowly: read on the near side,
   // passing faintly behind the planet on the far side. The letters are laid out once the sky is on screen.
