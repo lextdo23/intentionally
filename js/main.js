@@ -109,7 +109,7 @@ function renderHome(s) {
   const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
   app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels,
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels,
       gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId })}</div><div class="seam"></div>
     ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
     ${mine && !sorting ? `<button type="button" class="intent" id="intent"><span class="k">${dotFor(mine.pillarId)}This week</span><span class="i">${esc(mine.text)}</span>${mine.did.length ? `<span class="n">Done ${times(mine.did.length)}</span>` : ""}</button>` : ""}
@@ -117,6 +117,7 @@ function renderHome(s) {
     ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
       <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
       <p class="big" data-run aria-label="Time so far"></p>
+      ${s.running.minutes ? `<p class="of" data-of="${s.running.minutes}"></p>` : ""}
       <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
     <nav class="dock" aria-label="Actions">
       <div class="actions">
@@ -161,7 +162,7 @@ function renderHome(s) {
 function start(pillarId, activity, minutes = 0) {
   const before = store.get().running, n = store.get().notify;
   // The length is remembered first, so starting the timer stays one smooth change on screen.
-  if (notify.supported() && n.len !== minutes) store.update((s) => { s.notify.len = minutes; });
+  if (n.len !== minutes) store.update((s) => { s.notify.len = minutes; });
   const ran = store.startTimer(pillarId, activity, minutes);
   if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
   // The first time a timer is given a length, ask once whether a nudge would help.
@@ -193,6 +194,19 @@ function tick() {
   });
   const big = app.querySelector("[data-run]");
   if (big && s.running) big.textContent = formatRunning(now() - s.running.start);
+  // A timer given a length: a gold ring closes round the planet, and once the time is reached one quiet line says so.
+  // Nothing stops; the count carries on until it's stopped.
+  const len = s.running?.minutes, done = len ? Math.min(1, (now() - s.running.start) / (len * 60000)) : 0;
+  app.querySelector(".tring [data-fill]")?.setAttribute("stroke-dasharray", `${(done * 100).toFixed(2)} 100`);
+  const of = app.querySelector("[data-of]");
+  if (of) {
+    const up = done >= 1;
+    if (of.dataset.up !== String(up)) {
+      of.dataset.up = String(up);
+      of.classList.toggle("up", up);
+      of.innerHTML = up ? `That’s your ${len === 60 ? "hour" : len % 60 ? `${len} minutes` : `${len / 60} hours`}.<span>Keep going if it feels good.</span>` : `of ${lenLabel(len)}`;
+    }
+  }
   const sheetTime = document.querySelector("[data-week]");
   if (sheetTime) sheetTime.textContent = formatTotal(store.timeSince(sheetTime.dataset.week, from));
 }
@@ -210,9 +224,10 @@ function openPillar(id) {
       <div><h2 id="sheet-title">${esc(p.name)}</h2><p>This week <span data-week="${id}"></span></p></div>
       ${CLOSE}
     </header>
-    ${notify.supported() && !running ? `<p class="nl-k" id="nl-k">Nudge me after</p>
-    <div class="nl" role="radiogroup" aria-labelledby="nl-k">${notify.LENGTHS.map((m) => `<button type="button" class="chip" role="radio" aria-checked="${m === s.notify.len}" data-len="${m}">${m ? m === 60 ? "1 hr" : `${m} min` : "No end"}</button>`).join("")}</div>
-    <p class="hint">Optional. The timer keeps counting either way.</p>` : ""}
+    ${running ? "" : `<p class="nl-k" id="nl-k">How long?</p>
+    <div class="wheel" role="slider" tabindex="0" aria-labelledby="nl-k" aria-valuemin="0" aria-valuemax="${notify.LENGTHS.length - 1}">
+      ${notify.LENGTHS.map((m) => `<div data-len="${m}">${lenLabel(m)}</div>`).join("")}</div>
+    <p class="hint">No end is fine too. The timer keeps counting either way.</p>`}
     <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
     ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
     <div class="chips">${ideas.map((a) => `<button type="button" class="chip" data-idea="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}
@@ -224,11 +239,7 @@ function openPillar(id) {
     </form>`, p.tint);
   startSpin(document.body);
   tick();
-  const len = () => +(sheet.querySelector(".nl [aria-checked=true]")?.dataset.len ?? 0);
-  sheet.querySelector(".nl")?.addEventListener("click", (e) => {
-    const b = e.target.closest(".chip");
-    if (b) sheet.querySelectorAll(".nl .chip").forEach((c) => c.setAttribute("aria-checked", String(c === b)));
-  });
+  const len = wheel(sheet.querySelector(".wheel"), Math.max(0, notify.LENGTHS.indexOf(s.notify.len)));
   sheet.querySelector("[data-go]").addEventListener("click", () => { const m = len(); close(); running ? stop() : start(id, undefined, m); });
   sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { const m = len(); close(); start(id, b.dataset.idea, m); }));
   const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
@@ -250,6 +261,36 @@ function openPillar(id) {
     close();
     toast(`Added ${formatTotal(min * 60000)} to ${p.name}.`);
   });
+}
+
+const lenLabel = (m) => !m ? "No end" : m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m % 60}` : `${m / 60} hr`;
+
+// A flick-to-pick wheel of timer lengths, like the iPhone's own timer. Returns a function giving the minutes picked.
+// Positions are worked out as a share of the scroll, so the screen zoom can't throw them off.
+function wheel(el, start) {
+  if (!el) return () => 0;
+  const rows = [...el.children], last = rows.length - 1;
+  const max = () => el.scrollHeight - el.clientHeight;
+  const at = () => Math.max(0, Math.min(last, Math.round(el.scrollTop / (max() || 1) * last)));
+  let shown = -1;
+  const mark = () => {
+    const i = at();
+    if (i === shown) return;
+    shown = i;
+    rows.forEach((r, k) => r.classList.toggle("on", k === i));
+    el.setAttribute("aria-valuenow", String(i));
+    el.setAttribute("aria-valuetext", rows[i].textContent);
+  };
+  const go = (i, smooth) => el.scrollTo({ top: max() * Math.max(0, Math.min(last, i)) / last, behavior: smooth && !still() ? "smooth" : "auto" });
+  el.addEventListener("scroll", mark, { passive: true });
+  el.addEventListener("click", (e) => { const r = e.target.closest("[data-len]"); if (r) go(rows.indexOf(r), true); });
+  el.addEventListener("keydown", (e) => {
+    const d = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (d) { e.preventDefault(); go(at() + d, true); }
+  });
+  requestAnimationFrame(() => { go(start); mark(); });
+  mark();
+  return () => +rows[at()].dataset.len;
 }
 
 // iPhone draws the typing cursor in the wrong place inside zoomed boxes, so text fields undo the zoom
@@ -558,7 +599,7 @@ function offer({ title, text, extra = "", yes, no, onYes, onNo }) {
 
 function askTimer(minutes) {
   offer({
-    title: `Want a quiet nudge when your ${minutes === 60 ? "hour is" : `${minutes} minutes are`} up?`,
+    title: `Want a quiet nudge when your ${notify.upWords(minutes)} up?`,
     text: "Your phone will ask if Intentionally can send notifications. We’ll only send the ones you turn on, and your thoughts never show on your lock screen.",
     yes: "Yes, nudge me", no: "Not now",
     onYes: async () => {

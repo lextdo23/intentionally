@@ -9,7 +9,10 @@ import { now, DAY } from "./clock.js";
 export const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 
 const STILL = 3 * 3600000;
-export const LENGTHS = [0, 25, 45, 60];
+// The lengths a timer can be given on the wheel (minutes, 0 = no end).
+export const LENGTHS = [0, 5, 10, 15, 20, 25, 30, 40, 45, 60, 90, 120];
+// "Your hour is", "Your 2 hours are", "Your 25 minutes are": the start of a "time is up" line.
+export const upWords = (m) => m === 60 ? "hour is" : m % 60 === 0 ? `${m / 60} hours are` : `${m} minutes are`;
 
 export const supported = () => "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
 export const blocked = () => supported() && Notification.permission === "denied";
@@ -37,7 +40,7 @@ export async function enable() {
 function plan(s) {
   const n = s.notify, shift = Date.now() - now(), out = [], r = s.running;
   if (n.timer && r) {
-    if (r.minutes) out.push({ at: r.start + r.minutes * 60000 + shift, text: `${r.minutes === 60 ? "Your hour is" : `Your ${r.minutes} minutes are`} up. Stop when you’re ready, or keep going.` });
+    if (r.minutes) out.push({ at: r.start + r.minutes * 60000 + shift, text: `Your ${upWords(r.minutes)} up. Stop when you’re ready, or keep going.` });
     else out.push({ at: afterQuiet(r.start + STILL + shift, n.quiet), text: "Still going? Your timer has been running for 3 hours." });
   }
   if (n.evening) {
