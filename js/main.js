@@ -109,7 +109,7 @@ function renderHome(s) {
   const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
   app.innerHTML = `<section class="home ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels,
+    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels !== false,
       gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId })}</div><div class="seam"></div>
     ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
     ${mine && !sorting ? `<button type="button" class="intent" id="intent"><span class="k">${dotFor(mine.pillarId)}This week</span><span class="i">${esc(mine.text)}</span>${mine.did.length ? `<span class="n">Done ${times(mine.did.length)}</span>` : ""}</button>` : ""}
@@ -710,7 +710,7 @@ function renderTestPanel() {
   panel.setAttribute("aria-label", "Test mode");
   panel.innerHTML = `<b>Test mode</b><span>Pretend date: ${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}${s.test.offsetDays ? ` (+${s.test.offsetDays} days)` : ""}</span>
     <div><button data-t="example">Example sky</button><button data-t="day">+1 day</button><button data-t="week">+1 week</button>
-    <button data-t="today">Today</button><button data-t="look">Look back now</button><button data-t="labels" aria-pressed="${!!s.test.labels}">Thought words: ${s.test.labels ? "on" : "off"}</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
+    <button data-t="today">Today</button><button data-t="look">Look back now</button><button data-t="labels" aria-pressed="${s.test.labels !== false}">Thought words: ${s.test.labels !== false ? "on" : "off"}</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
   document.body.append(panel);
   panel.addEventListener("click", (e) => {
     const t = e.target.dataset.t;
@@ -719,7 +719,7 @@ function renderTestPanel() {
     if (t === "reset") { store.reset(); setOffsetDays(0); return; }
     if (t === "example") return loadExample();
     if (t === "look") return openLook();
-    if (t === "labels") return store.update((x) => { x.test.labels = !x.test.labels; });
+    if (t === "labels") return store.update((x) => { x.test.labels = x.test.labels === false; // on unless turned off here });
     const days = t === "today" ? 0 : s.test.offsetDays + (t === "day" ? 1 : 7);
     setOffsetDays(days);
     store.update((x) => { x.test.offsetDays = days; });
