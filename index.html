@@ -8,7 +8,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Intentionally">
   <title>Intentionally</title>
-  <link rel="manifest" href="manifest.webmanifest">
+  <!-- iPhone and iPad leave a strip at the bottom of a home-screen app that was installed with a manifest, so only
+       other phones get one. iPhone uses the apple- tags above and the icon below instead. -->
+  <script>
+    if (!/iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
+      document.head.append(Object.assign(document.createElement("link"), { rel: "manifest", href: "manifest.webmanifest" }));
+    }
+  </script>
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4" sizes="180x180">
   <link rel="stylesheet" href="css/app.css">

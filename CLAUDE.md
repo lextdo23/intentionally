@@ -6,6 +6,7 @@ The owner, alex, has no coding experience. Explain changes in plain English, no 
 - Plain HTML, CSS and JavaScript modules. No build step, no frameworks, no dependencies. Open `index.html` through any static server.
 - All data lives in `localStorage` under the key `intentionally` (see `js/store.js`). Bump `SCHEMA` and migrate when the shape changes.
 - `sw.js` caches the app for offline use. **Bump `VERSION` and update `FILES` whenever any file changes or is added.**
+- No manifest on iPhone/iPad (`index.html` adds it for other phones only): with one, iOS leaves a 59pt strip at the bottom of the home-screen app. iPhone relies on the `apple-` meta tags and `apple-touch-icon`.
 - Time always comes from `now()` in `js/clock.js`, never `Date.now()` directly in app logic, so test mode's time travel works. (The sky's orbit phase uses the real clock on purpose.)
 
 ## Design rules (agreed with alex; don't drift from these)
