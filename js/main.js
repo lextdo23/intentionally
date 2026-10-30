@@ -304,7 +304,22 @@ function unzoom(el, { font, padY, padX, radius, height }) {
 }
 
 // After the keyboard goes away, iPhone can leave the screen nudged up. Put it back.
-addEventListener("focusout", () => setTimeout(() => { if (!document.activeElement?.matches?.("input, textarea")) scrollTo(0, 0); }, 60));
+// On the home screen it can also leave the app's area short (a dark strip below, the dock floating above it).
+// Hiding and showing the app in one step, before anything is drawn, makes iPhone measure the full screen again.
+let tallest = innerHeight;
+addEventListener("resize", () => { tallest = Math.max(tallest, innerHeight); });
+const refill = () => {
+  if (document.activeElement?.matches?.("input, textarea") || innerHeight >= tallest - 4) return;
+  app.style.display = "none";
+  void app.offsetHeight;
+  app.style.display = "";
+};
+addEventListener("focusout", () => setTimeout(() => {
+  if (document.activeElement?.matches?.("input, textarea")) return;
+  scrollTo(0, 0);
+  setTimeout(refill, 120);
+}, 60));
+window.visualViewport?.addEventListener("resize", () => setTimeout(refill, 120));
 
 /* ---------- Catching a thought: write it down, and it becomes a star ---------- */
 
@@ -719,7 +734,7 @@ function renderTestPanel() {
     if (t === "reset") { store.reset(); setOffsetDays(0); return; }
     if (t === "example") return loadExample();
     if (t === "look") return openLook();
-    if (t === "labels") return store.update((x) => { x.test.labels = x.test.labels === false; // on unless turned off here });
+    if (t === "labels") return store.update((x) => { x.test.labels = x.test.labels === false; }); // on unless turned off here
     const days = t === "today" ? 0 : s.test.offsetDays + (t === "day" ? 1 : 7);
     setOffsetDays(days);
     store.update((x) => { x.test.offsetDays = days; });
