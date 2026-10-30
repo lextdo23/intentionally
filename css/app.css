@@ -661,3 +661,110 @@ button:active:not(:disabled) { transform: scale(.96); }
 .sw:checked::after { transform: translateX(20px); }
 .sw:disabled { opacity: .4; }
 @media (prefers-reduced-motion: reduce) { .offer, .sw, .sw::after { transition: none; } }
+
+/* ---------- First day: the sky is born (js/welcome.js) ----------
+   True dark, then the sun. It grows a little at every step and the clouds drift in, so by the end it is the home sky.
+   Words fade between steps while the sky stays. Going on = tapping the sun; a soft gold ring grows out of it when ready. */
+.born { position: absolute; inset: 0; overflow: hidden; background: #08090a; --sun: 0; --clouds: 0; --sy: 46vh; }
+.born .b-clouds, .born .b-sky { position: absolute; inset: 0; }
+.born .b-clouds { background: url(../img/sky.jpg) center / cover no-repeat; opacity: var(--clouds); transition: opacity 10s cubic-bezier(.4, 0, .4, 1);
+  animation: b-float 90s ease-in-out infinite alternate; }
+@keyframes b-float { from { transform: translateX(-14px) scale(1.03); } to { transform: translateX(14px) scale(1.03); } }
+.born svg.sky > image { display: none; }
+.born svg [data-breath="glow"], .born svg .sundisc { transform: scale(var(--sun)); transform-box: fill-box; transform-origin: center; transition: transform 6s cubic-bezier(.25, .6, .3, 1); }
+.born.b-breathing svg [data-breath="glow"], .born.b-breathing svg .sundisc { animation: b-breath 9s ease-in-out infinite; }
+@keyframes b-breath { 0%, 100% { transform: scale(.4); } 44% { transform: scale(.75); } }
+.born .sky .rings { transition: opacity .9s ease; }
+.born .sky .rings.b-wait { opacity: 0; }
+.born .sky [data-orbit] { transform-box: fill-box; transform-origin: center; transition: translate 1.1s cubic-bezier(.3, .7, .2, 1); }
+.born .sky [data-orbit].b-new { animation: b-new 1.3s cubic-bezier(.3, .7, .2, 1) both; }
+@keyframes b-new { from { scale: .2; opacity: 0; } }
+
+.b-ui { position: absolute; inset: 0; pointer-events: none; transition: opacity .7s ease; }
+.b-ui > * { pointer-events: auto; }
+.b-ui.b-leaving { opacity: 0; }
+.b-say { position: absolute; left: var(--edge); right: var(--edge); max-width: 480px; margin: 0 auto; text-align: center; }
+.b-top { top: calc(env(safe-area-inset-top, 0px) + 10vh); }
+.b-top.b-high { top: calc(env(safe-area-inset-top, 0px) + 6vh); }
+.b-under { top: calc(var(--sy) + 56px); }
+.b-low { bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh); display: grid; gap: 8px; justify-items: center; }
+/* Picking: the words sit just under the lowest planet, so a new planet never lands on them. */
+.b-low.b-below { bottom: auto; top: min(var(--below, 62vh), calc(100% - 240px)); gap: 0; }
+.b-say h2 { margin: 0; font-size: 22px; font-weight: 500; line-height: 1.25; text-wrap: balance; }
+.b-say p { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); text-wrap: balance; }
+.b-say .b-note { margin: 0; font-size: 13px; color: var(--dim); }
+.b-top .b-note { margin-top: 8px; }
+.b-say .b-quote { margin: 0 0 16px; font-size: 17px; color: var(--ink); }
+.b-breath { transition: opacity 1s ease; }
+.b-breath.b-swap { opacity: 0; }
+.b-ui.b-enter .b-say > *, .b-ui.b-enter .b-card { animation: b-rise 1.4s ease both; }
+.b-ui.b-enter .b-say > :nth-child(1) { animation-delay: .3s; }
+.b-ui.b-enter .b-say > :nth-child(2) { animation-delay: 1.1s; }
+.b-ui.b-enter .b-say > :nth-child(n+3) { animation-delay: 1.8s; }
+.b-ui.b-enter .b-low > * { animation-delay: 2.2s; }
+@keyframes b-rise { from { opacity: 0; transform: translateY(4px); } }
+
+/* Once a step is done, a line says so and pulses slowly with the ring round the sun. */
+.b-say .b-hint { margin: 8px 0 0; font-size: 13px; color: var(--dim); animation: b-in 1.2s ease both, b-pulse 3.2s ease-in-out 1.2s infinite; }
+.b-ui.b-enter .b-say .b-hint { animation: b-in 1.2s ease 2.6s both, b-pulse 3.2s ease-in-out 3.8s infinite; }
+@keyframes b-in { from { opacity: 0; } }
+@keyframes b-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+.b-go { position: absolute; left: 50%; top: 46%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; pointer-events: none; }
+.b-go.ready { pointer-events: auto; }
+.b-go::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; box-shadow: 0 0 0 1px var(--gold); opacity: 0; transition: opacity .6s ease; }
+.b-go.ready::after { animation: b-grow 1.6s cubic-bezier(.3, .7, .2, 1) both, b-ring 3.2s ease-in-out 1.6s infinite; }
+@keyframes b-grow { from { opacity: 0; transform: scale(.35); } to { opacity: .6; transform: scale(1.06); } }
+@keyframes b-ring { 0%, 100% { opacity: .6; transform: scale(1.06); } 50% { opacity: .15; transform: scale(.92); } }
+.b-go:focus { outline: none; }
+.b-go:focus-visible::after { opacity: 1; }
+
+/* Picking what matters: soft words in the sky. */
+.b-words { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 4px; }
+.b-words button { min-height: 44px; padding: 0 10px; font-size: 17px; color: var(--ink-2); }
+.b-quiet { min-height: 44px; padding: 0 16px; font-size: 15px; color: var(--dim); }
+.b-own { display: flex; gap: 8px; justify-content: center; align-items: center; }
+.b-own input { width: 160px; height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font-size: 17px; text-align: center; caret-color: var(--gold); border-radius: 12px; }
+.b-own input:focus-visible { outline: none; }
+
+/* The first thought: the same frosted card as New thought. */
+.b-card { position: absolute; left: 12px; right: 12px; max-width: 496px; margin: 0 auto; top: calc(env(safe-area-inset-top, 0px) + 16px); padding: 16px;
+  border-radius: 16px; background: rgba(255, 255, 255, .08); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.b-card label { display: block; font-size: 15px; color: var(--ink-2); margin-bottom: 8px; }
+.b-row { display: flex; gap: 8px; align-items: flex-end; }
+.b-card textarea { flex: 1; min-width: 0; min-height: 66px; resize: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 17px; padding: 0; outline: none; caret-color: var(--gold); }
+.b-card textarea::placeholder { color: var(--dim); }
+.b-send { flex: none; width: 44px; height: 44px; display: grid; place-items: center; }
+.b-send i { width: 32px; height: 32px; border-radius: 50%; background: var(--gold); display: grid; place-items: center; }
+.b-send svg { width: 16px; height: 16px; fill: var(--on-gold); }
+.b-send:disabled { opacity: .35; }
+.b-guess { margin: 8px 0 0; font-size: 13px; color: var(--dim); display: flex; align-items: center; gap: 4px; min-height: 18px; }
+.b-guess svg { width: 12px; height: 12px; fill: var(--ink-2); }
+
+/* The three kinds float as stars: the chosen one large and glowing in its colour, the others small and faint. */
+.b-kinds { display: flex; justify-content: center; align-items: flex-end; gap: 16px; }
+.b-kinds button { width: 80px; min-height: 88px; display: grid; justify-items: center; align-content: end; gap: 8px; font-size: 13px; color: var(--dim); }
+.b-kinds svg { width: 22px; height: 22px; overflow: visible; opacity: .5; transition: transform .8s cubic-bezier(.3, .7, .2, 1), opacity .8s ease, filter .8s ease; }
+.b-kinds [aria-pressed="true"] { color: var(--ink); }
+.b-kinds [aria-pressed="true"] svg { transform: scale(2); opacity: 1; filter: drop-shadow(0 0 3px var(--c)); }
+.b-kinds .k-kind { --c: #ffe1b8; } .b-kinds .k-worry { --c: #ffab94; } .b-kinds .k-want { --c: #8fb3ff; }
+.b-kinds .k-kind svg { fill: #fff3e2; } .b-kinds .k-worry svg { fill: #ffd6c8; } .b-kinds .k-want svg { fill: #dbe8ff; }
+
+/* Your name, written straight into the sky; and the day, as seven round letters. */
+.b-say .b-name { display: block; width: 100%; height: 44px; margin-top: 24px; padding: 0; border: 0; background: none; color: var(--ink);
+  font-size: 22px; font-weight: 500; text-align: center; caret-color: var(--gold); border-radius: 12px; }
+.b-name:focus-visible { outline: none; }
+.b-name::placeholder { color: var(--dim); font-weight: 400; }
+.b-days { display: flex; justify-content: center; gap: 2px; }
+.b-days button { width: 44px; height: 44px; border-radius: 50%; font-size: 15px; color: var(--ink-2); }
+.b-days [aria-checked="true"] { background: var(--glass); color: var(--ink); box-shadow: inset 0 0 0 1px var(--gold); }
+
+/* The home sky the first time, straight after: the greeting and the dock fade in. */
+.home.fresh .greet, .home.fresh .dock { animation: b-rise 1.4s ease .3s both; }
+.home.fresh .dock { animation-delay: 1.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit] { transition: none; animation: none; }
+  .b-ui.b-enter .b-say > *, .b-ui.b-enter .b-card, .b-say .b-hint, .b-ui.b-enter .b-say .b-hint, .born .sky [data-orbit].b-new, .home.fresh .greet, .home.fresh .dock { animation: none; }
+  .b-go.ready::after { animation: none; opacity: .5; }
+  .b-kinds svg { transition: none; }
+}
