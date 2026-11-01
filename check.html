@@ -12,6 +12,8 @@
        Each colour shows how far one way of sizing reaches. Remove once the bottom strip is fixed. -->
   <style>
     html { background: #b33; }
+    @media (display-mode: standalone) { html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); } }
+    html.standalone { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); }
     body { position: fixed; inset: 0; margin: 0; background: #1d2a44; color: #efede9; font: 15px/1.4 -apple-system, system-ui, sans-serif; }
     .full { position: fixed; top: 0; left: 0; width: 50%; pointer-events: none; }
     .full::after { content: "yellow: whole screen"; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: #d9b13a; color: #111; padding: 8px; font-weight: 600; }
@@ -27,6 +29,7 @@
   </style>
 </head>
 <body>
+  <script>if (navigator.standalone) document.documentElement.classList.add("standalone");</script>
   <div class="full" id="full"></div>
   <div class="lvh"></div>
   <div class="dock">green: the app's bottom edge</div>
