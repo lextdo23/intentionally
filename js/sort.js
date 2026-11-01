@@ -105,7 +105,7 @@ function showPage() {
 
 function deal() {
   const deck = S.layer.querySelector(".so-deck");
-  const ids = S.queue.slice(0, S.view === "page" ? 4 : 1);
+  const ids = S.queue.slice(0, S.view === "page" ? 4 : 3);
   const count = S.layer.querySelector(".so-count");
   if (count) count.textContent = S.queue.length ? `${S.queue.length} to sort` : "";
   markStar(S.view === "sky" ? S.queue[0] : null);
