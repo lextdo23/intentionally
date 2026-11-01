@@ -17,6 +17,10 @@
 /* #0e0f11 is the colour of the sky picture's bottom edge. iPhone fills any strip it leaves below the app with the
    page's own background, so html and body both use it and that strip reads as more sky. */
 html, body { height: 100%; overflow: hidden; background: #0e0f11; }
+/* On iPhone a home-screen app is laid out one status bar short, leaving a strip at the bottom, unless the page is
+   taller than that. This makes it as tall as the screen (iOS 26 bug, WebKit 301108). */
+@media (display-mode: standalone) { html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); } }
+html.standalone { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); }
 /* The app is pinned to the screen like a native app: the page never scrolls or bounces. */
 body {
   position: fixed; inset: 0;
