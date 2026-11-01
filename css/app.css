@@ -2,6 +2,8 @@
    Colour roles: charcoal sky about 60%, warm cream ink about 30%, pillar tints only on planets, soft gold for "you can do this here".
    Spacing steps: 4 / 8 / 16 / 24 / 40. Corners: sheet 26, card 16, button 14, field 12, chip 10. */
 :root {
+  /* Bars that sit low hug the screen's corners: their bottom corners follow the phone's rounded ones. */
+  --foot: max(26px, calc(env(safe-area-inset-bottom, 0px) + 12px));
   --bg: #141518; --bg-deep: #08090a;
   --ink: #efede9;
   --ink-2: color-mix(in srgb, var(--ink) 72%, transparent);
@@ -42,9 +44,9 @@ button, [role="button"] { touch-action: manipulation; }
 /* Text sizes follow Apple's standard text styles at the default setting: large title 34, title 28/22/20,
    body and buttons 17, smaller text 15, notes 13, tiny labels 12/11. Nothing is scaled with the screen. */
 .sky-wrap svg.sky { width: 100%; height: 100%; display: block; }
-/* On iPhone the app's area can stop short of the screen's bottom edge after the keyboard closes, leaving a strip.
-   The sky fades into the page's own colour at that edge, so any strip below simply continues the sky. */
-.seam { position: fixed; left: 0; right: 0; bottom: 0; height: 120px; pointer-events: none; background: linear-gradient(rgba(14, 15, 17, 0), #0e0f11); }
+/* The glow low in the home sky fades away when a timer zooms in. */
+.sky [data-breath="floor"] { transition: opacity .6s ease; }
+.zoomed .sky [data-breath="floor"] { opacity: 0; }
 
 /* ---------- First day ---------- */
 .welcome-body {
@@ -86,9 +88,9 @@ button, [role="button"] { touch-action: manipulation; }
 
 /* The dock: one quiet glass surface low on the screen, in the thumb zone. */
 .dock {
-  position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  max-width: 496px; margin: 0 auto; padding: 16px 8px;
-  border-radius: 26px; background: var(--glass);
+  position: fixed; left: 10px; right: 10px; bottom: 10px;
+  max-width: 496px; margin: 0 auto; padding: 16px 8px calc(16px + env(safe-area-inset-bottom, 0px) / 2);
+  border-radius: 26px 26px var(--foot) var(--foot); background: var(--glass);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
 .pillars { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
@@ -276,7 +278,10 @@ button, [role="button"] { touch-action: manipulation; }
   display: grid; place-items: center; background: rgba(255, 255, 255, .08); color: var(--dim); }
 .so-x::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; }
 .so-x svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.so-sky { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); max-width: 496px; margin: 0 auto; }
+/* In the sky the card sits raised, and the next two wait under it, stepping down toward the dock's place. */
+.so-sky { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 4px); max-width: 496px; margin: 0 auto; }
+.so-sky .so-card.back { inset: 0; transform-origin: 50% 100%; transform: translateY(calc(var(--n) * 22px)) scale(calc(1 - var(--n) * .05)); }
+.so-sky .so-line { margin-top: 48px; }
 .so-page { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
   padding: calc(env(safe-area-inset-top, 0px) + 72px) var(--edge) calc(env(safe-area-inset-bottom, 0px) + 24px);
   background: linear-gradient(rgba(8, 9, 10, .5), rgba(8, 9, 10, .82)); animation: so-in .4s ease both; }

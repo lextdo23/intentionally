@@ -3,7 +3,7 @@
 import { now } from "./clock.js";
 
 // The sky is drawn on a 300-wide canvas (the size the designs were made at) and stretched to fill the screen.
-const W = 300, H = 650, CX = W / 2, CY = H * 0.46;
+const W = 300, H = 650, CX = W / 2, CY = H * 0.505;
 const SUN = "#f2c08f", INK = "#efede9";
 
 // Thought stars are soft sparkles; the number of points tells the kind apart.
@@ -85,9 +85,9 @@ export function planet(id, i, r, c, lit = { x: -.78, y: -.62 }) {
 // Where each planet rests, as offsets from the sun. The two focus pillars take the places either side of you;
 // the rest sit above and below, so the whole system is balanced (a line, a diamond or a gentle crown).
 const SLOTS = {
-  3: [[-100, 0], [100, 0], [0, 64]],
-  4: [[-104, 0], [104, 0], [0, -66], [0, 66]],
-  5: [[-108, 6], [108, 6], [-56, -58], [56, -58], [0, 70]],
+  3: [[-102, 0], [102, 0], [0, 80]],
+  4: [[-106, 0], [106, 0], [0, -82], [0, 82]],
+  5: [[-110, 8], [110, 8], [-58, -72], [58, -72], [0, 88]],
 };
 // One quiet family of colours: focus pillars keep their tint, the others keep only a hint of it.
 const mix = (a, b, t) => "#" + [1, 3, 5].map((n) => Math.round(parseInt(a.substr(n, 2), 16) * (1 - t) + parseInt(b.substr(n, 2), 16) * t).toString(16).padStart(2, "0")).join("");
@@ -195,11 +195,12 @@ export function startSpin(root) {
     });
   };
   // The sun breathes: in over about four seconds, out over about five.
-  const glow = root.querySelector('[data-breath="glow"]'), disc = root.querySelector('[data-breath="disc"]');
+  const glow = root.querySelector('[data-breath="glow"]'), disc = root.querySelector('[data-breath="disc"]'), floor = root.querySelector('[data-breath="floor"]');
   const breathe = (T) => {
     const ph = (T / 9000) % 1, b = ph < .45 ? .5 - .5 * Math.cos(Math.PI * ph / .45) : .5 + .5 * Math.cos(Math.PI * (ph - .45) / .55);
     if (glow) { put(glow, "r", f2(114 + b * 14)); put(glow, "opacity", f2(.82 + b * .18)); }
     if (disc) put(disc, "r", f2(15.4 + b * 1.6));
+    if (floor) put(floor, "opacity", f2(.6 + b * .4));
   };
   let n = 0, first = true;
   const frame = (ms) => {
@@ -261,7 +262,7 @@ export function placeStar(existing = []) {
 // Each star takes a long, slow lap of the whole open sky (between the greeting and the dock): it swings
 // side to side three times and up and down twice per lap, so over one lap it passes through all of it.
 // The lap is timed from the wall clock and starts exactly where the star first landed, so a star never jumps.
-const ROAM = { x0: 18, x1: 282, y0: 130, y1: 450 };
+const ROAM = { x0: 18, x1: 282, y0: 130, y1: 520 };
 // A sorted thought leaves its lap and settles into a slow loop round its pillar's planet.
 let homes = {};
 // When the look back is ready, the week's stars leave their laps and gather slowly round the sun.
@@ -293,7 +294,7 @@ function star(t, i, arriving, from) {
   return `<g class="arrive" style="--dx:${f2(o.x - x)}px;--dy:${f2(o.y - y)}px">${roam}</g><g ${roamAttrs(t)}>${ring}</g>`;
 }
 
-export function renderSky({ pillars, thoughts, runningId, runLen = 0, arriving, from, labels, gather = null, intent = null }) {
+export function renderSky({ pillars, thoughts, runningId, runLen = 0, arriving, from, labels, gather = null, intent = null, floor = false }) {
   const at = layout(pillars);
   gathering = gather;
   glows = new Map();
@@ -301,10 +302,13 @@ export function renderSky({ pillars, thoughts, runningId, runLen = 0, arriving, 
   homes = { ...at, me: { x: CX, y: CY, r: 22 } };
   bodies = [{ x: CX, y: CY, r: 16 }, ...Object.values(at)];
   const defs = `<defs>
-    <radialGradient id="sunglow"><stop offset="0" stop-color="#f6cf9f" stop-opacity=".55"/><stop offset=".35" stop-color="${SUN}" stop-opacity=".18"/><stop offset="1" stop-color="${SUN}" stop-opacity="0"/></radialGradient></defs>`;
+    <radialGradient id="sunglow"><stop offset="0" stop-color="#f6cf9f" stop-opacity=".55"/><stop offset=".35" stop-color="${SUN}" stop-opacity=".18"/><stop offset="1" stop-color="${SUN}" stop-opacity="0"/></radialGradient>
+    <radialGradient id="floorglow"><stop offset="0" stop-color="${SUN}" stop-opacity=".2"/><stop offset=".55" stop-color="#a9b9d6" stop-opacity=".07"/><stop offset="1" stop-color="#a9b9d6" stop-opacity="0"/></radialGradient></defs>`;
   // The night itself (gradient, soft cloud and film grain) is a ready-made picture: drawing it live was slow on phones.
   // img/sky.jpg is rendered from the original drawing; see README for how to remake it.
   const base = `<image href="img/sky.jpg" width="${W}" height="${H}" preserveAspectRatio="none"/>`;
+  // On the home sky a faint warm glow rises from the bottom edge and breathes with the sun, so the dock sits in the sky.
+  const glowFloor = floor ? `<ellipse data-breath="floor" cx="${CX}" cy="${H + 30}" rx="240" ry="160" fill="url(#floorglow)"/>` : "";
   // A thought let go a moment ago stays just long enough to sink away.
   const stars = thoughts.filter((t) => t.status === "active" || (t.status === "let-go" && now() - t.letGoAt < 3500))
     .map((t, i) => star(t, i, arriving, from)).join("");
@@ -340,7 +344,7 @@ export function renderSky({ pillars, thoughts, runningId, runLen = 0, arriving, 
     return `<g class="ttag" ${roamAttrs(t)}><rect class="tag" fill="#000" fill-opacity=".3"/><text class="tagt" data-fs="11" data-top="${f2(t.y * H + 5)}" x="${f2(t.x * W)}" y="${f2(t.y * H + 15)}" text-anchor="middle" font-size="11" font-weight="500" fill="${INK}" fill-opacity=".8">“${esc(short)}”</text></g>`;
   }).join("") : "";
   // Stars are drawn above the sun and planets, so even mid-curve a thought is never hidden.
-  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}<defs>${[...glows.values()].join("")}</defs>${base}<g class="world">${sun}${ring("back")}${planets}${ring("front")}<g class="stars">${stars}${words}</g><g class="tags">${tags}</g></g></svg>`;
+  return `<svg class="sky" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="${skyLabel(pillars, thoughts)}">${defs}<defs>${[...glows.values()].join("")}</defs>${base}${glowFloor}<g class="world">${sun}${ring("back")}${planets}${ring("front")}<g class="stars">${stars}${words}</g><g class="tags">${tags}</g></g></svg>`;
 }
 
 // Size each name tag to its word once it is on screen: 2.5px either side, a hair above and below.

@@ -72,7 +72,7 @@ function renderHome(s) {
   shownRunning = run?.id ?? null;
   app.innerHTML = `<section class="home ${fresh ? "fresh" : ""} ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
     <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels !== false,
-      gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId })}</div><div class="seam"></div>
+      gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId, floor: true })}</div>
     ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
     ${mine && !sorting ? `<button type="button" class="intent" id="intent"><span class="k">${dotFor(mine.pillarId)}This week</span><span class="i">${esc(mine.text)}</span>${mine.did.length ? `<span class="n">Done ${times(mine.did.length)}</span>` : ""}</button>` : ""}
     <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
