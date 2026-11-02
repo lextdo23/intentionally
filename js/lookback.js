@@ -224,7 +224,9 @@ function queue() {
   const s = store.get();
   const all = s.thoughts.filter((t) => t.status === "active");
   const weight = (t) => t.heavy ? 100 : t.kind === "worry" ? 30 + (t.count || 1) * 5 : t.kind === "want" ? 20 : 0;
-  const list = [...all].sort((a, b) => weight(b) - weight(a));
+  // Thoughts that never found a home come last, together, as "Still floating" (heavy ones always come first).
+  const floating = (t) => !t.pillarId && !t.heavy ? 1 : 0;
+  const list = [...all].sort((a, b) => floating(a) - floating(b) || weight(b) - weight(a));
   // The five-minute version, or a late return, keeps it to the heaviest five. The rest stay safe in your sky.
   const cap = L.short ? 5 : 12;
   L.rest = Math.max(0, list.length - cap);
@@ -270,7 +272,13 @@ function deal() {
   if (!t) { L.i++; return deal(); }
   const s = store.get();
   const last = t.helped?.filter((h) => h.text).at(-1);
-  const tag = t.pillarId === "me" ? `<span class="cpl"><i style="background:#fff4e6"></i>Just you</span>` : p ? `<span class="cpl"><i style="background:${shade(p)}"></i>${esc(p.name)}</span>` : "";
+  const tag = t.pillarId === "me" ? `<span class="cpl"><i style="background:#fff4e6"></i>Just you</span>` : p ? `<span class="cpl"><i style="background:${shade(p)}"></i>${esc(p.name)}</span>`
+    : t.heavy ? "" : `<span class="cpl">Still floating</span>`;
+  // The first floating thought gets one line saying what these are. No sorting is asked: keep it, or let it go.
+  const ask = L.body.querySelector(".lb-ask");
+  const floats = (x) => !!x && !x.pillarId && !x.heavy;
+  if (ask) { const first = floats(t) && !floats(thoughtById(L.q[L.i - 1]));
+    if (first) { ask.textContent = "Still floating. These didn’t find a home this week."; ask.classList.add("on"); } else if (t.pillarId) ask.classList.remove("on"); }
   const meta = t.heavy ? "" : t.kind === "kind" ? `<div class="sav"><s></s></div><p class="mt">Take a moment to remember it.</p>`
     : last ? `<p class="mt">${t.count > 1 ? `Came up ${times(t.count)}` : "It’s come back"}</p><p class="ret">Last time, ${esc(last.text.charAt(0).toLowerCase() + last.text.slice(1))} helped.</p>`
     : `<p class="mt">${t.count > 1 ? `Came up ${times(t.count)}` : `Caught on ${dayName(t.createdAt)}`}</p>`;

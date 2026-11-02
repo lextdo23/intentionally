@@ -104,6 +104,16 @@ button, [role="button"] { touch-action: manipulation; }
 .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: start; padding: 0 20px; }
 .round { width: 44px; height: 44px; margin-top: 4px; border-radius: 50%; background: rgba(255, 255, 255, .06); display: grid; place-items: center; color: var(--dim); }
 .round svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Giving a new thought a home: words at the top, "Not now" at the bottom, the sky between stays tappable. */
+.placer { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; transition: opacity .5s ease; }
+.placer.in { opacity: 1; }
+.placer .pl-top { position: absolute; left: var(--edge); right: var(--edge); top: calc(env(safe-area-inset-top, 0px) + 40px); text-align: center; }
+.placer h2 { margin: 0; font-size: 22px; font-weight: 500; }
+.placer p { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); }
+.placer .pl-skip { pointer-events: auto; position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  min-height: 44px; padding: 0 16px; font-size: 15px; color: var(--dim); }
+.home.placing .greet, .home.placing .dock { opacity: 0; pointer-events: none; transition: opacity .4s ease; }
+@media (prefers-reduced-motion: reduce) { .placer { transition: none; } }
 .side { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .side .round { margin-top: 4px; }
 .you-empty, .you-line { margin: 0; font-size: 15px; color: var(--ink-2); }
@@ -714,7 +724,35 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-say .b-line.on { opacity: 1; transform: none; }
 .born .b-sky { transition: opacity 1.1s ease; }
 .born.b-fadesky .b-sky { opacity: 0; }
-.b-card .b-why { margin: -4px 0 8px; font-size: 13px; color: var(--dim); }
+/* The journey to the example sky: your sky and the example are two layers moved together like one camera;
+   far-off suns and wisps are painted on a canvas between them. */
+.born .b-sky, .born .b-ex { transform-origin: 0 0; will-change: transform; }
+.born .b-far { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.born .b-ex { position: absolute; inset: 0; pointer-events: none; }
+.born .b-ex svg.sky > image { display: inline; }
+.born .b-ex [data-planet], .born .b-ex [data-star], .born .b-ex [data-sun] { pointer-events: none; }
+.b-ex-line { min-height: 72px; transition: opacity .5s ease; }
+.b-ex-line.b-swap { opacity: 0; }
+.b-say .b-ex-line .b-ex-k { margin: 8px 0 0; font-size: 20px; font-weight: 500; color: var(--ink); }
+.b-say .b-ex-line p { margin: 4px 0 0; }
+.b-payoff { position: absolute; left: var(--edge); right: var(--edge); max-width: 320px; margin: 0 auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh + 64px);
+  padding: 16px; border-radius: 16px; background: rgba(36, 38, 43, .82); text-align: center;
+  opacity: 0; transform: translateY(8px); transition: opacity 1.2s ease, transform 1.2s ease; pointer-events: none; }
+.b-payoff.on { opacity: 1; transform: none; }
+.b-payoff p { margin: 0; font-size: 15px; color: var(--ink-2); }
+.b-payoff p + p { margin-top: 4px; }
+.b-say .b-gold, .b-payoff .b-gold { color: var(--gold); }
+.b-why { position: absolute; left: var(--edge); right: var(--edge); max-width: 360px; margin: 0 auto; text-align: center;
+  top: calc(env(safe-area-inset-top, 0px) + 172px); font-size: 13px; color: var(--dim); }
+.b-ui.b-enter .b-why { animation: b-rise 1.4s ease 1.1s both; }
+/* Trying a timer: the same view as a real one, zoomed into the planet. */
+.b-run { top: calc(42% + 96px); display: grid; justify-items: center; }
+.b-say .b-big { margin: 4px 0 0; font-size: 48px; font-weight: 300; color: var(--ink); font-variant-numeric: tabular-nums; }
+.b-say.b-run > p:not(.b-big):not(.b-note) { max-width: 300px; }
+.b-stop { width: 52px; height: 52px; margin-top: 16px; border-radius: 50%; background: var(--glass); display: grid; place-items: center; }
+.b-stop i { width: 14px; height: 14px; border-radius: 3px; background: var(--ink); }
+.b-kinds.b-small button { min-height: 64px; width: 72px; }
+.b-kinds.b-small svg { width: 16px; height: 16px; }
 .b-say .b-quote { margin: 0 0 16px; font-size: 17px; color: var(--ink); }
 .b-breath { transition: opacity 1s ease; }
 .b-breath.b-swap { opacity: 0; }
@@ -784,7 +822,7 @@ button:active:not(:disabled) { transform: scale(.96); }
 .home.fresh .dock { animation-delay: 1.2s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit], .b-say .b-line, .born .b-sky { transition: none; animation: none; }
+  .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit], .b-say .b-line, .born .b-sky, .b-ex-line, .b-payoff, .b-ui.b-enter .b-why { transition: none; animation: none; }
   .b-ui.b-enter .b-say > *, .b-ui.b-enter .b-card, .b-say .b-hint, .b-ui.b-enter .b-say .b-hint, .born .sky [data-orbit].b-new, .home.fresh .greet, .home.fresh .dock { animation: none; }
   .b-go.ready::after { animation: none; opacity: .5; }
   .b-kinds svg { transition: none; }

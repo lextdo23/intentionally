@@ -149,3 +149,33 @@ export function about(text, pillarName, learned = {}) {
   const chips = [...new Set([best, ...mine.slice(0, 2), ...mine.slice(2)].filter(Boolean))].slice(0, 3);
   return { struggle: best, sure, chips };
 }
+
+// Where a thought most likely belongs among your planets: a planet named in its words (or a word that usually
+// means it), otherwise the planet where its struggle is most usual. Only a guess, shown softly; null if nothing fits.
+const HOME_WORDS = {
+  career: ["work", "job", "boss", "office", "shift", "meeting", "emails", "email", "colleague", "manager", "career", "promotion", "interview", "client"],
+  work: ["work", "job", "boss", "office", "shift", "meeting", "emails", "email", "colleague", "manager", "career", "promotion", "interview", "client"],
+  study: ["uni", "exam", "exams", "assignment", "study", "class", "lecture", "tafe", "school", "essay", "grades", "course", "teacher"],
+  family: ["mum", "mom", "dad", "brother", "sister", "family", "nan", "grandma", "grandpa", "parents", "cousin", "aunty", "uncle"],
+  friends: ["friend", "friends", "mates", "mate", "bestie", "group chat"],
+  love: ["partner", "boyfriend", "girlfriend", "date", "dating", "relationship", "wife", "husband", "ex"],
+  health: ["gym", "walk", "run", "running", "eat", "eating", "doctor", "health", "sick", "exercise", "body", "weight", "headache"],
+  rest: ["sleep", "tired", "rest", "nap", "break", "holiday", "exhausted", "relax", "weekend"],
+  money: ["money", "rent", "bills", "broke", "debt", "pay", "savings", "afford", "budget"],
+  home: ["house", "room", "clean", "cleaning", "laundry", "flat", "dishes", "housemate", "move", "moving"],
+  fun: ["game", "games", "party", "fun", "gig", "concert", "movie"],
+  creativity: ["draw", "drawing", "write", "writing", "music", "paint", "painting", "guitar", "photos", "create"],
+  purpose: ["purpose", "meaning", "volunteer", "goals", "future", "direction"],
+};
+export function guessHome(text, pillars) {
+  const t = flat(text);
+  for (const p of pillars) {
+    const n = p.name.toLowerCase();
+    if (t.includes(` ${flat(p.name).trim()} `) || (HOME_WORDS[n] ?? []).some((w) => t.includes(` ${w} `))) return p.id;
+  }
+  const { struggle } = about(text, null);
+  if (!struggle) return null;
+  let best = null, rank = 99;
+  for (const p of pillars) { const i = likely(p.name).indexOf(struggle); if (i >= 0 && i < rank && BY_PILLAR[p.name.toLowerCase()]) { best = p.id; rank = i; } }
+  return best;
+}

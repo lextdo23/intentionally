@@ -1,11 +1,11 @@
 import * as store from "./store.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint } from "./sky.js";
+import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint, markTarget } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
 import * as sort from "./sort.js";
 import * as look from "./lookback.js";
 import { due, times } from "./week.js";
-import { heaviness } from "./helps.js";
+import { heaviness, guessHome } from "./helps.js";
 import { weekHTML, recordHTML } from "./weekview.js";
 import * as notify from "./notify.js";
 import { TINTS, ACTIVITIES } from "./pillars.js";
@@ -62,7 +62,7 @@ function hintLine(s) {
     if (!h.thought) return "When something’s on your mind, add it as a star.";
     if (!h.timer) return "Tap a planet when you start something. It keeps time.";
     if (!h.sun) return "Tap the sun any time to see your week.";
-    if (loose >= 3 && !h.sort) return "A few stars. Sort them when you like.";
+    if (loose >= 3 && !h.sort) return "A few stars without a home. Sort them when you like.";
     return null;
   }
   const today = dayOf(now());
@@ -137,8 +137,9 @@ function renderHome(s) {
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
   });
   // While sorting, tapping a planet (or the sun) gives it the thought instead.
-  tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : openPillar(id));
-  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : ready ? openLook() : openYou());
+  tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : placing ? placeIt(id) : openPillar(id));
+  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : placing ? placeIt("me") : ready ? openLook() : openYou());
+  if (placing) markTarget(placing.guess);
   placeHome();
   app.querySelector("#intent")?.addEventListener("click", openIntention);
   app.querySelector("#record").addEventListener("click", openRecord);
@@ -439,7 +440,44 @@ function catchIt(text, kind, button) {
   did("thought");
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving, heavy);
   if (heavy) setTimeout(() => quietLine(heavy), still() ? 0 : 1800);
-  else if (eveningMoment()) setTimeout(offerEvening, still() ? 0 : 2200);
+  else setTimeout(() => askHome(arriving ?? store.get().thoughts.at(-1)?.id, text), still() ? 0 : 1900);
+}
+
+/* ---------- Giving a new thought a home: one optional tap, right after it lands ----------
+   The planet it most likely belongs to is softly highlighted. Tapping a planet (or the sun, if it's just about you)
+   sends the star over to circle it; "Not now", or tapping anything else, leaves it floating. A heavy thought is never asked. */
+let placing = null;
+function askHome(id, text) {
+  const s = store.get();
+  if (!id || !s.thoughts.some((t) => t.id === id) || sort.active() || s.running) return;
+  closeHome();
+  placing = { id, guess: guessHome(text, s.pillars) };
+  const el = document.createElement("div");
+  el.className = "placer";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", "Where does it belong?");
+  el.innerHTML = `<div class="pl-top"><h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
+    <button type="button" class="pl-skip" data-skip>Not now</button>`;
+  document.body.append(el);
+  document.querySelector(".home")?.classList.add("placing");
+  requestAnimationFrame(() => el.classList.add("in"));
+  markTarget(placing.guess);
+  el.querySelector("[data-skip]").addEventListener("click", () => closeHome(true));
+}
+function closeHome(after = false) {
+  document.querySelector(".placer")?.remove();
+  document.querySelector(".home")?.classList.remove("placing");
+  markTarget(null);
+  const was = placing; placing = null;
+  if (after && was && eveningMoment()) setTimeout(offerEvening, still() ? 0 : 600);
+}
+function placeIt(pid) {
+  const id = placing?.id;
+  closeHome(true);
+  if (!id) return;
+  did("sort");
+  store.sortThought(id, pid);
+  toast(pid === "me" ? "It’s just about you. It circles the sun." : `It has a place now, by ${pillarName(pid)}.`);
 }
 
 // A heavy thought gets one calm line under the sun: no alarm, no colour, and two ways to answer.
