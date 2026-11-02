@@ -3,7 +3,7 @@
 import { now } from "./clock.js";
 
 const KEY = "intentionally";
-const SCHEMA = 2;
+const SCHEMA = 3;
 
 const fresh = () => ({
   schema: SCHEMA,
@@ -29,6 +29,8 @@ const fresh = () => ({
                     //   quiet hours, the timer length picked last (minutes, 0 = no end), and which offers have been made
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
   tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
+  setupAt: null,    // when set-up finished; the first days' suggestions are timed from it
+  hints: {},        // first-day suggestions already done: { thought, timer, sun, sort } (when each was first done)
   test: { offsetDays: 0 },
 });
 

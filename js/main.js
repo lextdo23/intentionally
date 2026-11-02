@@ -46,6 +46,36 @@ function render() {
 // Set when set-up has just finished, so the home sky's greeting and dock fade in the first time.
 let justBorn = false;
 
+/* ---------- The first days: one quiet line under the greeting suggests the next thing ----------
+   Each suggestion stays until it's done, then the next one shows. Three days after set-up they stop for good,
+   done or not. After that, on a day when nothing has happened yet, the line asks one small question;
+   once anything happens that day, it goes quiet again. It never counts or mentions what was missed. */
+const HINT_DAYS = 3;
+const dayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const daysSince = (t) => Math.round((dayOf(now()) - dayOf(t)) / DAY);
+
+function hintLine(s) {
+  const h = s.hints ?? {};
+  if (s.setupAt && daysSince(s.setupAt) < HINT_DAYS) {
+    const loose = s.thoughts.filter((t) => t.status === "active" && !t.pillarId).length;
+    if (daysSince(s.setupAt) >= 1 && !h.timer) return "Welcome back. Today, try giving time to one planet.";
+    if (!h.thought) return "When something’s on your mind, add it as a star.";
+    if (!h.timer) return "Tap a planet when you start something. It keeps time.";
+    if (!h.sun) return "Tap the sun any time to see your week.";
+    if (loose >= 3 && !h.sort) return "A few stars. Sort them when you like.";
+    return null;
+  }
+  const today = dayOf(now());
+  const happened = s.running || s.sessions.some((x) => x.end >= today) || s.thoughts.some((t) => (t.seen ?? [t.createdAt]).some((v) => v >= today));
+  return happened ? null : "Anything on your mind?";
+}
+
+// Something from the first days has been done, so its suggestion moves on.
+function did(what) {
+  if (store.get().hints?.[what]) return;
+  store.update((s) => { s.hints = { ...s.hints, [what]: now() }; });
+}
+
 /* ---------- Home: the sky, and the dock with timers and actions ---------- */
 
 // Which timer the screen showed last time, so the running view only animates in when a timer has just started.
@@ -61,8 +91,7 @@ function renderHome(s) {
   const ready = due(s), calling = ready && ready.days <= 1 && !sorting;
   const sub = sorting && sort.left() ? `${sort.left()} to sort`
     : ready ? (calling ? "Your week is ready. Tap the sun when you are." : "Your week is still here, whenever you’re ready.")
-    : justBorn ? "Your sky. It grows with you."
-    : active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
+    : hintLine(s) ?? (active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear");
   const mine = s.intention && s.pillars.some((p) => p.id === s.intention.pillarId) ? s.intention : null;
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
   // Opening the app with a timer already running goes straight to the zoomed-in planet.
@@ -83,9 +112,9 @@ function renderHome(s) {
       <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
     <nav class="dock" aria-label="Actions">
       <div class="actions">
-        <button type="button" class="round" id="sort" aria-label="Sort">${ICON.sort}</button>
+        <button type="button" class="side" id="sort"><span class="round">${ICON.sort}</span><span class="lab">Sort</span></button>
         <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
-        <button type="button" class="round" id="record" aria-label="Record">${ICON.record}</button>
+        <button type="button" class="side" id="record"><span class="round">${ICON.record}</span><span class="lab">Record</span></button>
       </div>
     </nav></section>`;
   fitTags(app);
@@ -109,11 +138,11 @@ function renderHome(s) {
   });
   // While sorting, tapping a planet (or the sun) gives it the thought instead.
   tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : openPillar(id));
-  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : ready && openLook());
+  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : ready ? openLook() : openYou());
   placeHome();
   app.querySelector("#intent")?.addEventListener("click", openIntention);
   app.querySelector("#record").addEventListener("click", openRecord);
-  app.querySelector("#sort").addEventListener("click", () => sort.open(toast));
+  app.querySelector("#sort").addEventListener("click", () => { did("sort"); sort.open(toast); });
   sort.afterRender();
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
@@ -125,6 +154,7 @@ function start(pillarId, activity, minutes = 0) {
   const before = store.get().running, n = store.get().notify;
   // The length is remembered first, so starting the timer stays one smooth change on screen.
   if (n.len !== minutes) store.update((s) => { s.notify.len = minutes; });
+  did("timer");
   const ran = store.startTimer(pillarId, activity, minutes);
   if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
   // The first time a timer is given a length, ask once whether a nudge would help.
@@ -406,6 +436,7 @@ function catchIt(text, kind, button) {
     arriveFrom = { x: p.x, y: p.y };
   }
   const heavy = heaviness(text);
+  did("thought");
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving, heavy);
   if (heavy) setTimeout(() => quietLine(heavy), still() ? 0 : 1800);
   else if (eveningMoment()) setTimeout(offerEvening, still() ? 0 : 2200);
@@ -503,6 +534,21 @@ function placeHome() {
   if (words && low) words.style.top = `${low.y}px`;
 }
 addEventListener("resize", () => app.querySelector(".home") && placeHome());
+
+// Tapping the sun on any other day: your week so far, and when the look back is.
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function openYou() {
+  const s = store.get(), from = weekStart();
+  const rows = s.pillars.map((p) => [p, store.timeSince(p.id, from)]).filter(([, ms]) => ms >= 60000);
+  const active = s.thoughts.filter((t) => t.status === "active").length;
+  const look = DAY_NAMES[s.lookDay ?? 0];
+  openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Your week</h2><p>Since Monday</p></div>${CLOSE}</header>
+    <div class="wv-blk">${rows.length ? rows.map(([p, ms]) => `<div class="wv-row">${dotFor(p.id)}${esc(p.name)}<span>${formatTotal(ms)}</span></div>`).join("")
+      : `<p class="you-empty">No time given yet this week. Tap a planet when you start something.</p>`}</div>
+    <p class="you-line">${active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear"}</p>
+    <p class="you-line">${s.weeks.length ? `Your look back is on <b>${look}</b>.` : `Your first look back is on <b>${look}</b>. It opens Record.`}</p>`);
+  did("sun");
+}
 
 function openLook() {
   closeSheet();

@@ -104,6 +104,11 @@ button, [role="button"] { touch-action: manipulation; }
 .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: start; padding: 0 20px; }
 .round { width: 44px; height: 44px; margin-top: 4px; border-radius: 50%; background: rgba(255, 255, 255, .06); display: grid; place-items: center; color: var(--dim); }
 .round svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.side { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.side .round { margin-top: 4px; }
+.you-empty, .you-line { margin: 0; font-size: 15px; color: var(--ink-2); }
+.you-line { margin-top: 16px; }
+.you-line b { color: var(--gold); font-weight: 500; }
 .catch { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .dot { width: 52px; height: 52px; border-radius: 50%; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; }
 .dot svg { width: 24px; height: 24px; fill: currentColor; }
@@ -703,6 +708,13 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-say p { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); text-wrap: balance; }
 .b-say .b-note { margin: 0; font-size: 13px; color: var(--dim); }
 .b-top .b-note { margin-top: 8px; }
+.b-top.b-mid { top: calc(var(--sy) - 190px); }
+.b-lines .b-note { margin-bottom: 16px; }
+.b-say .b-line { margin: 8px 0 0; font-size: 17px; color: var(--ink); opacity: 0; transform: translateY(6px); transition: opacity 1.4s ease, transform 1.4s ease; }
+.b-say .b-line.on { opacity: 1; transform: none; }
+.born .b-sky { transition: opacity 1.1s ease; }
+.born.b-fadesky .b-sky { opacity: 0; }
+.b-card .b-why { margin: -4px 0 8px; font-size: 13px; color: var(--dim); }
 .b-say .b-quote { margin: 0 0 16px; font-size: 17px; color: var(--ink); }
 .b-breath { transition: opacity 1s ease; }
 .b-breath.b-swap { opacity: 0; }
@@ -772,7 +784,7 @@ button:active:not(:disabled) { transform: scale(.96); }
 .home.fresh .dock { animation-delay: 1.2s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit] { transition: none; animation: none; }
+  .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit], .b-say .b-line, .born .b-sky { transition: none; animation: none; }
   .b-ui.b-enter .b-say > *, .b-ui.b-enter .b-card, .b-say .b-hint, .b-ui.b-enter .b-say .b-hint, .born .sky [data-orbit].b-new, .home.fresh .greet, .home.fresh .dock { animation: none; }
   .b-go.ready::after { animation: none; opacity: .5; }
   .b-kinds svg { transition: none; }
