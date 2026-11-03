@@ -854,3 +854,23 @@ button:active:not(:disabled) { transform: scale(.96); }
 .placer .pl-aff { margin: 0 0 16px; font-size: 17px; line-height: 1.35; color: var(--ink); font-weight: 500; text-wrap: balance; }
 /* The sun's disc is drawn above its tap target; let taps pass through to it. */
 .sky .sundisc, .sky [data-breath] { pointer-events: none; }
+/* Help choosing: a sheet pulls up from the bottom, one question at a time. The sky and the sun stay visible above it. */
+.b-quiz { position: absolute; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; z-index: 3;
+  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 24px); border-radius: 26px 26px 0 0; background: rgba(29, 31, 36, .97);
+  display: grid; gap: 16px; }
+.b-quiz.b-pull { animation: b-pull .45s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes b-pull { from { transform: translateY(100%); } }
+.b-quiz h2 { margin: 0; font-size: 22px; font-weight: 500; line-height: 1.25; text-wrap: balance; }
+.b-quiz > .b-note { margin: -8px 0 0; font-size: 13px; color: var(--dim); }
+.b-quiz .b-chips { justify-content: flex-start; }
+.b-qhead { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: -4px -8px -8px 0; }
+.b-qhead .b-note { font-size: 13px; color: var(--dim); }
+.b-x { width: 44px; height: 44px; border-radius: 50%; color: var(--ink-2); font-size: 22px; line-height: 1; display: grid; place-items: center; }
+.b-dots { display: flex; gap: 4px; }
+.b-dots i { flex: 1; height: 3px; border-radius: 2px; background: rgba(239, 237, 233, .14); }
+.b-dots i.on { background: var(--gold); }
+.b-quiz .b-or { margin: -8px 0 -8px; font-size: 15px; color: var(--dim); }
+.b-qfoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.b-qfoot .b-quiet { padding: 0 8px; margin-left: -8px; }
+.b-quiz .b-chip[aria-pressed="true"] { font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { .b-quiz.b-pull { animation: none; } }
