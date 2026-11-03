@@ -154,7 +154,9 @@ function breathe() {
     len.querySelectorAll("button").forEach((c) => c.classList.toggle("on", c === x)); secs.textContent = minutes === 1 ? "1 minute" : `${minutes} minutes`; });
   b.querySelector("#skip").addEventListener("click", () => { w.style.transform = ""; nextStep(); });
   const fill = (i, n) => { segs[i].classList.add("on"); fills[i].style.transition = `transform ${n}ms linear`; fills[i].style.transform = "scaleX(1)"; };
-  const reset = () => { segs.forEach((x) => x.classList.remove("on")); fills.forEach((f) => { f.style.transition = "none"; f.style.transform = "scaleX(0)"; }); };
+  const reset = () => { segs.forEach((x) => x.classList.remove("on")); fills.forEach((f) => { f.style.transition = "none"; f.style.transform = "scaleX(0)"; });
+    // Make the browser draw the empty bars now; otherwise the next breath's fill starts from the old, full bar.
+    void b.offsetWidth; };
   // The sun grows as you breathe in and shrinks as you breathe out (transform only, so it stays smooth).
   const grow = (k, n, ease) => { w.style.transition = `transform ${n}ms ${ease}`; w.style.transform = `scale(${k})`; };
   // One phrase at a time: the old words fade fully out before the new ones fade in, so they never overlap.
