@@ -11,7 +11,7 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - **The core loop (time leads; everything else supports it):**
   1. Choose: 3 to 5 pillars, 2 of them focus, chosen on day one (the app helps people choose).
   2. Give time: tap a planet to time it, or log "I gave time" afterwards with a rough length. Both count the same.
-  3. See: each planet shows its time this week, easy to see on the home sky. Lead with what happened, never gaps, comparisons or targets.
+  3. See: tap the sun any time for "Your week" (each planet's time this week). No numbers on the sky itself (alex, 2026-11-03). Lead with what happened, never gaps, comparisons or targets.
   4. Reflect: the weekly look back opens on the chosen day and waits until the person is ready.
 - **Supporting features, one job each:** the sky (shows life at a glance), the weekly look back, catching thoughts (where your mind goes, beside where your time goes), sorting thoughts, words of affirmation (kind, believable lines tied to their pillars; for kind, worry and want thoughts; never for heavy thoughts), seasons, safety.
 - **Not:** a productivity tracker, a journal first, therapy, or social.
