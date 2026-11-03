@@ -37,38 +37,44 @@ const EXAMPLES = ["Exam on Friday and I'm not ready", "I want to see my friends 
 const ROUGH = [["A bit", 15], ["Half an hour", 30], ["An hour", 60], ["An evening", 180]];
 const star = (kind) => `<svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${sparkle(POINTS[kind], 10)}"/></svg>`;
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-// "Need help choosing?": a sheet pulls up with five quick questions, one tap or a few each. Nothing is a test: each answer
-// only adds weight to some planets. At the end it suggests a sky; they can swap any planet before saying yes, and
-// change all of it after. What's been slipping counts most, because that's what this screen asks.
+// "Need help choosing?": five quick questions about moments and feelings, never the pillar names themselves, so people
+// aren't asked to pick twice. The app works out the planets: this is values work (as in ACT), asking what matters and
+// where time isn't going, since the gap between the two is what the pillars should be. Each answer quietly adds weight
+// to a few planets; what they keep putting off counts most. Nothing is a test, and everything can be changed after.
 const QUIZ = [
-  { q: "What fills most of your week?", one: true, w: 3,
-    a: [["Work", ["Career"]], ["Study", ["Study"]], ["Both", ["Career", "Study"]], ["Neither right now", []]] },
-  { q: "What’s been slipping lately?", w: 4,
-    a: [["Sleep and rest", ["Rest"]], ["Seeing friends", ["Friends"]], ["Family time", ["Family"]], ["Moving my body", ["Health"]],
-        ["Money", ["Money"]], ["Having fun", ["Fun"]], ["My space", ["Home"]], ["My relationship", ["Love"]]] },
-  { q: "What’s weighing on you most?", one: true, w: 3,
-    a: [["Deadlines and pressure", ["Rest", "Career", "Study"]], ["Feeling alone", ["Friends"]], ["Money worries", ["Money"]],
-        ["My health", ["Health"]], ["Things at home", ["Family", "Home"]], ["Not much right now", []]] },
-  { q: "When do you feel most like you?", w: 2,
-    a: [["With my people", ["Friends", "Family"]], ["Moving or outdoors", ["Health"]], ["Making things", ["Creativity"]],
-        ["Switching off", ["Rest"]], ["Playing", ["Fun"]], ["Looking after others", ["Caring"]], ["My faith", ["Faith"]],
-        ["Doing something that matters", ["Purpose"]]] },
-  { q: "A free evening this week. What would help most?", one: true, w: 2,
-    a: [["Seeing people", ["Friends"]], ["Proper rest", ["Rest"]], ["Getting moving", ["Health"]], ["Making something", ["Creativity"]],
-        ["Sorting life admin", ["Money", "Home"]], ["Something that matters to me", ["Purpose", "Faith"]]] },
+  { q: "Think of a good day lately. What was in it?", w: 2,
+    a: [["A long talk with someone", ["Friends", "Family", "Love"]], ["Getting something hard done", ["Career", "Study"]],
+        ["A proper sleep-in", ["Rest"]], ["Moving my body", ["Health"]], ["Making something", ["Creativity"]],
+        ["Laughing with mates", ["Fun", "Friends"]]] },
+  { q: "What do you keep putting off that you’d feel better for doing?", w: 4,
+    a: [["Study or assignments", ["Study"]], ["Work, or my next step", ["Career"]], ["Exercise", ["Health"]], ["Calling family", ["Family"]],
+        ["Seeing friends", ["Friends"]], ["Sorting out money", ["Money"]], ["Tidying my space", ["Home"]], ["Something creative", ["Creativity"]]] },
+  { q: "What leaves you most drained at the end of a day?", one: true, w: 3,
+    a: [["Work", ["Career", "Rest"]], ["Uni or study", ["Study", "Rest"]], ["Not sleeping enough", ["Rest", "Health"]], ["Feeling on my own", ["Friends"]],
+        ["Money stress", ["Money"]], ["Looking after others", ["Caring", "Rest"]], ["Too much screen time", ["Rest", "Fun"]]] },
+  { q: "A year from now you feel better. What changed first?", one: true, w: 3,
+    a: [["I see my people more", ["Friends", "Family"]], ["Less stretched at work", ["Career", "Rest"]], ["On top of uni", ["Study"]],
+        ["I look after my body", ["Health"]], ["Money stopped stressing me", ["Money"]], ["I make time for me", ["Rest", "Fun"]],
+        ["I’m closer to what I believe", ["Faith", "Purpose"]]] },
+  { q: "When an evening goes to waste, what do you wish you’d done?", one: true, w: 2,
+    a: [["Seen someone", ["Friends"]], ["Called family", ["Family"]], ["Rested properly", ["Rest"]], ["Got moving", ["Health"]],
+        ["Made something", ["Creativity"]], ["Got ahead on work or study", ["Career", "Study"]]] },
 ];
-// The suggestion: the top four, the next few as swaps, and the two that were slipping most as focus.
+// The suggestion: the top four, the next few as swaps, and the two most put off (or drained by) as focus.
+// Work and Study only stand when an answer names one of them on its own, so a student doesn't get Career.
 function suggest(ans) {
-  const score = {};
-  QUIZ.forEach((x, i) => ans[i].forEach((k) => x.a[k][1].forEach((n, j) => { score[n] = (score[n] ?? 0) + x.w - j * .1; })));
-  // Work and study pressure only counts toward the one they actually do.
-  const does = ans[0].flatMap((k) => QUIZ[0].a[k][1]);
-  for (const n of ["Career", "Study"]) if (!does.includes(n) && ans[2].includes(0)) score[n] = Math.max(0, (score[n] ?? 0) - 3);
-  const ranked = Object.keys(score).filter((n) => score[n] > 0).sort((a, b) => score[b] - score[a]);
+  const score = {}, own = new Set();
+  QUIZ.forEach((x, i) => ans[i].forEach((k) => {
+    const names = x.a[k][1];
+    if (names.includes("Career") !== names.includes("Study")) names.forEach((n) => own.add(n));
+    names.forEach((n, j) => { score[n] = (score[n] ?? 0) + x.w - j * .1; });
+  }));
+  for (const n of ["Career", "Study"]) if (!own.has(n) && (own.has("Career") || own.has("Study"))) delete score[n];
+  const ranked = Object.keys(score).sort((a, b) => score[b] - score[a]);
   for (const n of ["Rest", "Friends", "Health", "Family", "Fun"]) if (!ranked.includes(n)) ranked.push(n);
   const planets = ranked.slice(0, 4), swaps = ranked.slice(4, 8);
-  const slip = ans[1].flatMap((k) => QUIZ[1].a[k][1]);
-  return { planets, swaps, focus: [...new Set([...slip, ...planets])].filter((n) => planets.includes(n)).slice(0, 2) };
+  const off = [...ans[1], ...ans[2].map((k) => k + 100)].flatMap((k) => k >= 100 ? QUIZ[2].a[k - 100][1] : QUIZ[1].a[k][1]);
+  return { planets, swaps, focus: [...new Set([...off, ...planets])].filter((n) => planets.includes(n)).slice(0, 2) };
 }
 
 const fmt = (m) => m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m % 60}` : `${m / 60} hr`;
@@ -150,6 +156,8 @@ function drawSky({ born = null, arriving = null, from = null, words = true } = {
 
 function tapPlanet(p) {
   const n = nameOf(p);
+  if (id() === "pick" && quiz && !quiz.pick) return;
+  if (id() === "pick" && quiz?.pick && !quiz.pick.swaps.includes(n)) quiz.pick.swaps.unshift(n);
   if (id() === "pick") { picked = picked.filter((x) => x !== n); focus = focus.filter((x) => x !== n); render(); drawSky(); }
   else if (id() === "focus") toggleFocus(n);
   else if (id() === "time") { gave.name = n; render(); drawSky(); }
@@ -175,26 +183,29 @@ function placeGo() {
 const onward = (words = "Go on", gold = false) => `<button type="button" class="b-next${gold ? " gold" : ""}" data-ready data-next>${words}</button>`;
 const chip = (attr, label, on) => `<button type="button" class="b-chip" ${attr} aria-pressed="${!!on}">${esc(label)}</button>`;
 
-function quizSheet() {
-  const pull = quiz.fresh ? " b-pull" : ""; quiz.fresh = false;
-  const head = (label) => `<div class="b-qhead"><span class="b-note">${label}</span><button type="button" class="b-x" data-qstop aria-label="Close">×</button></div>`;
+// The quiz happens in the sky like the rest of set-up: no boxes. Answers rise up from below and float as words.
+function quizScreen() {
+  const x = `<button type="button" class="b-x" data-qstop aria-label="Close">×</button>`;
+  const rise = quiz.fresh ? " b-pull" : ""; quiz.fresh = false;
   if (quiz.q < QUIZ.length) {
-    const x = QUIZ[quiz.q], mine = quiz.ans[quiz.q], last = quiz.q === QUIZ.length - 1;
-    return `<div class="b-quiz${pull}" role="dialog" aria-label="Help choosing">${head(`${quiz.q + 1} of ${QUIZ.length}`)}
-      <div class="b-dots" aria-hidden="true">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
-      <h2>${x.q}</h2><p class="b-note">${x.one ? "Pick one." : "Pick any that fit."}</p>
-      <div class="b-chips" role="group" aria-label="${x.q}">${x.a.map(([l], k) => chip(`data-qa="${k}"`, l, mine.includes(k))).join("")}</div>
-      <div class="b-qfoot">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : "<span></span>"}
-        ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}</div></div>`;
+    const it = QUIZ[quiz.q], mine = quiz.ans[quiz.q], last = quiz.q === QUIZ.length - 1;
+    return `${x}<div class="b-say b-top b-high"><div class="b-dots" aria-label="${quiz.q + 1} of ${QUIZ.length}">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
+        <h2>${it.q}</h2><p class="b-note">${it.one ? "Pick one." : "Pick any."}</p></div>
+      <div class="b-say b-low b-qa b-ask${rise}">
+        <div class="b-words" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}">${esc(l)}</button>`).join("")}</div>
+        <div class="b-qfoot">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : `<span></span>`}
+          ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}<span></span></div>
+      </div>`;
   }
-  const r = quiz.pick, enough = r.planets.length >= MIN_PILLARS;
-  return `<div class="b-quiz${pull}" role="dialog" aria-label="Your suggestion">${head("From your answers")}
-    <h2>Here’s a sky that might fit.</h2>
-    <p class="b-note">${r.focus.length === 2 ? `${esc(r.focus[0])} and ${esc(r.focus[1])} as your focus, since they’ve been slipping. ` : ""}Tap one to swap it out.</p>
-    <div class="b-chips" role="group" aria-label="Suggested">${r.planets.map((n) => chip(`data-qout="${esc(n)}"`, n, true)).join("")}</div>
-    ${r.swaps.length ? `<p class="b-or">Or add</p><div class="b-chips" role="group" aria-label="Others">${r.swaps.map((n) => chip(`data-qin="${esc(n)}"`, `+ ${n}`, false)).join("")}</div>` : ""}
-    <div class="b-qfoot"><button type="button" class="b-quiet" data-qagain>Start again</button>
-      ${enough ? `<button type="button" class="b-next gold" data-quse>Use these</button>` : `<span class="b-note">Pick at least ${MIN_PILLARS}.</span>`}</div></div>`;
+  // The suggestion is the sky itself: the planets are already there. Tap one to take it out, or add another below.
+  const r = quiz.pick, n = picked.length, left = r.swaps.filter((w) => !picked.includes(w));
+  const f = focus.length === 2 ? `${esc(focus[0])} and ${esc(focus[1])} sit either side of you, as your focus. ` : "";
+  return `${x}<div class="b-say b-top b-high"><h2>Here’s a sky that might fit.</h2><p>${f}</p><p class="b-note">Tap a planet to take it out.</p></div>
+    <div class="b-say b-low b-below b-qa">
+      ${left.length && n < MAX_PILLARS ? `<p class="b-or">Or add</p><div class="b-words">${left.map((w) => `<button type="button" data-qin="${esc(w)}">${esc(w)}</button>`).join("")}</div>` : ""}
+      <div class="b-qfoot"><button type="button" class="b-quiet" data-qagain>Start again</button>
+        ${n >= MIN_PILLARS ? `<button type="button" class="b-next gold" data-quse>Use these</button>` : `<span class="b-note">${MIN_PILLARS - n} more, at least.</span>`}<span></span></div>
+    </div>`;
 }
 
 function screen(s) {
@@ -205,7 +216,7 @@ function screen(s) {
     case "you": return `<div class="b-say b-under"><h2>This light is you.</h2><p>What matters to you will circle it.</p></div>
       <div class="b-say b-low">${onward()}</div>`;
     case "pick": {
-      if (quiz) return `<div class="b-say b-top b-high"><h2>What’s been missing lately?</h2></div>${quizSheet()}`;
+      if (quiz) return quizScreen();
       const n = picked.length, left = FRONT.filter((w) => !picked.includes(w));
       const sub = hinted.length && n ? "From your answers. Change anything you like." : n === 0 ? "Pick three to five parts of life you want to look after." : n < MIN_PILLARS ? `${MIN_PILLARS - n} more, at least.` : n < MAX_PILLARS ? "You can add more, or go on." : "That’s five. The sky is full.";
       return `<div class="b-say b-top b-high"><h2>What’s been missing lately?</h2><p>Each one becomes a planet. Your time and your thoughts will gather around them.</p><p class="b-note">${sub}${n ? " Tap a planet to take it back." : ""}</p></div>
@@ -300,33 +311,34 @@ function wire(s) {
   if (s === "dark") timers.push(setTimeout(() => next(1), still() ? 300 : 1600));
   ui.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", onSun));
   ui.querySelectorAll("[data-pick]").forEach((b) => b.addEventListener("click", () => add(b.dataset.pick)));
-  ui.querySelector("[data-quiz]")?.addEventListener("click", () => { quiz = { q: 0, ans: QUIZ.map(() => []), pick: null, fresh: true }; render(); });
-  ui.querySelector("[data-qstop]")?.addEventListener("click", () => { quiz = null; render(); });
+  const startQuiz = () => { quiz = { q: 0, ans: QUIZ.map(() => []), pick: null, fresh: true }; picked = []; focus = []; render(); drawSky(); };
+  ui.querySelector("[data-quiz]")?.addEventListener("click", startQuiz);
+  ui.querySelector("[data-qagain]")?.addEventListener("click", startQuiz);
+  // Closing keeps whatever planets are showing; the list is there to change them.
+  ui.querySelector("[data-qstop]")?.addEventListener("click", () => { if (quiz.pick) hinted = [...focus]; focus = []; quiz = null; render(); drawSky(); });
   ui.querySelector("[data-qback]")?.addEventListener("click", () => { quiz.q--; render(); });
-  ui.querySelector("[data-qagain]")?.addEventListener("click", () => { quiz = { q: 0, ans: QUIZ.map(() => []), pick: null }; render(); });
   ui.querySelectorAll("[data-qa]").forEach((b) => b.addEventListener("click", () => {
     const k = +b.dataset.qa, mine = quiz.ans[quiz.q];
     quiz.ans[quiz.q] = QUIZ[quiz.q].one ? (mine.includes(k) ? [] : [k]) : mine.includes(k) ? mine.filter((x) => x !== k) : [...mine, k];
     render();
   }));
-  ui.querySelector("[data-qnext]")?.addEventListener("click", () => { quiz.q++; if (quiz.q === QUIZ.length) quiz.pick = suggest(quiz.ans); render(); });
-  // Swapping: a suggested planet steps back into "Or add", and one from there takes its place.
-  ui.querySelectorAll("[data-qout]").forEach((b) => b.addEventListener("click", () => {
-    const r = quiz.pick, n = b.dataset.qout;
-    r.planets = r.planets.filter((x) => x !== n); r.swaps = [n, ...r.swaps.filter((x) => x !== n)]; r.focus = r.focus.filter((x) => x !== n); render();
-  }));
-  ui.querySelectorAll("[data-qin]").forEach((b) => b.addEventListener("click", () => {
-    const r = quiz.pick, n = b.dataset.qin;
-    if (r.planets.length >= MAX_PILLARS) return;
-    r.planets = [...r.planets, n]; r.swaps = r.swaps.filter((x) => x !== n); render();
-  }));
-  // Yes: the sheet slides away and the planets are born one after another. The person can still change anything.
-  ui.querySelector("[data-quse]")?.addEventListener("click", () => {
+  // The last answer: the suggested planets are born one after another, the focus two either side of the sun.
+  ui.querySelector("[data-qnext]")?.addEventListener("click", () => {
+    quiz.q++;
+    if (quiz.q < QUIZ.length) { quiz.fresh = true; render(); return; }
+    quiz.pick = suggest(quiz.ans); quiz.fresh = true;
     const { planets, focus: f } = quiz.pick;
-    quiz = null; hinted = f; focus = []; picked = [];
-    const bloom = (list) => { if (!list.length || id() !== "pick") return; add(list[0]); setTimeout(() => bloom(list.slice(1)), still() ? 0 : 600); };
-    render(); drawSky(); bloom(planets);
+    render();
+    const bloom = (list) => {
+      if (!quiz?.pick || id() !== "pick") return;
+      if (!list.length) { focus = f.filter((x) => picked.includes(x)); render(); drawSky(); return; }
+      add(list[0]); setTimeout(() => bloom(list.slice(1)), still() ? 0 : 600);
+    };
+    bloom(planets);
   });
+  ui.querySelectorAll("[data-qin]").forEach((b) => b.addEventListener("click", () => add(b.dataset.qin)));
+  // Yes: on to choosing focus, with the suggested two already lit.
+  ui.querySelector("[data-quse]")?.addEventListener("click", () => { hinted = [...focus]; quiz = null; next(step + 1); });
   ui.querySelector("[data-ownopen]")?.addEventListener("click", () => { ownOpen = true; render(); ui.querySelector("#b-own")?.focus(); });
   ui.querySelector("[data-own]")?.addEventListener("submit", (e) => {
     e.preventDefault();
