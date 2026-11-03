@@ -1,4 +1,5 @@
 import * as store from "./store.js";
+import { affirm } from "./affirm.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
 import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint, markTarget } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
@@ -58,10 +59,10 @@ function hintLine(s) {
   const h = s.hints ?? {};
   if (s.setupAt && daysSince(s.setupAt) < HINT_DAYS) {
     const loose = s.thoughts.filter((t) => t.status === "active" && !t.pillarId).length;
-    if (daysSince(s.setupAt) >= 1 && !h.timer) return "Welcome back. Today, try giving time to one planet.";
-    if (!h.thought) return "When something’s on your mind, add it as a star.";
-    if (!h.timer) return "Tap a planet when you start something. It keeps time.";
+    if (daysSince(s.setupAt) >= 1 && !h.timer) return "Welcome back. Tap a planet when you give it time.";
+    if (!h.timer) return "Tap a planet to start a timer, or to add time you gave.";
     if (!h.sun) return "Tap the sun any time to see your week.";
+    if (!h.thought) return "When something’s on your mind, add it as a star.";
     if (loose >= 3 && !h.sort) return "A few stars without a home. Sort them when you like.";
     return null;
   }
@@ -222,13 +223,13 @@ function openPillar(id) {
       ${notify.LENGTHS.map((m) => `<div data-len="${m}">${lenLabel(m)}</div>`).join("")}</div>
     <p class="hint">No end is fine too. The timer keeps counting either way.</p>`}
     <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
+    ${running ? "" : `<button type="button" class="ghost2 gave-btn" data-manual aria-expanded="false">I gave time</button>`}
     ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
     <div class="chips">${ideas.map((a) => `<button type="button" class="chip" data-idea="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}
-    <button type="button" class="link" data-manual aria-expanded="false">Forgot to start a timer? Add time</button>
     <form class="manual" hidden>
-      <fieldset><legend>How long?</legend><div class="chips">${[15, 30, 45, 60, 90].map((m, k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 1}">${formatTotal(m * 60000)}</button>`).join("")}</div></fieldset>
+      <fieldset><legend>About how long?</legend><div class="chips">${[["A bit", 15], ["Half an hour", 30], ["An hour", 60], ["An evening", 180]].map(([l, m], k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 2}">${l}</button>`).join("")}</div></fieldset>
       <fieldset><legend>When?</legend><div class="chips">${["Today", "Yesterday"].map((d, k) => `<button type="button" class="chip" data-ago="${k}" aria-pressed="${k === 0}">${d}</button>`).join("")}</div></fieldset>
-      <button type="submit" class="primary">Add time</button>
+      <button type="submit" class="primary">Add it</button>
     </form>`, p.tint);
   startSpin(document.body);
   tick();
@@ -236,7 +237,7 @@ function openPillar(id) {
   sheet.querySelector("[data-go]").addEventListener("click", () => { const m = len(); close(); running ? stop() : start(id, undefined, m); });
   sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { const m = len(); close(); start(id, b.dataset.idea, m); }));
   const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
-  toggle.addEventListener("click", () => {
+  toggle?.addEventListener("click", () => {
     form.hidden = !form.hidden;
     toggle.setAttribute("aria-expanded", String(!form.hidden));
     if (!form.hidden) form.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -251,6 +252,7 @@ function openPillar(id) {
     const min = +form.querySelector("[data-min][aria-pressed=true]").dataset.min;
     const ago = +form.querySelector("[data-ago][aria-pressed=true]").dataset.ago;
     store.addTime(id, min, ago);
+    did("timer");
     close();
     toast(`Added ${formatTotal(min * 60000)} to ${p.name}.`);
   });
@@ -448,15 +450,18 @@ function catchIt(text, kind, button) {
    sends the star over to circle it; "Not now", or tapping anything else, leaves it floating. A heavy thought is never asked. */
 let placing = null;
 function askHome(id, text) {
-  const s = store.get();
-  if (!id || !s.thoughts.some((t) => t.id === id) || sort.active() || s.running) return;
+  const s = store.get(), t = s.thoughts.find((x) => x.id === id);
+  if (!t) return;
+  const guess = guessHome(text, s.pillars), line = affirm(text, t.kind, pillarName(guess));
+  // Busy (sorting, or a timer running): just the kind line, quietly.
+  if (sort.active() || s.running || t.pillarId) return toast(`“${line}”`);
   closeHome();
-  placing = { id, guess: guessHome(text, s.pillars) };
+  placing = { id, guess };
   const el = document.createElement("div");
   el.className = "placer";
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", "Where does it belong?");
-  el.innerHTML = `<div class="pl-top"><h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
+  el.innerHTML = `<div class="pl-top"><p class="pl-aff">“${esc(line)}”</p><h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
     <button type="button" class="pl-skip" data-skip>Not now</button>`;
   document.body.append(el);
   document.querySelector(".home")?.classList.add("placing");

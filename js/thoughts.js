@@ -7,7 +7,8 @@ export const KIND_LABEL = { kind: "Kind", worry: "A worry", want: "A want" };
 const CUES = {
   worry: ["not good enough", "never", "cant", "cannot", "afraid", "scared", "worried", "worry", "what if", "fail", "behind",
     "anxious", "stressed", "hate", "too much", "should have", "nobody", "no one", "alone", "lonely", "tired", "overwhelmed",
-    "wont", "dont", "bad", "wrong", "guilty", "ashamed", "lost", "stuck", "useless", "annoying", "mess", "messed up", "ruin"],
+    "wont", "dont", "bad", "wrong", "guilty", "ashamed", "lost", "stuck", "useless", "annoying", "mess", "messed up", "ruin",
+    "not ready", "nervous", "exam", "exams", "deadline", "struggling", "pressure", "panic", "dread", "upset", "sad", "hurt", "broke", "sick", "falling apart"],
   want: ["i want", "want to", "i wish", "wish i", "id love", "would love", "would like", "hope", "one day", "someday",
     "plan to", "going to", "goal", "dream"],
   kind: ["proud", "grateful", "thankful", "good day", "happy", "enjoyed", "did well", "handled", "glad", "nice", "laugh",
