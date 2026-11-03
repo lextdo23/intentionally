@@ -2,6 +2,22 @@
 
 The owner, alex, has no coding experience. Explain changes in plain English, no jargon.
 
+## What this app is (signed off by alex, 2026-11-03). Check every idea against this first.
+Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
+
+- **Purpose:** live with intention. Choose the few parts of life that matter, give them time, and see where your time really goes, a week at a time.
+- **Built for:** people aged 18 to 30, burnt out or low (not in crisis), in Australia first: young workers early in their careers (Mia, 24) and university students (Josh, 19).
+- **The rule:** a feature or fix goes in only if it helps them, or costs them nothing (no extra steps, nothing extra on screen). Others are welcome, but we don't design around them.
+- **The core loop (time leads; everything else supports it):**
+  1. Choose: 3 to 5 pillars, 2 of them focus, chosen on day one (the app helps people choose).
+  2. Give time: tap a planet to time it, or log "I gave time" afterwards with a rough length. Both count the same.
+  3. See: each planet shows its time this week, easy to see on the home sky. Lead with what happened, never gaps, comparisons or targets.
+  4. Reflect: the weekly look back opens on the chosen day and waits until the person is ready.
+- **Supporting features, one job each:** the sky (shows life at a glance), the weekly look back, catching thoughts (where your mind goes, beside where your time goes), sorting thoughts, words of affirmation (kind, believable lines tied to their pillars; for kind, worry and want thoughts; never for heavy thoughts), seasons, safety.
+- **Not:** a productivity tracker, a journal first, therapy, or social.
+- **Review gates:** after planning, after the basic build, and after two weeks of real use, check that people can (1) say what it's for in one sentence, (2) know what to do tomorrow, (3) want to come back, (4) feel no homework or guilt. A failure fixes the one-pager first, never a patch on top.
+- **Psychology and research behind each tool:** https://claude.ai/artifact/GAFbZeaMZDpUMQQeLJUr3M
+
 ## Tech
 - Plain HTML, CSS and JavaScript modules. No build step, no frameworks, no dependencies. Open `index.html` through any static server.
 - All data lives in `localStorage` under the key `intentionally` (see `js/store.js`). Bump `SCHEMA` and migrate when the shape changes.
