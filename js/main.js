@@ -708,7 +708,7 @@ function openNotify() {
   const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Settings</h2></div>${CLOSE}</header>
     <div class="nt-card"><label class="nt-row"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
       <p class="nt-note">Kind lines from your own thoughts, to carry you through the day.</p>
-      <label class="nt-row nt-sub"><span>Sent each day</span><select class="nt-time" data-often>${Array.from({ length: notify.AFFIRM_MAX + 1 }, (_, k) => [k, notify.oftenWords(k)]).map(([k, l]) =>
+      <label class="nt-row nt-sub"><span>Sent each day</span><select class="nt-time" data-often>${Array.from({ length: notify.AFFIRM_MAX }, (_, k) => [k + 1, notify.oftenWords(k + 1)]).map(([k, l]) =>
         `<option value="${k}" ${(store.get().affirmDaily ?? 1) === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
     <p class="nt-head">Notifications</p>
     ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`

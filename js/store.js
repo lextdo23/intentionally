@@ -28,7 +28,7 @@ const fresh = () => ({
                     // notifications (js/notify.js): timer nudges on or off, the evening drop's time ("21:30") or null,
                     //   quiet hours, the timer length picked last (minutes, 0 = no end), and which offers have been made
   affirm: true,     // words of affirmation: a line answering each thought, made from what they wrote (never for heavy ones)
-  affirmDaily: 1,   // how many a day are sent as notifications (0 to 10), spread through waking hours
+  affirmDaily: 1,   // how many a day are sent as notifications (1 to 10; turning words of affirmation off sends none), spread through waking hours
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
   tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
   setupAt: null,    // when set-up finished; the first days' suggestions are timed from it

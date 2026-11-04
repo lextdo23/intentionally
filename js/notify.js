@@ -16,8 +16,8 @@ const affirmTimes = (n) => Array.from({ length: n }, (_, k) => {
   const m = 9 * 60 + (n > 1 ? Math.round((k * 720) / (n - 1) / 5) * 5 : 0);
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 });
-// How a count reads: "Once a day", "Twice a day", "3 times a day", or "Not sent".
-export const oftenWords = (n) => n === 0 ? "Not sent" : n === 1 ? "Once a day" : n === 2 ? "Twice a day" : `${n} times a day`;
+// How a count reads: "Once a day", "Twice a day", "3 times a day"… (switching words of affirmation off is how none are sent).
+export const oftenWords = (n) => n <= 1 ? "Once a day" : n === 2 ? "Twice a day" : `${n} times a day`;
 // The lengths a timer can be given on the wheel (minutes, 0 = no end).
 export const LENGTHS = [0, 5, 10, 15, 20, 25, 30, 40, 45, 60, 90, 120];
 // "Your hour is", "Your 2 hours are", "Your 25 minutes are": the start of a "time is up" line.

@@ -97,7 +97,7 @@ export function show(app, h) {
   picked = s.pillars.map((p) => p.name);
   focus = s.pillars.filter((p) => p.focus).map((p) => p.name);
   step = picked.length ? at("day") : 0;
-  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; affOn = s.affirm !== false; affDaily = s.affirmDaily ?? 1; shown = -1; lastAt = {}; drawnPlanets = "";
+  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; affOn = s.affirm !== false; affDaily = Math.max(1, s.affirmDaily ?? 1); shown = -1; lastAt = {}; drawnPlanets = "";
   app.innerHTML = `<section class="born" aria-label="Welcome">
     <div class="sky-wrap"><div class="b-clouds"></div><div class="b-sky"></div></div>
     <div class="b-ui"></div>
@@ -331,7 +331,7 @@ function screen(s) {
     // Words of affirmation: on or off, and how many a day arrive as notifications.
     case "affirm": return `<div class="b-say b-top"><h2>Words of affirmation</h2><p>Kind lines from your own thoughts, to carry you through the day.</p></div>
       <div class="b-say b-mid2"><label class="b-switch"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label>
-        ${affOn ? `<div class="b-often"><button type="button" class="b-step" data-often="-1" aria-label="Fewer" ${affDaily <= 0 ? "disabled" : ""}>−</button><span aria-live="polite">${notify.oftenWords(affDaily)}</span><button type="button" class="b-step" data-often="1" aria-label="More" ${affDaily >= notify.AFFIRM_MAX ? "disabled" : ""}>+</button></div>` : ""}</div>
+        ${affOn ? `<div class="b-often"><button type="button" class="b-step" data-often="-1" aria-label="Fewer" ${affDaily <= 1 ? "disabled" : ""}>−</button><span aria-live="polite">${notify.oftenWords(affDaily)}</span><button type="button" class="b-step" data-often="1" aria-label="More" ${affDaily >= notify.AFFIRM_MAX ? "disabled" : ""}>+</button></div>` : ""}</div>
       <div class="b-say b-low">${onward()}</div>`;
     case "day": return `<div class="b-say b-top"><h2>Once a week, a quiet look back.</h2><p>Where your time went. What helped. One small thing for the week ahead.</p>
         <p class="b-note">It opens on your day and waits until you’re ready.</p></div>
@@ -442,7 +442,7 @@ function wire(s) {
   ui.querySelector("#b-aff")?.addEventListener("change", (e) => { affOn = e.target.checked; render(); });
   // Choosing to have them sent asks the phone for permission straight away (it has to come from a tap).
   ui.querySelectorAll("[data-often]").forEach((b) => b.addEventListener("click", () => {
-    affDaily = Math.max(0, Math.min(notify.AFFIRM_MAX, affDaily + +b.dataset.often)); render();
+    affDaily = Math.max(1, Math.min(notify.AFFIRM_MAX, affDaily + +b.dataset.often)); render();
     if (affDaily && notify.supported() && Notification.permission === "default") notify.enable();
   }));
   const wh = ui.querySelector(".b-wheel");
