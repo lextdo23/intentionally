@@ -707,7 +707,9 @@ function openNotify() {
   const n = store.get().notify, off = !notify.supported() || notify.blocked() ? "disabled" : "";
   const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Settings</h2></div>${CLOSE}</header>
     <div class="nt-card"><label class="nt-row"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
-      <p class="nt-note">A kind line, made from your own thoughts.</p></div>
+      <p class="nt-note">Kind lines from your own thoughts, to carry you through the day.</p>
+      <label class="nt-row nt-sub"><span>Sent each day</span><select class="nt-time" data-often>${Array.from({ length: notify.AFFIRM_MAX + 1 }, (_, k) => [k, notify.oftenWords(k)]).map(([k, l]) =>
+        `<option value="${k}" ${(store.get().affirmDaily ?? 1) === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
     <p class="nt-head">Notifications</p>
     ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`
       : notify.blocked() ? `<p class="nt-why">Notifications are turned off for Intentionally in your phone’s Settings. Turn them on there, then come back.</p>` : ""}
@@ -721,6 +723,11 @@ function openNotify() {
     <p class="nt-foot">Your words never appear on your lock screen. No counts on the app icon, and we’ll never tell you you’ve missed anything.</p>
     <p class="nt-foot">More will arrive here as the rest of the app opens up.</p>`);
   sheet.querySelector("[data-aff]").addEventListener("change", (e) => store.update((s) => { s.affirm = e.target.checked; }));
+  sheet.querySelector("[data-often]").addEventListener("change", async (e) => {
+    const k = +e.target.value;
+    if (k && notify.supported() && Notification.permission === "default") await notify.enable();
+    store.update((s) => { s.affirmDaily = k; });
+  });
   sheet.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("change", async () => {
     const on = b.checked, k = b.dataset.n;
     if (on && !await notify.enable()) { b.checked = false; return toast(notReady()); }

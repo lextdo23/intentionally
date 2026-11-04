@@ -14,6 +14,7 @@ import { renderSky, startSpin, fitTags, layout, sparkle, placeStar, esc, POINTS,
 import { guessKind, KIND_LABEL } from "./thoughts.js";
 import { heaviness, guessHome } from "./helps.js";
 import { affirm } from "./affirm.js";
+import * as notify from "./notify.js";
 import { TINTS, FRONT, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
 // Each step: how big your sun is (it grows a little as your sky fills) and how far your clouds have come in.
@@ -83,7 +84,7 @@ const fmt = (m) => m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m 
 
 let root = null, ui = null, go = null, hooks = {};
 let step = 0, shown = -1, picked = [], focus = [], gave = { name: null, min: 0 }, thought = null, phase = "", name = "", day = 0, ownOpen = false, draft = "", ex = 0;
-let affOn = true, quiz = null, hinted = [], demo = { id: null, t0: 0, tick: 0 };
+let affOn = true, affDaily = 1, quiz = null, hinted = [], demo = { id: null, t0: 0, tick: 0 };
 const STOP = `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.5"/></svg>`;
 let timers = [], moving = 0, lastAt = {}, drawnPlanets = "";
 
@@ -96,7 +97,7 @@ export function show(app, h) {
   picked = s.pillars.map((p) => p.name);
   focus = s.pillars.filter((p) => p.focus).map((p) => p.name);
   step = picked.length ? at("day") : 0;
-  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; affOn = s.affirm !== false; shown = -1; lastAt = {}; drawnPlanets = "";
+  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; affOn = s.affirm !== false; affDaily = s.affirmDaily ?? 1; shown = -1; lastAt = {}; drawnPlanets = "";
   app.innerHTML = `<section class="born" aria-label="Welcome">
     <div class="sky-wrap"><div class="b-clouds"></div><div class="b-sky"></div></div>
     <div class="b-ui"></div>
@@ -327,8 +328,10 @@ function screen(s) {
         <p class="b-why">When something’s on your mind, catch it as a star.</p>`;
     }
     // Kind words: what they are (built from their own thoughts), and a simple on or off. On unless they say otherwise.
-    case "affirm": return `<div class="b-say b-top"><h2>Words of affirmation</h2><p>A kind line, made from your own thoughts.</p></div>
-      <div class="b-say b-mid2"><label class="b-switch"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label></div>
+    // Words of affirmation: on or off, and how many a day arrive as notifications.
+    case "affirm": return `<div class="b-say b-top"><h2>Words of affirmation</h2><p>Kind lines from your own thoughts, to carry you through the day.</p></div>
+      <div class="b-say b-mid2"><label class="b-switch"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label>
+        ${affOn ? `<div class="b-often"><button type="button" class="b-step" data-often="-1" aria-label="Fewer" ${affDaily <= 0 ? "disabled" : ""}>−</button><span aria-live="polite">${notify.oftenWords(affDaily)}</span><button type="button" class="b-step" data-often="1" aria-label="More" ${affDaily >= notify.AFFIRM_MAX ? "disabled" : ""}>+</button></div>` : ""}</div>
       <div class="b-say b-low">${onward()}</div>`;
     case "day": return `<div class="b-say b-top"><h2>Once a week, a quiet look back.</h2><p>Where your time went. What helped. One small thing for the week ahead.</p>
         <p class="b-note">It opens on your day and waits until you’re ready.</p></div>
@@ -356,13 +359,14 @@ function render() {
   if (asking) root.style.setProperty("--qsun", `${ui.querySelector(".b-qq").getBoundingClientRect().bottom + 48}px`);
   root.classList.toggle("b-quizzing", asking);
   // The wheel needs room under the planets: on shorter screens the sky lifts just enough.
-  const wheelOn = !!ui.querySelector(".b-wheelw");
-  if (wheelOn) {
+  // The same goes for the switch and its choices on the words-of-affirmation page.
+  const under = ui.querySelector(".b-wheelw") ? 16 + 180 : ui.querySelector(".b-mid2") ? 24 + ui.querySelector(".b-mid2").offsetHeight : 0;
+  if (under) {
     const below = parseFloat(getComputedStyle(root).getPropertyValue("--below")) || innerHeight * .62;
     const room = innerHeight - innerHeight * .05 - 60;
-    root.style.setProperty("--lift", `${Math.max(0, below + 16 + 180 - room)}px`);
+    root.style.setProperty("--lift", `${Math.max(0, below + under - room)}px`);
   }
-  root.classList.toggle("b-lifted", wheelOn);
+  root.classList.toggle("b-lifted", !!under);
   go.classList.toggle("ready", ready());
   wire(s.id);
 }
@@ -435,7 +439,12 @@ function wire(s) {
     gave.min = +b.dataset.min; render();
     timers.push(setTimeout(() => next(step + 1), still() ? 400 : 1200));
   }));
-  ui.querySelector("#b-aff")?.addEventListener("change", (e) => { affOn = e.target.checked; });
+  ui.querySelector("#b-aff")?.addEventListener("change", (e) => { affOn = e.target.checked; render(); });
+  // Choosing to have them sent asks the phone for permission straight away (it has to come from a tap).
+  ui.querySelectorAll("[data-often]").forEach((b) => b.addEventListener("click", () => {
+    affDaily = Math.max(0, Math.min(notify.AFFIRM_MAX, affDaily + +b.dataset.often)); render();
+    if (affDaily && notify.supported() && Notification.permission === "default") notify.enable();
+  }));
   const wh = ui.querySelector(".b-wheel");
   if (wh) drum(wh, Math.max(0, LENGTHS.indexOf(gave.min)), (m) => { gave.min = m; });
   ui.querySelector("[data-add]")?.addEventListener("click", () => next(step + 1));
@@ -510,7 +519,7 @@ function finish() {
         s.thoughts.push(t);
       }
       gaveId = gave.name && gave.min ? s.pillars.find((p) => p.name === gave.name)?.id : null;
-      s.name = name.slice(0, 24); s.lookDay = day; s.affirm = affOn; s.setup = true; s.setupAt = now();
+      s.name = name.slice(0, 24); s.lookDay = day; s.affirm = affOn; s.affirmDaily = affDaily; s.setup = true; s.setupAt = now();
       s.hints = { sun: now(), ...(thought && { thought: now() }) };
     });
     if (gaveId) store.addTime(gaveId, gave.min, 0);
