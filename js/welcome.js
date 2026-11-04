@@ -231,7 +231,7 @@ function screen(s) {
     }
     case "focus": return `<div class="b-say b-top"><h2>Which two need you most right now?</h2><p>Tap two planets. They’ll sit either side of you.</p><p class="b-note">${hinted.length && focus.length === 2 && focus.every((f) => hinted.includes(f)) ? "These two came from your answers. Tap to change." : "Your focus for now. You can change it any time."}</p></div>
       <div class="b-say b-low">${focus.length === 2 ? onward() : `<p class="b-note">${focus.length ? "One more." : ""}</p>`}</div>`;
-    case "time": return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time. Or tell it afterwards. Both count the same.</p></div>
+    case "time": return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time. Or tell it afterwards.</p></div>
       <div class="b-gave"><p class="b-gk">Given time to any of these today?</p>
         <div class="b-chips" role="group" aria-label="Which one">${picked.map((n) => chip(`data-gave="${esc(n)}"`, n, gave.name === n)).join("")}</div>
         ${gave.name ? `<div class="b-chips" role="group" aria-label="About how long">${ROUGH.map(([l, m]) => chip(`data-min="${m}"`, l, gave.min === m)).join("")}</div>` : ""}
