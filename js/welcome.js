@@ -52,14 +52,14 @@ const QUIZ = [
   { q: "What do you keep putting off that you’d feel better for doing?", w: 4,
     a: [["Study or assignments", ["Study"]], ["Work, or my next step", ["Career"]], ["Exercise", ["Health"]], ["Calling family", ["Family"]],
         ["Seeing friends", ["Friends"]], ["Sorting out money", ["Money"]], ["Tidying my space", ["Home"]], ["Something creative", ["Creativity"]]] },
-  { q: "What leaves you most drained at the end of a day?", one: true, w: 3,
+  { q: "What leaves you drained at the end of a day?", w: 3,
     a: [["Work", ["Career", "Rest"]], ["Uni or study", ["Study", "Rest"]], ["Not sleeping enough", ["Rest", "Health"]], ["Feeling on my own", ["Friends"]],
         ["Money stress", ["Money"]], ["Looking after others", ["Caring", "Rest"]], ["Too much screen time", ["Rest", "Fun"]]] },
-  { q: "A year from now you feel better. What changed first?", one: true, w: 3,
+  { q: "A year from now you feel better. What changed?", w: 3,
     a: [["I see my people more", ["Friends", "Family"]], ["Less stretched at work", ["Career", "Rest"]], ["On top of uni", ["Study"]],
         ["I look after my body", ["Health"]], ["Money stopped stressing me", ["Money"]], ["I make time for me", ["Rest", "Fun"]],
         ["I’m closer to what I believe", ["Faith", "Purpose"]]] },
-  { q: "When an evening goes to waste, what do you wish you’d done?", one: true, w: 2,
+  { q: "When an evening goes to waste, what do you wish you’d done?", w: 2,
     a: [["Seen someone", ["Friends"]], ["Called family", ["Family"]], ["Rested properly", ["Rest"]], ["Got moving", ["Health"]],
         ["Made something", ["Creativity"]], ["Got ahead on work or study", ["Career", "Study"]]] },
 ];
@@ -128,20 +128,35 @@ function drawSky({ born = null, arriving = null, from = null, words = true } = {
   const pillars = myPillars();
   const where = layout(pillars), key = pillars.map((p) => p.id + p.focus).join(), changed = key !== drawnPlanets;
   const sky = root.querySelector(".b-sky");
+  // The sky is redrawn on every page; carry the sun's size across so it keeps growing instead of jumping.
+  const SUN = '[data-breath="glow"], .sundisc';
+  const was = [...sky.querySelectorAll(SUN)].map((el) => getComputedStyle(el).transform);
   sky.innerHTML = renderSky({ pillars, thoughts: thought ? [thought] : [], runningId: demo.id, arriving, from, labels: words && store.get().test.labels !== false });
   fitTags(sky);
   for (const p of pillars) {
     const g = sky.querySelector(`[data-orbit="${p.id}"]`);
-    if (p.id === born) g.classList.add("b-new");
+    const k = Array.isArray(born) ? born.indexOf(p.id) : p.id === born ? 0 : -1;
+    if (k >= 0) {
+      // A new planet grows from its own centre (its place comes from the transform attribute, so point the origin there).
+      const [x, y] = (g.getAttribute("transform").match(/-?[\d.]+/g) ?? [0, 0]).map(Number);
+      g.style.transformOrigin = `${x}px ${y}px`;
+      g.classList.add("b-new"); g.style.animationDelay = `${k * 220}ms`;
+    }
     else if (lastAt[p.id] && !still()) {
       g.style.transition = "none";
       g.style.translate = `${lastAt[p.id].x - where[p.id].x}px ${lastAt[p.id].y - where[p.id].y}px`;
       requestAnimationFrame(() => requestAnimationFrame(() => { g.style.transition = ""; g.style.translate = "0px 0px"; }));
     }
   }
+  const now = [...sky.querySelectorAll(SUN)];
+  if (was.length === now.length && !still()) {
+    now.forEach((el, i) => { el.style.transition = "none"; el.style.transform = was[i] === "none" ? "" : was[i]; });
+    void sky.offsetWidth;
+    now.forEach((el) => { el.style.transition = ""; el.style.transform = ""; });
+  }
   lastAt = where; drawnPlanets = key;
   startSpin(sky);
-  if (changed && born && !still()) {
+  if (changed && born && !Array.isArray(born) && !still()) {
     const rings = sky.querySelectorAll(".rings");
     rings.forEach((r) => r.classList.add("b-wait"));
     const k = pillars.findIndex((p) => p.id === born), per = pillars[k].name.replace(/ /g, "").length + 1;
@@ -244,7 +259,7 @@ function quizScreen() {
     const it = QUIZ[quiz.q], mine = quiz.ans[quiz.q], last = quiz.q === QUIZ.length - 1;
     // A quiet list: the sun moves up out of the way, the answers sit in plain rows with a tick on the right.
     return `${x}<div class="b-say b-top b-high b-qq"><div class="b-dots" aria-label="${quiz.q + 1} of ${QUIZ.length}">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
-        <h2>${it.q}</h2><p class="b-note">${it.one ? "Pick one." : "Pick any."}</p></div>
+        <h2>${it.q}</h2><p class="b-note">Pick any.</p></div>
       <div class="b-list${rise}" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}" style="--i:${k}"><span>${esc(l)}</span><i aria-hidden="true"></i></button>`).join("")}</div>
       <div class="b-qfoot b-qbar">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : `<span></span>`}
         ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}<span></span></div>`;
@@ -406,7 +421,7 @@ function wire(s) {
   ui.querySelector("[data-qback]")?.addEventListener("click", () => { quiz.q--; render(); });
   ui.querySelectorAll("[data-qa]").forEach((b) => b.addEventListener("click", () => {
     const k = +b.dataset.qa, mine = quiz.ans[quiz.q];
-    quiz.ans[quiz.q] = QUIZ[quiz.q].one ? (mine.includes(k) ? [] : [k]) : mine.includes(k) ? mine.filter((x) => x !== k) : [...mine, k];
+    quiz.ans[quiz.q] = mine.includes(k) ? mine.filter((x) => x !== k) : [...mine, k];
     render();
   }));
   // The last answer: the suggested planets are born one after another, the focus two either side of the sun.
@@ -416,12 +431,14 @@ function wire(s) {
     quiz.pick = suggest(quiz.ans); quiz.fresh = true;
     const { planets, focus: f } = quiz.pick;
     render();
-    const bloom = (list) => {
+    // Once the sky has settled back down, all the planets grow in together, already in their final places
+    // (focus either side of the sun), so nothing jumps or swaps round afterwards.
+    timers.push(setTimeout(() => {
       if (!quiz?.pick || id() !== "pick") return;
-      if (!list.length) { focus = f.filter((x) => picked.includes(x)); render(); drawSky(); return; }
-      add(list[0]); setTimeout(() => bloom(list.slice(1)), still() ? 0 : 600);
-    };
-    bloom(planets);
+      const fresh = planets.filter((n) => !picked.includes(n)).slice(0, MAX_PILLARS - picked.length);
+      picked.push(...fresh); focus = f.filter((x) => picked.includes(x));
+      render(); drawSky({ born: fresh.map(pid) });
+    }, still() ? 0 : 950));
   });
   ui.querySelectorAll("[data-qin]").forEach((b) => b.addEventListener("click", () => add(b.dataset.qin)));
   // Yes: on to choosing focus, with the suggested two already lit.
