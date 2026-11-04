@@ -189,13 +189,12 @@ function quizScreen() {
   const rise = quiz.fresh ? " b-pull" : ""; quiz.fresh = false;
   if (quiz.q < QUIZ.length) {
     const it = QUIZ[quiz.q], mine = quiz.ans[quiz.q], last = quiz.q === QUIZ.length - 1;
-    return `${x}<div class="b-say b-top b-high"><div class="b-dots" aria-label="${quiz.q + 1} of ${QUIZ.length}">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
+    // A quiet list: the sun moves up out of the way, the answers sit in plain rows with a tick on the right.
+    return `${x}<div class="b-say b-top b-high b-qq"><div class="b-dots" aria-label="${quiz.q + 1} of ${QUIZ.length}">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
         <h2>${it.q}</h2><p class="b-note">${it.one ? "Pick one." : "Pick any."}</p></div>
-      <div class="b-say b-low b-qa b-ask${rise}">
-        <div class="b-words" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}">${esc(l)}</button>`).join("")}</div>
-        <div class="b-qfoot">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : `<span></span>`}
-          ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}<span></span></div>
-      </div>`;
+      <div class="b-list${rise}" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}"><span>${esc(l)}</span><i aria-hidden="true"></i></button>`).join("")}</div>
+      <div class="b-qfoot b-qbar">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : `<span></span>`}
+        ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}<span></span></div>`;
   }
   // The suggestion is the sky itself: the planets are already there. Tap one to take it out, or add another below.
   const r = quiz.pick, n = picked.length, left = r.swaps.filter((w) => !picked.includes(w));
@@ -285,6 +284,10 @@ function render() {
   root.style.setProperty("--clouds", s.clouds);
   ui.classList.toggle("b-enter", shown !== step); shown = step;
   ui.innerHTML = screen(s.id);
+  // While answering questions the sky slides up so the sun sits just under the question, and the list fills below.
+  const asking = !!(quiz && !quiz.pick && s.id === "pick");
+  if (asking) root.style.setProperty("--qsun", `${ui.querySelector(".b-qq").getBoundingClientRect().bottom + 48}px`);
+  root.classList.toggle("b-quizzing", asking);
   go.classList.toggle("ready", ready());
   wire(s.id);
 }
