@@ -771,13 +771,7 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-go { position: absolute; left: 50%; top: 46%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; pointer-events: none; }
 .b-go.ready { pointer-events: auto; }
 .b-go::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; box-shadow: 0 0 0 1px var(--gold); opacity: 0; transition: opacity .6s ease; }
-/* The sun can always be tapped to go on, but it doesn't glow or ring for it (only a running timer gets gold around it).
-   Instead, on "This light is you", a soft fingertip drifts in and taps it twice, once the words have arrived. */
-.born[data-step="you"] .b-go.ready::before { content: ""; position: absolute; left: 10px; top: 10px; width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(239, 237, 233, .16); box-shadow: 0 0 0 1px rgba(239, 237, 233, .32); opacity: 0; pointer-events: none;
-  animation: b-touch 2.6s ease-in-out 3s 2 both; }
-@keyframes b-touch { 0% { opacity: 0; transform: translate(56px, 84px); } 35% { opacity: 1; transform: translate(0, 0) scale(1); }
-  45% { transform: scale(.72); } 58% { opacity: 1; transform: scale(1); } 85%, 100% { opacity: 0; transform: scale(1); } }
+/* The sun can always be tapped to go on, but nothing points at it: it doesn't glow or ring (only a running timer gets gold around it). */
 .b-go:focus { outline: none; }
 .b-go:focus-visible::after { opacity: 1; }
 
@@ -849,7 +843,6 @@ button:active:not(:disabled) { transform: scale(.96); }
 @media (prefers-reduced-motion: reduce) {
   .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit], .b-say .b-line, .born .b-sky, .b-ex-line, .b-payoff, .b-ui.b-enter .b-why { transition: none; animation: none; }
   .b-ui.b-enter .b-say > *, .b-ui.b-enter .b-card, .b-say .b-hint, .b-ui.b-enter .b-say .b-hint, .born .sky [data-orbit].b-new, .home.fresh .greet, .home.fresh .dock { animation: none; }
-  .born[data-step="you"] .b-go.ready::before { animation: none; }
   .b-kinds svg { transition: none; }
 }
 
