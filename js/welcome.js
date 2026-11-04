@@ -170,11 +170,13 @@ function toggleFocus(n) {
 }
 
 // The tap target sits over the sun, wherever the sun lands on this screen.
+// Measured where the sky rests, even while it's slid up for the questions (or sliding back down).
 function placeGo() {
+  const wrap = root?.querySelector(".sky-wrap"), lift = wrap ? new DOMMatrix(getComputedStyle(wrap).transform).m42 : 0;
   const p = skyPoint("sun");
-  if (p && go) { go.style.left = `${p.x}px`; go.style.top = `${p.y}px`; root.style.setProperty("--sy", `${p.y}px`); }
+  if (p && go) { go.style.left = `${p.x}px`; go.style.top = `${p.y - lift}px`; root.style.setProperty("--sy", `${p.y - lift}px`); }
   const low = skyPoint("below");
-  if (low && root) root.style.setProperty("--below", `${low.y}px`);
+  if (low && root) root.style.setProperty("--below", `${low.y - lift}px`);
 }
 
 /* ---------- Screens ---------- */
@@ -192,7 +194,7 @@ function quizScreen() {
     // A quiet list: the sun moves up out of the way, the answers sit in plain rows with a tick on the right.
     return `${x}<div class="b-say b-top b-high b-qq"><div class="b-dots" aria-label="${quiz.q + 1} of ${QUIZ.length}">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
         <h2>${it.q}</h2><p class="b-note">${it.one ? "Pick one." : "Pick any."}</p></div>
-      <div class="b-list${rise}" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}"><span>${esc(l)}</span><i aria-hidden="true"></i></button>`).join("")}</div>
+      <div class="b-list${rise}" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}" style="--i:${k}"><span>${esc(l)}</span><i aria-hidden="true"></i></button>`).join("")}</div>
       <div class="b-qfoot b-qbar">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : `<span></span>`}
         ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}<span></span></div>`;
   }
@@ -314,7 +316,12 @@ function wire(s) {
   if (s === "dark") timers.push(setTimeout(() => next(1), still() ? 300 : 1600));
   ui.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", onSun));
   ui.querySelectorAll("[data-pick]").forEach((b) => b.addEventListener("click", () => add(b.dataset.pick)));
-  const startQuiz = () => { quiz = { q: 0, ans: QUIZ.map(() => []), pick: null, fresh: true }; picked = []; focus = []; render(); drawSky(); };
+  // The sun rises first; the list waits for it (see .b-rising in the styles).
+  const startQuiz = () => {
+    quiz = { q: 0, ans: QUIZ.map(() => []), pick: null, fresh: true }; picked = []; focus = [];
+    root.classList.add("b-rising"); setTimeout(() => root.classList.remove("b-rising"), 2000);
+    render(); drawSky();
+  };
   ui.querySelector("[data-quiz]")?.addEventListener("click", startQuiz);
   ui.querySelector("[data-qagain]")?.addEventListener("click", startQuiz);
   // Closing keeps whatever planets are showing; the list is there to change them.

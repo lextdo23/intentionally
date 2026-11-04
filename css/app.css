@@ -882,7 +882,12 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-list { position: absolute; left: var(--edge); right: var(--edge); max-width: 480px; margin: 0 auto; top: calc(var(--qsun, 200px) + 56px);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh + 64px); overflow-y: auto; display: flex; flex-direction: column;
   -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); padding-bottom: 24px; }
-.b-list.b-pull { animation: b-pull .6s cubic-bezier(.2, .8, .2, 1) both; }
+/* First the sun rises; then the rows flow down into place, one after another. The question fades in with them. */
+.b-list.b-pull button { animation: b-flow .5s ease both; animation-delay: calc(var(--rise, 0s) + var(--i) * 70ms); }
+.b-ui:has(.b-list.b-pull) .b-qq, .b-ui:has(.b-list.b-pull) .b-qbar { animation: b-fade .6s ease both; animation-delay: var(--rise, 0s); }
+.born.b-rising { --rise: .8s; }
+@keyframes b-flow { from { opacity: 0; transform: translateY(-12px); } }
+@keyframes b-fade { from { opacity: 0; } }
 .b-list button { flex: none; min-height: 52px; padding: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px;
   border-bottom: 1px solid rgba(239, 237, 233, .12); font-size: 17px; color: var(--ink-2); text-align: left; }
 .b-list button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -891,4 +896,4 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-list button[aria-pressed="true"] i { background: var(--gold); box-shadow: none; }
 .b-list button[aria-pressed="true"] i::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; transform: translateY(-1px) rotate(-45deg); }
 .b-qbar { position: absolute; left: var(--edge); right: var(--edge); margin: 0 auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh); }
-@media (prefers-reduced-motion: reduce) { .b-qa.b-pull, .b-list.b-pull { animation: none; } .born .sky-wrap { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .b-qa.b-pull, .b-list.b-pull button, .b-ui .b-qq, .b-ui .b-qbar { animation: none !important; } .born .sky-wrap { transition: none; } }
