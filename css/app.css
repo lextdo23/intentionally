@@ -902,3 +902,9 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-list button[aria-pressed="true"] i::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; transform: translateY(-1px) rotate(-45deg); }
 .b-qbar { position: absolute; left: var(--edge); right: var(--edge); margin: 0 auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh); }
 @media (prefers-reduced-motion: reduce) { .b-qa.b-pull, .b-list.b-pull button, .b-ui .b-qq, .b-ui .b-qbar { animation: none !important; } .born .sky-wrap { transition: none; } }
+
+/* Kind words in setup: one switch floating under the sun, no card. */
+.b-mid2 { top: calc(var(--below, 62vh) + 24px); display: flex; justify-content: center; }
+.b-switch { display: inline-flex; align-items: center; gap: 16px; min-height: 44px; font-size: 17px; color: var(--ink); }
+/* Settings: a small heading before the notification cards. */
+.nt-head { margin: 24px 0 8px; font-size: 15px; font-weight: 600; color: var(--ink-2); }

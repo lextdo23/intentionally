@@ -452,16 +452,17 @@ let placing = null;
 function askHome(id, text) {
   const s = store.get(), t = s.thoughts.find((x) => x.id === id);
   if (!t) return;
-  const guess = guessHome(text, s.pillars), line = affirm(text, t.kind, pillarName(guess));
+  // Kind words can be turned off (setup, or Settings); then there's no line at all.
+  const guess = guessHome(text, s.pillars), line = s.affirm !== false ? affirm(text, t.kind, pillarName(guess)) : "";
   // Busy (sorting, or a timer running): just the kind line, quietly.
-  if (sort.active() || s.running || t.pillarId) return toast(`“${line}”`);
+  if (sort.active() || s.running || t.pillarId) return line && toast(`“${line}”`);
   closeHome();
   placing = { id, guess };
   const el = document.createElement("div");
   el.className = "placer";
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", "Where does it belong?");
-  el.innerHTML = `<div class="pl-top"><p class="pl-aff">“${esc(line)}”</p><h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
+  el.innerHTML = `<div class="pl-top">${line ? `<p class="pl-aff">“${esc(line)}”</p>` : ""}<h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
     <button type="button" class="pl-skip" data-skip>Not now</button>`;
   document.body.append(el);
   document.querySelector(".home")?.classList.add("placing");
@@ -704,7 +705,10 @@ function offerEvening() {
 
 function openNotify() {
   const n = store.get().notify, off = !notify.supported() || notify.blocked() ? "disabled" : "";
-  const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Notifications</h2></div>${CLOSE}</header>
+  const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Settings</h2></div>${CLOSE}</header>
+    <div class="nt-card"><label class="nt-row"><span>Kind words</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
+      <p class="nt-note">A kind, believable line answering each thought you catch, made from what you wrote. Never for heavy thoughts.</p></div>
+    <p class="nt-head">Notifications</p>
     ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`
       : notify.blocked() ? `<p class="nt-why">Notifications are turned off for Intentionally in your phone’s Settings. Turn them on there, then come back.</p>` : ""}
     <div class="nt-card"><label class="nt-row"><span>Timer nudges</span><input type="checkbox" class="sw" role="switch" data-n="timer" ${n.timer ? "checked" : ""} ${off}></label>
@@ -716,6 +720,7 @@ function openNotify() {
       <label class="nt-row nt-sub"><span>Until</span><input type="time" class="nt-time" data-nt="q1" value="${n.quiet[1]}"></label></div>
     <p class="nt-foot">Your words never appear on your lock screen. No counts on the app icon, and we’ll never tell you you’ve missed anything.</p>
     <p class="nt-foot">More will arrive here as the rest of the app opens up.</p>`);
+  sheet.querySelector("[data-aff]").addEventListener("change", (e) => store.update((s) => { s.affirm = e.target.checked; }));
   sheet.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("change", async () => {
     const on = b.checked, k = b.dataset.n;
     if (on && !await notify.enable()) { b.checked = false; return toast(notReady()); }

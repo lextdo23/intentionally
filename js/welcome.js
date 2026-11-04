@@ -26,6 +26,7 @@ const STEPS = [
   { id: "time", sun: .9, clouds: .4 },
   { id: "see", sun: 1, clouds: .5 },
   { id: "thought", sun: 1, clouds: .6 },
+  { id: "affirm", sun: 1, clouds: .65 },
   { id: "day", sun: 1, clouds: .7 },
   { id: "name", sun: 1, clouds: .85 },
   { id: "care", sun: 1, clouds: 1 },
@@ -81,7 +82,7 @@ const fmt = (m) => m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m 
 
 let root = null, ui = null, go = null, hooks = {};
 let step = 0, shown = -1, picked = [], focus = [], gave = { name: null, min: 0 }, thought = null, phase = "", name = "", day = 0, ownOpen = false, draft = "", ex = 0;
-let quiz = null, hinted = [], demo = { id: null, t0: 0, tick: 0 };
+let affOn = true, quiz = null, hinted = [], demo = { id: null, t0: 0, tick: 0 };
 const STOP = `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.5"/></svg>`;
 let timers = [], moving = 0, lastAt = {}, drawnPlanets = "";
 
@@ -94,7 +95,7 @@ export function show(app, h) {
   picked = s.pillars.map((p) => p.name);
   focus = s.pillars.filter((p) => p.focus).map((p) => p.name);
   step = picked.length ? at("day") : 0;
-  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; shown = -1; lastAt = {}; drawnPlanets = "";
+  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; affOn = s.affirm !== false; shown = -1; lastAt = {}; drawnPlanets = "";
   app.innerHTML = `<section class="born" aria-label="Welcome">
     <div class="sky-wrap"><div class="b-clouds"></div><div class="b-sky"></div></div>
     <div class="b-ui"></div>
@@ -295,6 +296,15 @@ function screen(s) {
         <p class="b-guess">${k ? `${star(k)} ${KIND_LABEL[k]}` : ""}</p></form>
         <p class="b-why">When something’s on your mind, catch it as a star.</p>`;
     }
+    // Kind words: what they are (built from their own thoughts), and a simple on or off. On unless they say otherwise.
+    case "affirm": {
+      const saw = thought && !thought.heavy;
+      return `<div class="b-say b-top"><h2>Kind words, from your own thoughts.</h2>
+        <p>When you catch a thought, Intentionally can answer it with one kind, believable line, made from what you wrote.</p>
+        <p class="b-note">${saw ? "Like the one you just saw. " : ""}Never for heavy thoughts. You can change this any time in Settings.</p></div>
+      <div class="b-say b-mid2"><label class="b-switch"><span>Kind words</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label></div>
+      <div class="b-say b-low">${onward()}</div>`;
+    }
     case "day": return `<div class="b-say b-top"><h2>Once a week, a quiet look back.</h2><p>Where your time went. What helped. One small thing for the week ahead.</p>
         <p class="b-note">It opens on your day and waits until you’re ready.</p></div>
       <div class="b-say b-low"><p class="b-note">Which day suits you?</p><div class="b-days" role="radiogroup" aria-label="Look back day">${DAYS.map(([d, l], i) =>
@@ -392,6 +402,7 @@ function wire(s) {
     gave.min = +b.dataset.min; render();
     timers.push(setTimeout(() => next(step + 1), still() ? 400 : 1200));
   }));
+  ui.querySelector("#b-aff")?.addEventListener("change", (e) => { affOn = e.target.checked; });
   ui.querySelector("[data-stopdemo]")?.addEventListener("click", stopDemo);
   ui.querySelector("[data-skip]")?.addEventListener("click", () => { gave = { name: null, min: 0 }; next(step + 1); });
   const ta = ui.querySelector("#b-t");
@@ -463,7 +474,7 @@ function finish() {
         s.thoughts.push(t);
       }
       gaveId = gave.name && gave.min ? s.pillars.find((p) => p.name === gave.name)?.id : null;
-      s.name = name.slice(0, 24); s.lookDay = day; s.setup = true; s.setupAt = now();
+      s.name = name.slice(0, 24); s.lookDay = day; s.affirm = affOn; s.setup = true; s.setupAt = now();
       s.hints = { sun: now(), ...(thought && { thought: now() }) };
     });
     if (gaveId) store.addTime(gaveId, gave.min, 0);

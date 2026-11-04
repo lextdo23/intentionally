@@ -27,6 +27,7 @@ const fresh = () => ({
   notify: { asked: false, timer: false, evening: null, eveningOffered: false, quiet: ["22:30", "08:00"], len: 0 },
                     // notifications (js/notify.js): timer nudges on or off, the evening drop's time ("21:30") or null,
                     //   quiet hours, the timer length picked last (minutes, 0 = no end), and which offers have been made
+  affirm: true,     // kind words: a line answering each thought, made from what they wrote (never for heavy ones)
   unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
   tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
   setupAt: null,    // when set-up finished; the first days' suggestions are timed from it

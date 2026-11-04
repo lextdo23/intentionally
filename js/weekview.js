@@ -106,5 +106,5 @@ export function recordHTML(s) {
     ${helps.length ? `<div class="wv-blk"><h4>What helps you</h4>${helps.map(([h, o]) => `<div class="wv-row">${pill(o.pid) ? dot(shade(pill(o.pid))) : ""}${esc(h)}<span>${times(o.n)}</span></div>`).join("")}</div>` : ""}
     ${weeks.length ? weeks.map(page).join("") : `<p class="rc-empty">Your weeks, and what helps you, will gather here. It opens after your first look back on ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][s.lookDay ?? 0]}.</p>`}
     <button type="button" class="link" data-support>Need support?</button>
-    <button type="button" class="link" data-notify>Notifications</button>`;
+    <button type="button" class="link" data-notify>Settings</button>`;
 }
