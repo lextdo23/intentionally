@@ -1,154 +1,348 @@
-// The first time the app opens: the sky is born. Darkness, then a small sun (you), one slow breath, then what you want
-// to look after becomes planets, your first thought becomes a star, and the clouds drift in until it's your home sky.
-// Words fade between steps while the sky stays. You go on by tapping the sun, as with the look back. Nothing is saved
-// until the end, so closing the app part way simply starts again next time.
+// The first time the app opens. Its job: teach the loop the whole app is built on (see CLAUDE.md, "What this app is"),
+// by doing it once with the person's own life:
+//   Choose:    what's been missing lately becomes planets; two of them become the focus, either side of the sun.
+//   Give time: two ways (a timer, or telling it afterwards), then "Given time to any of these today?" so the first
+//              entry is real.
+//   See:       tap the sun to see your week. The time they just gave is there.
+//   Thoughts:  optional. A thought lands as a star by its likely planet, and a kind, believable line answers it.
+//   Reflect:   the weekly look back and its day. Then a name, the not-therapy line, and home.
+// Every step has a word to tap to go on; the sun works too. Nothing is saved until the end, so closing part way simply
+// starts again next time.
 import * as store from "./store.js";
 import { now } from "./clock.js";
-import { renderSky, startSpin, fitTags, layout, sparkle, placeStar, esc, POINTS, skyPoint } from "./sky.js";
+import { renderSky, startSpin, fitTags, layout, sparkle, placeStar, esc, POINTS, skyPoint, markTarget, zoomTo } from "./sky.js";
 import { guessKind, KIND_LABEL } from "./thoughts.js";
-import { heaviness } from "./helps.js";
-import { TINTS, SUGGESTED, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
+import { heaviness, guessHome } from "./helps.js";
+import { affirm } from "./affirm.js";
+import * as notify from "./notify.js";
+import { TINTS, FRONT, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
 
-// Each step: how big the sun has grown (it keeps growing gently) and how far the clouds have come in.
+// Each step: how big your sun is (it grows a little as your sky fills) and how far your clouds have come in.
 const STEPS = [
   { id: "dark", sun: 0, clouds: 0 },
-  { id: "hello", sun: .4, clouds: 0 },
-  { id: "you", sun: .6, clouds: .08 },
-  { id: "pick", sun: .8, clouds: .2 },
-  { id: "thought", sun: 1, clouds: .4 },
-  { id: "name", sun: 1, clouds: .6 },
-  { id: "day", sun: 1, clouds: .8 },
+  { id: "promise", sun: .35, clouds: 0 },
+  { id: "you", sun: .6, clouds: .1 },
+  { id: "pick", sun: .75, clouds: .2 },
+  { id: "focus", sun: .85, clouds: .3 },
+  { id: "time", sun: .9, clouds: .4 },
+  { id: "see", sun: 1, clouds: .5 },
+  { id: "thought", sun: 1, clouds: .6 },
+  { id: "affirm", sun: 1, clouds: .65 },
+  { id: "day", sun: 1, clouds: .7 },
+  { id: "name", sun: 1, clouds: .85 },
   { id: "care", sun: 1, clouds: 1 },
 ];
+const at = (id) => STEPS.findIndex((x) => x.id === id);
 const DAYS = [["Sunday", "S"], ["Monday", "M"], ["Tuesday", "T"], ["Wednesday", "W"], ["Thursday", "T"], ["Friday", "F"], ["Saturday", "S"]];
-const EXAMPLES = ["I'm behind on everything", "I want to call Mum this week", "Glad I went outside today", "What if I'm not good enough"];
-const A_KIND = { kind: "a kind thought", worry: "a worry", want: "a want" };
+const EXAMPLES = ["Exam on Friday and I'm not ready", "I want to see my friends more", "Glad I went outside today", "Behind on everything at work"];
+// Rough lengths for time given: no stopwatch needed.
+// How long, for time told afterwards: rolled on a wheel like the iPhone's own pickers. Rough is fine.
+const LENGTHS = [15, 30, 45, 60, 90, 120, 180, 240];
 const star = (kind) => `<svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${sparkle(POINTS[kind], 10)}"/></svg>`;
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// "Need help choosing?": five quick questions about moments and feelings, never the pillar names themselves, so people
+// aren't asked to pick twice. The app works out the planets: this is values work (as in ACT), asking what matters and
+// where time isn't going, since the gap between the two is what the pillars should be. Each answer quietly adds weight
+// to a few planets; what they keep putting off counts most. Nothing is a test, and everything can be changed after.
+const QUIZ = [
+  { q: "Think of a good day lately. What was in it?", w: 2,
+    a: [["A long talk with someone", ["Friends", "Family", "Love"]], ["Getting something hard done", ["Career", "Study"]],
+        ["A proper sleep-in", ["Rest"]], ["Moving my body", ["Health"]], ["Making something", ["Creativity"]],
+        ["Laughing with mates", ["Fun", "Friends"]]] },
+  { q: "What do you keep putting off that you’d feel better for doing?", w: 4,
+    a: [["Study or assignments", ["Study"]], ["Work, or my next step", ["Career"]], ["Exercise", ["Health"]], ["Calling family", ["Family"]],
+        ["Seeing friends", ["Friends"]], ["Sorting out money", ["Money"]], ["Tidying my space", ["Home"]], ["Something creative", ["Creativity"]]] },
+  { q: "What leaves you most drained at the end of a day?", one: true, w: 3,
+    a: [["Work", ["Career", "Rest"]], ["Uni or study", ["Study", "Rest"]], ["Not sleeping enough", ["Rest", "Health"]], ["Feeling on my own", ["Friends"]],
+        ["Money stress", ["Money"]], ["Looking after others", ["Caring", "Rest"]], ["Too much screen time", ["Rest", "Fun"]]] },
+  { q: "A year from now you feel better. What changed first?", one: true, w: 3,
+    a: [["I see my people more", ["Friends", "Family"]], ["Less stretched at work", ["Career", "Rest"]], ["On top of uni", ["Study"]],
+        ["I look after my body", ["Health"]], ["Money stopped stressing me", ["Money"]], ["I make time for me", ["Rest", "Fun"]],
+        ["I’m closer to what I believe", ["Faith", "Purpose"]]] },
+  { q: "When an evening goes to waste, what do you wish you’d done?", one: true, w: 2,
+    a: [["Seen someone", ["Friends"]], ["Called family", ["Family"]], ["Rested properly", ["Rest"]], ["Got moving", ["Health"]],
+        ["Made something", ["Creativity"]], ["Got ahead on work or study", ["Career", "Study"]]] },
+];
+// The suggestion: the top four, the next few as swaps, and the two most put off (or drained by) as focus.
+// Work and Study only stand when an answer names one of them on its own, so a student doesn't get Career.
+function suggest(ans) {
+  const score = {}, own = new Set();
+  QUIZ.forEach((x, i) => ans[i].forEach((k) => {
+    const names = x.a[k][1];
+    if (names.includes("Career") !== names.includes("Study")) names.forEach((n) => own.add(n));
+    names.forEach((n, j) => { score[n] = (score[n] ?? 0) + x.w - j * .1; });
+  }));
+  for (const n of ["Career", "Study"]) if (!own.has(n) && (own.has("Career") || own.has("Study"))) delete score[n];
+  const ranked = Object.keys(score).sort((a, b) => score[b] - score[a]);
+  for (const n of ["Rest", "Friends", "Health", "Family", "Fun"]) if (!ranked.includes(n)) ranked.push(n);
+  const planets = ranked.slice(0, 4), swaps = ranked.slice(4, 8);
+  const off = [...ans[1], ...ans[2].map((k) => k + 100)].flatMap((k) => k >= 100 ? QUIZ[2].a[k - 100][1] : QUIZ[1].a[k][1]);
+  return { planets, swaps, focus: [...new Set([...off, ...planets])].filter((n) => planets.includes(n)).slice(0, 2) };
+}
+
+const fmt = (m) => m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m % 60}` : `${m / 60} hr`;
 
 let root = null, ui = null, go = null, hooks = {};
-let step = 0, shown = -1, picked = [], thought = null, flying = false, name = "", day = 0, ownOpen = false, draft = "", ex = 0;
-let timers = [], moving = 0, drawn = "", lastAt = {};
+let step = 0, shown = -1, picked = [], focus = [], gave = { name: null, min: 0 }, thought = null, phase = "", name = "", day = 0, ownOpen = false, draft = "", ex = 0;
+let affOn = true, affDaily = 1, quiz = null, hinted = [], demo = { id: null, t0: 0, tick: 0 };
+const STOP = `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.5"/></svg>`;
+let timers = [], moving = 0, lastAt = {}, drawnPlanets = "";
 
 // Called on every render while set-up isn't done. It only builds the screen once, so saving elsewhere never restarts it.
 export function show(app, h) {
   hooks = h;
   if (root && app.contains(root)) return;
   const s = store.get();
-  // Someone who picked planets on the old set-up keeps them and carries on from their name.
+  // Someone who picked planets on an older set-up keeps them and carries on from the look-back day.
   picked = s.pillars.map((p) => p.name);
-  step = picked.length ? STEPS.findIndex((x) => x.id === "name") : 0;
-  thought = null; flying = false; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; shown = -1; drawn = ""; lastAt = {};
+  focus = s.pillars.filter((p) => p.focus).map((p) => p.name);
+  step = picked.length ? at("day") : 0;
+  gave = { name: null, min: 0 }; thought = null; phase = ""; name = s.name; day = s.lookDay ?? 0; ownOpen = false; draft = ""; quiz = null; hinted = []; affOn = s.affirm !== false; affDaily = Math.max(1, s.affirmDaily ?? 1); shown = -1; lastAt = {}; drawnPlanets = "";
   app.innerHTML = `<section class="born" aria-label="Welcome">
     <div class="sky-wrap"><div class="b-clouds"></div><div class="b-sky"></div></div>
     <div class="b-ui"></div>
     <button type="button" class="b-go" aria-label="Go on"></button></section>`;
   root = app.querySelector(".born"); ui = root.querySelector(".b-ui"); go = root.querySelector(".b-go");
-  go.addEventListener("click", (e) => { e.stopPropagation(); if (ready()) next(step + 1); });
-  // During the first breath, a tap anywhere moves on.
-  root.addEventListener("click", () => { if (STEPS[step].id === "hello") next(step + 1); });
+  go.addEventListener("click", (e) => { e.stopPropagation(); if (ready()) onSun(); });
   addEventListener("resize", placeGo);
   render();
   drawSky();
 }
 
 const ready = () => !!ui.querySelector("[data-ready]");
-const skyKey = () => picked.join() + "|" + (thought ? thought.kind + thought.text : "");
 const pid = (n) => "w" + n.toLowerCase().replace(/[^a-z0-9]/g, "");
+const myPillars = () => picked.map((n, i) => ({ id: pid(n), name: n, tint: TINTS[i], focus: focus.includes(n) }));
+const id = () => STEPS[step].id;
+const nameOf = (p) => myPillars().find((x) => x.id === p)?.name ?? "";
 
-// The real sky. Planets that moved slide over from where they were; a new one grows in, and once it has settled
-// its name fades in letter by letter to form its ring. The clouds are their own layer, so this never resets them.
-function drawSky({ born = null, arriving = null, from = null } = {}) {
-  const pillars = picked.map((n, i) => ({ id: pid(n), name: n, tint: TINTS[i], focus: false }));
-  const at = layout(pillars), changed = skyKey().split("|")[0] !== drawn.split("|")[0];
+// Tapping the sun (or the word under it): usually "go on". On "see", the first tap opens your week.
+function onSun() {
+  if (id() === "see" && phase !== "open") { phase = "open"; render(); return; }
+  next(step + 1);
+}
+
+/* ---------- Your sky ---------- */
+
+// Planets that moved slide over from where they were; a new one grows in, then its name fades in letter by letter.
+function drawSky({ born = null, arriving = null, from = null, words = true } = {}) {
+  const pillars = myPillars();
+  const where = layout(pillars), key = pillars.map((p) => p.id + p.focus).join(), changed = key !== drawnPlanets;
   const sky = root.querySelector(".b-sky");
-  sky.innerHTML = renderSky({ pillars, thoughts: thought ? [thought] : [], arriving, from, labels: store.get().test.labels !== false });
+  sky.innerHTML = renderSky({ pillars, thoughts: thought ? [thought] : [], runningId: demo.id, arriving, from, labels: words && store.get().test.labels !== false });
   fitTags(sky);
   for (const p of pillars) {
     const g = sky.querySelector(`[data-orbit="${p.id}"]`);
     if (p.id === born) g.classList.add("b-new");
     else if (lastAt[p.id] && !still()) {
       g.style.transition = "none";
-      g.style.translate = `${lastAt[p.id].x - at[p.id].x}px ${lastAt[p.id].y - at[p.id].y}px`;
+      g.style.translate = `${lastAt[p.id].x - where[p.id].x}px ${lastAt[p.id].y - where[p.id].y}px`;
       requestAnimationFrame(() => requestAnimationFrame(() => { g.style.transition = ""; g.style.translate = "0px 0px"; }));
     }
   }
-  lastAt = at; drawn = skyKey();
+  lastAt = where; drawnPlanets = key;
   startSpin(sky);
-  if (changed && !still()) {
+  if (changed && born && !still()) {
     const rings = sky.querySelectorAll(".rings");
     rings.forEach((r) => r.classList.add("b-wait"));
-    const k = pillars.findIndex((p) => p.id === born), per = k < 0 ? 1 : pillars[k].name.replace(/ /g, "").length + 1;
-    const letters = k < 0 ? [] : [...sky.querySelectorAll(`.ring[data-k="${k}"]`)].flatMap((g) => [...g.children].map((el, i) => [el.firstElementChild, i % per]));
+    const k = pillars.findIndex((p) => p.id === born), per = pillars[k].name.replace(/ /g, "").length + 1;
+    const letters = [...sky.querySelectorAll(`.ring[data-k="${k}"]`)].flatMap((g) => [...g.children].map((el, i) => [el.firstElementChild, i % per]));
     letters.forEach(([el]) => { el.style.opacity = 0; });
     setTimeout(() => {
       rings.forEach((r) => r.classList.remove("b-wait"));
       letters.forEach(([el, i]) => { el.style.transition = `opacity .6s ease ${i * 90}ms`; el.style.opacity = 1; });
     }, 1300);
   }
-  sky.querySelectorAll("[data-planet]").forEach((h) => h.addEventListener("click", () => {
-    if (STEPS[step].id !== "pick") return;
-    const p = pillars.find((x) => x.id === h.dataset.planet);
-    picked = picked.filter((n) => n !== p.name);
-    render(); drawSky();
-  }));
+  sky.querySelectorAll("[data-planet]").forEach((h) => h.addEventListener("click", () => tapPlanet(h.dataset.planet)));
+  if (id() === "focus") pillars.filter((p) => p.focus).forEach((p) => sky.querySelector(`[data-orbit="${p.id}"]`)?.classList.add("hot"));
+  if (id() === "time" && gave.name) markTarget(pid(gave.name));
   placeGo();
 }
 
-// The tap target sits over the sun, wherever the sun lands on this screen.
-function placeGo() {
-  const p = skyPoint("sun");
-  if (p && go) { go.style.left = `${p.x}px`; go.style.top = `${p.y}px`; root.style.setProperty("--sy", `${p.y}px`); }
-  const low = skyPoint("below");
-  if (low && root) root.style.setProperty("--below", `${low.y}px`);
+function tapPlanet(p) {
+  const n = nameOf(p);
+  if (id() === "pick" && quiz && !quiz.pick) return;
+  if (id() === "pick" && quiz?.pick && !quiz.pick.swaps.includes(n)) quiz.pick.swaps.unshift(n);
+  if (id() === "pick") { picked = picked.filter((x) => x !== n); focus = focus.filter((x) => x !== n); render(); drawSky(); }
+  else if (id() === "focus") toggleFocus(n);
+  else if (id() === "time" && !phase) startDemo(p);
+  else if (id() === "time" && phase === "told") { gave.name = n; gave.min = gave.min || 60; render(); drawSky(); }
 }
 
-const hint = () => `<p class="b-hint" data-ready>Tap the light when you’re ready.</p>`;
+// The practice timer: the same zoom and count as a real one. It isn't saved (under a minute never is).
+function startDemo(p) {
+  demo = { id: p, t0: performance.now(), tick: 0 };
+  phase = "run"; root.classList.add("timing", "zoomed");
+  render(); drawSky(); zoomTo(p);
+  const show = () => {
+    const sec = Math.floor((performance.now() - demo.t0) / 1000), el = ui.querySelector("[data-run]");
+    if (el) el.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  };
+  demo.tick = setInterval(show, 250);
+}
+function stopDemo() {
+  clearInterval(demo.tick);
+  ui.querySelector(".running")?.classList.add("leave");
+  root.classList.remove("timing", "zoomed"); zoomTo(null);
+  setTimeout(() => { demo.id = null; phase = "told"; render(); drawSky(); }, still() ? 0 : 1000);
+}
 
-function screen(id) {
-  switch (id) {
+// A picker wheel like the iPhone's: rows curve away above and below the soft band, as if on a drum.
+// Scrolls and snaps; a tap on a row rolls to it; arrow keys work too.
+function drum(el, start, pick) {
+  const rows = [...el.children], ROW = 36, last = rows.length - 1;
+  const at = () => Math.max(0, Math.min(last, Math.round(el.scrollTop / ROW)));
+  let raf = 0, shown = -1;
+  const paint = () => {
+    raf = 0;
+    const mid = el.scrollTop / ROW;
+    rows.forEach((r, k) => {
+      const d = Math.max(-3, Math.min(3, k - mid));
+      r.style.transform = `rotateX(${(-d * 22).toFixed(1)}deg) scale(${(1 - Math.abs(d) * .06).toFixed(3)})`;
+      r.style.opacity = (1 - Math.abs(d) * .28).toFixed(2);
+    });
+    const i = at();
+    if (i !== shown) {
+      shown = i; rows.forEach((r, k) => r.classList.toggle("on", k === i));
+      el.setAttribute("aria-valuenow", String(i)); el.setAttribute("aria-valuetext", rows[i].textContent);
+      pick(+rows[i].dataset.len);
+    }
+  };
+  const go = (i, smooth) => el.scrollTo({ top: Math.max(0, Math.min(last, i)) * ROW, behavior: smooth && !still() ? "smooth" : "auto" });
+  el.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+  el.addEventListener("click", (e) => { const r = e.target.closest("[data-len]"); if (r) go(rows.indexOf(r), true); });
+  el.addEventListener("keydown", (e) => { const d = { ArrowUp: -1, ArrowDown: 1 }[e.key]; if (d) { e.preventDefault(); go(at() + d, true); } });
+  go(start); paint();
+}
+
+function toggleFocus(n) {
+  if (focus.includes(n)) focus = focus.filter((x) => x !== n);
+  else focus = [...focus, n].slice(-2);
+  render(); drawSky();
+}
+
+// The tap target sits over the sun, wherever the sun lands on this screen.
+// Measured where the sky rests, even while it's slid up for the questions (or sliding back down).
+function placeGo() {
+  const wrap = root?.querySelector(".sky-wrap"), lift = wrap ? new DOMMatrix(getComputedStyle(wrap).transform).m42 : 0;
+  const p = skyPoint("sun");
+  if (p && go) { go.style.left = `${p.x}px`; go.style.top = `${p.y - lift}px`; root.style.setProperty("--sy", `${p.y - lift}px`); }
+  const low = skyPoint("below");
+  if (low && root) root.style.setProperty("--below", `${low.y - lift}px`);
+}
+
+/* ---------- Screens ---------- */
+
+// The way on: a word to tap (the sun works too).
+const onward = (words = "Go on", gold = false) => `<button type="button" class="b-next${gold ? " gold" : ""}" data-ready data-next>${words}</button>`;
+const chip = (attr, label, on) => `<button type="button" class="b-chip" ${attr} aria-pressed="${!!on}">${esc(label)}</button>`;
+
+// The quiz happens in the sky like the rest of set-up: no boxes. Answers rise up from below and float as words.
+function quizScreen() {
+  const x = `<button type="button" class="b-x" data-qstop aria-label="Close">×</button>`;
+  const rise = quiz.fresh ? " b-pull" : ""; quiz.fresh = false;
+  if (quiz.q < QUIZ.length) {
+    const it = QUIZ[quiz.q], mine = quiz.ans[quiz.q], last = quiz.q === QUIZ.length - 1;
+    // A quiet list: the sun moves up out of the way, the answers sit in plain rows with a tick on the right.
+    return `${x}<div class="b-say b-top b-high b-qq"><div class="b-dots" aria-label="${quiz.q + 1} of ${QUIZ.length}">${QUIZ.map((_, i) => `<i class="${i <= quiz.q ? "on" : ""}"></i>`).join("")}</div>
+        <h2>${it.q}</h2><p class="b-note">${it.one ? "Pick one." : "Pick any."}</p></div>
+      <div class="b-list${rise}" role="group" aria-label="${it.q}">${it.a.map(([l], k) => `<button type="button" data-qa="${k}" aria-pressed="${mine.includes(k)}" style="--i:${k}"><span>${esc(l)}</span><i aria-hidden="true"></i></button>`).join("")}</div>
+      <div class="b-qfoot b-qbar">${quiz.q ? `<button type="button" class="b-quiet" data-qback>Back</button>` : `<span></span>`}
+        ${mine.length ? `<button type="button" class="b-next" data-qnext>${last ? "See my sky" : "Next"}</button>` : `<button type="button" class="b-quiet" data-qnext>Skip</button>`}<span></span></div>`;
+  }
+  // The suggestion is the sky itself: the planets are already there. Tap one to take it out, or add another below.
+  const r = quiz.pick, n = picked.length, left = r.swaps.filter((w) => !picked.includes(w));
+  const f = focus.length === 2 ? `${esc(focus[0])} and ${esc(focus[1])} sit either side of you, as your focus. ` : "";
+  return `${x}<div class="b-say b-top b-high"><h2>Here’s a sky that might fit.</h2><p>${f}</p><p class="b-note">Tap a planet to take it out.</p></div>
+    <div class="b-say b-low b-below b-qa">
+      ${left.length && n < MAX_PILLARS ? `<p class="b-or">Or add</p><div class="b-words">${left.map((w) => `<button type="button" data-qin="${esc(w)}">${esc(w)}</button>`).join("")}</div>` : ""}
+      <div class="b-qfoot"><button type="button" class="b-quiet" data-qagain>Start again</button>
+        ${n >= MIN_PILLARS ? `<button type="button" class="b-next gold" data-quse>Use these</button>` : `<span class="b-note">${MIN_PILLARS - n} more, at least.</span>`}<span></span></div>
+    </div>`;
+}
+
+function screen(s) {
+  switch (s) {
     case "dark": return "";
-    case "hello": return `<div class="b-say b-top"><h2>Hi.</h2><p class="b-breath">Breathe in with the light…</p></div>`;
-    case "you": return `<div class="b-say b-under"><h2>This light is you.</h2><p>What matters to you will gather around it.</p></div>
-      <div class="b-say b-low">${hint()}</div>`;
+    case "promise": return `<div class="b-say b-top b-mid"><h2>Choose what matters.<br>Give it time.<br>See where your time really goes.</h2></div>
+      <div class="b-say b-low"><p class="b-note">A calm, week-by-week practice. It starts simple, and more opens up as you go.</p>${onward("Begin", true)}</div>`;
+    case "you": return `<div class="b-say b-under"><h2>This light is you.</h2><p>What matters to you will circle it.</p></div>
+      <div class="b-say b-low">${onward()}</div>`;
     case "pick": {
-      const n = picked.length, left = SUGGESTED.filter((w) => !picked.includes(w));
-      const sub = n === 0 ? "Pick three to five." : n < MIN_PILLARS ? `${MIN_PILLARS - n} more, at least.` : n < MAX_PILLARS ? "You can add more, or carry on." : "That’s five. The sky is full.";
-      return `<div class="b-say b-top b-high"><h2>What do you want to look after?</h2><p>${sub}</p>${n ? `<p class="b-note">Tap a planet to take it back.</p>` : ""}</div>
+      if (quiz) return quizScreen();
+      const n = picked.length, left = FRONT.filter((w) => !picked.includes(w));
+      const sub = hinted.length && n ? "From your answers. Change anything you like." : n === 0 ? "Pick three to five parts of life you want to look after." : n < MIN_PILLARS ? `${MIN_PILLARS - n} more, at least.` : n < MAX_PILLARS ? "You can add more, or go on." : "That’s five. The sky is full.";
+      return `<div class="b-say b-top b-high"><h2>What’s been missing lately?</h2><p>Each one becomes a planet. Your time and your thoughts will gather around them.</p><p class="b-note">${sub}${n ? " Tap a planet to take it back." : ""}</p></div>
         <div class="b-say b-low b-below">
           ${n < MAX_PILLARS ? `<div class="b-words">${left.map((w) => `<button type="button" data-pick="${esc(w)}">${esc(w)}</button>`).join("")}</div>
           ${ownOpen ? `<form class="b-own" data-own><input id="b-own" maxlength="${MAX_NAME}" placeholder="Your own" autocomplete="off" aria-label="Your own"><button type="submit" class="b-quiet">Add</button></form>`
                     : `<button type="button" class="b-quiet" data-ownopen>Something else</button>`}` : ""}
-          ${n >= MIN_PILLARS ? hint() : ""}
-        </div>`;
+          ${n === 0 ? `<button type="button" class="b-quiet" data-quiz>Need help choosing?</button>` : ""}
+        </div>
+        <div class="b-say b-low">${n >= MIN_PILLARS ? onward() : ""}</div>`;
+    }
+    case "focus": return `<div class="b-say b-top"><h2>Which two need you most right now?</h2><p>Tap two planets. They’ll sit either side of you.</p><p class="b-note">${hinted.length && focus.length === 2 && focus.every((f) => hinted.includes(f)) ? "These two came from your answers. Tap to change." : "Your focus for now. You can change it any time."}</p></div>
+      <div class="b-say b-low">${focus.length === 2 ? onward() : `<p class="b-note">${focus.length ? "One more." : ""}</p>`}</div>`;
+    // Give time: first the real timer, tried once (the sky zooms into the planet and the time counts up, just like at
+    // home), then the other way: telling it afterwards, with today's real time.
+    case "time": {
+      if (phase === "run") {
+        const p = myPillars().find((x) => x.id === demo.id);
+        return `<div class="b-say b-top"><p class="b-note">This is a timer. Stop it whenever you like.</p></div>
+          <div class="running enter" style="--c:${p.tint}"><p class="rl"><i aria-hidden="true"></i>${esc(p.name)}</p>
+          <p class="big" data-run aria-label="Time so far">0:00</p>
+          <button type="button" class="stop" data-stopdemo aria-label="Stop timer">${STOP}</button></div>`;
+      }
+      if (phase !== "told") return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time.</p><p class="b-note">Try it now.</p></div>`;
+      // Told afterwards: tap the planet (it gets a thin gold ring), then roll how long, then "Add it".
+      return `<div class="b-say b-top"><h2>Or tell it afterwards.</h2><p>${gave.name ? "About how long?" : "Tap the planet you gave time to lately."}</p></div>
+      ${gave.name ? `<div class="b-say b-wheelw"><div class="b-band" aria-hidden="true"></div>
+        <div class="b-wheel" role="slider" tabindex="0" aria-label="About how long" aria-valuemin="0" aria-valuemax="${LENGTHS.length - 1}">
+        ${LENGTHS.map((m) => `<div data-len="${m}">${fmt(m)}</div>`).join("")}</div></div>
+      <div class="b-say b-low"><button type="button" class="b-next" data-add>Add it</button></div>` : ""}`;
+    }
+    case "see": {
+      if (phase !== "open") return `<div class="b-say b-top"><h2>Tap the sun any time to see your week.</h2><p>Try it now.</p></div>
+        <div class="b-say b-low">${onward("Show me")}</div>`;
+      const rows = myPillars().map((p) => [p, p.name === gave.name ? gave.min : 0]), most = Math.max(60, ...rows.map(([, m]) => m));
+      return `<div class="b-week" role="region" aria-label="Your week"><h2>Your week</h2>
+        ${rows.map(([p, m]) => `<div class="b-wrow"><span>${esc(p.name)}</span><i style="--w:${m / most};--c:${p.tint}"></i><b>${m ? fmt(m) : ""}</b></div>`).join("")}
+        <p class="b-note">${gave.min ? "There’s your time. No targets, just what happened." : "Nothing yet. It fills in as you give time. No targets, just what happened."}</p>
+        ${onward()}</div>`;
     }
     case "thought": {
-      if (thought && !flying) {
-        // A thought that sounds heavy gets no question about its kind: one calm line, and someone to talk to.
-        if (thought.heavy) return `<div class="b-say b-top"><p class="b-quote">“${esc(thought.text)}”</p><h2>Thank you for writing that down.</h2>
+      if (phase === "flying") return "";
+      // A thought that sounds heavy lands quietly: one calm line, and someone to talk to. It isn't asked anything.
+      if (phase === "landed" && thought.heavy) return `<div class="b-say b-top"><p class="b-quote">“${esc(thought.text)}”</p><h2>Thank you for writing that down.</h2>
           <p>If it feels heavy right now, someone’s there to talk to, any time.</p></div>
-          <div class="b-say b-low"><button type="button" class="b-quiet" data-support>Talk to someone</button>${hint()}</div>`;
-        return `<div class="b-say b-top"><p class="b-quote">“${esc(thought.text)}”</p><h2>That feels like ${A_KIND[thought.kind]}.</h2><p>Each kind has its own shape and colour. Is that right?</p></div>
-          <div class="b-say b-low"><div class="b-kinds" role="group" aria-label="What kind of thought">${["kind", "worry", "want"].map((k) =>
-            `<button type="button" class="k-${k}" data-kind="${k}" aria-pressed="${thought.kind === k}">${star(k)}${KIND_LABEL[k]}</button>`).join("")}</div>
-          <p class="b-note">Tap another to change it.</p>${hint()}</div>`;
+          <div class="b-say b-low"><button type="button" class="b-quiet" data-support>Talk to someone</button>${onward()}</div>`;
+      if (phase === "landed") {
+        const where = thought.pillarId ? `It sits by ${esc(nameOf(thought.pillarId))}.` : "It floats free for now.";
+        return `<div class="b-say b-top"><p class="b-aff">“${esc(thought.aff)}”</p><p class="b-note">${KIND_LABEL[thought.kind]}. ${where}</p></div>
+          <div class="b-say b-low">${onward()}</div>`;
       }
       const k = draft.trim() ? guessKind(draft) : null;
-      return `<form class="b-card" data-catch><label for="b-t">What’s on your mind right now?</label>
+      return `<form class="b-card" data-catch><label for="b-t">Anything on your mind?</label>
         <div class="b-row"><textarea id="b-t" rows="2" maxlength="120" placeholder="${esc(EXAMPLES[ex % EXAMPLES.length])}">${esc(draft)}</textarea>
         <button type="submit" class="b-send" aria-label="Add to the sky" ${draft.trim() ? "" : "disabled"}><i>${star("kind")}</i></button></div>
         <p class="b-guess">${k ? `${star(k)} ${KIND_LABEL[k]}` : ""}</p></form>
-        <div class="b-say b-low"><button type="button" class="b-quiet" data-none>Nothing right now</button></div>`;
+        <p class="b-why">When something’s on your mind, catch it as a star.</p>`;
     }
-    case "name": return `<div class="b-say b-top"><h2>What should your sky call you?</h2><p>Only this phone will know.</p>
-      <input class="b-name" id="b-name" maxlength="24" autocomplete="given-name" placeholder="Tap to write your name" value="${esc(name)}" aria-label="Your name"></div>
-      <div class="b-say b-low">${hint()}</div>`;
-    case "day": return `<div class="b-say b-top"><h2>Once a week, ten quiet minutes to look back.</h2><p>Which day suits you?</p></div>
-      <div class="b-say b-low"><div class="b-days" role="radiogroup" aria-label="Look back day">${DAYS.map(([d, l], i) =>
+    // Kind words: what they are (built from their own thoughts), and a simple on or off. On unless they say otherwise.
+    // Words of affirmation: on or off, and how many a day arrive as notifications.
+    case "affirm": return `<div class="b-say b-top"><h2>Words of affirmation</h2><p>Kind lines from your own thoughts, to carry you through the day.</p></div>
+      <div class="b-say b-mid2"><label class="b-switch"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label>
+        ${affOn ? `<div class="b-often"><button type="button" class="b-step" data-often="-1" aria-label="Fewer" ${affDaily <= 1 ? "disabled" : ""}>−</button><span aria-live="polite">${notify.oftenWords(affDaily)}</span><button type="button" class="b-step" data-often="1" aria-label="More" ${affDaily >= notify.AFFIRM_MAX ? "disabled" : ""}>+</button></div>` : ""}</div>
+      <div class="b-say b-low">${onward()}</div>`;
+    case "day": return `<div class="b-say b-top"><h2>Once a week, a quiet look back.</h2><p>Where your time went. What helped. One small thing for the week ahead.</p>
+        <p class="b-note">It opens on your day and waits until you’re ready.</p></div>
+      <div class="b-say b-low"><p class="b-note">Which day suits you?</p><div class="b-days" role="radiogroup" aria-label="Look back day">${DAYS.map(([d, l], i) =>
         `<button type="button" role="radio" aria-label="${d}" aria-checked="${i === day}" data-day="${i}">${l}</button>`).join("")}</div>
-        <p class="b-note">${DAYS[day][0]}s. You can change it any time.</p>${hint()}</div>`;
+        <p class="b-note">${DAYS[day][0]}s. You can change it any time.</p>${onward()}</div>`;
+    case "name": return `<div class="b-say b-top"><h2>What should your sky call you?</h2>
+      <input class="b-name" id="b-name" maxlength="24" autocomplete="given-name" placeholder="Tap to write your name" value="${esc(name)}" aria-label="Your name"></div>
+      <div class="b-say b-low">${onward()}</div>`;
     case "care": return `<div class="b-say b-top"><h2>One last thing.</h2><p>This isn’t therapy. If things ever feel heavy, someone’s there to talk to, any time. You’ll always find them in Record.</p></div>
-      <div class="b-say b-low">${hint()}</div>`;
+      <div class="b-say b-low">${onward("Begin", true)}</div>`;
   }
 }
 
@@ -158,9 +352,21 @@ function render() {
   root.dataset.step = s.id;
   root.style.setProperty("--sun", s.sun);
   root.style.setProperty("--clouds", s.clouds);
-  root.classList.toggle("b-breathing", s.id === "hello" && !still());
   ui.classList.toggle("b-enter", shown !== step); shown = step;
   ui.innerHTML = screen(s.id);
+  // While answering questions the sky slides up so the sun sits just under the question, and the list fills below.
+  const asking = !!(quiz && !quiz.pick && s.id === "pick");
+  if (asking) root.style.setProperty("--qsun", `${ui.querySelector(".b-qq").getBoundingClientRect().bottom + 48}px`);
+  root.classList.toggle("b-quizzing", asking);
+  // The wheel needs room under the planets: on shorter screens the sky lifts just enough.
+  // The same goes for the switch and its choices on the words-of-affirmation page.
+  const under = ui.querySelector(".b-wheelw") ? 16 + 180 : ui.querySelector(".b-mid2") ? 24 + ui.querySelector(".b-mid2").offsetHeight : 0;
+  if (under) {
+    const below = parseFloat(getComputedStyle(root).getPropertyValue("--below")) || innerHeight * .62;
+    const room = innerHeight - innerHeight * .05 - 60;
+    root.style.setProperty("--lift", `${Math.max(0, below + under - room)}px`);
+  }
+  root.classList.toggle("b-lifted", !!under);
   go.classList.toggle("ready", ready());
   wire(s.id);
 }
@@ -168,28 +374,58 @@ function render() {
 // Moving on: the words fade out, then the next ones fade in. The sky stays, and keeps changing slowly underneath.
 function next(to) {
   if (to >= STEPS.length) return finish();
-  if (to === step) return;
   timers.forEach(clearTimeout); timers = [];
   ui.classList.add("b-leaving");
   go.classList.remove("ready");
+  markTarget(null);
   clearTimeout(moving);
   moving = setTimeout(() => {
-    step = to;
+    step = to; phase = "";
+    // Help choosing also suggested a focus: those two start lit, and a tap changes them.
+    if (id() === "focus" && !focus.length) focus = hinted.filter((x) => picked.includes(x)).slice(0, 2);
     ui.classList.remove("b-leaving");
     render();
-    if (skyKey() !== drawn) drawSky();
+    drawSky();
   }, still() ? 0 : 700);
 }
 
-function wire(id) {
-  if (id === "dark") timers.push(setTimeout(() => next(1), still() ? 300 : 1800));
-  if (id === "hello") {
-    // The words follow the breath: in for about four seconds, out for about five. Two breaths, then on.
-    const p = ui.querySelector(".b-breath"), say = (t) => { p.classList.add("b-swap"); timers.push(setTimeout(() => { p.textContent = t; p.classList.remove("b-swap"); }, 500)); };
-    [[4000, "…and out as it settles."], [9000, "Again. Breathe in…"], [13000, "…and out."], [18000, null]].forEach(([ms, t]) =>
-      timers.push(setTimeout(() => t ? say(t) : next(step + 1), ms)));
-  }
+function wire(s) {
+  if (s === "dark") timers.push(setTimeout(() => next(1), still() ? 300 : 1600));
+  ui.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", onSun));
   ui.querySelectorAll("[data-pick]").forEach((b) => b.addEventListener("click", () => add(b.dataset.pick)));
+  // The sun rises first; the list waits for it (see .b-rising in the styles).
+  const startQuiz = () => {
+    quiz = { q: 0, ans: QUIZ.map(() => []), pick: null, fresh: true }; picked = []; focus = [];
+    root.classList.add("b-rising"); setTimeout(() => root.classList.remove("b-rising"), 2000);
+    render(); drawSky();
+  };
+  ui.querySelector("[data-quiz]")?.addEventListener("click", startQuiz);
+  ui.querySelector("[data-qagain]")?.addEventListener("click", startQuiz);
+  // Closing keeps whatever planets are showing; the list is there to change them.
+  ui.querySelector("[data-qstop]")?.addEventListener("click", () => { if (quiz.pick) hinted = [...focus]; focus = []; quiz = null; render(); drawSky(); });
+  ui.querySelector("[data-qback]")?.addEventListener("click", () => { quiz.q--; render(); });
+  ui.querySelectorAll("[data-qa]").forEach((b) => b.addEventListener("click", () => {
+    const k = +b.dataset.qa, mine = quiz.ans[quiz.q];
+    quiz.ans[quiz.q] = QUIZ[quiz.q].one ? (mine.includes(k) ? [] : [k]) : mine.includes(k) ? mine.filter((x) => x !== k) : [...mine, k];
+    render();
+  }));
+  // The last answer: the suggested planets are born one after another, the focus two either side of the sun.
+  ui.querySelector("[data-qnext]")?.addEventListener("click", () => {
+    quiz.q++;
+    if (quiz.q < QUIZ.length) { quiz.fresh = true; render(); return; }
+    quiz.pick = suggest(quiz.ans); quiz.fresh = true;
+    const { planets, focus: f } = quiz.pick;
+    render();
+    const bloom = (list) => {
+      if (!quiz?.pick || id() !== "pick") return;
+      if (!list.length) { focus = f.filter((x) => picked.includes(x)); render(); drawSky(); return; }
+      add(list[0]); setTimeout(() => bloom(list.slice(1)), still() ? 0 : 600);
+    };
+    bloom(planets);
+  });
+  ui.querySelectorAll("[data-qin]").forEach((b) => b.addEventListener("click", () => add(b.dataset.qin)));
+  // Yes: on to choosing focus, with the suggested two already lit.
+  ui.querySelector("[data-quse]")?.addEventListener("click", () => { hinted = [...focus]; quiz = null; next(step + 1); });
   ui.querySelector("[data-ownopen]")?.addEventListener("click", () => { ownOpen = true; render(); ui.querySelector("#b-own")?.focus(); });
   ui.querySelector("[data-own]")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -197,6 +433,23 @@ function wire(id) {
     if (!v || picked.some((x) => x.toLowerCase() === v.toLowerCase())) return;
     ownOpen = false; add(v);
   });
+  ui.querySelectorAll("[data-gave]").forEach((b) => b.addEventListener("click", () => { gave.name = b.dataset.gave; render(); drawSky(); }));
+  // Choosing how long is the last tap here: the choice shows for a moment, then it moves on by itself.
+  ui.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => {
+    gave.min = +b.dataset.min; render();
+    timers.push(setTimeout(() => next(step + 1), still() ? 400 : 1200));
+  }));
+  ui.querySelector("#b-aff")?.addEventListener("change", (e) => { affOn = e.target.checked; render(); });
+  // Choosing to have them sent asks the phone for permission straight away (it has to come from a tap).
+  ui.querySelectorAll("[data-often]").forEach((b) => b.addEventListener("click", () => {
+    affDaily = Math.max(1, Math.min(notify.AFFIRM_MAX, affDaily + +b.dataset.often)); render();
+    if (affDaily && notify.supported() && Notification.permission === "default") notify.enable();
+  }));
+  const wh = ui.querySelector(".b-wheel");
+  if (wh) drum(wh, Math.max(0, LENGTHS.indexOf(gave.min)), (m) => { gave.min = m; });
+  ui.querySelector("[data-add]")?.addEventListener("click", () => next(step + 1));
+  ui.querySelector("[data-stopdemo]")?.addEventListener("click", stopDemo);
+  ui.querySelector("[data-skip]")?.addEventListener("click", () => { gave = { name: null, min: 0 }; next(step + 1); });
   const ta = ui.querySelector("#b-t");
   if (ta) {
     // Example thoughts drift through the empty space, one every few seconds.
@@ -215,17 +468,24 @@ function wire(id) {
       ta.blur();
       const svg = root.querySelector("svg.sky"), b = ui.querySelector(".b-send").getBoundingClientRect();
       const p = new DOMPoint(b.left + b.width / 2, b.top + b.height / 2).matrixTransform(svg.getScreenCTM().inverse());
-      const heavy = heaviness(text);
-      thought = { id: store.uid(), text, kind: guessKind(text), pillarId: null, status: "active", count: 1, seen: [now()], ...placeStar([]), createdAt: now(), helped: [], ...(heavy && { heavy }) };
-      draft = ""; flying = true;
+      const heavy = heaviness(text), kind = guessKind(text);
+      thought = { id: store.uid(), text, kind, pillarId: null, status: "active", count: 1, seen: [now()], ...placeStar([]), createdAt: now(), helped: [], ...(heavy && { heavy }) };
+      draft = ""; phase = "flying";
       ui.classList.add("b-leaving");
-      drawSky({ arriving: still() ? null : thought.id, from: { x: p.x, y: p.y } });
-      timers.push(setTimeout(() => { flying = false; ui.classList.remove("b-leaving"); shown = -1; render(); }, still() ? 0 : 2600));
+      // The star lands first. Then it drifts over to its likely planet, and its kind line fades in.
+      drawSky({ arriving: still() ? null : thought.id, from: { x: p.x, y: p.y }, words: false });
+      timers.push(setTimeout(() => {
+        if (!heavy) {
+          const home = guessHome(text, myPillars());
+          if (home) { thought.pillarId = home; thought.sortedAt = now(); }
+          thought.aff = affirm(text, kind, nameOf(home));
+        }
+        phase = "landed"; ui.classList.remove("b-leaving"); shown = -1; render(); drawSky();
+      }, still() ? 0 : 2600));
     });
   }
   ui.querySelector("[data-none]")?.addEventListener("click", () => { thought = null; draft = ""; next(step + 1); });
   ui.querySelector("[data-support]")?.addEventListener("click", () => hooks.support?.());
-  ui.querySelectorAll("[data-kind]").forEach((b) => b.addEventListener("click", () => { thought.kind = b.dataset.kind; render(); drawSky(); }));
   const nm = ui.querySelector("#b-name");
   nm?.addEventListener("input", () => { name = nm.value.trim(); });
   nm?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nm.blur(); } });
@@ -247,11 +507,21 @@ function finish() {
   setTimeout(() => {
     root = null;
     hooks.done?.();
+    let gaveId = null;
     store.update((s) => {
       const old = new Map(s.pillars.map((p) => [p.name, p]));
-      s.pillars = picked.map((n, i) => old.get(n) ?? { id: store.uid(), name: n, tint: TINTS[i], focus: false });
-      if (thought) s.thoughts.push(thought);
-      s.name = name.slice(0, 24); s.lookDay = day; s.setup = true;
+      s.pillars = picked.map((n, i) => ({ ...(old.get(n) ?? { id: store.uid(), name: n, tint: TINTS[i] }), focus: focus.includes(n) }));
+      if (thought) {
+        const { aff, ...t } = thought;
+        // The planet ids used during set-up become the real ones.
+        if (t.pillarId) t.pillarId = s.pillars.find((p) => pid(p.name) === t.pillarId)?.id ?? null;
+        if (!t.pillarId) delete t.sortedAt;
+        s.thoughts.push(t);
+      }
+      gaveId = gave.name && gave.min ? s.pillars.find((p) => p.name === gave.name)?.id : null;
+      s.name = name.slice(0, 24); s.lookDay = day; s.affirm = affOn; s.affirmDaily = affDaily; s.setup = true; s.setupAt = now();
+      s.hints = { sun: now(), ...(thought && { thought: now() }) };
     });
+    if (gaveId) store.addTime(gaveId, gave.min, 0);
   }, still() ? 0 : 700);
 }

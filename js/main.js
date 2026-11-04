@@ -1,11 +1,12 @@
 import * as store from "./store.js";
+import { affirm } from "./affirm.js";
 import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint } from "./sky.js";
+import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint, markTarget } from "./sky.js";
 import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
 import * as sort from "./sort.js";
 import * as look from "./lookback.js";
 import { due, times } from "./week.js";
-import { heaviness } from "./helps.js";
+import { heaviness, guessHome } from "./helps.js";
 import { weekHTML, recordHTML } from "./weekview.js";
 import * as notify from "./notify.js";
 import { TINTS, ACTIVITIES } from "./pillars.js";
@@ -46,6 +47,36 @@ function render() {
 // Set when set-up has just finished, so the home sky's greeting and dock fade in the first time.
 let justBorn = false;
 
+/* ---------- The first days: one quiet line under the greeting suggests the next thing ----------
+   Each suggestion stays until it's done, then the next one shows. Three days after set-up they stop for good,
+   done or not. After that, on a day when nothing has happened yet, the line asks one small question;
+   once anything happens that day, it goes quiet again. It never counts or mentions what was missed. */
+const HINT_DAYS = 3;
+const dayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const daysSince = (t) => Math.round((dayOf(now()) - dayOf(t)) / DAY);
+
+function hintLine(s) {
+  const h = s.hints ?? {};
+  if (s.setupAt && daysSince(s.setupAt) < HINT_DAYS) {
+    const loose = s.thoughts.filter((t) => t.status === "active" && !t.pillarId).length;
+    if (daysSince(s.setupAt) >= 1 && !h.timer) return "Welcome back. Tap a planet when you give it time.";
+    if (!h.timer) return "Tap a planet to start a timer, or to add time you gave.";
+    if (!h.sun) return "Tap the sun any time to see your week.";
+    if (!h.thought) return "When something’s on your mind, add it as a star.";
+    if (loose >= 3 && !h.sort) return "A few stars without a home. Sort them when you like.";
+    return null;
+  }
+  const today = dayOf(now());
+  const happened = s.running || s.sessions.some((x) => x.end >= today) || s.thoughts.some((t) => (t.seen ?? [t.createdAt]).some((v) => v >= today));
+  return happened ? null : "Anything on your mind?";
+}
+
+// Something from the first days has been done, so its suggestion moves on.
+function did(what) {
+  if (store.get().hints?.[what]) return;
+  store.update((s) => { s.hints = { ...s.hints, [what]: now() }; });
+}
+
 /* ---------- Home: the sky, and the dock with timers and actions ---------- */
 
 // Which timer the screen showed last time, so the running view only animates in when a timer has just started.
@@ -61,8 +92,7 @@ function renderHome(s) {
   const ready = due(s), calling = ready && ready.days <= 1 && !sorting;
   const sub = sorting && sort.left() ? `${sort.left()} to sort`
     : ready ? (calling ? "Your week is ready. Tap the sun when you are." : "Your week is still here, whenever you’re ready.")
-    : justBorn ? "Your sky. It grows with you."
-    : active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear";
+    : hintLine(s) ?? (active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear");
   const mine = s.intention && s.pillars.some((p) => p.id === s.intention.pillarId) ? s.intention : null;
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
   // Opening the app with a timer already running goes straight to the zoomed-in planet.
@@ -83,9 +113,9 @@ function renderHome(s) {
       <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
     <nav class="dock" aria-label="Actions">
       <div class="actions">
-        <button type="button" class="round" id="sort" aria-label="Sort">${ICON.sort}</button>
+        <button type="button" class="side" id="sort"><span class="round">${ICON.sort}</span><span class="lab">Sort</span></button>
         <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
-        <button type="button" class="round" id="record" aria-label="Record">${ICON.record}</button>
+        <button type="button" class="side" id="record"><span class="round">${ICON.record}</span><span class="lab">Record</span></button>
       </div>
     </nav></section>`;
   fitTags(app);
@@ -108,12 +138,13 @@ function renderHome(s) {
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
   });
   // While sorting, tapping a planet (or the sun) gives it the thought instead.
-  tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : openPillar(id));
-  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : ready && openLook());
+  tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : placing ? placeIt(id) : openPillar(id));
+  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : placing ? placeIt("me") : ready ? openLook() : openYou());
+  if (placing) markTarget(placing.guess);
   placeHome();
   app.querySelector("#intent")?.addEventListener("click", openIntention);
   app.querySelector("#record").addEventListener("click", openRecord);
-  app.querySelector("#sort").addEventListener("click", () => sort.open(toast));
+  app.querySelector("#sort").addEventListener("click", () => { did("sort"); sort.open(toast); });
   sort.afterRender();
   tappable("[data-star]", "star", openStar);
   app.querySelector("#catch").addEventListener("click", openCatch);
@@ -125,6 +156,7 @@ function start(pillarId, activity, minutes = 0) {
   const before = store.get().running, n = store.get().notify;
   // The length is remembered first, so starting the timer stays one smooth change on screen.
   if (n.len !== minutes) store.update((s) => { s.notify.len = minutes; });
+  did("timer");
   const ran = store.startTimer(pillarId, activity, minutes);
   if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
   // The first time a timer is given a length, ask once whether a nudge would help.
@@ -191,13 +223,13 @@ function openPillar(id) {
       ${notify.LENGTHS.map((m) => `<div data-len="${m}">${lenLabel(m)}</div>`).join("")}</div>
     <p class="hint">No end is fine too. The timer keeps counting either way.</p>`}
     <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
+    ${running ? "" : `<button type="button" class="ghost2 gave-btn" data-manual aria-expanded="false">I gave time</button>`}
     ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
     <div class="chips">${ideas.map((a) => `<button type="button" class="chip" data-idea="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}
-    <button type="button" class="link" data-manual aria-expanded="false">Forgot to start a timer? Add time</button>
     <form class="manual" hidden>
-      <fieldset><legend>How long?</legend><div class="chips">${[15, 30, 45, 60, 90].map((m, k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 1}">${formatTotal(m * 60000)}</button>`).join("")}</div></fieldset>
+      <fieldset><legend>About how long?</legend><div class="chips">${[["A bit", 15], ["Half an hour", 30], ["An hour", 60], ["An evening", 180]].map(([l, m], k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 2}">${l}</button>`).join("")}</div></fieldset>
       <fieldset><legend>When?</legend><div class="chips">${["Today", "Yesterday"].map((d, k) => `<button type="button" class="chip" data-ago="${k}" aria-pressed="${k === 0}">${d}</button>`).join("")}</div></fieldset>
-      <button type="submit" class="primary">Add time</button>
+      <button type="submit" class="primary">Add it</button>
     </form>`, p.tint);
   startSpin(document.body);
   tick();
@@ -205,7 +237,7 @@ function openPillar(id) {
   sheet.querySelector("[data-go]").addEventListener("click", () => { const m = len(); close(); running ? stop() : start(id, undefined, m); });
   sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { const m = len(); close(); start(id, b.dataset.idea, m); }));
   const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
-  toggle.addEventListener("click", () => {
+  toggle?.addEventListener("click", () => {
     form.hidden = !form.hidden;
     toggle.setAttribute("aria-expanded", String(!form.hidden));
     if (!form.hidden) form.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -220,6 +252,7 @@ function openPillar(id) {
     const min = +form.querySelector("[data-min][aria-pressed=true]").dataset.min;
     const ago = +form.querySelector("[data-ago][aria-pressed=true]").dataset.ago;
     store.addTime(id, min, ago);
+    did("timer");
     close();
     toast(`Added ${formatTotal(min * 60000)} to ${p.name}.`);
   });
@@ -406,9 +439,51 @@ function catchIt(text, kind, button) {
     arriveFrom = { x: p.x, y: p.y };
   }
   const heavy = heaviness(text);
+  did("thought");
   store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving, heavy);
   if (heavy) setTimeout(() => quietLine(heavy), still() ? 0 : 1800);
-  else if (eveningMoment()) setTimeout(offerEvening, still() ? 0 : 2200);
+  else setTimeout(() => askHome(arriving ?? store.get().thoughts.at(-1)?.id, text), still() ? 0 : 1900);
+}
+
+/* ---------- Giving a new thought a home: one optional tap, right after it lands ----------
+   The planet it most likely belongs to is softly highlighted. Tapping a planet (or the sun, if it's just about you)
+   sends the star over to circle it; "Not now", or tapping anything else, leaves it floating. A heavy thought is never asked. */
+let placing = null;
+function askHome(id, text) {
+  const s = store.get(), t = s.thoughts.find((x) => x.id === id);
+  if (!t) return;
+  // Kind words can be turned off (setup, or Settings); then there's no line at all.
+  const guess = guessHome(text, s.pillars), line = s.affirm !== false ? affirm(text, t.kind, pillarName(guess)) : "";
+  // Busy (sorting, or a timer running): just the kind line, quietly.
+  if (sort.active() || s.running || t.pillarId) return line && toast(`“${line}”`);
+  closeHome();
+  placing = { id, guess };
+  const el = document.createElement("div");
+  el.className = "placer";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", "Where does it belong?");
+  el.innerHTML = `<div class="pl-top">${line ? `<p class="pl-aff">“${esc(line)}”</p>` : ""}<h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
+    <button type="button" class="pl-skip" data-skip>Not now</button>`;
+  document.body.append(el);
+  document.querySelector(".home")?.classList.add("placing");
+  requestAnimationFrame(() => el.classList.add("in"));
+  markTarget(placing.guess);
+  el.querySelector("[data-skip]").addEventListener("click", () => closeHome(true));
+}
+function closeHome(after = false) {
+  document.querySelector(".placer")?.remove();
+  document.querySelector(".home")?.classList.remove("placing");
+  markTarget(null);
+  const was = placing; placing = null;
+  if (after && was && eveningMoment()) setTimeout(offerEvening, still() ? 0 : 600);
+}
+function placeIt(pid) {
+  const id = placing?.id;
+  closeHome(true);
+  if (!id) return;
+  did("sort");
+  store.sortThought(id, pid);
+  toast(pid === "me" ? "It’s just about you. It circles the sun." : `It has a place now, by ${pillarName(pid)}.`);
 }
 
 // A heavy thought gets one calm line under the sun: no alarm, no colour, and two ways to answer.
@@ -503,6 +578,21 @@ function placeHome() {
   if (words && low) words.style.top = `${low.y}px`;
 }
 addEventListener("resize", () => app.querySelector(".home") && placeHome());
+
+// Tapping the sun on any other day: your week so far, and when the look back is.
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function openYou() {
+  const s = store.get(), from = weekStart();
+  const rows = s.pillars.map((p) => [p, store.timeSince(p.id, from)]).filter(([, ms]) => ms >= 60000);
+  const active = s.thoughts.filter((t) => t.status === "active").length;
+  const look = DAY_NAMES[s.lookDay ?? 0];
+  openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Your week</h2><p>Since Monday</p></div>${CLOSE}</header>
+    <div class="wv-blk">${rows.length ? rows.map(([p, ms]) => `<div class="wv-row">${dotFor(p.id)}${esc(p.name)}<span>${formatTotal(ms)}</span></div>`).join("")
+      : `<p class="you-empty">No time given yet this week. Tap a planet when you start something.</p>`}</div>
+    <p class="you-line">${active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear"}</p>
+    <p class="you-line">${s.weeks.length ? `Your look back is on <b>${look}</b>.` : `Your first look back is on <b>${look}</b>. It opens Record.`}</p>`);
+  did("sun");
+}
 
 function openLook() {
   closeSheet();
@@ -615,7 +705,12 @@ function offerEvening() {
 
 function openNotify() {
   const n = store.get().notify, off = !notify.supported() || notify.blocked() ? "disabled" : "";
-  const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Notifications</h2></div>${CLOSE}</header>
+  const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Settings</h2></div>${CLOSE}</header>
+    <div class="nt-card"><label class="nt-row"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
+      <p class="nt-note">Kind lines from your own thoughts, to carry you through the day.</p>
+      <label class="nt-row nt-sub"><span>Sent each day</span><select class="nt-time" data-often>${Array.from({ length: notify.AFFIRM_MAX }, (_, k) => [k + 1, notify.oftenWords(k + 1)]).map(([k, l]) =>
+        `<option value="${k}" ${(store.get().affirmDaily ?? 1) === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    <p class="nt-head">Notifications</p>
     ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`
       : notify.blocked() ? `<p class="nt-why">Notifications are turned off for Intentionally in your phone’s Settings. Turn them on there, then come back.</p>` : ""}
     <div class="nt-card"><label class="nt-row"><span>Timer nudges</span><input type="checkbox" class="sw" role="switch" data-n="timer" ${n.timer ? "checked" : ""} ${off}></label>
@@ -627,6 +722,12 @@ function openNotify() {
       <label class="nt-row nt-sub"><span>Until</span><input type="time" class="nt-time" data-nt="q1" value="${n.quiet[1]}"></label></div>
     <p class="nt-foot">Your words never appear on your lock screen. No counts on the app icon, and we’ll never tell you you’ve missed anything.</p>
     <p class="nt-foot">More will arrive here as the rest of the app opens up.</p>`);
+  sheet.querySelector("[data-aff]").addEventListener("change", (e) => store.update((s) => { s.affirm = e.target.checked; }));
+  sheet.querySelector("[data-often]").addEventListener("change", async (e) => {
+    const k = +e.target.value;
+    if (k && notify.supported() && Notification.permission === "default") await notify.enable();
+    store.update((s) => { s.affirmDaily = k; });
+  });
   sheet.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("change", async () => {
     const on = b.checked, k = b.dataset.n;
     if (on && !await notify.enable()) { b.checked = false; return toast(notReady()); }

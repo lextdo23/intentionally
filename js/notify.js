@@ -4,11 +4,20 @@
 // The service sends an empty ping; the service worker here picks the words, so no thought ever leaves the phone.
 import * as store from "./store.js";
 import { now, DAY } from "./clock.js";
+import { affirm } from "./affirm.js";
 
 // The service's address. Empty until it has been set up (see push/README.md); until then nothing is sent.
 export const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 
 const STILL = 3 * 3600000;
+// When words of affirmation arrive: up to 10 a day, spread evenly from 9 am to 9 pm (one alone comes at 9 am).
+export const AFFIRM_MAX = 10;
+const affirmTimes = (n) => Array.from({ length: n }, (_, k) => {
+  const m = 9 * 60 + (n > 1 ? Math.round((k * 720) / (n - 1) / 5) * 5 : 0);
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+});
+// How a count reads: "Once a day", "Twice a day", "3 times a day"… (switching words of affirmation off is how none are sent).
+export const oftenWords = (n) => n <= 1 ? "Once a day" : n === 2 ? "Twice a day" : `${n} times a day`;
 // The lengths a timer can be given on the wheel (minutes, 0 = no end).
 export const LENGTHS = [0, 5, 10, 15, 20, 25, 30, 40, 45, 60, 90, 120];
 // "Your hour is", "Your 2 hours are", "Your 25 minutes are": the start of a "time is up" line.
@@ -47,7 +56,19 @@ function plan(s) {
     // Not on an evening a thought has already been left in the sky.
     const last = Math.max(0, ...s.thoughts.flatMap((t) => t.seen ?? [t.createdAt])) + shift;
     const at = nextAt(n.evening, Date.now(), last);
-    if (!quiet(at, n.quiet)) out.push({ at, text: "Anything on your mind before bed? Leave it in your sky.", daily: true });
+    if (!quiet(at, n.quiet)) out.push({ at, text: "Anything on your mind before bed? Leave it in your sky.", daily: true, kind: "evening" });
+  }
+  // Words of affirmation through the day: each one made from a thought still in their sky (never a heavy one),
+  // a different thought for each time. The thought itself never goes on the lock screen, only the kind line.
+  if (s.affirm !== false && s.affirmDaily > 0) {
+    const mine = s.thoughts.filter((t) => t.status === "active" && !t.heavy && t.kind);
+    affirmTimes(Math.min(AFFIRM_MAX, s.affirmDaily)).forEach((hhmm, k) => {
+      const at = nextAt(hhmm, Date.now(), 0);
+      if (quiet(at, n.quiet)) return;
+      const t = mine.length ? mine[(Math.floor(at / DAY) * AFFIRM_MAX + k) % mine.length] : null;
+      const name = t ? s.pillars.find((p) => p.id === t.pillarId)?.name ?? "" : "";
+      out.push({ at, text: t ? affirm(t.text, t.kind, name) : "Small steps still count.", daily: true, kind: "affirm" });
+    });
   }
   return out;
 }
@@ -81,7 +102,8 @@ let sent = "";
 export async function sync() {
   if (!ready()) return;
   const items = plan(store.get());
-  const body = { timerAt: items.find((i) => !i.daily)?.at ?? null, eveningAt: items.find((i) => i.daily)?.at ?? null };
+  const body = { timerAt: items.find((i) => !i.daily)?.at ?? null, eveningAt: items.find((i) => i.kind === "evening")?.at ?? null,
+    dailyAt: items.filter((i) => i.kind === "affirm").map((i) => i.at) };
   try {
     const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
     if (!sub) return;

@@ -104,7 +104,7 @@ export function recordHTML(s) {
   return `<header class="sh-head"><div><h2 id="sheet-title">Record</h2><p>Your weeks, and what helps you</p></div>
       <button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
     ${helps.length ? `<div class="wv-blk"><h4>What helps you</h4>${helps.map(([h, o]) => `<div class="wv-row">${pill(o.pid) ? dot(shade(pill(o.pid))) : ""}${esc(h)}<span>${times(o.n)}</span></div>`).join("")}</div>` : ""}
-    ${weeks.length ? weeks.map(page).join("") : `<p class="rc-empty">Your first look back will start this page.</p>`}
+    ${weeks.length ? weeks.map(page).join("") : `<p class="rc-empty">Your weeks, and what helps you, will gather here. It opens after your first look back on ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][s.lookDay ?? 0]}.</p>`}
     <button type="button" class="link" data-support>Need support?</button>
-    <button type="button" class="link" data-notify>Notifications</button>`;
+    <button type="button" class="link" data-notify>Settings</button>`;
 }

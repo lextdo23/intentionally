@@ -2,7 +2,10 @@
 // Colours are soft tints from one family, equally muted, so no pillar shouts louder than another.
 export const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9"];
 
-export const SUGGESTED = ["Friends", "Family", "Health", "Rest", "Career", "Study", "Creativity", "Money", "Home", "Love", "Fun", "Purpose"];
+// The few shown up front on day one: the parts of life most young workers and students name. The rest (and the
+// person's own words) are still there through "Need help choosing?" and "Something else".
+export const FRONT = ["Friends", "Family", "Health", "Rest", "Career", "Study", "Money", "Fun"];
+export const SUGGESTED = ["Friends", "Family", "Health", "Rest", "Career", "Study", "Creativity", "Money", "Home", "Love", "Fun", "Caring", "Faith", "Purpose"];
 
 // A few gentle ideas per suggested pillar, shown when you tap its planet. Pillars people name themselves have none.
 export const ACTIVITIES = {
@@ -17,6 +20,8 @@ export const ACTIVITIES = {
   Home: ["Tidy one space", "Laundry", "Cook", "Fix something"],
   Love: ["Quality time", "Date", "Write a note", "Talk properly"],
   Fun: ["Game", "Watch something", "Go out", "Play"],
+  Caring: ["Check in on someone", "Help with a task", "Time together", "Look after me too"],
+  Faith: ["Prayer or reflection", "A service", "Read", "Time with community"],
   Purpose: ["Volunteer", "Journal", "Think about goals", "Help someone"],
 };
 

@@ -23,7 +23,9 @@ export default {
       const body = await req.json().catch(() => null);
       if (!pushable(body?.endpoint)) return reply({ error: "bad request" }, 400);
       const later = (t) => Number.isFinite(t) && t > Date.now() - DAY && t < Date.now() + 8 * DAY ? t : null;
-      await env.PHONES.get(env.PHONES.idFromName(body.endpoint)).plan(body.endpoint, later(body.timerAt), later(body.eveningAt));
+      // Other daily times (words of affirmation): at most ten, each a time only.
+      const daily = (Array.isArray(body.dailyAt) ? body.dailyAt : []).slice(0, 10).map(later).filter(Boolean);
+      await env.PHONES.get(env.PHONES.idFromName(body.endpoint)).plan(body.endpoint, later(body.timerAt), later(body.eveningAt), daily);
       return reply({ ok: true });
     }
     return reply({ error: "not found" }, 404);
@@ -41,8 +43,8 @@ function pushable(endpoint) {
 
 // One per phone: holds its address and the next times, and wakes itself up when one is due.
 export class Phone extends DurableObject {
-  async plan(endpoint, timerAt, eveningAt) {
-    const p = { endpoint, timerAt, eveningAt, seen: Date.now() };
+  async plan(endpoint, timerAt, eveningAt, daily = []) {
+    const p = { endpoint, timerAt, eveningAt, daily, seen: Date.now() };
     await this.ctx.storage.put("plan", p);
     await this.wake(p);
   }
@@ -58,13 +60,20 @@ export class Phone extends DurableObject {
       while (p.eveningAt <= soon) p.eveningAt += DAY;
       if (!due) p.eveningAt = null;
     }
+    // Daily times work like the evening question: they repeat, and stop for a phone that hasn't opened the app lately.
+    p.daily = (p.daily ?? []).map((t) => {
+      if (t > soon) return t;
+      if (Date.now() - p.seen < QUIET_AFTER) due = true; else return null;
+      while (t <= soon) t += DAY;
+      return t;
+    }).filter(Boolean);
     if (due && await ping(this.env, p.endpoint)) return this.ctx.storage.deleteAll(); // the phone unsubscribed
     await this.ctx.storage.put("plan", p);
     await this.wake(p);
   }
 
   async wake(p) {
-    const next = Math.min(...[p.timerAt, p.eveningAt].filter(Boolean));
+    const next = Math.min(...[p.timerAt, p.eveningAt, ...(p.daily ?? [])].filter(Boolean));
     if (Number.isFinite(next)) await this.ctx.storage.setAlarm(next);
     else await this.ctx.storage.deleteAll();
   }
