@@ -294,7 +294,7 @@ function screen(s) {
       }
       if (phase !== "told") return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time.</p><p class="b-note">Try it now.</p></div>`;
       // Told afterwards: tap the planet (it gets a thin gold ring), then roll how long, then "Add it".
-      return `<div class="b-say b-top"><h2>Or tell it afterwards.</h2><p>${gave.name ? "About how long?" : "Tap the planet you gave time to today."}</p></div>
+      return `<div class="b-say b-top"><h2>Or tell it afterwards.</h2><p>${gave.name ? "About how long?" : "Tap the planet you gave time to lately."}</p></div>
       ${gave.name ? `<div class="b-say b-wheelw"><div class="b-band" aria-hidden="true"></div>
         <div class="b-wheel" role="slider" tabindex="0" aria-label="About how long" aria-valuemin="0" aria-valuemax="${LENGTHS.length - 1}">
         ${LENGTHS.map((m) => `<div data-len="${m}">${fmt(m)}</div>`).join("")}</div></div>
