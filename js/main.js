@@ -706,8 +706,8 @@ function offerEvening() {
 function openNotify() {
   const n = store.get().notify, off = !notify.supported() || notify.blocked() ? "disabled" : "";
   const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Settings</h2></div>${CLOSE}</header>
-    <div class="nt-card"><label class="nt-row"><span>Kind words</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
-      <p class="nt-note">A kind, believable line answering each thought you catch, made from what you wrote. Never for heavy thoughts.</p></div>
+    <div class="nt-card"><label class="nt-row"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
+      <p class="nt-note">A kind line, made from your own thoughts.</p></div>
     <p class="nt-head">Notifications</p>
     ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`
       : notify.blocked() ? `<p class="nt-why">Notifications are turned off for Intentionally in your phone’s Settings. Turn them on there, then come back.</p>` : ""}

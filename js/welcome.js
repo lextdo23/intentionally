@@ -35,7 +35,8 @@ const at = (id) => STEPS.findIndex((x) => x.id === id);
 const DAYS = [["Sunday", "S"], ["Monday", "M"], ["Tuesday", "T"], ["Wednesday", "W"], ["Thursday", "T"], ["Friday", "F"], ["Saturday", "S"]];
 const EXAMPLES = ["Exam on Friday and I'm not ready", "I want to see my friends more", "Glad I went outside today", "Behind on everything at work"];
 // Rough lengths for time given: no stopwatch needed.
-const ROUGH = [["A bit", 15], ["Half an hour", 30], ["An hour", 60], ["An evening", 180]];
+// How long, for time told afterwards: rolled on a wheel like the iPhone's own pickers. Rough is fine.
+const LENGTHS = [15, 30, 45, 60, 90, 120, 180, 240];
 const star = (kind) => `<svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${sparkle(POINTS[kind], 10)}"/></svg>`;
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // "Need help choosing?": five quick questions about moments and feelings, never the pillar names themselves, so people
@@ -163,7 +164,7 @@ function tapPlanet(p) {
   if (id() === "pick") { picked = picked.filter((x) => x !== n); focus = focus.filter((x) => x !== n); render(); drawSky(); }
   else if (id() === "focus") toggleFocus(n);
   else if (id() === "time" && !phase) startDemo(p);
-  else if (id() === "time" && phase === "told") { gave.name = n; render(); drawSky(); }
+  else if (id() === "time" && phase === "told") { gave.name = n; gave.min = gave.min || 60; render(); drawSky(); }
 }
 
 // The practice timer: the same zoom and count as a real one. It isn't saved (under a minute never is).
@@ -182,6 +183,34 @@ function stopDemo() {
   ui.querySelector(".running")?.classList.add("leave");
   root.classList.remove("timing", "zoomed"); zoomTo(null);
   setTimeout(() => { demo.id = null; phase = "told"; render(); drawSky(); }, still() ? 0 : 1000);
+}
+
+// A picker wheel like the iPhone's: rows curve away above and below the soft band, as if on a drum.
+// Scrolls and snaps; a tap on a row rolls to it; arrow keys work too.
+function drum(el, start, pick) {
+  const rows = [...el.children], ROW = 36, last = rows.length - 1;
+  const at = () => Math.max(0, Math.min(last, Math.round(el.scrollTop / ROW)));
+  let raf = 0, shown = -1;
+  const paint = () => {
+    raf = 0;
+    const mid = el.scrollTop / ROW;
+    rows.forEach((r, k) => {
+      const d = Math.max(-3, Math.min(3, k - mid));
+      r.style.transform = `rotateX(${(-d * 22).toFixed(1)}deg) scale(${(1 - Math.abs(d) * .06).toFixed(3)})`;
+      r.style.opacity = (1 - Math.abs(d) * .28).toFixed(2);
+    });
+    const i = at();
+    if (i !== shown) {
+      shown = i; rows.forEach((r, k) => r.classList.toggle("on", k === i));
+      el.setAttribute("aria-valuenow", String(i)); el.setAttribute("aria-valuetext", rows[i].textContent);
+      pick(+rows[i].dataset.len);
+    }
+  };
+  const go = (i, smooth) => el.scrollTo({ top: Math.max(0, Math.min(last, i)) * ROW, behavior: smooth && !still() ? "smooth" : "auto" });
+  el.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive: true });
+  el.addEventListener("click", (e) => { const r = e.target.closest("[data-len]"); if (r) go(rows.indexOf(r), true); });
+  el.addEventListener("keydown", (e) => { const d = { ArrowUp: -1, ArrowDown: 1 }[e.key]; if (d) { e.preventDefault(); go(at() + d, true); } });
+  go(start); paint();
 }
 
 function toggleFocus(n) {
@@ -263,11 +292,12 @@ function screen(s) {
           <button type="button" class="stop" data-stopdemo aria-label="Stop timer">${STOP}</button></div>`;
       }
       if (phase !== "told") return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time.</p><p class="b-note">Try it now.</p></div>`;
-      return `<div class="b-say b-top"><h2>Or tell it afterwards.</h2><p>For when you forgot, or couldn’t time it.</p></div>
-      <div class="b-gave"><p class="b-gk">Given time to any of these today?</p>
-        <div class="b-chips" role="group" aria-label="Which one">${picked.map((n) => chip(`data-gave="${esc(n)}"`, n, gave.name === n)).join("")}</div>
-        ${gave.name ? `<div class="b-chips" role="group" aria-label="About how long">${ROUGH.map(([l, m]) => chip(`data-min="${m}"`, l, gave.min === m)).join("")}</div>` : ""}
-      </div>`;
+      // Told afterwards: tap the planet (it gets a thin gold ring), then roll how long, then "Add it".
+      return `<div class="b-say b-top"><h2>Or tell it afterwards.</h2><p>${gave.name ? "About how long?" : "Tap the planet you gave time to today."}</p></div>
+      ${gave.name ? `<div class="b-say b-wheelw"><div class="b-band" aria-hidden="true"></div>
+        <div class="b-wheel" role="slider" tabindex="0" aria-label="About how long" aria-valuemin="0" aria-valuemax="${LENGTHS.length - 1}">
+        ${LENGTHS.map((m) => `<div data-len="${m}">${fmt(m)}</div>`).join("")}</div></div>
+      <div class="b-say b-low"><button type="button" class="b-next" data-add>Add it</button></div>` : ""}`;
     }
     case "see": {
       if (phase !== "open") return `<div class="b-say b-top"><h2>Tap the sun any time to see your week.</h2><p>Try it now.</p></div>
@@ -297,14 +327,9 @@ function screen(s) {
         <p class="b-why">When something’s on your mind, catch it as a star.</p>`;
     }
     // Kind words: what they are (built from their own thoughts), and a simple on or off. On unless they say otherwise.
-    case "affirm": {
-      const saw = thought && !thought.heavy;
-      return `<div class="b-say b-top"><h2>Kind words, from your own thoughts.</h2>
-        <p>When you catch a thought, Intentionally can answer it with one kind, believable line, made from what you wrote.</p>
-        <p class="b-note">${saw ? "Like the one you just saw. " : ""}Never for heavy thoughts. You can change this any time in Settings.</p></div>
-      <div class="b-say b-mid2"><label class="b-switch"><span>Kind words</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label></div>
+    case "affirm": return `<div class="b-say b-top"><h2>Words of affirmation</h2><p>A kind line, made from your own thoughts.</p></div>
+      <div class="b-say b-mid2"><label class="b-switch"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" id="b-aff" ${affOn ? "checked" : ""}></label></div>
       <div class="b-say b-low">${onward()}</div>`;
-    }
     case "day": return `<div class="b-say b-top"><h2>Once a week, a quiet look back.</h2><p>Where your time went. What helped. One small thing for the week ahead.</p>
         <p class="b-note">It opens on your day and waits until you’re ready.</p></div>
       <div class="b-say b-low"><p class="b-note">Which day suits you?</p><div class="b-days" role="radiogroup" aria-label="Look back day">${DAYS.map(([d, l], i) =>
@@ -330,6 +355,14 @@ function render() {
   const asking = !!(quiz && !quiz.pick && s.id === "pick");
   if (asking) root.style.setProperty("--qsun", `${ui.querySelector(".b-qq").getBoundingClientRect().bottom + 48}px`);
   root.classList.toggle("b-quizzing", asking);
+  // The wheel needs room under the planets: on shorter screens the sky lifts just enough.
+  const wheelOn = !!ui.querySelector(".b-wheelw");
+  if (wheelOn) {
+    const below = parseFloat(getComputedStyle(root).getPropertyValue("--below")) || innerHeight * .62;
+    const room = innerHeight - innerHeight * .05 - 60;
+    root.style.setProperty("--lift", `${Math.max(0, below + 16 + 180 - room)}px`);
+  }
+  root.classList.toggle("b-lifted", wheelOn);
   go.classList.toggle("ready", ready());
   wire(s.id);
 }
@@ -403,6 +436,9 @@ function wire(s) {
     timers.push(setTimeout(() => next(step + 1), still() ? 400 : 1200));
   }));
   ui.querySelector("#b-aff")?.addEventListener("change", (e) => { affOn = e.target.checked; });
+  const wh = ui.querySelector(".b-wheel");
+  if (wh) drum(wh, Math.max(0, LENGTHS.indexOf(gave.min)), (m) => { gave.min = m; });
+  ui.querySelector("[data-add]")?.addEventListener("click", () => next(step + 1));
   ui.querySelector("[data-stopdemo]")?.addEventListener("click", stopDemo);
   ui.querySelector("[data-skip]")?.addEventListener("click", () => { gave = { name: null, min: 0 }; next(step + 1); });
   const ta = ui.querySelector("#b-t");

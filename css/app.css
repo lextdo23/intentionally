@@ -908,3 +908,16 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-switch { display: inline-flex; align-items: center; gap: 16px; min-height: 44px; font-size: 17px; color: var(--ink); }
 /* Settings: a small heading before the notification cards. */
 .nt-head { margin: 24px 0 8px; font-size: 15px; font-weight: 600; color: var(--ink-2); }
+
+/* Telling time afterwards: a picker wheel like the iPhone's. Five rows show; the middle one sits on a soft grey band,
+   and the rows above and below curve away as if on a drum. It sits under the lowest planet. */
+.b-wheelw { top: calc(var(--below, 62vh) - var(--lift, 0px) + 16px); height: 180px; max-width: 280px; perspective: 600px; }
+.born.b-lifted .sky-wrap { transform: translateY(calc(-1 * var(--lift, 0px))); }
+.b-band { position: absolute; left: 0; right: 0; top: 72px; height: 36px; border-radius: 8px; background: rgba(118, 118, 128, .24); pointer-events: none; }
+.b-wheel { position: relative; height: 180px; padding: 72px 0; box-sizing: border-box; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none;
+  overscroll-behavior: contain; transform-style: preserve-3d; outline-offset: 4px;
+  -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent); mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent); }
+.b-wheel::-webkit-scrollbar { display: none; }
+.b-wheel div { height: 36px; display: grid; place-items: center; scroll-snap-align: center; font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums;
+  cursor: pointer; backface-visibility: hidden; }
+.b-wheel:focus-visible { outline: 2px solid var(--gold); border-radius: 8px; }
