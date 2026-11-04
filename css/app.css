@@ -837,8 +837,12 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-say .b-aff + .b-note { margin-top: 8px; }
 
 /* The home sky the first time, straight after: the greeting and the dock fade in. */
-.home.fresh .greet, .home.fresh .dock { animation: b-rise 1.4s ease .3s both; }
-.home.fresh .dock { animation-delay: 1.2s; }
+/* Straight after set-up: the greeting drifts down from the top and the dock rises from the bottom, each easing
+   a touch past its place and settling back, while the sky stays exactly where it was. */
+.home.fresh .greet { animation: h-drop 1.2s cubic-bezier(.22, .8, .3, 1.12) calc(.25s - var(--ago, 0ms)) both; }
+.home.fresh .dock { animation: h-lift 1.2s cubic-bezier(.22, .8, .3, 1.12) calc(.55s - var(--ago, 0ms)) both; }
+@keyframes h-drop { from { opacity: 0; transform: translateY(-56px); } 55% { opacity: 1; } }
+@keyframes h-lift { from { opacity: 0; transform: translateY(120%); } 45% { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit], .b-say .b-line, .born .b-sky, .b-ex-line, .b-payoff, .b-ui.b-enter .b-why { transition: none; animation: none; }

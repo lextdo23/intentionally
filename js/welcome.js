@@ -12,7 +12,7 @@ import * as store from "./store.js";
 import { now } from "./clock.js";
 import { renderSky, startSpin, fitTags, layout, sparkle, placeStar, esc, POINTS, skyPoint, markTarget, zoomTo } from "./sky.js";
 import { guessKind, KIND_LABEL } from "./thoughts.js";
-import { heaviness, guessHome } from "./helps.js";
+import { heaviness } from "./helps.js";
 import { affirm } from "./affirm.js";
 import * as notify from "./notify.js";
 import { TINTS, FRONT, MIN_PILLARS, MAX_PILLARS, MAX_NAME } from "./pillars.js";
@@ -103,8 +103,9 @@ export function show(app, h) {
     <div class="b-ui"></div>
     <button type="button" class="b-go" aria-label="Go on"></button></section>`;
   root = app.querySelector(".born"); ui = root.querySelector(".b-ui"); go = root.querySelector(".b-go");
-  go.addEventListener("click", (e) => { e.stopPropagation(); if (ready()) onSun(); });
+  go.addEventListener("click", (e) => { e.stopPropagation(); if (ready() || (id() === "thought" && phase === "where")) onSun(); });
   addEventListener("resize", placeGo);
+  window.visualViewport?.addEventListener("resize", placeGo);
   render();
   drawSky();
 }
@@ -117,8 +118,16 @@ const nameOf = (p) => myPillars().find((x) => x.id === p)?.name ?? "";
 
 // Tapping the sun (or the word under it): usually "go on". On "see", the first tap opens your week.
 function onSun() {
+  if (id() === "thought" && phase === "where") return placeThought("me");
   if (id() === "see" && phase !== "open") { phase = "open"; render(); return; }
   next(step + 1);
+}
+
+// The first thought finds its place (or doesn't, yet), then its kind line arrives.
+function placeThought(to) {
+  thought.pillarId = to; if (to) thought.sortedAt = now();
+  thought.aff = affirm(thought.text, thought.kind, to && to !== "me" ? nameOf(to) : "");
+  phase = "landed"; render(); drawSky();
 }
 
 /* ---------- Your sky ---------- */
@@ -179,6 +188,7 @@ function tapPlanet(p) {
   if (id() === "pick" && quiz?.pick && !quiz.pick.swaps.includes(n)) quiz.pick.swaps.unshift(n);
   if (id() === "pick") { picked = picked.filter((x) => x !== n); focus = focus.filter((x) => x !== n); render(); drawSky(); }
   else if (id() === "focus") toggleFocus(n);
+  else if (id() === "thought" && phase === "where") placeThought(p);
   else if (id() === "time" && !phase) startDemo(p);
   else if (id() === "time" && phase === "told") { gave.name = n; gave.min = gave.min || 60; render(); drawSky(); }
 }
@@ -238,7 +248,8 @@ function toggleFocus(n) {
 // The tap target sits over the sun, wherever the sun lands on this screen.
 // Measured where the sky rests, even while it's slid up for the questions (or sliding back down).
 function placeGo() {
-  const wrap = root?.querySelector(".sky-wrap"), lift = wrap ? new DOMMatrix(getComputedStyle(wrap).transform).m42 : 0;
+  // Measured against set-up itself, not the screen, so it holds even while the phone has scrolled for the keyboard.
+  const wrap = root?.querySelector(".sky-wrap"), lift = (wrap ? new DOMMatrix(getComputedStyle(wrap).transform).m42 : 0) + (root?.getBoundingClientRect().top ?? 0);
   const p = skyPoint("sun");
   if (p && go) { go.style.left = `${p.x}px`; go.style.top = `${p.y - lift}px`; root.style.setProperty("--sy", `${p.y - lift}px`); }
   const low = skyPoint("below");
@@ -330,9 +341,14 @@ function screen(s) {
       if (phase === "landed" && thought.heavy) return `<div class="b-say b-top"><p class="b-quote">“${esc(thought.text)}”</p><h2>Thank you for writing that down.</h2>
           <p>If it feels heavy right now, someone’s there to talk to, any time.</p></div>
           <div class="b-say b-low"><button type="button" class="b-quiet" data-support>Talk to someone</button>${onward()}</div>`;
+      // Where does it belong? A planet, the sun (just about them), or nowhere yet, which is fine too.
+      if (phase === "where") return `<div class="b-say b-top"><p class="b-quote">“${esc(thought.text)}”</p><h2>Where does it belong?</h2>
+          <p>Tap its planet, or the sun if it’s just about you.</p></div>
+          <div class="b-say b-low"><button type="button" class="b-quiet" data-nowhere>Nowhere yet</button></div>`;
       if (phase === "landed") {
-        const where = thought.pillarId ? `It sits by ${esc(nameOf(thought.pillarId))}.` : "It floats free for now.";
-        return `<div class="b-say b-top"><p class="b-aff">“${esc(thought.aff)}”</p><p class="b-note">${KIND_LABEL[thought.kind]}. ${where}</p></div>
+        const where = thought.pillarId === "me" ? "It’s about you, so it circles the sun." : thought.pillarId ? `It sits by ${esc(nameOf(thought.pillarId))}.`
+          : "That’s okay. It can float free until you know.";
+        return `<div class="b-say b-top"><p class="b-aff">${esc(thought.aff)}</p><p class="b-note">${KIND_LABEL[thought.kind]}. ${where}</p></div>
           <div class="b-say b-low">${onward()}</div>`;
       }
       const k = draft.trim() ? guessKind(draft) : null;
@@ -444,6 +460,8 @@ function wire(s) {
   // Yes: on to choosing focus, with the suggested two already lit.
   ui.querySelector("[data-quse]")?.addEventListener("click", () => { hinted = [...focus]; quiz = null; next(step + 1); });
   ui.querySelector("[data-ownopen]")?.addEventListener("click", () => { ownOpen = true; render(); ui.querySelector("#b-own")?.focus(); });
+  // When the keyboard goes away the phone can be left scrolled; settle it back and measure again.
+  ui.querySelector("#b-own")?.addEventListener("blur", () => setTimeout(() => { scrollTo(0, 0); placeGo(); }, 300));
   ui.querySelector("[data-own]")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const v = ui.querySelector("#b-own").value.trim().slice(0, MAX_NAME);
@@ -489,18 +507,14 @@ function wire(s) {
       thought = { id: store.uid(), text, kind, pillarId: null, status: "active", count: 1, seen: [now()], ...placeStar([]), createdAt: now(), helped: [], ...(heavy && { heavy }) };
       draft = ""; phase = "flying";
       ui.classList.add("b-leaving");
-      // The star lands first. Then it drifts over to its likely planet, and its kind line fades in.
       drawSky({ arriving: still() ? null : thought.id, from: { x: p.x, y: p.y }, words: false });
+      // The star lands first. Then they're asked where it belongs (a heavy thought isn't asked anything).
       timers.push(setTimeout(() => {
-        if (!heavy) {
-          const home = guessHome(text, myPillars());
-          if (home) { thought.pillarId = home; thought.sortedAt = now(); }
-          thought.aff = affirm(text, kind, nameOf(home));
-        }
-        phase = "landed"; ui.classList.remove("b-leaving"); shown = -1; render(); drawSky();
+        phase = heavy ? "landed" : "where"; ui.classList.remove("b-leaving"); shown = -1; render(); drawSky();
       }, still() ? 0 : 2600));
     });
   }
+  ui.querySelector("[data-nowhere]")?.addEventListener("click", () => placeThought(null));
   ui.querySelector("[data-none]")?.addEventListener("click", () => { thought = null; draft = ""; next(step + 1); });
   ui.querySelector("[data-support]")?.addEventListener("click", () => hooks.support?.());
   const nm = ui.querySelector("#b-name");
@@ -519,6 +533,7 @@ function add(n) {
 function finish() {
   timers.forEach(clearTimeout); clearTimeout(moving);
   removeEventListener("resize", placeGo);
+  window.visualViewport?.removeEventListener("resize", placeGo);
   ui.classList.add("b-leaving");
   go.classList.remove("ready");
   setTimeout(() => {
@@ -531,7 +546,7 @@ function finish() {
       if (thought) {
         const { aff, ...t } = thought;
         // The planet ids used during set-up become the real ones.
-        if (t.pillarId) t.pillarId = s.pillars.find((p) => pid(p.name) === t.pillarId)?.id ?? null;
+        if (t.pillarId && t.pillarId !== "me") t.pillarId = s.pillars.find((p) => pid(p.name) === t.pillarId)?.id ?? null;
         if (!t.pillarId) delete t.sortedAt;
         s.thoughts.push(t);
       }

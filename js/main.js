@@ -37,7 +37,7 @@ const ICON = {
 
 function render() {
   const s = store.get();
-  if (!s.setup) welcome.show(app, { support: openSupport, done: () => { justBorn = true; } });
+  if (!s.setup) welcome.show(app, { support: openSupport, done: () => { justBorn = performance.now(); } });
   else renderHome(s);
   if (testMode) renderTestPanel();
 }
@@ -45,7 +45,7 @@ function render() {
 /* ---------- First day: the sky is born (js/welcome.js) ---------- */
 
 // Set when set-up has just finished, so the home sky's greeting and dock fade in the first time.
-let justBorn = false;
+let justBorn = 0;
 
 /* ---------- The first days: one quiet line under the greeting suggests the next thing ----------
    Each suggestion stays until it's done, then the next one shows. Three days after set-up they stop for good,
@@ -97,10 +97,11 @@ function renderHome(s) {
   const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
   // Opening the app with a timer already running goes straight to the zoomed-in planet.
   const opening = firstHome; firstHome = false;
-  const fresh = justBorn; justBorn = false;
+  // Set-up's last save can redraw home more than once; the entrance carries on from where it got to, so it never restarts.
+  const ago = justBorn ? performance.now() - justBorn : Infinity, fresh = ago < 2500;
   const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
   shownRunning = run?.id ?? null;
-  app.innerHTML = `<section class="home ${fresh ? "fresh" : ""} ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
+  app.innerHTML = `<section class="home ${fresh ? "fresh" : ""} ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}"${fresh ? ` style="--ago:${Math.round(ago)}ms"` : ""}>
     <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels !== false,
       gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId, floor: true })}</div>
     ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
@@ -455,14 +456,14 @@ function askHome(id, text) {
   // Kind words can be turned off (setup, or Settings); then there's no line at all.
   const guess = guessHome(text, s.pillars), line = s.affirm !== false ? affirm(text, t.kind, pillarName(guess)) : "";
   // Busy (sorting, or a timer running): just the kind line, quietly.
-  if (sort.active() || s.running || t.pillarId) return line && toast(`“${line}”`);
+  if (sort.active() || s.running || t.pillarId) return line && toast(line);
   closeHome();
   placing = { id, guess };
   const el = document.createElement("div");
   el.className = "placer";
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", "Where does it belong?");
-  el.innerHTML = `<div class="pl-top">${line ? `<p class="pl-aff">“${esc(line)}”</p>` : ""}<h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
+  el.innerHTML = `<div class="pl-top">${line ? `<p class="pl-aff">${esc(line)}</p>` : ""}<h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
     <button type="button" class="pl-skip" data-skip>Not now</button>`;
   document.body.append(el);
   document.querySelector(".home")?.classList.add("placing");
