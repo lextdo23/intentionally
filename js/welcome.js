@@ -10,7 +10,7 @@
 // starts again next time.
 import * as store from "./store.js";
 import { now } from "./clock.js";
-import { renderSky, startSpin, fitTags, layout, sparkle, placeStar, esc, POINTS, skyPoint, markTarget } from "./sky.js";
+import { renderSky, startSpin, fitTags, layout, sparkle, placeStar, esc, POINTS, skyPoint, markTarget, zoomTo } from "./sky.js";
 import { guessKind, KIND_LABEL } from "./thoughts.js";
 import { heaviness, guessHome } from "./helps.js";
 import { affirm } from "./affirm.js";
@@ -81,7 +81,8 @@ const fmt = (m) => m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m 
 
 let root = null, ui = null, go = null, hooks = {};
 let step = 0, shown = -1, picked = [], focus = [], gave = { name: null, min: 0 }, thought = null, phase = "", name = "", day = 0, ownOpen = false, draft = "", ex = 0;
-let quiz = null, hinted = [];
+let quiz = null, hinted = [], demo = { id: null, t0: 0, tick: 0 };
+const STOP = `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.5"/></svg>`;
 let timers = [], moving = 0, lastAt = {}, drawnPlanets = "";
 
 // Called on every render while set-up isn't done. It only builds the screen once, so saving elsewhere never restarts it.
@@ -124,7 +125,7 @@ function drawSky({ born = null, arriving = null, from = null, words = true } = {
   const pillars = myPillars();
   const where = layout(pillars), key = pillars.map((p) => p.id + p.focus).join(), changed = key !== drawnPlanets;
   const sky = root.querySelector(".b-sky");
-  sky.innerHTML = renderSky({ pillars, thoughts: thought ? [thought] : [], arriving, from, labels: words && store.get().test.labels !== false });
+  sky.innerHTML = renderSky({ pillars, thoughts: thought ? [thought] : [], runningId: demo.id, arriving, from, labels: words && store.get().test.labels !== false });
   fitTags(sky);
   for (const p of pillars) {
     const g = sky.querySelector(`[data-orbit="${p.id}"]`);
@@ -160,7 +161,26 @@ function tapPlanet(p) {
   if (id() === "pick" && quiz?.pick && !quiz.pick.swaps.includes(n)) quiz.pick.swaps.unshift(n);
   if (id() === "pick") { picked = picked.filter((x) => x !== n); focus = focus.filter((x) => x !== n); render(); drawSky(); }
   else if (id() === "focus") toggleFocus(n);
-  else if (id() === "time") { gave.name = n; render(); drawSky(); }
+  else if (id() === "time" && !phase) startDemo(p);
+  else if (id() === "time" && phase === "told") { gave.name = n; render(); drawSky(); }
+}
+
+// The practice timer: the same zoom and count as a real one. It isn't saved (under a minute never is).
+function startDemo(p) {
+  demo = { id: p, t0: performance.now(), tick: 0 };
+  phase = "run"; root.classList.add("timing", "zoomed");
+  render(); drawSky(); zoomTo(p);
+  const show = () => {
+    const sec = Math.floor((performance.now() - demo.t0) / 1000), el = ui.querySelector("[data-run]");
+    if (el) el.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  };
+  demo.tick = setInterval(show, 250);
+}
+function stopDemo() {
+  clearInterval(demo.tick);
+  ui.querySelector(".running")?.classList.add("leave");
+  root.classList.remove("timing", "zoomed"); zoomTo(null);
+  setTimeout(() => { demo.id = null; phase = "told"; render(); drawSky(); }, still() ? 0 : 1000);
 }
 
 function toggleFocus(n) {
@@ -231,12 +251,23 @@ function screen(s) {
     }
     case "focus": return `<div class="b-say b-top"><h2>Which two need you most right now?</h2><p>Tap two planets. They’ll sit either side of you.</p><p class="b-note">${hinted.length && focus.length === 2 && focus.every((f) => hinted.includes(f)) ? "These two came from your answers. Tap to change." : "Your focus for now. You can change it any time."}</p></div>
       <div class="b-say b-low">${focus.length === 2 ? onward() : `<p class="b-note">${focus.length ? "One more." : ""}</p>`}</div>`;
-    case "time": return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time. Or tell it afterwards.</p></div>
+    // Give time: first the real timer, tried once (the sky zooms into the planet and the time counts up, just like at
+    // home), then the other way: telling it afterwards, with today's real time.
+    case "time": {
+      if (phase === "run") {
+        const p = myPillars().find((x) => x.id === demo.id);
+        return `<div class="b-say b-top"><p class="b-note">This is a timer. Stop it whenever you like.</p></div>
+          <div class="running enter" style="--c:${p.tint}"><p class="rl"><i aria-hidden="true"></i>${esc(p.name)}</p>
+          <p class="big" data-run aria-label="Time so far">0:00</p>
+          <button type="button" class="stop" data-stopdemo aria-label="Stop timer">${STOP}</button></div>`;
+      }
+      if (phase !== "told") return `<div class="b-say b-top"><h2>Give time to what matters.</h2><p>Tap a planet when you start something, and it keeps time.</p><p class="b-note">Try it now.</p></div>`;
+      return `<div class="b-say b-top"><h2>Or tell it afterwards.</h2><p>For when you forgot, or couldn’t time it.</p></div>
       <div class="b-gave"><p class="b-gk">Given time to any of these today?</p>
         <div class="b-chips" role="group" aria-label="Which one">${picked.map((n) => chip(`data-gave="${esc(n)}"`, n, gave.name === n)).join("")}</div>
         ${gave.name ? `<div class="b-chips" role="group" aria-label="About how long">${ROUGH.map(([l, m]) => chip(`data-min="${m}"`, l, gave.min === m)).join("")}</div>` : ""}
-      </div>
-`;
+      </div>`;
+    }
     case "see": {
       if (phase !== "open") return `<div class="b-say b-top"><h2>Tap the sun any time to see your week.</h2><p>Try it now.</p></div>
         <div class="b-say b-low">${onward("Show me")}</div>`;
@@ -361,6 +392,7 @@ function wire(s) {
     gave.min = +b.dataset.min; render();
     timers.push(setTimeout(() => next(step + 1), still() ? 400 : 1200));
   }));
+  ui.querySelector("[data-stopdemo]")?.addEventListener("click", stopDemo);
   ui.querySelector("[data-skip]")?.addEventListener("click", () => { gave = { name: null, min: 0 }; next(step + 1); });
   const ta = ui.querySelector("#b-t");
   if (ta) {
