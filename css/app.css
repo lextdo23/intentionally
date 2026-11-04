@@ -825,7 +825,7 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-next { min-height: 44px; min-width: 120px; padding: 0 24px; border-radius: 14px; background: none; color: var(--ink); font-size: 17px; font-weight: 500; }
 .b-next.gold { color: var(--gold); font-weight: 600; }
 .b-next:focus-visible, .b-chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.b-gave { position: absolute; left: 12px; right: 12px; max-width: 496px; margin: 0 auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh + 64px);
+.b-gave { position: absolute; left: 12px; right: 12px; max-width: 496px; margin: 0 auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh);
   padding: 16px; border-radius: 16px; background: rgba(29, 31, 36, .92); display: grid; gap: 8px; text-align: center; }
 .b-gave .b-gk { margin: 0 0 4px; font-size: 15px; color: var(--ink); font-weight: 500; }
 .b-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }

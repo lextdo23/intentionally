@@ -226,8 +226,8 @@ function screen(s) {
           ${ownOpen ? `<form class="b-own" data-own><input id="b-own" maxlength="${MAX_NAME}" placeholder="Your own" autocomplete="off" aria-label="Your own"><button type="submit" class="b-quiet">Add</button></form>`
                     : `<button type="button" class="b-quiet" data-ownopen>Something else</button>`}` : ""}
           ${n === 0 ? `<button type="button" class="b-quiet" data-quiz>Need help choosing?</button>` : ""}
-          ${n >= MIN_PILLARS ? onward() : ""}
-        </div>`;
+        </div>
+        <div class="b-say b-low">${n >= MIN_PILLARS ? onward() : ""}</div>`;
     }
     case "focus": return `<div class="b-say b-top"><h2>Which two need you most right now?</h2><p>Tap two planets. They’ll sit either side of you.</p><p class="b-note">${hinted.length && focus.length === 2 && focus.every((f) => hinted.includes(f)) ? "These two came from your answers. Tap to change." : "Your focus for now. You can change it any time."}</p></div>
       <div class="b-say b-low">${focus.length === 2 ? onward() : `<p class="b-note">${focus.length ? "One more." : ""}</p>`}</div>`;
@@ -236,7 +236,7 @@ function screen(s) {
         <div class="b-chips" role="group" aria-label="Which one">${picked.map((n) => chip(`data-gave="${esc(n)}"`, n, gave.name === n)).join("")}</div>
         ${gave.name ? `<div class="b-chips" role="group" aria-label="About how long">${ROUGH.map(([l, m]) => chip(`data-min="${m}"`, l, gave.min === m)).join("")}</div>` : ""}
       </div>
-      <div class="b-say b-low">${gave.name && gave.min ? onward() : `<button type="button" class="b-quiet" data-skip>Not today</button>`}</div>`;
+`;
     case "see": {
       if (phase !== "open") return `<div class="b-say b-top"><h2>Tap the sun any time to see your week.</h2><p>Try it now.</p></div>
         <div class="b-say b-low">${onward("Show me")}</div>`;
@@ -262,8 +262,7 @@ function screen(s) {
         <div class="b-row"><textarea id="b-t" rows="2" maxlength="120" placeholder="${esc(EXAMPLES[ex % EXAMPLES.length])}">${esc(draft)}</textarea>
         <button type="submit" class="b-send" aria-label="Add to the sky" ${draft.trim() ? "" : "disabled"}><i>${star("kind")}</i></button></div>
         <p class="b-guess">${k ? `${star(k)} ${KIND_LABEL[k]}` : ""}</p></form>
-        <p class="b-why">When something’s on your mind, catch it as a star.</p>
-        <div class="b-say b-low"><button type="button" class="b-quiet" data-none>Not now</button></div>`;
+        <p class="b-why">When something’s on your mind, catch it as a star.</p>`;
     }
     case "day": return `<div class="b-say b-top"><h2>Once a week, a quiet look back.</h2><p>Where your time went. What helped. One small thing for the week ahead.</p>
         <p class="b-note">It opens on your day and waits until you’re ready.</p></div>
@@ -357,7 +356,11 @@ function wire(s) {
     ownOpen = false; add(v);
   });
   ui.querySelectorAll("[data-gave]").forEach((b) => b.addEventListener("click", () => { gave.name = b.dataset.gave; render(); drawSky(); }));
-  ui.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => { gave.min = +b.dataset.min; render(); }));
+  // Choosing how long is the last tap here: the choice shows for a moment, then it moves on by itself.
+  ui.querySelectorAll("[data-min]").forEach((b) => b.addEventListener("click", () => {
+    gave.min = +b.dataset.min; render();
+    timers.push(setTimeout(() => next(step + 1), still() ? 400 : 1200));
+  }));
   ui.querySelector("[data-skip]")?.addEventListener("click", () => { gave = { name: null, min: 0 }; next(step + 1); });
   const ta = ui.querySelector("#b-t");
   if (ta) {
