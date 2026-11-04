@@ -771,9 +771,13 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-go { position: absolute; left: 50%; top: 46%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; pointer-events: none; }
 .b-go.ready { pointer-events: auto; }
 .b-go::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; box-shadow: 0 0 0 1px var(--gold); opacity: 0; transition: opacity .6s ease; }
-.b-go.ready::after { animation: b-grow 1.6s cubic-bezier(.3, .7, .2, 1) both, b-ring 3.2s ease-in-out 1.6s infinite; }
-@keyframes b-grow { from { opacity: 0; transform: scale(.35); } to { opacity: .6; transform: scale(1.06); } }
-@keyframes b-ring { 0%, 100% { opacity: .6; transform: scale(1.06); } 50% { opacity: .15; transform: scale(.92); } }
+/* The sun can always be tapped to go on, but it doesn't glow or ring for it (only a running timer gets gold around it).
+   Instead, on "This light is you", a soft fingertip drifts in and taps it twice, once the words have arrived. */
+.born[data-step="you"] .b-go.ready::before { content: ""; position: absolute; left: 10px; top: 10px; width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(239, 237, 233, .16); box-shadow: 0 0 0 1px rgba(239, 237, 233, .32); opacity: 0; pointer-events: none;
+  animation: b-touch 2.6s ease-in-out 3s 2 both; }
+@keyframes b-touch { 0% { opacity: 0; transform: translate(56px, 84px); } 35% { opacity: 1; transform: translate(0, 0) scale(1); }
+  45% { transform: scale(.72); } 58% { opacity: 1; transform: scale(1); } 85%, 100% { opacity: 0; transform: scale(1); } }
 .b-go:focus { outline: none; }
 .b-go:focus-visible::after { opacity: 1; }
 
@@ -817,8 +821,9 @@ button:active:not(:disabled) { transform: scale(.96); }
 .b-days button { width: 44px; height: 44px; border-radius: 50%; font-size: 15px; color: var(--ink-2); }
 .b-days [aria-checked="true"] { background: var(--glass); color: var(--ink); box-shadow: inset 0 0 0 1px var(--gold); }
 /* Set-up v5: a word to go on, the "given time today?" card, your week, and the kind line after a thought. */
-.b-next { min-height: 44px; min-width: 140px; padding: 0 24px; border-radius: 14px; background: var(--glass); color: var(--ink); font-size: 17px; font-weight: 500; }
-.b-next.gold { background: var(--gold); color: #1a1a1a; font-weight: 600; }
+/* Going on: plain words floating in the sky, no box, like the pillar names. Soft gold only for the first and last step. */
+.b-next { min-height: 44px; min-width: 120px; padding: 0 24px; border-radius: 14px; background: none; color: var(--ink); font-size: 17px; font-weight: 500; }
+.b-next.gold { color: var(--gold); font-weight: 600; }
 .b-next:focus-visible, .b-chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .b-gave { position: absolute; left: 12px; right: 12px; max-width: 496px; margin: 0 auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 5vh + 64px);
   padding: 16px; border-radius: 16px; background: rgba(29, 31, 36, .92); display: grid; gap: 8px; text-align: center; }
@@ -844,7 +849,7 @@ button:active:not(:disabled) { transform: scale(.96); }
 @media (prefers-reduced-motion: reduce) {
   .born .b-clouds, .born svg [data-breath="glow"], .born svg .sundisc, .b-ui, .b-breath, .born .sky [data-orbit], .b-say .b-line, .born .b-sky, .b-ex-line, .b-payoff, .b-ui.b-enter .b-why { transition: none; animation: none; }
   .b-ui.b-enter .b-say > *, .b-ui.b-enter .b-card, .b-say .b-hint, .b-ui.b-enter .b-say .b-hint, .born .sky [data-orbit].b-new, .home.fresh .greet, .home.fresh .dock { animation: none; }
-  .b-go.ready::after { animation: none; opacity: .5; }
+  .born[data-step="you"] .b-go.ready::before { animation: none; }
   .b-kinds svg { transition: none; }
 }
 
