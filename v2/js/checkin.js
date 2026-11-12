@@ -3,7 +3,7 @@
 import { h, dayKey, keyDate, clock12, hoursWords, MOODS, MOOD_COL, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecent } from "./words.js";
-import { openSheet, pillPicker } from "./ui.js";
+import { openSheet, pillPicker, roundBtn } from "./ui.js";
 import { sync as syncNotify } from "./notify.js";
 import { log } from "./tester.js";
 
@@ -124,7 +124,7 @@ export function morning(onDone) {
   }, { label: "About last night", onClose: moreLabel }); };
 
   show(step(
-    [h("button.btn-text", { onclick: () => close(false) }, "Not now"), where("Start of your day"), spacer()],
+    [roundBtn("close", "Not now", () => close(false)), where("Start of your day"), spacer()],
     [h("h1.q.rise", null, "Last night"), h("div.arc-wrap.rise", null, svg, hrs),
       h("div.times.rise", null, h("label.time", null, h("span", null, "Went to sleep"), tBed, iBed), h("label.time", null, h("span", null, "Woke up"), tWake, iWake)),
       h("div.col.rise", { style: { gap: "8px" } }, h("span.q2", null, "How rested do you feel?"), rested)],
@@ -153,7 +153,7 @@ export function evening(onDone) {
     range.addEventListener("input", () => { st.v = +range.value; st.touched = true; next.textContent = "Next"; next.setAttribute("aria-disabled", "false"); upd(); });
     upd();
     show(step(
-      [h("button.btn-text", { onclick: () => close(false) }, "Not now"), where("End of your day · 1 of 2"), spacer()],
+      [roundBtn("close", "Not now", () => close(false)), where("End your day · 1 of 2"), spacer()],
       [h("h1.q.rise", null, "How was today?"), h("div.rise", null, word), h("div.col.rise", { style: { gap: "8px" } }, range, h("div.ends", null, h("span", null, "Awful"), h("span", null, "Great")))],
       [next, LIFELINE()]));
   };
@@ -172,7 +172,7 @@ export function evening(onDone) {
       onAdd: (w) => { w = w.toLowerCase(); if (!s2.feel.own.includes(w) && !order.includes(w)) s2.feel.own.push(w); if (!main.includes(w)) main.push(w); const i = more.indexOf(w); if (i >= 0) more.splice(i, 1); st.feel.add(w); done.setAttribute("aria-disabled", "false"); store.save(); },
       noteOnce: () => (s2.notes.feelOwn ? false : (s2.notes.feelOwn = true, store.save(), true)) });
     show(step(
-      [h("button.btn-text", { onclick: one }, "‹ Back"), where("End of your day · 2 of 2"), spacer()],
+      [roundBtn("back", "Back", one), where("End your day · 2 of 2"), spacer()],
       [h("span.q2.rise", { style: { color: MOOD_COL[m], fontWeight: "600" } }, MOODS[m]), h("h1.q.rise", null, "What were you feeling?"), h("div.rise", null, pick.el)],
       [done, LIFELINE()]));
   };

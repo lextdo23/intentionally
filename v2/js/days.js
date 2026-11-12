@@ -4,7 +4,7 @@ import { h, MOODS, MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hours
 import * as store from "./store.js";
 import { moodSeries, mostlyWord, oldestBack, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
 import { RESTED } from "./words.js";
-import { openSheet } from "./ui.js";
+import { openSheet, roundBtn } from "./ui.js";
 import { log } from "./tester.js";
 
 export const PILLAR_COL = { Friends: "#d9b3a6", Move: "#a9c4b5", Rest: "#a9b9d6", "Work and study": "#cfc59b", "Play and create": "#c4b4c9", Family: "#d9b3a6", Food: "#cfc59b", Outdoors: "#a9c4b5" };
@@ -55,7 +55,7 @@ function animate(opening) {
 function render() {
   const s = store.get(), el = root();
   el.replaceChildren(h("div.bg"), h("div.scroll", null, h("div.page", null,
-    h("div.page-head", null, h("button.btn-text", { onclick: closeDays }, "‹ Today"), h("button.btn-text", { onclick: arrange }, "Edit")),
+    h("div.page-head", null, roundBtn("back", "Back to today", closeDays), h("button.btn-pill", { onclick: arrange }, "Edit")),
     h("h1.big-title", null, "Your days"),
     h("div.sections", null, s.order.map((k) => ({ A: secMoods, B: secSleep, C: secPillars, D: secHelps }[k])(s))),
     LIFELINE())));
