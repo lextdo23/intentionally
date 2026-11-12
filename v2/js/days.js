@@ -1,64 +1,76 @@
 // Your days: one scrolling page. Your moods, Mood and sleep, Mood and what you did, What seems to help you.
-// Opens by growing out of the "peek" pill on home; closing shrinks it back.
+// Slides in from the right like iPhone Settings; "‹ Today" or a swipe in from the left edge goes back.
 import { h, MOODS, MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import { moodSeries, mostlyWord, oldestBack, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
 import { RESTED } from "./words.js";
-import { openSheet, roundBtn } from "./ui.js";
+import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
 
 export const PILLAR_COL = { Friends: "#d9b3a6", Move: "#a9c4b5", Rest: "#a9b9d6", "Work and study": "#cfc59b", "Play and create": "#c4b4c9", Family: "#d9b3a6", Food: "#cfc59b", Outdoors: "#a9c4b5" };
 const NAME = { A: "Your moods", B: "Mood and sleep", C: "Mood and what you did", D: "What seems to help you" };
-const SPRING = "cubic-bezier(.22,1,.36,1)";
 let view = "week", back = 0, origin = null, onClosed = null, helpsSeen = false;
 const root = () => document.getElementById("days");
 const coloured = (m, text) => h("span", { style: { color: MOOD_COL[m], fontWeight: "600" } }, text || moodWord(m));
 
-// ---------- open / close: smooth grow from the pill ----------
+// ---------- open / close: slides in from the right like iPhone Settings; swipe in from the left edge to go back ----------
+// One number, p: 0 = closed, 1 = open. A spring or your finger moves it.
+let p = 0, stop = () => {};
+const homeEls = () => [document.getElementById("home"), document.getElementById("sun")];
+function draw(v) {
+  p = v; const W = innerWidth, el = root(), dim = document.getElementById("dim"), k = Math.max(0, Math.min(1, v));
+  el.style.transform = `translateX(${(1 - v) * W}px)`;
+  homeEls().forEach((e) => { e.style.transition = "none"; e.style.transform = `translateX(${-0.3 * W * k}px)`; });
+  dim.style.transition = "none"; dim.style.opacity = String(k * 0.6);
+}
+function clearDraw() {
+  const el = root(), dim = document.getElementById("dim");
+  el.style.transform = ""; dim.style.opacity = ""; dim.style.transition = "";
+  homeEls().forEach((e) => { e.style.transform = ""; e.style.transition = ""; });
+}
+function to(target, vel, done) {
+  stop();
+  if (reduceMotion()) { draw(target); const a = root().animate([{ opacity: target ? 0 : 1 }, { opacity: target ? 1 : 0 }], { duration: 150 }); a.finished.then(() => done && done()); return; }
+  stop = spring(p, target, (vel || 0) / innerWidth, draw, done);
+}
 export function openDays(fromEl, closed) {
   onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false;
   const el = root(); render();
   el.querySelector(".scroll").scrollTop = 0;
-  el.classList.add("open");
+  draw(0); el.classList.add("open");
   document.body.classList.add("in-days");
-  animate(true);
+  to(1);
 }
-function closeDays() {
+function closeDays(vel) {
+  if (!document.body.classList.contains("in-days")) return;
   document.body.classList.remove("in-days");
-  animate(false).then(() => { root().classList.remove("open"); onClosed && onClosed(); });
+  to(0, vel, () => { clearDraw(); root().classList.remove("open"); onClosed && onClosed(); });
 }
-function rectInset() {
-  const W = innerWidth, H = innerHeight;
-  if (!origin || !origin.isConnected) return `inset(${H * 0.15}px ${W * 0.2}px ${H * 0.7}px ${W * 0.05}px round 22px)`;
-  const r = origin.getBoundingClientRect();
-  return `inset(${r.top}px ${W - r.right}px ${H - r.bottom}px ${r.left}px round 22px)`;
-}
-function animate(opening) {
-  const el = root(), bg = el.querySelector(".bg"), page = el.querySelector(".page");
-  const D = 520, dir = opening ? "normal" : "reverse";
-  if (reduceMotion() || !el.animate) {
-    const a = el.animate ? el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, direction: dir, fill: "both" }) : null;
-    return a ? a.finished.then(() => a.cancel()) : Promise.resolve();
-  }
-  const pill = origin && origin.isConnected ? origin : null;
-  // The pill stays visible as it starts to open, the page shows through, its words settle in last.
-  const anims = [
-    el.animate([{ clipPath: rectInset() }, { clipPath: "inset(0px 0px 0px 0px round 0px)" }], { duration: D, easing: SPRING, direction: dir, fill: "both" }),
-    bg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: D * 0.35, delay: opening ? 0 : D * 0.6, easing: "linear", direction: dir, fill: "both" }),
-    page.animate([{ opacity: 0, transform: "scale(.85)" }, { opacity: 1, transform: "none" }], { duration: D * 0.7, delay: opening ? D * 0.25 : 0, easing: SPRING, direction: dir, fill: "both" }),
-  ];
-  if (pill) anims.push(pill.animate([{ opacity: 1 }, { opacity: 0 }], { duration: D * 0.3, delay: opening ? 0 : D * 0.6, direction: dir, fill: "both" }));
-  return Promise.all(anims.map((a) => a.finished)).then(() => { if (!opening) anims.forEach((a) => a.cancel()); });
+// The left-edge swipe: the page follows your finger; let go past a third (or flick) and it goes back to Today.
+function edgeSwipe(edge) {
+  let x0 = null, pts = [];
+  edge.addEventListener("pointerdown", (e) => { x0 = e.clientX; pts = [[performance.now(), e.clientX]]; stop(); try { edge.setPointerCapture(e.pointerId); } catch { /* ok */ } });
+  edge.addEventListener("pointermove", (e) => {
+    if (x0 == null) return; const t = performance.now(); pts.push([t, e.clientX]); pts = pts.filter((q) => t - q[0] < 100);
+    draw(1 - Math.max(0, e.clientX - x0) / innerWidth);
+  });
+  const end = () => {
+    if (x0 == null) return; x0 = null;
+    const a = pts[0], b = pts[pts.length - 1], v = pts.length > 1 ? (b[1] - a[1]) / Math.max(1, b[0] - a[0]) * 1000 : 0;
+    if ((1 - p) + v * 0.2 / innerWidth > 0.33 || v > 800) closeDays(-v); else to(1, -v);
+  };
+  edge.addEventListener("pointerup", end); edge.addEventListener("pointercancel", end);
 }
 
 // ---------- page ----------
 function render() {
   const s = store.get(), el = root();
   el.replaceChildren(h("div.bg"), h("div.scroll", null, h("div.page", null,
-    h("div.page-head", null, roundBtn("back", "Back to today", closeDays), h("button.btn-pill", { onclick: arrange }, "Edit")),
+    h("div.page-head", null, roundBtn("back", "Back to today", () => closeDays()), h("button.btn-pill", { onclick: arrange }, "Edit")),
     h("h1.big-title", null, "Your days"),
     h("div.sections", null, s.order.map((k) => ({ A: secMoods, B: secSleep, C: secPillars, D: secHelps }[k])(s))),
     LIFELINE())));
+  const edge = h("div.edge", { "aria-hidden": "true" }); el.append(edge); edgeSwipe(edge);
 }
 const redraw = () => { const sc = root().querySelector(".scroll"), y = sc ? sc.scrollTop : 0; render(); root().querySelector(".scroll").scrollTop = y; };
 
@@ -185,9 +197,11 @@ function arrange() {
     const draw = () => {
       list.replaceChildren(...draft.map((k) => {
         const row = h("div.arrange-row", { "data-k": k }, h("span", null, NAME[k]), h("span.grip", { "aria-hidden": "true" }, "≡"));
+        // Move a row by its ≡ handle; pulling anywhere else on the card closes it.
+        const grip = row.querySelector(".grip");
         let y0 = null, dy = 0;
-        row.addEventListener("pointerdown", (e) => { y0 = e.clientY; dy = 0; row.classList.add("drag"); try { row.setPointerCapture(e.pointerId); } catch { /* ok */ } });
-        row.addEventListener("pointermove", (e) => {
+        grip.addEventListener("pointerdown", (e) => { y0 = e.clientY; dy = 0; row.classList.add("drag"); try { grip.setPointerCapture(e.pointerId); } catch { /* ok */ } });
+        grip.addEventListener("pointermove", (e) => {
           if (y0 == null) return; dy = e.clientY - y0;
           const i = draft.indexOf(k);
           if (dy > RH / 2 && i < draft.length - 1) { [draft[i], draft[i + 1]] = [draft[i + 1], draft[i]]; y0 += RH; dy -= RH; reorder(); }
@@ -195,13 +209,13 @@ function arrange() {
           row.style.transform = `translateY(${dy}px) scale(1.02)`;
         });
         const end = () => { y0 = null; row.classList.remove("drag"); row.style.transform = ""; };
-        row.addEventListener("pointerup", end); row.addEventListener("pointercancel", end);
+        grip.addEventListener("pointerup", end); grip.addEventListener("pointercancel", end);
         return row;
       }));
     };
     const reorder = () => draft.forEach((k) => list.append(list.querySelector(`[data-k="${k}"]`)));
     draw();
-    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Arrange your view"), h("span.sub", null, "Drag to put what matters most to you at the top.")), list,
+    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Arrange your view"), h("span.sub", null, "Drag ≡ to put what matters most to you at the top.")), list,
       h("button.btn-main", { onclick: () => { s.order = draft.slice(); store.save(); close("done"); redraw(); log("arrange", draft.join("")); } }, "Done"));
   }, { label: "Arrange your view" });
 }
