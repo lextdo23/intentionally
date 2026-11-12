@@ -5,17 +5,18 @@ import * as store from "./store.js";
 import { moodSeries, mostlyWord, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
 import { RESTED } from "./words.js";
 import { openSheet } from "./ui.js";
+import { log } from "./tester.js";
 
 export const PILLAR_COL = { Friends: "#d9b3a6", Move: "#a9c4b5", Rest: "#a9b9d6", "Work and study": "#cfc59b", "Play and create": "#c4b4c9", Family: "#d9b3a6", Food: "#cfc59b", Outdoors: "#a9c4b5" };
 const NAME = { A: "Your moods", B: "Mood and sleep", C: "Mood and what you did", D: "What seems to help you" };
 const SPRING = "cubic-bezier(.22,1,.36,1)";
-let view = "week", origin = null, onClosed = null;
+let view = "week", origin = null, onClosed = null, helpsSeen = false;
 const root = () => document.getElementById("days");
 const coloured = (m, text) => h("span", { style: { color: MOOD_COL[m], fontWeight: "600" } }, text || moodWord(m));
 
 // ---------- open / close: smooth grow from the pill ----------
 export function openDays(fromEl, closed) {
-  onClosed = closed; origin = fromEl;
+  onClosed = closed; origin = fromEl; log("days_open"); helpsSeen = false;
   const el = root(); render();
   el.querySelector(".scroll").scrollTop = 0;
   el.classList.add("open");
@@ -65,7 +66,7 @@ const redraw = () => { const sc = root().querySelector(".scroll"), y = sc ? sc.s
 function secMoods(s) {
   const ser = moodSeries(s.days, view), have = ser.pts.filter((p) => p.m != null);
   const seg = h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>
-    h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; redraw(); } }, l)));
+    h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; redraw(); log("days_view", v); } }, l)));
   const top = mostlyWord(s.days, view);
   const head = top == null ? h("p.headline", null, view === "week" ? "Your moods show here after your first evening." : "Nothing noted here yet.")
     : h("p.headline", null, "Mostly ", coloured(top), ` ${ser.when}.`);
@@ -152,9 +153,10 @@ function secPillars(s) {
 function secHelps(s) {
   const pills = [...new Set(Object.values(s.days).flatMap((d) => d.pil || []))];
   const items = helps(s.days, s.hidden, pills);
+  if (!helpsSeen) { helpsSeen = true; log("helps_seen", items.map((it) => String(it.id).slice(0, 40))); }
   const card = h("div.card", { style: { gap: "4px" } }, h("h3", { style: { paddingBottom: "4px" } }, "What seems to help you"));
   items.forEach((it) => {
-    const hide = h("button", { style: { alignSelf: "flex-start", minHeight: "44px", color: "#8d8981", fontSize: "13px" }, onclick: () => { s.hidden[it.id] = true; s.notes.hid = true; store.save(); redraw(); } }, "That's not it");
+    const hide = h("button", { style: { alignSelf: "flex-start", minHeight: "44px", color: "#8d8981", fontSize: "13px" }, onclick: () => { s.hidden[it.id] = true; s.notes.hid = true; store.save(); redraw(); log("help_hide", String(it.id).slice(0, 60)); } }, "That's not it");
     if (it.research) {
       card.append(h("div.help", null, h("span.tag-gold", null, "From research · your own pattern shows here in a few days"), h("p.lead", null, ...it.text()), hide));
       return;
@@ -196,13 +198,14 @@ function arrange() {
     const reorder = () => draft.forEach((k) => list.append(list.querySelector(`[data-k="${k}"]`)));
     draw();
     panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Arrange your view"), h("span.sub", null, "Drag to put what matters most to you at the top.")), list,
-      h("button.btn-main", { onclick: () => { s.order = draft.slice(); store.save(); close("done"); redraw(); } }, "Done"));
+      h("button.btn-main", { onclick: () => { s.order = draft.slice(); store.save(); close("done"); redraw(); log("arrange", draft.join("")); } }, "Done"));
   }, { label: "Arrange your view" });
 }
 
 // ---------- Tap a day ----------
 const REST_LINE = ["Didn't feel rested", "Felt a little rested", "Felt okay", "Felt well rested", "Felt very well rested"];
 function openDay(k) {
+  log("day_tap");
   openSheet((panel) => {
     const body = h("div.col", { style: { gap: "16px" } });
     const draw = () => {
