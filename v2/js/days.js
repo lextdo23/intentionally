@@ -179,9 +179,11 @@ function arrange() {
     const draw = () => {
       list.replaceChildren(...draft.map((k) => {
         const row = h("div.arrange-row", { "data-k": k }, h("span", null, NAME[k]), h("span.grip", { "aria-hidden": "true" }, "≡"));
+        // Move a row by its ≡ handle; pulling anywhere else on the card closes it.
+        const grip = row.querySelector(".grip");
         let y0 = null, dy = 0;
-        row.addEventListener("pointerdown", (e) => { y0 = e.clientY; dy = 0; row.classList.add("drag"); try { row.setPointerCapture(e.pointerId); } catch { /* ok */ } });
-        row.addEventListener("pointermove", (e) => {
+        grip.addEventListener("pointerdown", (e) => { y0 = e.clientY; dy = 0; row.classList.add("drag"); try { grip.setPointerCapture(e.pointerId); } catch { /* ok */ } });
+        grip.addEventListener("pointermove", (e) => {
           if (y0 == null) return; dy = e.clientY - y0;
           const i = draft.indexOf(k);
           if (dy > RH / 2 && i < draft.length - 1) { [draft[i], draft[i + 1]] = [draft[i + 1], draft[i]]; y0 += RH; dy -= RH; reorder(); }
@@ -189,13 +191,13 @@ function arrange() {
           row.style.transform = `translateY(${dy}px) scale(1.02)`;
         });
         const end = () => { y0 = null; row.classList.remove("drag"); row.style.transform = ""; };
-        row.addEventListener("pointerup", end); row.addEventListener("pointercancel", end);
+        grip.addEventListener("pointerup", end); grip.addEventListener("pointercancel", end);
         return row;
       }));
     };
     const reorder = () => draft.forEach((k) => list.append(list.querySelector(`[data-k="${k}"]`)));
     draw();
-    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Arrange your view"), h("span.sub", null, "Drag to put what matters most to you at the top.")), list,
+    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Arrange your view"), h("span.sub", null, "Drag ≡ to put what matters most to you at the top.")), list,
       h("button.btn-main", { onclick: () => { s.order = draft.slice(); store.save(); close("done"); redraw(); } }, "Done"));
   }, { label: "Arrange your view" });
 }

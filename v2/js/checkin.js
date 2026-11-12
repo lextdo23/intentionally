@@ -12,11 +12,11 @@ let current = null, finish = null;
 
 function show(step) {
   const old = current; current = step;
-  step.querySelectorAll(".rise").forEach((el, i) => el.style.setProperty("--i", i));
-  if (old) { old.classList.remove("in"); old.classList.add("out"); setTimeout(() => old.remove(), 300); }
+  step.querySelectorAll(".rise").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 3)));
+  if (old) { old.classList.remove("in"); old.classList.add("out"); setTimeout(() => old.remove(), 200); }
   flow().append(step);
   requestAnimationFrame(() => requestAnimationFrame(() => step.classList.add("in")));
-  const f = step.querySelector("[data-focus]"); if (f) setTimeout(() => f.focus({ preventScroll: true }), 400);
+  const f = step.querySelector("[data-focus]"); if (f) setTimeout(() => f.focus({ preventScroll: true }), 250);
 }
 function close(saved) {
   document.body.classList.remove("in-flow");

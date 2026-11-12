@@ -1,14 +1,39 @@
-// Bottom sheets: rise from the bottom, tap outside to close.
-import { h } from "./util.js";
+// Bottom sheets: rise from the bottom and follow your finger. Pull down anywhere (once scrolled to the top),
+// let go past about a third or flick, and it closes; otherwise it springs back. Tap outside to close.
+import { h, reduceMotion } from "./util.js";
+
+// One soft spring for all motion: about 0.4s, starts quickly, settles calmly, no bounce. Carries the finger's speed.
+export function spring(from, to, v, set, done, response = 0.42) {
+  if (reduceMotion()) { set(to); done && done(); return () => {}; }
+  const k = (2 * Math.PI / response) ** 2, c = 4 * Math.PI / response;
+  let x = from, vel = v || 0, last = performance.now(), id = 0;
+  const tick = (t) => {
+    const dt = Math.min(0.032, (t - last) / 1000); last = t;
+    for (let i = 0; i < 4; i++) { const a = -k * (x - to) - c * vel; vel += a * dt / 4; x += vel * dt / 4; }
+    if (Math.abs(x - to) < 0.4 && Math.abs(vel) < 8) { set(to); done && done(); return; }
+    set(x); id = requestAnimationFrame(tick);
+  };
+  id = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(id);
+}
+// Finger speed in px per second, from the last tenth of a second.
+function tracker() {
+  let pts = [];
+  return { add(y) { const t = performance.now(); pts.push([t, y]); pts = pts.filter((p) => t - p[0] < 100); },
+    v() { if (pts.length < 2) return 0; const a = pts[0], b = pts[pts.length - 1]; return (b[1] - a[1]) / Math.max(1, b[0] - a[0]) * 1000; } };
+}
+const rubber = (d) => -Math.pow(-d, 0.7) * 1.6; // pulling up stretches a little, then resists
 
 export function openSheet(build, { onClose, label } = {}) {
   const wrap = h("div.sheet-host", { role: "dialog", "aria-modal": "true", "aria-label": label || "" });
   const dim = h("div.sheet-dim"), panel = h("div.sheet");
-  let closed = false;
-  const close = (why) => {
-    if (closed) return; closed = true;
-    wrap.classList.remove("sheet-open");
-    setTimeout(() => wrap.remove(), 420);
+  let closed = false, y = 0, H = 1, stop = () => {};
+  const set = (v) => { y = v; panel.style.transform = `translateY(${v}px)`; dim.style.opacity = String(Math.max(0, Math.min(1, 1 - v / H))); };
+  const close = (why, v = 0) => {
+    if (closed) return; closed = true; stop();
+    wrap.style.pointerEvents = "none";
+    if (reduceMotion()) { wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" }).finished.then(() => wrap.remove()); }
+    else stop = spring(y, H + 24, Math.max(0, v), set, () => wrap.remove());
     onClose && onClose(why);
   };
   dim.addEventListener("click", () => close("outside"));
@@ -16,11 +41,48 @@ export function openSheet(build, { onClose, label } = {}) {
   build(panel, close);
   wrap.append(dim, panel);
   document.body.append(wrap);
-  // Swipe down on the grabber area to close.
-  let y0 = null;
-  panel.addEventListener("pointerdown", (e) => { if (e.clientY - panel.getBoundingClientRect().top < 40) y0 = e.clientY; });
-  panel.addEventListener("pointerup", (e) => { if (y0 != null && e.clientY - y0 > 60) close("swipe"); y0 = null; });
-  requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add("sheet-open")));
+  wrap.classList.add("sheet-open");
+  H = panel.offsetHeight;
+  if (reduceMotion()) { set(0); wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 }); }
+  else { set(H + 24); stop = spring(H + 24, 0, 0, set); }
+
+  // Dragging. Touch and mouse share start / move / end. Rows moved by a handle (.grip), text fields and sliders are left alone.
+  let s0 = null, dragging = false, moved = false, base = 0, tr = null;
+  const start = (x, yy, target) => {
+    if (closed || target.closest(".grip, input, textarea, [data-nodrag]")) return;
+    s0 = [x, yy]; dragging = false; moved = false; base = y; tr = tracker(); tr.add(yy);
+  };
+  const move = (x, yy) => {
+    if (!s0) return false;
+    const dx = x - s0[0], dy = yy - s0[1];
+    if (!dragging) {
+      if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return false;
+      // Only take over when the pull is mostly downward and the card's own content is scrolled to the top (or the card is already moved).
+      if (Math.abs(dy) > Math.abs(dx) && ((dy > 0 && panel.scrollTop <= 0) || base !== 0)) { dragging = true; moved = true; stop(); }
+      else { s0 = null; return false; }
+    }
+    tr.add(yy);
+    const t = base + dy; set(t >= 0 ? t : rubber(t));
+    return true;
+  };
+  const end = () => {
+    if (!s0) return; s0 = null;
+    if (!dragging) return; dragging = false;
+    const v = tr.v();
+    if (y + v * 0.2 > H * 0.35 || v > 900) close("swipe", v);
+    else { stop(); stop = spring(y, 0, v, set); }
+  };
+  panel.addEventListener("touchstart", (e) => { if (e.touches.length === 1) start(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive: true });
+  panel.addEventListener("touchmove", (e) => { if (move(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault(); }, { passive: false });
+  panel.addEventListener("touchend", end); panel.addEventListener("touchcancel", end);
+  panel.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse") return;
+    start(e.clientX, e.clientY, e.target);
+    const mv = (ev) => move(ev.clientX, ev.clientY), up = () => { end(); removeEventListener("pointermove", mv); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  });
+  // A drag never also presses the button it started on.
+  panel.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
   return close;
 }
 
