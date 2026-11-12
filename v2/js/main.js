@@ -6,8 +6,10 @@ import { morning, evening } from "./checkin.js";
 import { openDays } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
-import { openSheet } from "./ui.js";
+import { openSheet, roundBtn, slideTo } from "./ui.js";
 import * as notify from "./notify.js";
+import * as tester from "./tester.js";
+import { openTester, testerRow } from "./tester-sheet.js";
 
 const s = store.load();
 setOffsetDays(s.test.offset || 0);
@@ -37,21 +39,21 @@ function render() {
   if (!needAM && !needPM) notes.push(h("p.home-note", { style: { color: "#a9a59d" } }, "That's today. Rest well."));
   const go = (fn) => () => fn(() => render());
   let main = null, quiet = null;
-  if (needAM && needPM) { if (hr < 15) main = ["Start of your day", morning]; else { main = ["End of your day", evening]; quiet = ["Add last night's sleep", morning]; } }
+  if (needAM && needPM) { if (hr < 15) main = ["Start of your day", morning]; else { main = ["End your day", evening]; quiet = ["Add last night's sleep", morning]; } }
   else if (needAM) main = ["Start of your day", morning];
-  else if (needPM) main = ["End of your day", evening];
+  else if (needPM) main = ["End your day", evening];
   const greet = h("h1.greet", null, greeting());
   let taps = 0, tapT = 0;
   greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       h("div.col", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet),
-      h("button.btn-text", { style: { fontSize: "15px", flexShrink: "0" }, onclick: notifications }, "Notifications")),
+      roundBtn("settings", "Settings", notifications)),
     peek(),
     h("div.home-mid", null, notes),
     h("div.col", { style: { gap: "4px" } },
       quiet ? h("button.btn-quiet", { onclick: go(quiet[1]) }, quiet[0]) : null,
-      main ? h("button.btn-main", { onclick: go(main[1]) }, main[0]) : h("button.btn-quiet", { onclick: changeToday }, "Change today"),
+      main ? (main[1] === evening ? slideTo(main[0], go(evening)) : h("button.btn-main", { onclick: go(main[1]) }, main[0])) : h("button.btn-quiet", { onclick: changeToday }, "Change today"),
       LIFELINE()));
   testBar();
 }
@@ -81,15 +83,16 @@ function notifications() {
       sw.addEventListener("click", async () => {
         const on = !n[key].on;
         if (on && (!notify.supported() || Notification.permission !== "granted")) { const ok = await notify.enable(); say(); if (!ok) return; }
-        n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync();
+        n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
       });
-      time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); } });
+      time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
       return h("div.notify-row", null, h("span", null, label), time, sw);
     };
     say();
     panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Notifications"), msg),
-      row("am", "Start of your day"), row("pm", "End of your day"),
-      h("button.btn-main", { onclick: () => close("done") }, "Done"));
+      row("am", "Start of your day"), row("pm", "End your day"),
+      h("button.btn-main", { onclick: () => close("done") }, "Done"),
+      testerRow(() => { close("tester"); setTimeout(openTester, 350); }));
   }, { label: "Notifications" });
 }
 
@@ -109,6 +112,9 @@ function testBar() {
 
 render();
 notify.sync();
+tester.opened();
+// A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
+if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {

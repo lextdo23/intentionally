@@ -43,4 +43,5 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - Voice: comforting at hard moments (worries, reflection, repeats), brief and steady everywhere else.
 - Features are revealed slowly and we say so up front.
 - Not therapy: crisis support (Australian lines) must always be reachable.
+- Tester mode (`v2/js/tester.js`, dashboard `v2/testers.html`, storage in `push/worker.js`): beta testers opt in and the app sends only choices and numbers, never typed words. **Every new v2 feature must report what people do with `log("name", value)`** (cards drawn/passed/done/thumbs, setup steps, pillars and mindsets, levels and packs), and add its section to `v2/testers.html` (cards, setup, pillars and levels already have "not built yet" placeholders). A new KIND of data needs a line in `SHARED` and a `CONSENT` bump so testers are asked again.
 - Notifications (`js/notify.js`, `push/`) are a FIRST VERSION, NOT FINAL: built as first drafted at alex's request; words and design get revisited. The service only knows times, never words; a thought never goes on the lock screen.

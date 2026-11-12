@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       READY: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+      HAS_TESTER_KEY: ${{ secrets.TESTER_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
       - if: env.READY == 'true'
@@ -19,5 +20,13 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: push
+      # The password for the tester page (v2/testers.html). Set it as the repository secret TESTER_KEY.
+      - if: env.READY == 'true' && env.HAS_TESTER_KEY == 'true'
+        working-directory: push
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TESTER_KEY: ${{ secrets.TESTER_KEY }}
+        run: printf '%s' "$TESTER_KEY" | npx --yes wrangler@3 secret put TESTER_KEY
       - if: env.READY != 'true'
         run: echo "Cloudflare secrets aren't set yet, so nothing was deployed. See push/README.md."

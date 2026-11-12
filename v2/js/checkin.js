@@ -3,12 +3,16 @@
 import { h, dayKey, keyDate, clock12, hoursWords, MOODS, MOOD_COL, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecent } from "./words.js";
-import { openSheet, pillPicker } from "./ui.js";
+import { openSheet, pillPicker, roundBtn } from "./ui.js";
 import { sync as syncNotify } from "./notify.js";
+import { log } from "./tester.js";
 
 const flow = () => document.getElementById("flow");
 const dayNum = (k) => Math.floor(keyDate(k).getTime() / 864e5);
 let current = null, finish = null;
+// Tester mode: which check-in is open, which step, when it started, how times were set.
+let track = null;
+const at = (step) => { if (track) track.step = step; };
 
 function show(step) {
   const old = current; current = step;
@@ -23,6 +27,7 @@ function close(saved) {
   document.documentElement.style.removeProperty("--glow");
   if (current) { current.classList.remove("in"); current.classList.add("out"); const c = current; setTimeout(() => c.remove(), 300); current = null; }
   if (saved) syncNotify();
+  if (track) { log(track.kind + (saved ? "_done" : "_quit"), saved ? (track.kind === "am" ? { secs: Math.round((Date.now() - track.t0) / 1000), set: track.set || "none" } : { secs: Math.round((Date.now() - track.t0) / 1000) }) : track.step); track = null; }
   const f = finish; finish = null; f && f(saved);
 }
 function step(head, body, foot) {
@@ -38,6 +43,8 @@ const mainBtn = (label, ok, onclick) => {
 // ---------------- Morning: last night's sleep ----------------
 export function morning(onDone) {
   finish = onDone;
+  track = { kind: "am", t0: Date.now(), step: "arc" }; log("am_start");
+  const howSet = (w) => { track && (track.set = !track.set || track.set === w ? w : "both"); };
   const s = store.get(), k = dayKey(), had = s.days[k] && s.days[k].sleep;
   const prev = Object.keys(s.days).sort().reverse().map((x) => s.days[x].sleep).find(Boolean);
   const st = { bed: had ? had.bed : prev ? prev.bed : 23 * 60, wake: had ? had.wake : prev ? prev.wake : 6 * 60 + 30, rested: had ? had.rested : null, tags: new Set(had ? had.tags : []) };
@@ -80,13 +87,13 @@ export function morning(onDone) {
     if (Math.min(db, dw) > 48) return;
     dragging = db < dw ? "bed" : "wake"; try { svg.setPointerCapture(e.pointerId); } catch { /* older browsers */ }
     (dragging === "bed" ? bHalo : wHalo).setAttribute("r", "26");
-    st[dragging] = fit(dragging, toMin(p)); draw(); e.preventDefault();
+    st[dragging] = fit(dragging, toMin(p)); draw(); e.preventDefault(); howSet("drag");
   });
   svg.addEventListener("pointermove", (e) => { if (!dragging) return; st[dragging] = fit(dragging, toMin(pt(e))); draw(); });
   const up = () => { if (!dragging) return; bHalo.setAttribute("r", "20"); wHalo.setAttribute("r", "18"); dragging = null; };
   svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
   const fromInput = (which, inp) => { const [a, b] = inp.value.split(":").map(Number); if (isNaN(a)) return; st[which] = fit(which, a * 60 + Math.round(b / 5) * 5); draw(); };
-  iBed.addEventListener("change", () => fromInput("bed", iBed)); iWake.addEventListener("change", () => fromInput("wake", iWake));
+  iBed.addEventListener("change", () => { howSet("wheel"); fromInput("bed", iBed); }); iWake.addEventListener("change", () => { howSet("wheel"); fromInput("wake", iWake); });
   draw();
 
   const done = mainBtn("Done", st.rested != null, () => {
@@ -98,13 +105,13 @@ export function morning(onDone) {
   });
   const rested = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "How rested do you feel?" },
     RESTED.map((label, i) => h("button.pill", { role: "radio", "aria-checked": String(st.rested === i), "aria-pressed": String(st.rested === i), onclick: (e) => {
-      st.rested = i; rested.querySelectorAll(".pill").forEach((p, j) => { p.setAttribute("aria-pressed", String(j === i)); p.setAttribute("aria-checked", String(j === i)); });
+      st.rested = i; at("rested"); rested.querySelectorAll(".pill").forEach((p, j) => { p.setAttribute("aria-pressed", String(j === i)); p.setAttribute("aria-checked", String(j === i)); });
       done.setAttribute("aria-disabled", "false");
     } }, label)));
   const moreBtn = h("button.btn-quiet", { onclick: () => extras() });
   const moreLabel = () => (moreBtn.textContent = st.tags.size ? `About last night · ${st.tags.size} noted` : "Add more about last night");
   moreLabel();
-  const extras = () => openSheet((panel, closeSheet) => {
+  const extras = () => { at("extras"); log("am_extras"); return openSheet((panel, closeSheet) => {
     const s2 = store.get(), base = SLEEP_TAGS.concat(SLEEP_MORE, s2.sleepTags.own.filter((w) => !SLEEP_TAGS.includes(w) && !SLEEP_MORE.includes(w)));
     const { main, more } = rankRecent(base, s2.sleepTags.last);
     st.tags.forEach((t) => { if (!main.includes(t)) { main.push(t); more.splice(more.indexOf(t), 1); } });
@@ -114,10 +121,10 @@ export function morning(onDone) {
       noteOnce: () => (s2.notes.sleepOwn ? false : (s2.notes.sleepOwn = true, store.save(), true)) });
     panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "About last night"), h("span.sub", null, "Tap any that fit.")), pick.el,
       h("button.btn-main", { onclick: () => closeSheet("done") }, "Done"));
-  }, { label: "About last night", onClose: moreLabel });
+  }, { label: "About last night", onClose: moreLabel }); };
 
   show(step(
-    [h("button.btn-text", { onclick: () => close(false) }, "Not now"), where("Start of your day"), spacer()],
+    [roundBtn("close", "Not now", () => close(false)), where("Start of your day"), spacer()],
     [h("h1.q.rise", null, "Last night"), h("div.arc-wrap.rise", null, svg, hrs),
       h("div.times.rise", null, h("label.time", null, h("span", null, "Went to sleep"), tBed, iBed), h("label.time", null, h("span", null, "Woke up"), tWake, iWake)),
       h("div.col.rise", { style: { gap: "8px" } }, h("span.q2", null, "How rested do you feel?"), rested)],
@@ -131,12 +138,14 @@ const toMood = (v) => Math.min(6, Math.floor(v / 100 * 7));
 
 export function evening(onDone) {
   finish = onDone;
+  track = { kind: "pm", t0: Date.now(), step: "mood" }; log("pm_start");
   const s = store.get(), k = dayKey(), had = s.days[k] || {};
   const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [] };
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
 
   const one = () => {
+    at("mood");
     const word = h("div.mood-word", { "aria-live": "polite" });
     const next = mainBtn(st.touched ? "Next" : "Slide to answer", st.touched, two);
     const range = h("input", { type: "range", min: "0", max: "100", value: String(Math.round(st.v)), "aria-label": "How was today?", "data-focus": "" });
@@ -144,12 +153,13 @@ export function evening(onDone) {
     range.addEventListener("input", () => { st.v = +range.value; st.touched = true; next.textContent = "Next"; next.setAttribute("aria-disabled", "false"); upd(); });
     upd();
     show(step(
-      [h("button.btn-text", { onclick: () => close(false) }, "Not now"), where("End of your day · 1 of 2"), spacer()],
+      [roundBtn("close", "Not now", () => close(false)), where("End your day · 1 of 2"), spacer()],
       [h("h1.q.rise", null, "How was today?"), h("div.rise", null, word), h("div.col.rise", { style: { gap: "8px" } }, range, h("div.ends", null, h("span", null, "Awful"), h("span", null, "Great")))],
       [next, LIFELINE()]));
   };
   const two = () => {
     const m = toMood(st.v), b = band(m), s2 = store.get();
+    at("feelings"); log("pm_feelings", m);
     const L = (s2.feel.last[b] = s2.feel.last[b] || {});
     const order = [...new Set(firstSix(b).concat(s2.feel.own, nearestOrder(b)))];
     const ranked = order.slice().sort((x, y) => ((L[y] || 0) - (L[x] || 0)) || order.indexOf(x) - order.indexOf(y));
@@ -162,7 +172,7 @@ export function evening(onDone) {
       onAdd: (w) => { w = w.toLowerCase(); if (!s2.feel.own.includes(w) && !order.includes(w)) s2.feel.own.push(w); if (!main.includes(w)) main.push(w); const i = more.indexOf(w); if (i >= 0) more.splice(i, 1); st.feel.add(w); done.setAttribute("aria-disabled", "false"); store.save(); },
       noteOnce: () => (s2.notes.feelOwn ? false : (s2.notes.feelOwn = true, store.save(), true)) });
     show(step(
-      [h("button.btn-text", { onclick: one }, "‹ Back"), where("End of your day · 2 of 2"), spacer()],
+      [roundBtn("back", "Back", one), where("End your day · 2 of 2"), spacer()],
       [h("span.q2.rise", { style: { color: MOOD_COL[m], fontWeight: "600" } }, MOODS[m]), h("h1.q.rise", null, "What were you feeling?"), h("div.rise", null, pick.el)],
       [done, LIFELINE()]));
   };

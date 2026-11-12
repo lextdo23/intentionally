@@ -2,13 +2,14 @@
 // Slides in from the right like iPhone Settings; "‹ Today" or a swipe in from the left edge goes back.
 import { h, MOODS, MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
-import { moodSeries, mostlyWord, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
+import { moodSeries, mostlyWord, oldestBack, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
 import { RESTED } from "./words.js";
-import { openSheet, spring } from "./ui.js";
+import { openSheet, roundBtn, spring } from "./ui.js";
+import { log } from "./tester.js";
 
 export const PILLAR_COL = { Friends: "#d9b3a6", Move: "#a9c4b5", Rest: "#a9b9d6", "Work and study": "#cfc59b", "Play and create": "#c4b4c9", Family: "#d9b3a6", Food: "#cfc59b", Outdoors: "#a9c4b5" };
 const NAME = { A: "Your moods", B: "Mood and sleep", C: "Mood and what you did", D: "What seems to help you" };
-let view = "week", origin = null, onClosed = null;
+let view = "week", back = 0, origin = null, onClosed = null, helpsSeen = false;
 const root = () => document.getElementById("days");
 const coloured = (m, text) => h("span", { style: { color: MOOD_COL[m], fontWeight: "600" } }, text || moodWord(m));
 
@@ -33,7 +34,7 @@ function to(target, vel, done) {
   stop = spring(p, target, (vel || 0) / innerWidth, draw, done);
 }
 export function openDays(fromEl, closed) {
-  onClosed = closed; origin = fromEl;
+  onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false;
   const el = root(); render();
   el.querySelector(".scroll").scrollTop = 0;
   draw(0); el.classList.add("open");
@@ -65,7 +66,7 @@ function edgeSwipe(edge) {
 function render() {
   const s = store.get(), el = root();
   el.replaceChildren(h("div.bg"), h("div.scroll", null, h("div.page", null,
-    h("div.page-head", null, h("button.btn-text", { onclick: () => closeDays() }, "‹ Today"), h("button.btn-text", { onclick: arrange }, "Edit")),
+    h("div.page-head", null, roundBtn("back", "Back to today", () => closeDays()), h("button.btn-pill", { onclick: arrange }, "Edit")),
     h("h1.big-title", null, "Your days"),
     h("div.sections", null, s.order.map((k) => ({ A: secMoods, B: secSleep, C: secPillars, D: secHelps }[k])(s))),
     LIFELINE())));
@@ -75,13 +76,17 @@ const redraw = () => { const sc = root().querySelector(".scroll"), y = sc ? sc.s
 
 // A: the mood line, Week / Month / Year
 function secMoods(s) {
-  const ser = moodSeries(s.days, view), have = ser.pts.filter((p) => p.m != null);
+  const ser = moodSeries(s.days, view, back), have = ser.pts.filter((p) => p.m != null);
   const seg = h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>
-    h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; redraw(); } }, l)));
-  const top = mostlyWord(s.days, view);
-  const head = top == null ? h("p.headline", null, view === "week" ? "Your moods show here after your first evening." : "Nothing noted here yet.")
+    h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; back = 0; redraw(); log("days_view", v); } }, l)));
+  // The real dates: "9 – 15 Nov", "November", "2026". Arrows step back to earlier ones and forward again.
+  const max = oldestBack(s.days, view), step = (d) => { back = Math.max(0, Math.min(max, back + d)); redraw(); };
+  const arrow = (d, t, on) => h("button.round", { "aria-label": d > 0 ? `Earlier ${view}` : `Later ${view}`, disabled: !on, style: { visibility: on ? "visible" : "hidden" }, onclick: () => step(d) }, t);
+  const date = h("div.period", null, arrow(1, "‹", back < max), h("span", { "aria-live": "polite" }, ser.label), arrow(-1, "›", back > 0));
+  const top = mostlyWord(s.days, view, back);
+  const head = top == null ? h("p.headline", null, view === "week" && !back ? "Your moods show here after your first evening." : `Nothing noted ${ser.when}.`)
     : h("p.headline", null, "Mostly ", coloured(top), ` ${ser.when}.`);
-  const out = h("div.col", { style: { gap: "16px" } }, seg, head);
+  const out = h("div.col", { style: { gap: "16px" } }, seg, h("div.col", { style: { gap: "4px" } }, date, head));
   if (!have.length) return out;
   const W = 334, L = 40, R = 334, n = ser.n, X = (i) => L + (i + 0.5) / n * (R - L), Y = (m) => 150 - m * 22.7;
   const P = ser.pts.map((p, i) => (p.m == null ? null : [X(i), Y(p.m), p.m]));
@@ -89,7 +94,7 @@ function secMoods(s) {
   const hw = Math.max(3, (R - L) / n / 2);
   const area = runs.map((r) => (r.length > 1 ? `${smoothPath(r)} L ${r[r.length - 1][0].toFixed(1)} 164 L ${r[0][0].toFixed(1)} 164 Z` : `M ${(r[0][0] - hw).toFixed(1)} 164 Q ${r[0][0].toFixed(1)} ${r[0][1] - 6} ${(r[0][0] + hw).toFixed(1)} 164 Z`)).join(" ");
   let bridge = ""; for (let i = 1; i < P.length - 1; i++) if (!P[i] && P[i - 1] && P[i + 1]) bridge += `M ${P[i - 1][0].toFixed(1)} ${P[i - 1][1]} L ${P[i + 1][0].toFixed(1)} ${P[i + 1][1]} `;
-  const dotR = n === 7 ? 5.5 : n === 30 ? 3.5 : 0;
+  const dotR = n === 7 ? 5.5 : n >= 28 && n <= 31 ? 3.5 : 0;
   const svg = h("svg", { viewBox: `0 0 ${W} 170`, role: "img", "aria-label": `Mood line, ${ser.when}` },
     h("defs", null,
       h("linearGradient", { id: "ln", x1: "0", y1: "14", x2: "0", y2: "150", gradientUnits: "userSpaceOnUse" }, h("stop", { offset: "0", "stop-color": "#56b56c" }), h("stop", { offset: "0.5", "stop-color": "#bdae8e" }), h("stop", { offset: "1", "stop-color": "#4a4fa8" })),
@@ -102,7 +107,7 @@ function secMoods(s) {
     dotR ? P.filter(Boolean).map((p) => h("circle", { cx: p[0].toFixed(1), cy: p[1], r: dotR, fill: MOOD_COL[p[2]], stroke: "#1d1e22", "stroke-width": "2" })) : null);
   const chart = h("div.chart", null, svg);
   // tap a day on the line to open it
-  if (n !== 52) ser.pts.forEach((p, i) => chart.append(h("button.hit", { "aria-label": `${dayTitle(p.k)}${p.m != null ? ", " + MOODS[p.m] : ""}`, style: { left: `${(X(i) - (R - L) / n / 2) / W * 100}%`, width: `${(R - L) / n / W * 100}%` }, onclick: () => openDay(p.k) })));
+  if (view !== "year") ser.pts.forEach((p, i) => p.k && chart.append(h("button.hit", { "aria-label": `${dayTitle(p.k)}${p.m != null ? ", " + MOODS[p.m] : ""}`, style: { left: `${(X(i) - (R - L) / n / 2) / W * 100}%`, width: `${(R - L) / n / W * 100}%` }, onclick: () => openDay(p.k) })));
   const ticks = h("div", { style: { position: "relative", height: "16px", marginLeft: `${L / W * 100}%` } }, ser.ticks.map((t) =>
     h("span.lab", { style: { position: "absolute", top: "0", left: `${(t.i + 0.5) / n * 100}%`, transform: "translateX(-50%)", fontSize: "11px", color: "#a9a59d", whiteSpace: "nowrap" } }, t.l)));
   out.append(h("div.card", { style: { padding: "16px 8px 12px" } }, h("h3", { style: { paddingLeft: "8px" } }, "Your moods"), chart, ticks));
@@ -164,9 +169,10 @@ function secPillars(s) {
 function secHelps(s) {
   const pills = [...new Set(Object.values(s.days).flatMap((d) => d.pil || []))];
   const items = helps(s.days, s.hidden, pills);
+  if (!helpsSeen) { helpsSeen = true; log("helps_seen", items.map((it) => String(it.id).slice(0, 40))); }
   const card = h("div.card", { style: { gap: "4px" } }, h("h3", { style: { paddingBottom: "4px" } }, "What seems to help you"));
   items.forEach((it) => {
-    const hide = h("button", { style: { alignSelf: "flex-start", minHeight: "44px", color: "#8d8981", fontSize: "13px" }, onclick: () => { s.hidden[it.id] = true; s.notes.hid = true; store.save(); redraw(); } }, "That's not it");
+    const hide = h("button", { style: { alignSelf: "flex-start", minHeight: "44px", color: "#8d8981", fontSize: "13px" }, onclick: () => { s.hidden[it.id] = true; s.notes.hid = true; store.save(); redraw(); log("help_hide", String(it.id).slice(0, 60)); } }, "That's not it");
     if (it.research) {
       card.append(h("div.help", null, h("span.tag-gold", null, "From research · your own pattern shows here in a few days"), h("p.lead", null, ...it.text()), hide));
       return;
@@ -210,13 +216,14 @@ function arrange() {
     const reorder = () => draft.forEach((k) => list.append(list.querySelector(`[data-k="${k}"]`)));
     draw();
     panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Arrange your view"), h("span.sub", null, "Drag ≡ to put what matters most to you at the top.")), list,
-      h("button.btn-main", { onclick: () => { s.order = draft.slice(); store.save(); close("done"); redraw(); } }, "Done"));
+      h("button.btn-main", { onclick: () => { s.order = draft.slice(); store.save(); close("done"); redraw(); log("arrange", draft.join("")); } }, "Done"));
   }, { label: "Arrange your view" });
 }
 
 // ---------- Tap a day ----------
 const REST_LINE = ["Didn't feel rested", "Felt a little rested", "Felt okay", "Felt well rested", "Felt very well rested"];
 function openDay(k) {
+  log("day_tap");
   openSheet((panel) => {
     const body = h("div.col", { style: { gap: "16px" } });
     const draw = () => {

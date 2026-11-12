@@ -1,6 +1,7 @@
 // Bottom sheets: rise from the bottom and follow your finger. Pull down anywhere (once scrolled to the top),
 // let go past about a third or flick, and it closes; otherwise it springs back. Tap outside to close.
 import { h, reduceMotion } from "./util.js";
+import { log } from "./tester.js";
 
 // One soft spring for all motion: about 0.4s, starts quickly, settles calmly, no bounce. Carries the finger's speed.
 export function spring(from, to, v, set, done, response = 0.42) {
@@ -101,14 +102,14 @@ export function pillPicker(opts) {
     const plusB = h("button.plus", { "aria-label": "Add your own", onclick: () => adding() }, "+");
     const nsA = opts.notSure ? pill(opts.notSure, null, ".outline") : null, nsB = opts.notSure ? pill(opts.notSure, opts.more.length, ".outline") : null;
     const wrap = h("div.more-wrap", null, h("div", null, h("div.pills", { style: { paddingTop: "0" } }, opts.more.map((w, i) => pill(w, i)), plusB, nsB)));
-    const label = h("button.btn-text", { style: { alignSelf: "center", fontSize: "15px" }, "aria-expanded": "false" });
+    const label = h("button.btn-text", { style: { alignSelf: "center", fontSize: "15px", color: "var(--ink2)" }, "aria-expanded": "false" });
     const set = () => {
       wrap.classList.toggle("open", open);
       plusA.hidden = open; if (nsA) nsA.hidden = open;
       plusB.tabIndex = open ? 0 : -1; wrap.querySelectorAll(".pill").forEach((p) => (p.tabIndex = open ? 0 : -1));
       label.textContent = open ? "Show fewer" : `Show ${opts.more.length} more`; label.setAttribute("aria-expanded", String(open));
     };
-    label.addEventListener("click", () => { open = !open; set(); });
+    label.addEventListener("click", () => { open = !open; set(); if (open) log("show_more"); });
     root.append(h("div.pills", null, opts.main.map((w) => pill(w)), plusA, nsA), wrap);
     if (opts.more.length) root.append(label);
     set(); sync();
@@ -118,7 +119,7 @@ export function pillPicker(opts) {
       const add = () => {
         const w = inp.value.trim();
         if (!w) { inp.parentNode.remove(); return; }
-        opts.onAdd(w); draw();
+        opts.onAdd(w); draw(); log("own_word");
         if (opts.noteOnce && opts.noteOnce()) root.append(h("span.note", null, "Saved. Your words stay here for next time."));
       };
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
@@ -128,4 +129,43 @@ export function pillPicker(opts) {
   };
   draw();
   return { el: root, redraw: () => draw() };
+}
+
+// Round see-through icon buttons (iOS 26 style). kind: "back" | "close" | "settings".
+const ICON = {
+  back: [["path", { d: "M15 18l-6-6 6-6" }]],
+  close: [["path", { d: "M6 6l12 12M18 6L6 18" }]],
+  settings: [["circle", { cx: "12", cy: "12", r: "3" }], ["path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" }]],
+};
+export function roundBtn(kind, label, onclick) {
+  const svg = h("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": kind === "settings" ? "1.8" : "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
+    ICON[kind].map(([t, a]) => h(t, a)));
+  return h("button.round", { "aria-label": label, onclick }, svg);
+}
+
+// Slide the little sun across to act (like "slide to power off"), so a stray tap can't start it.
+// A tap just nudges the sun to show it slides. Keyboards and screen readers can still press it.
+export function slideTo(label, act) {
+  const knob = h("button.slide-knob", { "aria-label": label });
+  const words = h("span.slide-words", { "aria-hidden": "true" }, "Slide to " + label.charAt(0).toLowerCase() + label.slice(1));
+  const track = h("div.slide", null, words, knob);
+  let x0 = null, dx = 0, moved = false, done = false;
+  const max = () => track.clientWidth - knob.offsetWidth - 8;
+  const put = (x, anim) => {
+    knob.style.transition = anim ? "transform .35s var(--spring)" : "none";
+    knob.style.transform = `translateX(${x}px)`;
+    words.style.opacity = String(Math.max(0, 1 - x / (max() * 0.6)));
+  };
+  const finish = () => { done = true; put(max(), true); navigator.vibrate?.(10); setTimeout(act, 220); setTimeout(() => { done = false; put(0, false); }, 900); };
+  knob.addEventListener("pointerdown", (e) => { if (done) return; x0 = e.clientX; dx = 0; moved = false; knob.setPointerCapture(e.pointerId); });
+  knob.addEventListener("pointermove", (e) => { if (x0 == null) return; dx = Math.max(0, Math.min(max(), e.clientX - x0)); if (dx > 4) moved = true; put(dx, false); });
+  const up = () => { if (x0 == null) return; x0 = null; if (dx >= max() * 0.85) finish(); else put(0, true); };
+  knob.addEventListener("pointerup", up);
+  knob.addEventListener("pointercancel", up);
+  knob.addEventListener("click", (e) => {
+    if (done || moved) return;
+    if (e.detail === 0) { finish(); return; } // keyboard or screen reader
+    put(40, true); setTimeout(() => put(0, true), 260); // a tap: show it slides
+  });
+  return track;
 }

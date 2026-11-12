@@ -2,31 +2,55 @@
 import { addDays, dayKey, keyDate, DAY_LETTER, MONTH, mostPicked, avg, isGood, sleepMins } from "./util.js";
 
 // ---- Your moods: one line, Week / Month / Year ----
-export function moodSeries(days, view) {
-  const today = dayKey();
-  if (view === "year") {
-    // One point per week: the mood felt most that week. Weeks away stay a gap.
-    const pts = [], ticks = [];
-    for (let w = 51; w >= 0; w--) {
-      const ks = Array.from({ length: 7 }, (_, i) => addDays(today, -(w * 7 + 6 - i)));
-      const ms = ks.map((k) => days[k] && days[k].mood).filter((m) => m != null);
-      pts.push({ m: ms.length ? mostPicked(ms) : null, k: null });
-      const d = keyDate(ks[6]);
-      if (d.getDate() <= 7 && d.getMonth() % 3 === 0) ticks.push({ i: 51 - w, l: MONTH[d.getMonth()] });
-    }
-    return { pts, ticks, n: 52, when: "this year" };
-  }
-  const n = view === "month" ? 30 : 7, pts = [], ticks = [];
-  for (let i = 0; i < n; i++) {
-    const k = addDays(today, -(n - 1 - i)), d = keyDate(k);
-    pts.push({ m: days[k] && days[k].mood != null ? days[k].mood : null, k });
-    if (n === 7) ticks.push({ i, l: DAY_LETTER[d.getDay()] });
-    else if ((n - 1 - i) % 7 === 0 && i > 0) ticks.push({ i, l: `${d.getDate()} ${MONTH[d.getMonth()]}` });
-  }
-  return { pts, ticks, n, when: view === "month" ? "this month" : "this week" };
+// Real calendar periods: a week runs Monday to Sunday, a month is its name, a year is its number.
+// back = how many periods before this one (0 = this week / month / year). Days still to come stay empty.
+export const MONTH_NAME = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const weekStart = (k) => addDays(k, -((keyDate(k).getDay() + 6) % 7));
+function weekLabel(a, b, year) {
+  const A = keyDate(a), B = keyDate(b), y = A.getFullYear() !== year || B.getFullYear() !== year;
+  const left = A.getMonth() === B.getMonth() && !y ? `${A.getDate()}` : `${A.getDate()} ${MONTH[A.getMonth()]}${y ? " " + A.getFullYear() : ""}`;
+  return `${left} – ${B.getDate()} ${MONTH[B.getMonth()]}${y ? " " + B.getFullYear() : ""}`;
 }
-export function mostlyWord(days, view) {
-  const s = moodSeries(days, view);
+export function moodSeries(days, view, back = 0) {
+  const today = dayKey(), T = keyDate(today), year = T.getFullYear();
+  const at = (k) => ({ m: k <= today && days[k] && days[k].mood != null ? days[k].mood : null, k: k <= today ? k : null });
+  if (view === "year") {
+    // One point per week (weeks starting Monday): the mood felt most that week. Weeks away stay a gap.
+    const Y = year - back, pts = [], ticks = [];
+    let w = weekStart(`${Y}-01-01`);
+    if (keyDate(w).getFullYear() < Y) w = addDays(w, 7);
+    for (; keyDate(w).getFullYear() === Y; w = addDays(w, 7)) {
+      const ms = Array.from({ length: 7 }, (_, i) => at(addDays(w, i)).m).filter((m) => m != null);
+      const d = keyDate(w);
+      if (d.getDate() <= 7 && d.getMonth() % 3 === 0) ticks.push({ i: pts.length, l: MONTH[d.getMonth()] });
+      pts.push({ m: ms.length ? mostPicked(ms) : null, k: null });
+    }
+    return { pts, ticks, n: pts.length, label: String(Y), when: back ? `in ${Y}` : "this year" };
+  }
+  if (view === "month") {
+    const first = new Date(year, T.getMonth() - back, 1, 12), M = first.getMonth(), Y = first.getFullYear();
+    const n = new Date(Y, M + 1, 0).getDate(), pts = [], ticks = [];
+    for (let i = 0; i < n; i++) {
+      pts.push(at(`${Y}-${String(M + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`));
+      if (i % 7 === 0) ticks.push({ i, l: String(i + 1) });
+    }
+    return { pts, ticks, n, label: MONTH_NAME[M] + (Y !== year ? " " + Y : ""), when: back ? `in ${MONTH_NAME[M]}` : "this month" };
+  }
+  const a = addDays(weekStart(today), -7 * back), pts = [], ticks = [];
+  for (let i = 0; i < 7; i++) { const k = addDays(a, i); pts.push(at(k)); ticks.push({ i, l: DAY_LETTER[keyDate(k).getDay()] }); }
+  return { pts, ticks, n: 7, label: weekLabel(a, addDays(a, 6), year), when: back ? "that week" : "this week" };
+}
+// How far back the arrows can go: to the period holding the first day noted.
+export function oldestBack(days, view) {
+  const ks = Object.keys(days).filter((k) => days[k].mood != null).sort();
+  if (!ks.length) return 0;
+  const F = keyDate(ks[0]), T = keyDate(dayKey());
+  if (view === "year") return T.getFullYear() - F.getFullYear();
+  if (view === "month") return (T.getFullYear() - F.getFullYear()) * 12 + T.getMonth() - F.getMonth();
+  return Math.round((keyDate(weekStart(dayKey())) - keyDate(weekStart(ks[0]))) / 864e5 / 7);
+}
+export function mostlyWord(days, view, back = 0) {
+  const s = moodSeries(days, view, back);
   return mostPicked(s.pts.map((p) => p.m).filter((m) => m != null));
 }
 
