@@ -4,6 +4,7 @@ import { h, dayKey, keyDate, clock12, hoursWords, MOODS, MOOD_COL, LIFELINE } fr
 import * as store from "./store.js";
 import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecent } from "./words.js";
 import { openSheet, pillPicker } from "./ui.js";
+import { sync as syncNotify } from "./notify.js";
 
 const flow = () => document.getElementById("flow");
 const dayNum = (k) => Math.floor(keyDate(k).getTime() / 864e5);
@@ -21,6 +22,7 @@ function close(saved) {
   document.body.classList.remove("in-flow");
   document.documentElement.style.removeProperty("--glow");
   if (current) { current.classList.remove("in"); current.classList.add("out"); const c = current; setTimeout(() => c.remove(), 300); current = null; }
+  if (saved) syncNotify();
   const f = finish; finish = null; f && f(saved);
 }
 function step(head, body, foot) {

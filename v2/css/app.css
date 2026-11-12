@@ -157,6 +157,17 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 16px; background: rgba(239, 237, 233, .08); font-size: 15px; }
 .sq { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
 
+/* ---------- Notifications ---------- */
+.notify-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 12px 0 16px; border-radius: 16px; background: var(--fill2); }
+.notify-row > span { flex-grow: 1; font-size: 17px; }
+.time-pill { min-height: 36px; padding: 0 10px; border-radius: 10px; border: 0; background: var(--fill); font-size: 17px; color: var(--ink); }
+.time-pill:disabled { opacity: .4; }
+.switch { position: relative; width: 51px; height: 31px; border-radius: 16px; background: rgba(239, 237, 233, .16); flex-shrink: 0; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: var(--ink); transition: transform .2s var(--spring); }
+.switch[aria-checked="true"] { background: var(--sun); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+.switch::before { content: ""; position: absolute; inset: -7px; }
+
 /* ---------- Test mode ---------- */
 .testbar { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 112px); display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; z-index: 50; }
 .testbar button { min-height: 32px; padding: 0 10px; border-radius: 16px; background: rgba(239, 237, 233, .14); font-size: 12px; }
