@@ -8,6 +8,8 @@ import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
 import { openSheet, roundBtn, slideTo } from "./ui.js";
 import * as notify from "./notify.js";
+import * as tester from "./tester.js";
+import { openTester, testerRow } from "./tester-sheet.js";
 
 const s = store.load();
 setOffsetDays(s.test.offset || 0);
@@ -81,15 +83,16 @@ function notifications() {
       sw.addEventListener("click", async () => {
         const on = !n[key].on;
         if (on && (!notify.supported() || Notification.permission !== "granted")) { const ok = await notify.enable(); say(); if (!ok) return; }
-        n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync();
+        n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
       });
-      time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); } });
+      time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
       return h("div.notify-row", null, h("span", null, label), time, sw);
     };
     say();
     panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Notifications"), msg),
       row("am", "Start of your day"), row("pm", "End your day"),
-      h("button.btn-main", { onclick: () => close("done") }, "Done"));
+      h("button.btn-main", { onclick: () => close("done") }, "Done"),
+      testerRow(() => { close("tester"); setTimeout(openTester, 350); }));
   }, { label: "Notifications" });
 }
 
@@ -109,6 +112,9 @@ function testBar() {
 
 render();
 notify.sync();
+tester.opened();
+// A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
+if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
