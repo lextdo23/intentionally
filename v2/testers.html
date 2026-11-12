@@ -176,7 +176,7 @@ function render(D) {
   const restWho = testers.filter((t) => Object.values(days[t.code] || {}).some((d) => d.rest)).length;
   html += sec("Which features get used?", `How many of the ${T} testers used each one at least once.`,
     bars([["Your days", who("days_open")], ["Tapped a day in Your days", who("day_tap")], ["Switched Week, Month, Year", who("days_view")], ["Arranged Your days", who("arrange")],
-      ["Added more about last night", who("am_extras")], ["Opened Show more", who("show_more")], ["Added their own word", who("own_word")], ["Rest day", restWho]], T),
+      ["Added more about last night", who("am_extras")], ["Opened Show more", who("show_more")], ["Added their own word", who("own_word")], ["Rest day", restWho], ["Opened Settings", who("settings_open")], ["Saved a copy", who("save_copy")], ["Restored from a file", who("restore")]], T),
     "features hardly anyone uses can stay small or go. Ones used a lot are worth polishing.");
 
   // 5. Mood by week
