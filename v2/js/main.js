@@ -7,6 +7,7 @@ import { openDays } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
 import { openSheet } from "./ui.js";
+import * as notify from "./notify.js";
 
 const s = store.load();
 setOffsetDays(s.test.offset || 0);
@@ -43,7 +44,9 @@ function render() {
   let taps = 0, tapT = 0;
   greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
   home.replaceChildren(
-    h("div.col", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet),
+    h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
+      h("div.col", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet),
+      h("button.btn-text", { style: { fontSize: "15px", flexShrink: "0" }, onclick: notifications }, "Notifications")),
     peek(),
     h("div.home-mid", null, notes),
     h("div.col", { style: { gap: "4px" } },
@@ -61,6 +64,35 @@ function changeToday() {
   }, { label: "Change today" });
 }
 
+// Notifications: one for the start of your day, one for the end. Each can be on or off, at a time you choose.
+function notifications() {
+  const n = notify.prefs();
+  openSheet((panel, close) => {
+    const msg = h("p.sub");
+    const say = () => {
+      msg.textContent = notify.needsInstall() ? "On iPhone, add Daydeck to your Home Screen first (Share, then Add to Home Screen), then turn these on there."
+        : !notify.supported() ? "This browser can't show notifications."
+        : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings." : "A gentle nudge, once each, at the times you pick. Skipped if you've already checked in.";
+    };
+    const row = (key, label) => {
+      const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": label });
+      const time = h("input.time-pill", { type: "time", step: "300", value: n[key].t, "aria-label": `${label} time` });
+      time.disabled = !n[key].on;
+      sw.addEventListener("click", async () => {
+        const on = !n[key].on;
+        if (on && (!notify.supported() || Notification.permission !== "granted")) { const ok = await notify.enable(); say(); if (!ok) return; }
+        n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync();
+      });
+      time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); } });
+      return h("div.notify-row", null, h("span", null, label), time, sw);
+    };
+    say();
+    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Notifications"), msg),
+      row("am", "Start of your day"), row("pm", "End of your day"),
+      h("button.btn-main", { onclick: () => close("done") }, "Done"));
+  }, { label: "Notifications" });
+}
+
 // Test mode (?test, or tap the greeting 5 times): fill made-up days, move a day forward, start again.
 function testBar() {
   document.querySelector(".testbar")?.remove();
@@ -76,6 +108,7 @@ function testBar() {
 }
 
 render();
+notify.sync();
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
