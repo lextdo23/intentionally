@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Daydeck tester page</title>
+<style>
+/* The private page for reading beta tester data. One calm column: each section is one question, its picture, then "What this means". */
+:root{--sky:#24262b;--sky2:#141518;--sky3:#08090a;--ink:#efede9;--dim:rgba(239,237,233,.62);--faint:rgba(239,237,233,.14);
+  --sun:#f2c08f;--gold:#e3c486;--warn:#e0a57e;--cool:#a9b9d6;--ok:#a9c4b5;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:linear-gradient(180deg,var(--sky),var(--sky2) 40%,var(--sky3)) fixed;background-color:var(--sky2);color:var(--ink);
+  font:17px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:24px max(20px,env(safe-area-inset-right)) 64px max(20px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:40px}
+h1{font-size:34px;line-height:1.15;margin:0;font-weight:700}
+h2{font-size:22px;margin:0;font-weight:600}
+p{margin:0}
+.sub{color:var(--dim);font-size:15px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:rgba(255,255,255,.05);border-radius:16px;padding:16px}
+.tile b{display:block;font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--dim)}
+@media (max-width:520px){.tiles{grid-template-columns:1fr}}
+section{display:flex;flex-direction:column;gap:16px}
+.ask{font-size:15px;color:var(--dim);margin-top:-8px}
+.means{background:rgba(242,192,143,.08);border-radius:12px;padding:12px 16px;font-size:15px}
+.means b{color:var(--sun);font-weight:600}
+.later{opacity:.55}
+.note{font-size:13px;color:var(--dim)}
+.gridbox{overflow-x:auto}
+.grid{display:grid;gap:3px;font-size:11px;align-items:center}
+.grid .lab{color:var(--dim);font-variant-numeric:tabular-nums;font-size:12px;padding-right:6px;white-space:nowrap}
+.grid .hd{color:var(--dim);text-align:center}
+.cell{width:16px;height:16px;border-radius:4px;display:grid;grid-template-rows:1fr 1fr;overflow:hidden;background:var(--faint)}
+.cell.none{background:transparent}
+.cell .on.a{background:var(--sun)}.cell .on.p{background:var(--cool)}
+.key{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+.key i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(0,230px) 1fr 64px;gap:12px;align-items:center;font-size:15px}
+.bar .t{height:12px;border-radius:6px;background:var(--faint);overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:6px;background:var(--sun)}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+@media (max-width:520px){.bar{grid-template-columns:1fr 56px}.bar .t{grid-column:1/3;grid-row:2}}
+.items{display:flex;flex-direction:column;gap:8px}
+.item{background:rgba(255,255,255,.05);border-radius:16px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+.item .meta{font-size:13px;color:var(--dim)}
+.chip{font-size:12px;font-weight:600;border-radius:10px;padding:4px 10px;grid-row:1/3;grid-column:2;white-space:nowrap}
+.chip.look{background:rgba(224,165,126,.18);color:var(--warn)}.chip.ok{background:rgba(169,196,181,.16);color:var(--ok)}
+.mw{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;font-size:15px;color:var(--dim)}
+.stack{display:flex;height:20px;border-radius:6px;overflow:hidden;background:var(--faint)}
+.mkey{display:flex;flex-wrap:wrap;gap:8px 12px;font-size:12px;color:var(--dim)}
+.mkey i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input{min-height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.08);color:var(--ink);font:inherit;padding:0 12px;flex:1 1 200px;min-width:0}
+button{min-height:44px;border:0;border-radius:14px;background:rgba(255,255,255,.08);color:var(--ink);font:inherit;font-size:15px;padding:0 16px;cursor:pointer}
+button.main{background:var(--sun);color:#1d1e22;font-weight:600}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:tabular-nums}
+td,th{padding:6px 8px;text-align:left;border-bottom:1px solid var(--faint);white-space:nowrap}
+th{color:var(--dim);font-weight:500}
+.foot{border-top:1px solid var(--faint);padding-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>Tester page</h1>
+    <p class="sub" id="status">Private. Enter the tester page password to load what testers have shared.</p>
+  </header>
+  <form class="row" id="login">
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Tester page password" aria-label="Tester page password">
+    <button class="main" type="submit">Load</button>
+  </form>
+  <div id="out" style="display:flex;flex-direction:column;gap:40px"></div>
+</div>
+<script type="module">
+import { MOODS, MOOD_COL } from "./js/util.js";
+import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./js/words.js";
+
+const SERVICE = "https://intentionally-push.lextdo.workers.dev";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const median = (a) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); };
+const pct = (a, b) => (b ? Math.round(a / b * 100) : 0);
+const kd = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d, 12); };
+const dayDiff = (a, b) => Math.round((kd(b) - kd(a)) / 864e5);
+const keyOf = (t) => { const d = new Date(t - 4 * 3600e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+let pw = ""; try { pw = localStorage.getItem("daydeck-tester-pw") || ""; } catch {}
+$("pw").value = pw;
+$("login").addEventListener("submit", (e) => { e.preventDefault(); pw = $("pw").value.trim(); try { localStorage.setItem("daydeck-tester-pw", pw); } catch {} load(); });
+if (pw) load();
+
+let raw = null;
+async function load() {
+  $("status").textContent = "Loading…";
+  try {
+    const res = await fetch(`${SERVICE}/t/all`, { headers: { Authorization: "Bearer " + pw } });
+    if (res.status === 403) { $("status").textContent = "That password didn't work. Check it matches the TESTER_KEY you set on GitHub."; return; }
+    if (!res.ok) throw new Error(res.status);
+    raw = await res.json();
+  } catch { $("status").textContent = "Couldn't reach the Daydeck service. Check you're online and try again."; return; }
+  $("login").hidden = true;
+  render(raw);
+}
+
+function bars(rows, max, unit = "") {
+  max = max || Math.max(1, ...rows.map((r) => r[1]));
+  return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
+}
+const sec = (title, ask, body, means, later) => `<section class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
+const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
+const notYet = (title, what) => sec(title, `Starts filling in once ${what} is built in the app.`, "", "", true);
+
+function render(D) {
+  const testers = D.testers, T = testers.length;
+  const days = {}; D.days.forEach((r) => { (days[r.code] = days[r.code] || {})[r.day] = JSON.parse(r.data); });
+  const ev = D.events.map((e) => ({ code: e.code, t: e.t, name: e.name, val: e.val == null ? null : JSON.parse(e.val) }));
+  const by = (n) => ev.filter((e) => e.name === n);
+  const who = (n) => new Set(by(n).map((e) => e.code)).size;
+  const today = keyOf(Date.now());
+  $("status").textContent = `${T} tester${T === 1 ? "" : "s"} · updated ${new Date(D.at).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`;
+  if (!T) { $("out").innerHTML = `<p class="sub">No testers yet. Send testers the invite link: <b>https://lextdo23.github.io/intentionally/v2/?tester</b></p>`; return; }
+
+  // Tiles
+  const active = testers.filter((t) => Object.keys(days[t.code] || {}).some((k) => dayDiff(k, today) < 7)).length;
+  const pmSecs = median(by("pm_done").map((e) => e.val && e.val.secs).filter(Number.isFinite));
+  const errors = by("error").length;
+  let html = `<div class="tiles"><div class="tile"><b>${active} of ${T}</b><span>checked in this past week</span></div>
+    <div class="tile"><b>${pmSecs == null ? "–" : pmSecs + " s"}</b><span>a usual evening check-in</span></div>
+    <div class="tile"><b>${errors}</b><span>error${errors === 1 ? "" : "s"} so far</span></div></div>`;
+
+  // 1. Coming back
+  const span = Math.min(42, Math.max(7, ...testers.map((t) => t.started ? dayDiff(t.started, today) + 1 : 1)));
+  let grid = `<div class="grid" style="grid-template-columns:auto repeat(${span},16px)"><span></span>${Array.from({ length: span }, (_, i) => `<span class="hd">${(i + 1) % 7 === 1 ? i + 1 : ""}</span>`).join("")}`;
+  testers.forEach((t) => {
+    grid += `<span class="lab">${esc(t.code)}</span>`;
+    const ds = days[t.code] || {}, start = t.started || keyOf(t.joined), len = dayDiff(start, today) + 1;
+    for (let i = 0; i < span; i++) {
+      if (i >= len) { grid += `<span class="cell none"></span>`; continue; }
+      const k = keyOf(kd(start).getTime() + 4 * 3600e3 + i * 864e5), d = ds[k] || {};
+      grid += `<span class="cell" title="${k}"><i class="a ${d.sleep ? "on" : ""}"></i><i class="p ${d.mood != null ? "on" : ""}"></i></span>`;
+    }
+  });
+  grid += "</div>";
+  html += sec("Do people come back?", "Each row is one tester, each square one day since they started. Top half is the morning, bottom half the evening.",
+    `<div class="gridbox">${grid}</div><div class="key"><span><i style="background:var(--sun)"></i>Morning done</span><span><i style="background:var(--cool)"></i>Evening done</span><span><i style="background:var(--faint)"></i>Not that day</span></div>`,
+    "look for the day where rows go quiet. That's where people drift off, and the screen to look at first.");
+
+  // 2. Where people give up
+  const quits = (k) => by(k + "_quit").map((e) => e.val);
+  const amS = by("am_start").length, amD = by("am_done").length, amQ = quits("am");
+  const pmS = by("pm_start").length, pmF = by("pm_feelings").length, pmD = by("pm_done").length;
+  const amRest = amD + amQ.filter((s) => s === "rested" || s === "extras").length;
+  html += sec("Where do people give up?", "Of every check-in that was started, how many reached each screen. People sometimes close a check-in on purpose to come back later, so expect a few.",
+    `<p class="note">Start of your day</p>${bars([["Opened", 100], ["Picked how rested", pct(amRest, amS)], ["Done", pct(amD, amS)]], 100, "%")}
+     <p class="note">End of your day</p>${bars([["Opened", 100], ["Reached feelings", pct(pmF, pmS)], ["Done", pct(pmD, pmS)]], 100, "%")}
+     <p class="note">${amS} morning and ${pmS} evening check-ins opened.</p>`,
+    "the biggest drop between two bars is the screen to make simpler.");
+
+  // 3. Homework
+  const wk = (e) => { const t = testers.find((x) => x.code === e.code); return Math.floor((e.t - (t ? t.joined : e.t)) / (7 * 864e5)) + 1; };
+  const timeRows = [];
+  for (const [k, l] of [["am", "Morning"], ["pm", "Evening"]]) {
+    const done = by(k + "_done").filter((e) => e.val && Number.isFinite(e.val.secs)), weeks = [...new Set(done.map(wk))].sort((a, b) => a - b);
+    weeks.slice(0, 6).forEach((w) => timeRows.push([`${l} · week ${w}`, median(done.filter((e) => wk(e) === w).map((e) => e.val.secs))]));
+  }
+  html += sec("Does it feel like homework?", "How long a usual check-in takes, by week of testing.", timeRows.length ? bars(timeRows, 90, " s") : `<p class="sub">No check-ins yet.</p>`,
+    "check-ins should get quicker as people learn them. Over about a minute is a warning sign.");
+
+  // 4. Features used
+  const restWho = testers.filter((t) => Object.values(days[t.code] || {}).some((d) => d.rest)).length;
+  html += sec("Which features get used?", `How many of the ${T} testers used each one at least once.`,
+    bars([["Your days", who("days_open")], ["Tapped a day in Your days", who("day_tap")], ["Switched Week, Month, Year", who("days_view")], ["Arranged Your days", who("arrange")],
+      ["Added more about last night", who("am_extras")], ["Opened Show more", who("show_more")], ["Added their own word", who("own_word")], ["Rest day", restWho], ["Opened Settings", who("settings_open")], ["Saved a copy", who("save_copy")], ["Restored from a file", who("restore")]], T),
+    "features hardly anyone uses can stay small or go. Ones used a lot are worth polishing.");
+
+  // 5. Mood by week
+  const moodWeeks = [];
+  testers.forEach((t) => Object.entries(days[t.code] || {}).forEach(([k, d]) => { if (d.mood == null) return; const w = Math.floor(dayDiff(t.started || k, k) / 7); (moodWeeks[w] = moodWeeks[w] || Array(7).fill(0))[d.mood]++; }));
+  html += sec("How did testers feel?", "Every evening mood from every tester, by week of testing. This is for interest only: a small group can't prove the app helps.",
+    `<div class="bars">${moodWeeks.map((w, i) => { if (!w) return ""; const tot = w.reduce((a, b) => a + b, 0); return `<div class="mw"><span>Week ${i + 1}</span><span class="stack">${w.map((n, j) => `<i title="${MOODS[j]}: ${n}" style="width:${n / tot * 100}%;background:${MOOD_COL[j]}"></i>`).join("")}</span></div>`; }).join("") || `<p class="sub">No moods yet.</p>`}</div>
+     <div class="mkey">${MOODS.map((m, j) => `<span><i style="background:${MOOD_COL[j]}"></i>${m}</span>`).join("")}</div>`, "");
+
+  // 6. Nudges
+  const nud = testers.map((t) => { try { return JSON.parse(t.nudges || "{}"); } catch { return {}; } });
+  const amOn = nud.filter((n) => n.am && n.am !== "off").length, pmOn = nud.filter((n) => n.pm && n.pm !== "off").length;
+  const fromNudge = by("open").filter((e) => e.val === "nudge").length;
+  const hours = (n) => { const c = Array(24).fill(0); by(n).forEach((e) => c[new Date(e.t).getHours()]++); return c; };
+  const hRows = (c) => c.map((n, h) => [`${h % 12 || 12} ${h < 12 ? "am" : "pm"}`, n]).filter((r) => r[1]);
+  const within = (k) => { let hit = 0, all = 0; by(k + "_done").forEach((e) => { const t = testers.findIndex((x) => x.code === e.code), set = nud[t] && nud[t][k]; if (!set || set === "off") return; all++; const [hh, mm] = set.split(":").map(Number), d = new Date(e.t), n = new Date(d); n.setHours(hh, mm, 0, 0); const gap = (d - n) / 6e4; if (gap >= 0 && gap <= 60) hit++; }); return [hit, all]; };
+  const [wa, aa] = within("am"), [wp, ap] = within("pm");
+  html += sec("Do nudges bring people in?", "Who has nudges on, how often a nudge opened the app, and when people actually check in.",
+    bars([["Morning nudge on", amOn], ["Evening nudge on", pmOn]], T) +
+    bars([["Morning: checked in within an hour of the nudge", pct(wa, aa)], ["Evening: checked in within an hour of the nudge", pct(wp, ap)]], 100, "%") +
+    `<p class="note">The app was opened from a nudge ${fromNudge} time${fromNudge === 1 ? "" : "s"}.</p>
+     <p class="note">When mornings get done</p>${bars(hRows(hours("am_done")))}<p class="note">When evenings get done</p>${bars(hRows(hours("pm_done")))}`,
+    "if most check-ins happen well after the nudge time, the default time should move closer to when people really check in.");
+
+  // 7. Words never picked
+  const allDays = testers.flatMap((t) => Object.values(days[t.code] || {}));
+  const tagC = {}, feelC = {}; let pmDays = 0, notSure = 0, ownW = 0;
+  allDays.forEach((d) => { (d.sleep && d.sleep.tags || []).forEach((w) => (tagC[w] = (tagC[w] || 0) + 1)); ownW += (d.sleep && d.sleep.own || 0) + (d.feelOwn || 0);
+    if (d.mood != null) { pmDays++; (d.feel || []).forEach((w) => (feelC[w] = (feelC[w] || 0) + 1)); if ((d.feel || []).includes("Not sure")) notSure++; } });
+  const tagRows = SLEEP_TAGS.concat(SLEEP_MORE).map((w) => [w, tagC[w] || 0]).sort((a, b) => a[1] - b[1]);
+  const feelRows = FEELINGS.map((f) => [f[0], feelC[f[0]] || 0]).sort((a, b) => a[1] - b[1]);
+  const never = tagRows.filter((r) => !r[1]).map((r) => r[0]), neverF = feelRows.filter((r) => !r[1]).map((r) => r[0]);
+  html += sec("Which words do people use, and which never?", "How often each sleep tag and feeling was picked, least picked first.",
+    `<p class="sub">Never picked: ${never.length ? esc(never.join(", ")) : "none"} (sleep) · ${neverF.length ? esc(neverF.join(", ")) : "none"} (feelings)</p>
+     <p class="note">"Not sure" was picked on ${pct(notSure, pmDays)}% of evenings. People added their own words ${ownW} times (the words themselves are never sent).</p>
+     <details><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">Show every word</summary>${bars(tagRows)}<div style="height:16px"></div>${bars(feelRows)}</details>`,
+    "words nobody picks can move into Show more or be cut, so the first six are ones people really use.");
+
+  // 8. Drag vs wheel
+  const sets = {}; by("am_done").forEach((e) => { const s = (e.val && e.val.set) || "none"; sets[s] = (sets[s] || 0) + 1; });
+  html += sec("Dragging the sun and moon", "How bed and wake times were set in each morning check-in.",
+    bars([["Dragged the sun and moon", sets.drag || 0], ["Tapped a box for the time wheel", sets.wheel || 0], ["Both", sets.both || 0], ["Left as it was", sets.none || 0]]),
+    "if most people use the wheel, dragging may be too fiddly. \"Left as it was\" means last night's times were already right.");
+
+  // 9. Patterns
+  const shown = {}, hid = {};
+  by("helps_seen").forEach((e) => (e.val || []).forEach((id) => (shown[id] = (shown[id] || 0) + 1)));
+  by("help_hide").forEach((e) => (hid[e.val] = (hid[e.val] || 0) + 1));
+  const pats = Object.keys(shown).sort((a, b) => (hid[b] || 0) / shown[b] - (hid[a] || 0) / shown[a]);
+  html += sec("Do the patterns feel true?", "Lines shown in \"What seems to help you\", and how often testers tapped \"That's not it\". Lines starting r- are from research; the rest are people's own patterns.",
+    pats.length ? `<div class="items">${pats.map((id) => item(id, `Shown ${shown[id]} times · dismissed ${hid[id] || 0}`, (hid[id] || 0) / shown[id] >= 0.25 ? "Often dismissed" : "Feels true", (hid[id] || 0) / shown[id] >= 0.25)).join("")}</div>` : `<p class="sub">Nobody has opened Your days yet.</p>`,
+    "lines people dismiss a lot need rewording or removing.");
+
+  // 10. Errors and phones
+  const errs = {}; by("error").forEach((e) => { const k = String(e.val); (errs[k] = errs[k] || { n: 0, who: new Set() }).n++; errs[k].who.add(e.code); });
+  const phones = {}; testers.forEach((t) => (phones[t.phone || "?"] = (phones[t.phone || "?"] || 0) + 1));
+  const ver = {}; testers.forEach((t) => (ver[t.version || "?"] = (ver[t.version || "?"] || 0) + 1));
+  const errList = Object.entries(errs).sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n);
+  html += sec("Errors and phones", "Problems the app ran into, and which phones and app versions testers have.",
+    (errList.length ? `<div class="items">${errList.slice(0, 20).map(([m, x]) => item(m, `${x.who.size} tester${x.who.size === 1 ? "" : "s"} · ${x.n} time${x.n === 1 ? "" : "s"}`, x.who.size > 1 ? "Fix first" : "Minor", x.who.size > 1)).join("")}</div>` : `<p class="sub">No errors so far.</p>`) +
+    bars(Object.entries(phones).sort((a, b) => b[1] - a[1]), T) + `<p class="note">App versions: ${esc(Object.entries(ver).map(([v, n]) => `${v} (${n})`).join(", "))}</p>`,
+    "download the data and send it to Claude to look into any error.");
+
+  // 11. Not built yet
+  html += notYet("Which cards need a look?", "the card draw") + notYet("How does setup go?", "setup") + notYet("Which pillars and mindsets do people choose?", "choosing pillars") + notYet("How fast do people level up?", "levels and packs");
+
+  // 12. Safety
+  html += sec("Safety", "Counts only, never tied to anything a tester wrote. For the safety reviewer.",
+    bars([["\"Need to talk to someone?\" tapped", by("lifeline_tap").length], ["Testers who tapped it", who("lifeline_tap")]]), "");
+
+  // Testers table + actions
+  const fmt = (t) => new Date(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  html += `<section><h2>Testers</h2><div class="tbl"><table><tr><th>Code</th><th>Phone</th><th>Version</th><th>Joined</th><th>Last sent</th><th>Days noted</th></tr>${testers.map((t) =>
+    `<tr><td>${esc(t.code)}</td><td>${esc(t.phone || "")}</td><td>${esc(t.version || "")}</td><td>${fmt(t.joined)}</td><td>${fmt(t.seen)}</td><td>${Object.keys(days[t.code] || {}).length}</td></tr>`).join("")}</table></div>
+    <p class="note">Invite link for testers: https://lextdo23.github.io/intentionally/v2/?tester</p></section>`;
+  html += `<section class="foot"><h2>Your data</h2><p class="ask" style="margin:0">Download everything to keep a copy or to send to Claude. When testing ends, delete it all.</p>
+    <div class="row"><button id="dl" class="main">Download all data</button><button id="wipe">Delete all tester data</button></div><p class="note" id="wipemsg" aria-live="polite"></p></section>`;
+  $("out").innerHTML = html;
+
+  $("dl").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(raw, null, 1)], { type: "application/json" })); a.download = `daydeck-testers-${today}.json`; a.click(); };
+  let armed = false;
+  $("wipe").onclick = async () => {
+    if (!armed) { armed = true; $("wipe").textContent = "Tap again to delete everything"; $("wipemsg").textContent = "This can't be undone. Download a copy first if you want one."; return; }
+    const res = await fetch(`${SERVICE}/t/wipe`, { method: "POST", headers: { Authorization: "Bearer " + pw } }).catch(() => null);
+    $("wipemsg").textContent = res && res.ok ? "Deleted. Reload to see the empty page." : "Couldn't delete. Check you're online and try again.";
+  };
+}
+window.__render = (d) => { raw = d; $("login").hidden = true; render(d); };
+</script>
+</body>
+</html>

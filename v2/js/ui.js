@@ -1,5 +1,6 @@
 // Bottom sheets: rise from the bottom, tap outside to close.
 import { h } from "./util.js";
+import { log } from "./tester.js";
 
 export function openSheet(build, { onClose, label } = {}) {
   const wrap = h("div.sheet-host", { role: "dialog", "aria-modal": "true", "aria-label": label || "" });
@@ -46,7 +47,7 @@ export function pillPicker(opts) {
       plusB.tabIndex = open ? 0 : -1; wrap.querySelectorAll(".pill").forEach((p) => (p.tabIndex = open ? 0 : -1));
       label.textContent = open ? "Show fewer" : `Show ${opts.more.length} more`; label.setAttribute("aria-expanded", String(open));
     };
-    label.addEventListener("click", () => { open = !open; set(); });
+    label.addEventListener("click", () => { open = !open; set(); if (open) log("show_more"); });
     root.append(h("div.pills", null, opts.main.map((w) => pill(w)), plusA, nsA), wrap);
     if (opts.more.length) root.append(label);
     set(); sync();
@@ -56,7 +57,7 @@ export function pillPicker(opts) {
       const add = () => {
         const w = inp.value.trim();
         if (!w) { inp.parentNode.remove(); return; }
-        opts.onAdd(w); draw();
+        opts.onAdd(w); draw(); log("own_word");
         if (opts.noteOnce && opts.noteOnce()) root.append(h("span.note", null, "Saved. Your words stay here for next time."));
       };
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });

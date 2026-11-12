@@ -8,6 +8,9 @@ import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
 import { openSheet, roundBtn, slideTo } from "./ui.js";
 import * as notify from "./notify.js";
+import { openSettings } from "./settings.js";
+import * as tester from "./tester.js";
+import { openTester } from "./tester-sheet.js";
 
 const s = store.load();
 setOffsetDays(s.test.offset || 0);
@@ -46,7 +49,7 @@ function render() {
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       h("div.col", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet),
-      roundBtn("settings", "Settings", notifications)),
+      roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
     h("div.home-mid", null, notes),
     h("div.col", { style: { gap: "4px" } },
@@ -62,35 +65,6 @@ function changeToday() {
       h("button.btn-soft", { style: { minHeight: "52px" }, onclick: () => { close(); setTimeout(() => morning(() => render()), 300); } }, "Last night's sleep"),
       h("button.btn-soft", { style: { minHeight: "52px" }, onclick: () => { close(); setTimeout(() => evening(() => render()), 300); } }, "How today felt"));
   }, { label: "Change today" });
-}
-
-// Notifications: one for the start of your day, one for the end. Each can be on or off, at a time you choose.
-function notifications() {
-  const n = notify.prefs();
-  openSheet((panel, close) => {
-    const msg = h("p.sub");
-    const say = () => {
-      msg.textContent = notify.needsInstall() ? "On iPhone, add Daydeck to your Home Screen first (Share, then Add to Home Screen), then turn these on there."
-        : !notify.supported() ? "This browser can't show notifications."
-        : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings." : "A gentle nudge, once each, at the times you pick. Skipped if you've already checked in.";
-    };
-    const row = (key, label) => {
-      const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": label });
-      const time = h("input.time-pill", { type: "time", step: "300", value: n[key].t, "aria-label": `${label} time` });
-      time.disabled = !n[key].on;
-      sw.addEventListener("click", async () => {
-        const on = !n[key].on;
-        if (on && (!notify.supported() || Notification.permission !== "granted")) { const ok = await notify.enable(); say(); if (!ok) return; }
-        n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync();
-      });
-      time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); } });
-      return h("div.notify-row", null, h("span", null, label), time, sw);
-    };
-    say();
-    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Notifications"), msg),
-      row("am", "Start of your day"), row("pm", "End your day"),
-      h("button.btn-main", { onclick: () => close("done") }, "Done"));
-  }, { label: "Notifications" });
 }
 
 // Test mode (?test, or tap the greeting 5 times): fill made-up days, move a day forward, start again.
@@ -109,6 +83,9 @@ function testBar() {
 
 render();
 notify.sync();
+tester.opened();
+// A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
+if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
