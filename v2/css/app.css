@@ -265,3 +265,21 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 @keyframes spin { 0% { transform: rotateY(180deg); animation-timing-function: cubic-bezier(.4, 0, .3, 1) } 42%, 100% { transform: rotateY(900deg) } }
 @keyframes hop { 0% { translate: 0 0; animation-timing-function: cubic-bezier(.3, 0, .4, 1) } 42% { translate: 0 -14px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 70% { translate: 0 4px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 100% { translate: 0 0 } }
 @media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } }
+
+/* ---------- Choosing pillars and where you're at ---------- */
+.pick-group { display: flex; flex-direction: column; gap: 8px; }
+.pick-head { font-size: 13px; font-weight: 500; color: var(--dim); }
+.pill.off, .mrow.off { opacity: .4; }
+.pill { transition: background .2s, color .2s, opacity .2s; }
+.said { font-size: 15px; color: var(--ink2); text-align: center; min-height: 21px; text-wrap: balance; }
+.said b { color: var(--ink); font-weight: 600; }
+.mrows { display: flex; flex-direction: column; gap: 8px; }
+.mrow { min-height: 52px; padding: 8px 16px; border-radius: 16px; background: var(--fill2); text-align: left; font-size: 17px; transition: background .2s, color .2s, opacity .2s; }
+.mrow[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); font-weight: 600; }
+.pick-text { width: 100%; padding: 12px 14px; border-radius: 12px; border: 0; background: var(--fill); font: inherit; font-size: 17px; color: var(--ink); resize: none; }
+.mini-deck { position: relative; width: 120px; height: 178px; align-self: center; margin: 8px 0 16px; }
+.mini-deck i { position: absolute; inset: 0; border-radius: 14px; background: linear-gradient(160deg, #3a3b40, #26272b); box-shadow: 0 0 0 1px rgba(239, 237, 233, .08); }
+.mini-deck i:nth-child(1) { transform: translate(6px, 6px); } .mini-deck i:nth-child(2) { transform: translate(3px, 3px); }
+.mini-deck i:nth-child(3) { background: linear-gradient(160deg, #4a4033, #2d2a26); box-shadow: 0 0 0 1px rgb(227 196 134 / .35), 0 12px 30px rgba(0, 0, 0, .45); }
+.mini-deck i:nth-child(3)::after { content: ""; position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 24px rgb(242 192 143 / .6); }
+.big-count { font-size: 34px; font-weight: 600; text-align: center; }

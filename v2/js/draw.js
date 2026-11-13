@@ -7,6 +7,7 @@ import * as deck from "./deck.js";
 import { roundBtn, openSheet } from "./ui.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
+import { pickSteps } from "./pillars.js";
 
 const SIZE = { Tiny: "Tiny", Small: "Small", Bigger: "Bigger" };
 const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms));
@@ -45,6 +46,8 @@ const AWAY = () => H(1) + " scale(.97)";                                // the d
 const P = (k) => `translate(${k * 0.6}px,${-12 - k * 1.7}px)`;          // a thick deck: each card a little up and to the right
 
 export function drawSteps() {
+  // The very first draw: choose your pillars first, so the deck is yours.
+  if (!Array.isArray(store.get().pillars)) return pickSteps(() => drawSteps(), { first: true });
   const k = dayKey(), d = store.day(k);
   // Leaving and coming back keeps the same three (and the same number of draws).
   if (!d.card || !d.card.hands || !d.card.hands.length) {

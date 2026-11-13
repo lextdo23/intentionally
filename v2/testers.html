@@ -260,7 +260,31 @@ function render(D) {
       (look.length ? `<div class="items">${look.slice(0, 25).map(([id, c]) => item(name(id), `Drawn ${c.drawn} · kept ${c.kept} · didn't get to it ${c.how[0]} · drained ${c.how[1]} · loved ${c.how[4]} · thumbs ${c.up} up, ${c.down} down`, c.down ? "Needs work" : "Watch", true)).join("")}</div>` : `<p class="sub">No card stands out as a problem yet.</p>`)
     : `<p class="sub">No cards drawn yet.</p>`,
     "cards with thumbs down, or often \"Didn't get to it\" or \"Drained\", are the first to rewrite or cut. Lots of \"Drew again\" means the first three often don't fit.");
-  html += notYet("How does setup go?", "setup") + notYet("Which pillars and mindsets do people choose?", "choosing pillars") + notYet("How fast do people level up?", "levels and packs");
+  // Setup: choosing pillars and where you're at
+  const pStart = by("pick_start").filter((e) => e.val === "setup"), pDone = by("pick_done").filter((e) => e.val && e.val.first);
+  const pQuit = {}; by("pick_quit").forEach((e) => { const k = String(e.val).startsWith("mindset_") ? "On a pillar's question" : "Choosing pillars"; pQuit[k] = (pQuit[k] || 0) + 1; });
+  const pSecs = median(pDone.map((e) => e.val.secs).filter(Number.isFinite));
+  html += sec("How does setup go?", "Getting started: choosing 3 to 5 pillars, then one short question for each. How many finish, where people stop, and how long it takes.",
+    pStart.length ? bars([["Started", 100], ["Chose their pillars", pct(new Set(by("pick_pillars").map((e) => e.code)).size, new Set(pStart.map((e) => e.code)).size)], ["Finished", pct(new Set(pDone.map((e) => e.code)).size, new Set(pStart.map((e) => e.code)).size)]], 100, "%") +
+      `<p class="note">A usual setup took ${pSecs == null ? "–" : pSecs + " seconds"}. Stopped part way: ${Object.entries(pQuit).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "nobody"}. Changed pillars later in Settings: ${by("pick_done").filter((e) => e.val && !e.val.first).length} times.</p>`
+    : `<p class="sub">Nobody has started yet.</p>`,
+    "if lots of people stop on the pillar screen, there may be too many to choose from. Over two minutes means it feels like homework.");
+
+  // Which pillars and mindsets
+  const lastPick = {}; by("pick_pillars").forEach((e) => (lastPick[e.code] = e.val || []));
+  const pc = {}; Object.values(lastPick).forEach((l) => l.forEach((n) => (pc[n] = (pc[n] || 0) + 1)));
+  const mc = {}, other = {}, kinds = {}; const lastM = {};
+  by("pick_mindset").forEach((e) => { if (e.val && e.val.p && e.val.p !== "Own") lastM[e.code + "|" + e.val.p] = e.val; });
+  Object.values(lastM).forEach((v) => { (v.m || []).forEach((m) => (mc[v.p + " · " + m] = (mc[v.p + " · " + m] || 0) + 1)); if (v.other) other[v.p] = (other[v.p] || 0) + 1; if (v.kind) kinds[v.kind] = (kinds[v.kind] || 0) + 1; });
+  const PILL = ["Friends", "Family", "Love", "Community", "Move", "Food", "Rest", "Outdoors", "Work and study", "Money", "Learn", "Play and create", "Give", "Meaning", "Own"];
+  const N = Object.keys(lastPick).length;
+  html += sec("Which pillars and mindsets do people choose?", `Each tester's latest choice (${N} so far). "Own" is a pillar they named themselves; the name is never sent.`,
+    N ? bars(PILL.map((n) => [n === "Own" ? "Their own pillar" : n, pc[n] || 0]).sort((a, b) => b[1] - a[1]), N) +
+      `<details><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">Show where people are at, per pillar</summary>${bars(Object.entries(mc).sort((a, b) => b[1] - a[1]))}</details>
+       <p class="note">"Something else" picked: ${Object.entries(other).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "never"}. Kinds of moving: ${Object.entries(kinds).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none picked"}.</p>`
+    : `<p class="sub">Nobody has chosen pillars yet.</p>`,
+    "pillars nobody picks can be cut or merged; lots of \"Something else\" on one pillar means its list is missing something.");
+  html += notYet("How fast do people level up?", "levels and packs");
 
   // 12. Safety
   html += sec("Safety", "Counts only, never tied to anything a tester wrote. For the safety reviewer.",
