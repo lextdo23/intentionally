@@ -26,7 +26,7 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - Time always comes from `now()` in `js/clock.js`, never `Date.now()` directly in app logic, so test mode's time travel works. (The sky's orbit phase uses the real clock on purpose.)
 
 ## Design rules (agreed with alex; don't drift from these)
-- Feeling: wonder, grown-up, calm. No mascots, confetti, badges, streaks, targets or bright saturated colours.
+- Feeling: wonder, grown-up, calm. No mascots, confetti, badges, streaks, targets or bright saturated colours. Exception (alex 2026-11-13): cute characters are allowed as ART on an unlockable card style only; they never talk, send messages or react to what the person does or misses.
 - Palette: sky `#24262b / #141518 / #08090a`, ink `#efede9`, sun `#f2c08f`, gold accent `#e3c486`, pillar tints `#d9b3a6 #cfc59b #a9c4b5 #a9b9d6 #c4b4c9`.
 - Font: system stack (SF Pro on Apple). Apple's standard text sizes, never scaled with the screen: large title 34, titles 22 / 20, body and buttons 17, smaller 15, notes 13, tiny labels 12 / 11 (never below 11). Only the sky scales to fill the screen.
 - No decorative stars. Every star is a thought the person wrote. Kind thought = 4 points, worry = 6, want = 8. Never colour alone.
