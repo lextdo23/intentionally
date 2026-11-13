@@ -238,6 +238,10 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .ctag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--ink2); }
 .ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .dcard .task { font-size: 15px; font-weight: 600; line-height: 1.25; }
+/* Pillar names stay on one line so the task always has five lines in the hand. */
+.dcard .ctag { white-space: nowrap; }
+.dcard:not(.big):not(.home-card) .ctag { gap: 4px; letter-spacing: -.01em; }
+.dcard:not(.big):not(.home-card) .ctag i { width: 6px; height: 6px; }
 .dcard .size { font-size: 11px; color: var(--dim); margin-top: auto; }
 /* The hand: three cards, the middle one higher; the deck hides behind it. */
 .stage { position: relative; height: 270px; width: 100%; }
