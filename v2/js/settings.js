@@ -6,6 +6,7 @@ import * as notify from "./notify.js";
 import * as tester from "./tester.js";
 import { openSheet, roundBtn } from "./ui.js";
 import { openTester, testerRow } from "./tester-sheet.js";
+import { pickPillars, pillarWords } from "./pillars.js";
 
 let onClosed = null, el = null;
 
@@ -49,6 +50,7 @@ function render() {
   const top = el.querySelector(".set-scroll")?.scrollTop || 0;
   el.replaceChildren(h("div.set-scroll", null, h("div.set-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeSettings), h("h1.big-title", null, "Settings")),
+    group("What matters to you", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars })]),
     nudges(),
     group("Your data", [
       linkRow("Save a copy", null, { onclick: saveCopy }),
@@ -62,6 +64,12 @@ function render() {
     group("About", [linkRow("How Daydeck works", null, { onclick: howItWorks })]),
     deleteAll())));
   el.querySelector(".set-scroll").scrollTop = top;
+}
+
+// Choosing pillars happens over the sky, so Settings steps aside and comes back after.
+function changePillars() {
+  el.style.visibility = "hidden"; document.body.classList.remove("in-settings");
+  setTimeout(() => pickPillars(() => { if (!el) return; el.style.visibility = ""; render(); requestAnimationFrame(() => document.body.classList.add("in-settings")); }), 200);
 }
 
 // Nudges: one for the start of your day, one for the end. Each can be on or off, at a time you choose.
