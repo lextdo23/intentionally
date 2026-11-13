@@ -225,11 +225,15 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .dcard .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .55s var(--card-ease); }
 .dcard.up .in { transform: rotateY(180deg); }
 .dcard .face { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
-.dcard .back { background: radial-gradient(circle at 50% 46%, rgb(242 192 143 / .30), rgb(242 192 143 / .06) 38%, transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
+/* Back "Rings" (alex 2026-11-13): the sun's glow in quiet rings, a small sun in the middle. */
+.dcard .back { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 6px, rgb(242 192 143 / .10) 6px 7px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
   box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 2px 4px rgba(0, 0, 0, .35); }
-.dcard .back::after { content: ""; position: absolute; left: 50%; top: 46%; width: 20px; height: 20px; margin: -10px; border-radius: 50%; background: var(--sun); opacity: .9; box-shadow: 0 0 24px rgb(242 192 143 / .6); }
-.dcard .front { transform: rotateY(180deg); background: linear-gradient(170deg, #34363d, #222328); padding: 8px; display: flex; flex-direction: column; gap: 4px;
-  box-shadow: 0 0 0 1px rgba(239, 237, 233, .12), 0 0 40px rgb(242 192 143 / .16), 0 14px 30px rgba(0, 0, 0, .5); }
+.dcard .back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
+.dcard.big .back, .home-card .back { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 9px, rgb(242 192 143 / .10) 9px 10px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b); }
+/* Face "Sunlit" (alex 2026-11-13): warm light falls on the top edge from the sun, with a fine gold rim. */
+.dcard .front { transform: rotateY(180deg); padding: 8px; display: flex; flex-direction: column; gap: 4px;
+  background: radial-gradient(130% 55% at 50% -8%, rgb(242 192 143 / .26), rgb(242 192 143 / .05) 55%, transparent 75%), linear-gradient(175deg, #2f3036, #1c1d21);
+  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 0 44px rgb(242 192 143 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
 .dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 0 50px rgb(242 192 143 / .35), 0 14px 30px rgba(0, 0, 0, .5); }
 .ctag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--ink2); }
 .ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
