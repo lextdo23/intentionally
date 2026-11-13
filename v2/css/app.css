@@ -216,3 +216,52 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 /* Tester sheet */
 .tlabel { font-size: 13px; color: var(--dim); }
 .tlist { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; color: var(--ink2); }
+
+/* ---------- Today's card ---------- */
+/* Every card move uses one gentle ease-in-out curve, and moves overlap so nothing stops and starts. */
+:root { --card-ease: cubic-bezier(.45, .05, .25, 1); }
+.dcard { position: relative; display: block; width: 108px; height: 160px; perspective: 900px; color: var(--ink); text-align: left; padding: 0; }
+.dcard:active { transform: none; }
+.dcard .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .55s var(--card-ease); }
+.dcard.up .in { transform: rotateY(180deg); }
+.dcard .face { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+.dcard .back { background: radial-gradient(circle at 50% 46%, rgb(242 192 143 / .30), rgb(242 192 143 / .06) 38%, transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
+  box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 2px 4px rgba(0, 0, 0, .35); }
+.dcard .back::after { content: ""; position: absolute; left: 50%; top: 46%; width: 20px; height: 20px; margin: -10px; border-radius: 50%; background: var(--sun); opacity: .9; box-shadow: 0 0 24px rgb(242 192 143 / .6); }
+.dcard .front { transform: rotateY(180deg); background: linear-gradient(170deg, #34363d, #222328); padding: 8px; display: flex; flex-direction: column; gap: 4px;
+  box-shadow: 0 0 0 1px rgba(239, 237, 233, .12), 0 0 40px rgb(242 192 143 / .16), 0 14px 30px rgba(0, 0, 0, .5); }
+.dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 0 50px rgb(242 192 143 / .35), 0 14px 30px rgba(0, 0, 0, .5); }
+.ctag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--ink2); }
+.ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.dcard .task { font-size: 15px; font-weight: 600; line-height: 1.25; }
+.dcard .size { font-size: 11px; color: var(--dim); margin-top: auto; }
+/* The hand: three cards, the middle one higher; the deck hides behind it. */
+.stage { position: relative; height: 270px; width: 100%; }
+.stage .hc { position: absolute; left: 50%; top: 56%; margin: -80px 0 0 -54px; transition: transform .45s var(--card-ease); }
+/* The kept card: the task leads, why it helps sits quietly at the bottom. */
+.big-holder { display: flex; justify-content: center; }
+.dcard.big { width: 220px; height: 310px; }
+.dcard.big .face { border-radius: 16px; }
+.dcard.big .front { padding: 20px; gap: 12px; }
+.dcard.big .ctag { font-size: 12px; }
+.dcard.big .task { font-size: 24px; }
+.dcard.big .again { font-size: 12px; color: var(--gold); }
+.dcard.big .why { margin-top: auto; font-size: 11px; line-height: 1.4; color: #7a766f; max-width: 88%; }
+.dcard.big .src { font-size: 11px; color: #615e59; margin-top: -8px; }
+.dcard.big .size { margin-top: 0; font-size: 12px; }
+.dcard.turning .in { transform: rotateY(90deg); transition-duration: .28s; }
+.helpers { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.helpers .btn-pill[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); }
+.mini { align-self: center; display: flex; flex-direction: column; gap: 4px; max-width: 300px; padding: 12px 16px; border-radius: 16px; background: var(--fill2); font-size: 17px; text-align: left; }
+/* On home: the card floats where the sun is and sways; now and then it twirls up and floats back down. */
+.floater { animation: bob 7s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+.home-card { width: 150px; height: 210px; animation: sway 11s ease-in-out infinite; }
+.home-card .front { padding: 12px; gap: 6px; border-radius: 16px; }
+.home-card .back { border-radius: 16px; }
+.home-card .task { font-size: 17px; }
+@keyframes sway { 0%, 100% { transform: rotateY(-8deg) rotateZ(-1deg) } 50% { transform: rotateY(8deg) rotateZ(1deg) } }
+.home-card.twirl .in { animation: spin 3.2s linear, hop 3.2s linear; }
+@keyframes spin { 0% { transform: rotateY(180deg); animation-timing-function: cubic-bezier(.4, 0, .3, 1) } 42%, 100% { transform: rotateY(900deg) } }
+@keyframes hop { 0% { translate: 0 0; animation-timing-function: cubic-bezier(.3, 0, .4, 1) } 42% { translate: 0 -14px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 70% { translate: 0 4px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 100% { translate: 0 0 } }
+@media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } }

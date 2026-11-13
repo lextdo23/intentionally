@@ -6,6 +6,11 @@ import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecen
 import { openSheet, pillPicker, roundBtn } from "./ui.js";
 import { sync as syncNotify } from "./notify.js";
 import { log } from "./tester.js";
+import { drawSteps, cardDue, howStep } from "./draw.js";
+import * as deck from "./deck.js";
+
+// Starts a flow from somewhere else (the card draw from home): the sun stays, home steps back.
+export function begin(onDone) { finish = onDone; track = null; document.body.classList.add("in-flow"); }
 
 const flow = () => document.getElementById("flow");
 const dayNum = (k) => Math.floor(keyDate(k).getTime() / 864e5);
@@ -14,7 +19,7 @@ let current = null, finish = null;
 let track = null;
 const at = (step) => { if (track) track.step = step; };
 
-function show(step) {
+export function show(step) {
   const old = current; current = step;
   step.querySelectorAll(".rise").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 3)));
   if (old) { old.classList.remove("in"); old.classList.add("out"); setTimeout(() => old.remove(), 200); }
@@ -22,7 +27,7 @@ function show(step) {
   requestAnimationFrame(() => requestAnimationFrame(() => step.classList.add("in")));
   const f = step.querySelector("[data-focus]"); if (f) setTimeout(() => f.focus({ preventScroll: true }), 250);
 }
-function close(saved) {
+export function close(saved) {
   document.body.classList.remove("in-flow");
   document.documentElement.style.removeProperty("--glow");
   if (current) { current.classList.remove("in"); current.classList.add("out"); const c = current; setTimeout(() => c.remove(), 300); current = null; }
@@ -30,12 +35,12 @@ function close(saved) {
   if (track) { log(track.kind + (saved ? "_done" : "_quit"), saved ? (track.kind === "am" ? { secs: Math.round((Date.now() - track.t0) / 1000), set: track.set || "none" } : { secs: Math.round((Date.now() - track.t0) / 1000) }) : track.step); track = null; }
   const f = finish; finish = null; f && f(saved);
 }
-function step(head, body, foot) {
+export function step(head, body, foot) {
   return h("section.step", { "aria-live": "polite" }, h("div.step-head.rise", null, ...head), h("div.step-body", null, ...body), h("div.col.rise", { style: { gap: "4px" } }, ...foot));
 }
-const where = (t) => h("span.where", null, t);
-const spacer = () => h("span", { style: { width: "44px" } });
-const mainBtn = (label, ok, onclick) => {
+export const where = (t) => h("span.where", null, t);
+export const spacer = () => h("span", { style: { width: "44px" } });
+export const mainBtn = (label, ok, onclick) => {
   const b = h("button.btn-main", { "aria-disabled": ok ? "false" : "true", onclick: () => { if (b.getAttribute("aria-disabled") !== "true") onclick(); } }, label);
   return b;
 };
@@ -101,7 +106,10 @@ export function morning(onDone) {
     d.sleep = { bed: st.bed, wake: st.wake, rested: st.rested, tags: [...st.tags] };
     st.tags.forEach((t) => (s2.sleepTags.last[t] = n));
     if (!s2.started) s2.started = k;
-    store.save(); close(true);
+    store.save();
+    // Straight on to today's card, in the same flow.
+    if (cardDue(k)) { log("am_done", { secs: Math.round((Date.now() - track.t0) / 1000), set: track.set || "none" }); track = null; syncNotify(); drawSteps(); }
+    else close(true);
   });
   const rested = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "How rested do you feel?" },
     RESTED.map((label, i) => h("button.pill", { role: "radio", "aria-checked": String(st.rested === i), "aria-pressed": String(st.rested === i), onclick: (e) => {
@@ -140,7 +148,9 @@ export function evening(onDone) {
   finish = onDone;
   track = { kind: "pm", t0: Date.now(), step: "mood" }; log("pm_start");
   const s = store.get(), k = dayKey(), had = s.days[k] || {};
-  const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [] };
+  const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [], how: had.card ? had.card.how : null };
+  // With a card today, "How did it go?" is a third step.
+  const cid = had.card && had.card.id && !had.rest ? had.card.id : null, N = cid ? 3 : 2;
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
 
@@ -153,7 +163,7 @@ export function evening(onDone) {
     range.addEventListener("input", () => { st.v = +range.value; st.touched = true; next.textContent = "Next"; next.setAttribute("aria-disabled", "false"); upd(); });
     upd();
     show(step(
-      [roundBtn("close", "Not now", () => close(false)), where("End your day · 1 of 2"), spacer()],
+      [roundBtn("close", "Not now", () => close(false)), where(`End your day · 1 of ${N}`), spacer()],
       [h("h1.q.rise", null, "How was today?"), h("div.rise", null, word), h("div.col.rise", { style: { gap: "8px" } }, range, h("div.ends", null, h("span", null, "Awful"), h("span", null, "Great")))],
       [next, LIFELINE()]));
   };
@@ -166,19 +176,29 @@ export function evening(onDone) {
     const main = ranked.slice(0, 6).sort((x, y) => order.indexOf(x) - order.indexOf(y));
     st.feel.forEach((w) => { if (w !== "Not sure" && !main.includes(w)) main.push(w); });
     const more = ranked.filter((x) => !main.includes(x));
-    const done = mainBtn("Done", st.feel.size > 0, save);
+    const done = mainBtn(cid ? "Next" : "Done", st.feel.size > 0, cid ? three : save);
     const pick = pillPicker({ main, more, picked: st.feel, notSure: "Not sure",
       onToggle: (w) => { st.feel.has(w) ? st.feel.delete(w) : st.feel.add(w); done.setAttribute("aria-disabled", st.feel.size ? "false" : "true"); },
       onAdd: (w) => { w = w.toLowerCase(); if (!s2.feel.own.includes(w) && !order.includes(w)) s2.feel.own.push(w); if (!main.includes(w)) main.push(w); const i = more.indexOf(w); if (i >= 0) more.splice(i, 1); st.feel.add(w); done.setAttribute("aria-disabled", "false"); store.save(); },
       noteOnce: () => (s2.notes.feelOwn ? false : (s2.notes.feelOwn = true, store.save(), true)) });
     show(step(
-      [roundBtn("back", "Back", one), where("End your day · 2 of 2"), spacer()],
+      [roundBtn("back", "Back", one), where(`End your day · 2 of ${N}`), spacer()],
       [h("span.q2.rise", { style: { color: MOOD_COL[m], fontWeight: "600" } }, MOODS[m]), h("h1.q.rise", null, "What were you feeling?"), h("div.rise", null, pick.el)],
       [done, LIFELINE()]));
   };
+  const three = () => { at("card"); show(howStep(cid, st.how, two, (i) => { st.how = i; save(); }, `End your day · 3 of ${N}`)); };
   const save = () => {
     const s2 = store.get(), d = store.day(k), m = toMood(st.v), b = band(m), n = dayNum(k);
     d.mood = m; d.feel = [...st.feel];
+    if (cid && st.how != null) {
+      const first = d.card.how == null;
+      d.card.how = st.how;
+      if (first) deck.howWent(cid, st.how);
+      const p = deck.card(cid).pillar;
+      d.pil = (d.pil || []).filter((x) => x !== p);
+      if (st.how >= 1) d.pil.unshift(p);
+      log("card_how", { id: cid, how: st.how });
+    }
     const L = (s2.feel.last[b] = s2.feel.last[b] || {});
     st.feel.forEach((w) => { if (w !== "Not sure") L[w] = n; });
     if (!s2.started) s2.started = k;
