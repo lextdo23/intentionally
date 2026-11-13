@@ -3,6 +3,7 @@ import { h, MOOD_COL, MOODS, moodWord, dayKey, keyDate, hoursWords, sleepMins, s
 import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
+import { openDraw, cardDue, homeCard } from "./draw.js";
 import { openDays } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
@@ -40,9 +41,15 @@ function render() {
   if (!needAM && !needPM) notes.push(h("p.home-note", { style: { color: "#a9a59d" } }, "That's today. Rest well."));
   const go = (fn) => () => fn(() => render());
   let main = null, quiet = null;
+  const due = !needAM && cardDue(k);
   if (needAM && needPM) { if (hr < 15) main = ["Start of your day", morning]; else { main = ["End your day", evening]; quiet = ["Add last night's sleep", morning]; } }
   else if (needAM) main = ["Start of your day", morning];
-  else if (needPM) main = ["End your day", evening];
+  else if (due && hr < 15) main = ["Draw today's card", openDraw];
+  else if (needPM) { main = ["End your day", evening]; if (due) quiet = ["Draw today's card", openDraw]; }
+  // Today's card floats where the sun is, until the day is done.
+  const cid = needPM && !today.rest && today.card && today.card.id;
+  if (cid) notes.unshift(homeCard(cid));
+  else if (today.rest && needPM) notes.unshift(h("p.home-note", null, "A rest day, no card today."));
   const greet = h("h1.greet", null, greeting());
   let taps = 0, tapT = 0;
   greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });

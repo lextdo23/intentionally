@@ -80,6 +80,8 @@ th{color:var(--dim);font-weight:500}
 <script type="module">
 import { MOODS, MOOD_COL } from "./js/util.js";
 import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./js/words.js";
+import { BANK } from "./js/cards-data.js";
+const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -241,7 +243,24 @@ function render(D) {
     "download the data and send it to Claude to look into any error.");
 
   // 11. Not built yet
-  html += notYet("Which cards need a look?", "the card draw") + notYet("How does setup go?", "setup") + notYet("Which pillars and mindsets do people choose?", "choosing pillars") + notYet("How fast do people level up?", "levels and packs");
+  // 11. Cards
+  const cs = {}; const C = (id) => (cs[id] = cs[id] || { drawn: 0, kept: 0, passed: 0, up: 0, down: 0, how: [0, 0, 0, 0, 0], smaller: 0, saved: 0 });
+  by("card_draw").concat(by("card_redraw")).forEach((e) => (e.val || []).forEach((id) => C(id).drawn++));
+  by("card_keep").forEach((e) => C(e.val.id).kept++);
+  by("card_how").forEach((e) => C(e.val.id).how[e.val.how]++);
+  by("card_thumb").forEach((e) => (e.val.v > 0 ? C(e.val.id).up++ : C(e.val.id).down++));
+  by("card_smaller").forEach((e) => C(e.val.from).smaller++);
+  by("card_save").forEach((e) => C(e.val).saved++);
+  const draws = by("card_draw").length, howAll = [0, 0, 0, 0, 0]; by("card_how").forEach((e) => howAll[e.val.how]++);
+  const look = Object.entries(cs).map(([id, c]) => [+id, c, c.down * 3 + c.how[0] + c.how[1] + (c.drawn - c.kept > 3 && !c.kept ? 2 : 0)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
+  const name = (id) => { const r = BANK[id - 1]; return r ? `#${id} ${r[4]}` : `#${id}`; };
+  html += sec("Which cards need a look?", "How the daily card draw goes, and which cards people pass over, don't get to, or mark as needing work. Only card numbers are sent; the words come from the app's own list.",
+    draws ? bars([["Mornings with a draw", draws], ["Drew again", by("card_redraw").length], ["Kept a card", by("card_keep").length], ["Made it smaller", by("card_smaller").length], ["Saved for later", by("card_save").length], ["Rest days", by("card_rest").length], ["Said \"Not now\"", by("card_later").length]], draws) +
+      `<p class="note">How it went, in the evening:</p>` + bars(HOW.map((w, i) => [w, howAll[i]])) +
+      (look.length ? `<div class="items">${look.slice(0, 25).map(([id, c]) => item(name(id), `Drawn ${c.drawn} · kept ${c.kept} · didn't get to it ${c.how[0]} · drained ${c.how[1]} · loved ${c.how[4]} · thumbs ${c.up} up, ${c.down} down`, c.down ? "Needs work" : "Watch", true)).join("")}</div>` : `<p class="sub">No card stands out as a problem yet.</p>`)
+    : `<p class="sub">No cards drawn yet.</p>`,
+    "cards with thumbs down, or often \"Didn't get to it\" or \"Drained\", are the first to rewrite or cut. Lots of \"Drew again\" means the first three often don't fit.");
+  html += notYet("How does setup go?", "setup") + notYet("Which pillars and mindsets do people choose?", "choosing pillars") + notYet("How fast do people level up?", "levels and packs");
 
   // 12. Safety
   html += sec("Safety", "Counts only, never tied to anything a tester wrote. For the safety reviewer.",

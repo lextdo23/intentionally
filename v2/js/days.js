@@ -7,7 +7,8 @@ import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
 
-export const PILLAR_COL = { Friends: "#d9b3a6", Move: "#a9c4b5", Rest: "#a9b9d6", "Work and study": "#cfc59b", "Play and create": "#c4b4c9", Family: "#d9b3a6", Food: "#cfc59b", Outdoors: "#a9c4b5" };
+import { PILLAR_COL, card as cardOf, HOW } from "./deck.js";
+export { PILLAR_COL };
 const NAME = { A: "Your moods", B: "Mood and sleep", C: "Mood and what you did", D: "What seems to help you" };
 let view = "week", back = 0, origin = null, onClosed = null, helpsSeen = false;
 const root = () => document.getElementById("days");
@@ -234,7 +235,10 @@ function openDay(k) {
       const parts = [h("div.col", { style: { gap: "4px" } }, h("h2", null, dayTitle(k)), d.mood != null ? h("span", { style: { fontSize: "17px", fontWeight: "600", color: MOOD_COL[d.mood] } }, MOODS[d.mood]) : null)];
       if (d.mood == null && !d.sleep) parts.push(h("p", { style: { color: "#cfcac1" } }, "You didn't note this day. That's okay."));
       if (d.feel && d.feel.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You felt"), h("div.pills", null, d.feel.map((f) => h("span.chip", null, f)))));
-      if (d.rest) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You did"), h("span.chip", { style: { alignSelf: "flex-start" } }, "A rest day")));
+      if (d.rest) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You did"), h("span.chip", { style: { alignSelf: "flex-start" } }, "No card today, on purpose")));
+      else if (d.card && d.card.id && cardOf(d.card.id)) { const c = cardOf(d.card.id); parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "Today's card"),
+        h("span", null, c.text), d.card.how != null ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, HOW[d.card.how]) : null,
+        d.pil && d.pil.length ? h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p))) : null)); }
       else if (d.pil && d.pil.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You gave time to"), h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p)))));
       if (d.sleep) parts.push(h("div.col", { style: { gap: "4px" } }, h("span.note", { style: { textAlign: "left" } }, "The night before"),
         h("span", null, `Slept ${hoursWords(sleepMins(d.sleep))}, ${clock12(d.sleep.bed)} to ${clock12(d.sleep.wake)}`),
