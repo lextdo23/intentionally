@@ -13,6 +13,10 @@ import { openSettings } from "./settings.js";
 import * as tester from "./tester.js";
 import { openTester } from "./tester-sheet.js";
 
+// Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
+const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
+fitCards(); addEventListener("resize", fitCards);
+
 const s = store.load();
 setOffsetDays(s.test.offset || 0);
 let testOn = new URLSearchParams(location.search).has("test") || !!s.test.on;
