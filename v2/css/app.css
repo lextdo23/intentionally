@@ -243,6 +243,11 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .dcard:not(.big):not(.home-card) .ctag { gap: 4px; letter-spacing: -.01em; }
 .dcard:not(.big):not(.home-card) .ctag i { width: 6px; height: 6px; }
 .dcard .size { font-size: 11px; color: var(--dim); margin-top: auto; }
+/* Cards grow with the screen (alex 2026-11-15): --k is set in main.js as screen width / 320, the width the card mockups
+   were drawn at, so cards fill the same share as the approved mockups (x1.34 on a 430-wide iPhone 15 Pro Max).
+   Only the cards scale, words on them included; everything else keeps Apple's sizes. */
+.stage, .big-holder, .mini-deck { zoom: var(--k, 1); }
+.home-card { zoom: calc(var(--k, 1) * 1.376); }   /* 280 wide on alex's phone (alex 2026-11-15) */
 /* The hand: three cards, the middle one higher; the deck hides behind it. */
 .stage { position: relative; height: 270px; width: 100%; }
 .stage .hc { position: absolute; left: 50%; top: 56%; margin: -80px 0 0 -54px; transition: transform .45s var(--card-ease); }
