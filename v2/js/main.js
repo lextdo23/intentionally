@@ -1,5 +1,5 @@
 // Daydeck (test build). Home: the greeting, a peek at your week, the sun, and one main button.
-import { h, MOOD_COL, MOODS, moodWord, dayKey, keyDate, hoursWords, sleepMins, smoothPath, DAY_NAME, MONTH, LIFELINE } from "./util.js";
+import { h, MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LIFELINE, reduceMotion } from "./util.js";
 import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
@@ -7,10 +7,12 @@ import { openDraw, cardDue, homeCard } from "./draw.js";
 import { openDays } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
-import { openSheet, roundBtn, slideTo } from "./ui.js";
+import { openSheet, roundBtn } from "./ui.js";
+import * as deck from "./deck.js";
 import * as notify from "./notify.js";
 import { openSettings } from "./settings.js";
 import * as tester from "./tester.js";
+import { log } from "./tester.js";
 import { openTester } from "./tester-sheet.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
@@ -34,40 +36,94 @@ function peek() {
   return btn;
 }
 
-function render() {
+// After each step, home says so in place for a few seconds: the greeting turns gold with what's next, the card lifts
+// and glows, then it all softens back. No separate screen, no confetti (alex 2026-11-15, "words in place").
+const MOMENT = {
+  sleep: ["Sleep, done.", "Next, your card."],
+  card: ["Your card for today.", "Do it whenever suits you."],
+  rest: ["A rest day today.", "No card. Rest is part of it."],
+  did: ["Card, done.", null],
+  end: ["That's today.", null],
+};
+let momentT = 0;
+
+// The sun's glow travels across the sky through the day: low on the left in the morning, high at midday, low on the right at night.
+function placeSun(t, done) {
+  const f = Math.min(1, Math.max(0, (t.getHours() + t.getMinutes() / 60 - 6) / 16)), sun = document.getElementById("sun");
+  sun.style.setProperty("--sx", `${30 + 40 * f}%`);
+  sun.style.setProperty("--sy", `${58 - 20 * Math.sin(Math.PI * f)}%`);
+  document.body.classList.toggle("day-done", !!done);
+}
+
+function render(moment) {
   const st = store.get(), k = dayKey(), today = st.days[k] || {}, t = new Date(now()), hr = t.getHours();
-  const needAM = !today.sleep, needPM = today.mood == null;
+  const needAM = !today.sleep, ended = today.mood != null;
   const dayN = st.started ? Math.round((keyDate(k) - keyDate(st.started)) / 864e5) + 1 : 1;
   const topLine = `${DAY_NAME[t.getDay()]} ${t.getDate()} ${MONTH[t.getMonth()]}` + (dayN <= 7 ? ` · Getting to know you, day ${dayN} of 7` : "");
-  const notes = [];
-  if (today.sleep) notes.push(h("p.home-note", null, `Slept ${hoursWords(sleepMins(today.sleep))}`));
-  if (!needPM) notes.push(h("p.home-note", null, "Today felt ", h("span", { style: { color: MOOD_COL[today.mood], fontWeight: "600" } }, moodWord(today.mood))));
-  if (!needAM && !needPM) notes.push(h("p.home-note", { style: { color: "#a9a59d" } }, "That's today. Rest well."));
-  const go = (fn) => () => fn(() => render());
-  let main = null, quiet = null;
-  const due = !needAM && cardDue(k);
-  if (needAM && needPM) { if (hr < 15) main = ["Start of your day", morning]; else { main = ["End your day", evening]; quiet = ["Add last night's sleep", morning]; } }
-  else if (needAM) main = ["Start of your day", morning];
-  else if (due && hr < 15) main = ["Draw today's card", openDraw];
-  else if (needPM) { main = ["End your day", evening]; if (due) quiet = ["Draw today's card", openDraw]; }
-  // Today's card floats where the sun is, until the day is done.
-  const cid = needPM && !today.rest && today.card && today.card.id;
-  if (cid) notes.unshift(homeCard(cid));
-  else if (today.rest && needPM) notes.unshift(h("p.home-note", null, "A rest day, no card today."));
-  const greet = h("h1.greet", null, greeting());
+  const go = (fn, m) => () => fn((saved) => render(saved ? m : null));
+  const c = !today.rest && today.card && today.card.id ? today.card : null;
+  const did = !!(c && (c.done || c.how >= 1));
+  const canDraw = !needAM && !ended && cardDue(k);
+
+  // One main button, always in the same place: Start your day, Draw your card, End your day, then Change today.
+  let main;
+  if (ended) main = h("button.btn-main.soft", { onclick: changeToday }, "Change today");
+  else if (needAM && hr < 15) main = h("button.btn-main", { onclick: go(morning, "sleep") }, "Start your day");
+  else if (canDraw && hr < 15) main = h("button.btn-main", { onclick: go(openDraw, "card") }, "Draw your card");
+  else main = h("button.btn-main", { onclick: go(evening, "end") }, "End your day");
+
+  // The line under the greeting says where the day is.
+  let head = ended ? "That's today." : greeting(), line;
+  if (ended) line = today.rest ? "Rest well." : c && !did ? "Not every day fits a card. Rest well." : "Rest well. Tomorrow, a new card.";
+  else if (needAM && hr < 15) line = "A new day. Start with last night.";
+  else if (today.rest) line = "A rest day, no card today.";
+  else if (!c) line = needAM ? "End your day whenever you're ready." : canDraw && hr < 15 ? "Next, your card." : canDraw ? "Your card is waiting. Tap it to draw." : "End your day whenever you're ready.";
+  else if (!did) line = dayN <= 7 ? "Done it? Tap “I did it” on your card." : "Do it whenever suits you.";
+  else line = "Next, end your day tonight.";
+
+  // Today's card sits where the sun is: face down until drawn, face up until done, then turned over with a tick.
+  const markDid = () => {
+    const d = store.day(k), p = deck.card(c.id).pillar;
+    d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
+    log("card_did", c.id); render("did");
+  };
+  const undo = () => {
+    const d = store.day(k), p = deck.card(c.id).pillar;
+    d.card.done = false; d.pil = (d.pil || []).filter((x) => x !== p); store.save();
+    log("card_undo", c.id); render();
+  };
+  let card = null;
+  if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip" } : did ? { state: "done", flip: moment === "did", onUndo: ended ? null : undo } : { state: "up", onDid: markDid });
+  else if (!today.rest && !ended && deck.deck().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
+
+  const mo = moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
+  const greet = h("h1.greet", null, mo ? mo[0] : head);
+  const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
   let taps = 0, tapT = 0;
   greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
+  const words = h("div.col.greet-words", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
-      h("div.col", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet),
-      roundBtn("settings", "Settings", () => openSettings(() => render()))),
+      words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
-    h("div.home-mid", null, notes),
-    h("div.col", { style: { gap: "4px" } },
-      quiet ? h("button.btn-quiet", { onclick: go(quiet[1]) }, quiet[0]) : null,
-      main ? (main[1] === evening ? slideTo(main[0], go(evening)) : h("button.btn-main", { onclick: go(main[1]) }, main[0])) : h("button.btn-quiet", { onclick: changeToday }, "Change today"),
-      LIFELINE()));
+    h("div.home-mid", null, card),
+    h("div.col", { style: { gap: "4px" } }, main, LIFELINE()));
+  placeSun(t, ended);
   testBar();
+
+  clearTimeout(momentT);
+  if (mo) {
+    words.classList.add("moment"); card && card.classList.add("on");
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
+    momentT = setTimeout(() => {
+      words.classList.remove("moment"); card && card.classList.remove("on");
+      if (greet.textContent !== head || sub.textContent !== line) {
+        const swap = () => { greet.textContent = head; sub.textContent = line; };
+        if (reduceMotion()) return swap();
+        words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
+      }
+    }, 3600);
+  }
 }
 
 function changeToday() {

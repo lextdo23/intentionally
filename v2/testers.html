@@ -159,7 +159,7 @@ function render(D) {
   const pmS = by("pm_start").length, pmF = by("pm_feelings").length, pmD = by("pm_done").length;
   const amRest = amD + amQ.filter((s) => s === "rested" || s === "extras").length;
   html += sec("Where do people give up?", "Of every check-in that was started, how many reached each screen. People sometimes close a check-in on purpose to come back later, so expect a few.",
-    `<p class="note">Start of your day</p>${bars([["Opened", 100], ["Picked how rested", pct(amRest, amS)], ["Done", pct(amD, amS)]], 100, "%")}
+    `<p class="note">Start your day</p>${bars([["Opened", 100], ["Picked how rested", pct(amRest, amS)], ["Done", pct(amD, amS)]], 100, "%")}
      <p class="note">End of your day</p>${bars([["Opened", 100], ["Reached feelings", pct(pmF, pmS)], ["Done", pct(pmD, pmS)]], 100, "%")}
      <p class="note">${amS} morning and ${pmS} evening check-ins opened.</p>`,
     "the biggest drop between two bars is the screen to make simpler.");
@@ -258,7 +258,7 @@ function render(D) {
   const look = Object.entries(cs).map(([id, c]) => [+id, c, c.down * 3 + c.how[0] + c.how[1] + (c.drawn - c.kept > 3 && !c.kept ? 2 : 0)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
   const name = (id) => { const r = BANK[id - 1]; return r ? `#${id} ${r[4]}` : `#${id}`; };
   html += sec("Which cards need a look?", "How the daily card draw goes, and which cards people pass over, don't get to, or mark as needing work. Only card numbers are sent; the words come from the app's own list.",
-    draws ? bars([["Mornings with a draw", draws], ["Drew again", by("card_redraw").length], ["Kept a card", by("card_keep").length], ["Made it smaller", by("card_smaller").length], ["Saved for later", by("card_save").length], ["Rest days", by("card_rest").length], ["Said \"Not now\"", by("card_later").length]], draws) +
+    draws ? bars([["Mornings with a draw", draws], ["Drew again", by("card_redraw").length], ["Kept a card", by("card_keep").length], ["Made it smaller", by("card_smaller").length], ["Saved for later", by("card_save").length], ["Rest days", by("card_rest").length], ["Said \"Not now\"", by("card_later").length], ["Tapped \"I did it\" on home", by("card_did").length], ["Took \"I did it\" back", by("card_undo").length]], draws) +
       `<p class="note">How it went, in the evening:</p>` + bars(HOW.map((w, i) => [w, howAll[i]])) +
       (look.length ? `<div class="items">${look.slice(0, 25).map(([id, c]) => item(name(id), `Drawn ${c.drawn} · kept ${c.kept} · didn't get to it ${c.how[0]} · drained ${c.how[1]} · loved ${c.how[4]} · thumbs ${c.up} up, ${c.down} down`, c.down ? "Needs work" : "Watch", true)).join("")}</div>` : `<p class="sub">No card stands out as a problem yet.</p>`)
     : `<p class="sub">No cards drawn yet.</p>`,

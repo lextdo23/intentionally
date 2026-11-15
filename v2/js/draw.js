@@ -193,44 +193,69 @@ function big(st, id) {
 export function openDraw(onDone) { begin(onDone); log("card_open_draw"); drawSteps(); }
 
 // ---------------- Evening: how did it go? ----------------
-export function howStep(id, picked, back, done, label) {
-  const c = deck.card(id);
-  const go = mainBtn("Done", picked != null, () => done(sel));
+// If "I did it" was tapped, it asks how it went (no "Didn't get to it"). If not, it first asks if they got to it.
+export function howStep(id, picked, back, done, label, { did = false } = {}) {
+  const c = deck.card(id), from = did ? 1 : 0;
+  const go = mainBtn("Done", picked != null && picked >= from, () => done(sel));
   let sel = picked;
-  const pills = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "How did it go?" },
-    deck.HOW.map((w, i) => h("button.pill", { role: "radio", "aria-checked": String(sel === i), "aria-pressed": String(sel === i), onclick: () => {
-      sel = i; pills.querySelectorAll(".pill").forEach((p, j) => { p.setAttribute("aria-pressed", String(j === i)); p.setAttribute("aria-checked", String(j === i)); });
+  const pills = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": did ? "How did it go?" : "Did you get to your card?" },
+    deck.HOW.map((w, i) => i < from ? null : h("button.pill", { role: "radio", "aria-checked": String(sel === i), "aria-pressed": String(sel === i), onclick: () => {
+      sel = i; pills.querySelectorAll(".pill").forEach((p) => { const on = +p.dataset.i === i; p.setAttribute("aria-pressed", String(on)); p.setAttribute("aria-checked", String(on)); });
       go.setAttribute("aria-disabled", "false");
-    } }, w)));
+    }, "data-i": String(i) }, w)).filter(Boolean));
   return step(
     [roundBtn("back", "Back", back), where(label), spacer()],
     [h("div.mini.rise", null, h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[c.pillar] } }), c.pillar), h("span", null, c.text)),
-      h("h1.q.rise", null, "How did it go?"), h("div.rise", null, pills)],
+      h("h1.q.rise", null, did ? "How did it go?" : "Did you get to your card?"), h("div.rise", null, pills)],
     [go, LIFELINE()]);
 }
 
 // ---------------- Home: today's card floats where the sun is ----------------
+// state: "down" (face down, waiting to be drawn), "up" (face up, with "I did it"), "done" (turned back over with a tick),
+// "skip" (the day ended without it: back in the deck, no guilt). flip = start face up and turn over (just tapped "I did it").
 let visitMoves = 0, timers = [];
+const T0 = performance.now();
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") visitMoves = 0; });
-export function homeCard(id) {
+export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo } = {}) {
   timers.forEach(clearTimeout); timers = [];
-  const el = cardEl(id); el.classList.add("up", "home-card");
-  el.setAttribute("aria-label", `Today's card: ${deck.card(id).text}. Tap to see why it helps.`);
-  el.addEventListener("click", () => openCard(id));
-  // Now and then it twirls up and floats back down: 2s after you arrive, then every 20s, at most 3 times a visit.
+  const el = cardEl(id || null, { tag: "div" }); el.classList.add("home-card");
+  if (state === "up" || flip) el.classList.add("up");
+  const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
+  if (state === "done") { back.classList.add("marked"); back.append(h("span.mark", { "aria-hidden": "true" }, "✓"), h("span.done-word", null, "Done today"), h("span.done-task", null, c.text)); }
+  if (state === "skip") { back.classList.add("marked"); back.append(h("span.dot", { "aria-hidden": "true" }), h("span.done-task", null, "Back in the deck for another day")); }
+  if (state === "up") {
+    const did = h("button.did", { type: "button", onclick: (e) => { e.stopPropagation(); onDid && onDid(); } }, "I did it");
+    const size = el.querySelector(".front .size"), foot = h("span.card-foot");
+    size.replaceWith(foot); foot.append(size, did);
+  }
+  const label = { down: onTap ? "Today's card, face down. Tap to draw it." : "Today's card, face down.", up: c && `Today's card: ${c.text}. Tap to see why it helps.`,
+    done: c && `Done today: ${c.text}. Tap to see the card.`, skip: "Today's card went back in the deck for another day." }[state];
+  el.setAttribute("aria-label", label);
+  const tap = state === "down" ? onTap : state === "skip" ? null : () => openCard(id, state === "done" ? onUndo : null);
+  if (tap) {
+    el.setAttribute("role", "button"); el.tabIndex = 0;
+    el.addEventListener("click", tap);
+    el.addEventListener("keydown", (e) => { if (e.target === el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); tap(); } });
+  } else el.setAttribute("role", "img");
+  if (flip) requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("up")));
+  // Keep the float and sway going smoothly when home redraws (no jump back to the start).
+  const t = performance.now() - T0;
+  el.style.animationDelay = `${-(t % 11000)}ms`;
+  // Now and then a face-up card twirls up and floats back down: 2s after you arrive, then every 20s, at most 3 times a visit.
   const move = () => {
     if (reduceMotion() || visitMoves >= 3 || !el.isConnected) return;
     visitMoves++; el.classList.remove("twirl"); void el.offsetWidth; el.classList.add("twirl");
     if (visitMoves < 3) timers.push(setTimeout(move, 20000));
   };
-  timers.push(setTimeout(move, 2000));
-  return h("div.floater", null, el);
+  if (state === "up") timers.push(setTimeout(move, 2000));
+  return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
 }
-function openCard(id) {
+function openCard(id, onUndo) {
   log("card_open", id);
-  openSheet((panel) => {
+  openSheet((panel, close) => {
     const face = cardEl(id, { big: true, tag: "div" }); face.classList.add("up");
     panel.append(h("div.big-holder", { style: { padding: "8px 0" } }, face));
+    if (onUndo) panel.append(h("div.helpers", null, h("button.btn-pill", { onclick: () => { close(); onUndo(); } }, "Not done yet")));
     if (testerOn()) {
       const d = store.day(dayKey()), cur = d.card && d.card.thumb;
       const row = h("div.helpers");
