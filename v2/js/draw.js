@@ -213,9 +213,8 @@ export function howStep(id, picked, back, done, label, { did = false } = {}) {
 // ---------------- Home: today's card floats where the sun is ----------------
 // state: "down" (face down, waiting to be drawn), "up" (face up, with "I did it"), "done" (turned back over with a tick),
 // "skip" (the day ended without it: back in the deck, no guilt). flip = it was just done, so the tick fills in now.
-let visitMoves = 0, timers = [];
+let timers = [], lastSpin = -1e9;
 const T0 = performance.now();
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") visitMoves = 0; });
 export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo } = {}) {
   timers.forEach(clearTimeout); timers = [];
   const el = cardEl(id || null, { tag: "div" }); el.classList.add("home-card");
@@ -248,14 +247,68 @@ export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo 
   // Keep the float and sway going smoothly when home redraws (no jump back to the start).
   const t = performance.now() - T0;
   el.style.animationDelay = `${-(t % 11000)}ms`;
-  // Now and then a face-up card twirls up and floats back down: 2s after you arrive, then every 20s, at most 3 times a visit.
-  const move = () => {
-    if (reduceMotion() || visitMoves >= 3 || !el.isConnected) return;
-    visitMoves++; el.classList.remove("twirl"); void el.offsetWidth; el.classList.add("twirl");
-    if (visitMoves < 3) timers.push(setTimeout(move, 20000));
-  };
-  if (state === "up") timers.push(setTimeout(move, 2000));
+  // It turns: follow your finger, or on its own every 15 seconds (alex 2026-11-15). A face-down card shows its back both ways.
+  if (state === "down") el.classList.add("blank");
+  if (state !== "skip") spinner(el, state === "down" ? 0 : 180);
   return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
+}
+// Drag sideways and the card turns with your finger; let go and it carries on, slowing to rest face up again.
+// On its own it turns twice and hops a little every 15 seconds, only while home is on screen and nobody is touching it.
+const easeOut = (t) => 1 - Math.pow(1 - t, 3), easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function spinner(el, rest) {
+  const inn = el.querySelector(".in");
+  let a = rest, raf = 0, x0 = null, y0 = 0, a0 = 0, pts = [], moved = false, held = false, touched = -1e9, logged = false;
+  const set = (v) => { a = v; inn.style.transform = `rotateY(${v.toFixed(2)}deg)`; };
+  inn.style.transition = "none"; set(rest);
+  const halt = () => { cancelAnimationFrame(raf); raf = 0; };
+  const glide = (to, ms, ease) => {
+    halt();
+    if (reduceMotion()) return set(to);
+    const from = a, t0 = performance.now();
+    const go = (t) => { const f = Math.min(1, (t - t0) / ms); set(from + (to - from) * ease(f)); raf = f < 1 ? requestAnimationFrame(go) : 0; };
+    raf = requestAnimationFrame(go);
+  };
+  const restAt = (v) => rest + 360 * Math.round((v - rest) / 360);
+  el.style.touchAction = "pan-y";
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button) return;
+    halt(); x0 = e.clientX; y0 = e.clientY; a0 = a; moved = false; held = true; touched = performance.now();
+    pts = [[performance.now(), a]];
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (x0 == null) return;
+    const dx = e.clientX - x0, dy = e.clientY - y0;
+    if (!moved) {
+      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+      moved = true; try { el.setPointerCapture(e.pointerId); } catch { /* ok */ }
+      x0 = e.clientX; if (!logged) { logged = true; log("card_spin"); }
+    }
+    const t = performance.now(); set(a0 + (e.clientX - x0) * 0.7);
+    pts.push([t, a]); pts = pts.filter((q) => t - q[0] < 100);
+  });
+  const end = () => {
+    if (x0 == null) return; x0 = null; held = false; touched = performance.now();
+    if (!moved) { if (Math.abs(a - restAt(a)) > 0.5) glide(restAt(a), 300, easeOut); return; }
+    const p0 = pts[0], p1 = pts[pts.length - 1], v = pts.length > 1 ? (p1[1] - p0[1]) / Math.max(8, p1[0] - p0[0]) : 0;   // degrees per ms
+    const to = restAt(a + Math.max(-900, Math.min(900, v * 320)));
+    const dist = Math.abs(to - a), sameWay = v && Math.sign(to - a) === Math.sign(v);
+    glide(to, Math.max(300, Math.min(1800, sameWay ? (3 * dist) / Math.abs(v) : dist * 4)), easeOut);
+  };
+  el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  // A drag is not a tap: after the card is turned by hand, the tap that follows is ignored.
+  el.addEventListener("click", (e) => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  const busy = () => document.hidden || held || raf || performance.now() - touched < 4000 || document.querySelector(".sheet-host")
+    || ["in-flow", "in-days", "in-settings"].some((c) => document.body.classList.contains(c));
+  const auto = () => {
+    if (!el.isConnected) return;
+    if (!reduceMotion() && !busy()) {
+      lastSpin = performance.now();
+      glide(restAt(a) + 720, 1350, easeInOut);
+      inn.classList.remove("hop"); void inn.offsetWidth; inn.classList.add("hop");
+    }
+    timers.push(setTimeout(auto, 15000));
+  };
+  timers.push(setTimeout(auto, Math.max(2000, 15000 - (performance.now() - lastSpin))));
 }
 function openCard(id, onUndo) {
   log("card_open", id);

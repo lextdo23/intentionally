@@ -274,7 +274,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .helpers { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .helpers .btn-pill[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); }
 .mini { align-self: center; display: flex; flex-direction: column; gap: 4px; max-width: 300px; padding: 12px 16px; border-radius: 16px; background: var(--fill2); font-size: 17px; text-align: left; }
-/* On home: the card floats where the sun is and sways; now and then it twirls up and floats back down. */
+/* On home: the card floats where the sun is and sways; it turns with your finger, and on its own every 15 seconds. */
 .floater { animation: bob 7s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
 .home-card { width: 150px; height: 210px; animation: sway 11s ease-in-out infinite; }
@@ -305,8 +305,12 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lifter { transition: translate .8s var(--ease), filter 1s ease; }
 .lifter.on { translate: 0 -12px; filter: drop-shadow(0 0 30px rgb(242 192 143 / .35)); }
 @keyframes sway { 0%, 100% { transform: rotateY(-8deg) rotateZ(-1deg) } 50% { transform: rotateY(8deg) rotateZ(1deg) } }
-.home-card.twirl .in { animation: spin 3.2s linear, hop 3.2s linear; }
-@keyframes spin { 0% { transform: rotateY(180deg); animation-timing-function: cubic-bezier(.4, 0, .3, 1) } 42%, 100% { transform: rotateY(900deg) } }
+/* The card turns with your finger, or on its own every 15 seconds (draw.js spinner); it hops a little as it turns. */
+.home-card .in.hop { animation: hop 3.2s linear; }
+/* Face down, both sides are the back, so turning it never shows a blank face. */
+.home-card.blank .front { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 9px, rgb(242 192 143 / .10) 9px 10px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
+  box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 2px 4px rgba(0, 0, 0, .35); }
+.home-card.blank .front::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
 @keyframes hop { 0% { translate: 0 0; animation-timing-function: cubic-bezier(.3, 0, .4, 1) } 42% { translate: 0 -14px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 70% { translate: 0 4px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 100% { translate: 0 0 } }
 @media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } .lifter.on { translate: none; } #sun { transition: none; } }
 
