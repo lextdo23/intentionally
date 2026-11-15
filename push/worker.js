@@ -10,6 +10,12 @@ const CONTACT = "https://lextdo23.github.io/intentionally/";
 const PUSH_HOSTS = [/\.push\.apple\.com$/, /^fcm\.googleapis\.com$/, /\.push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/];
 // A phone that hasn't opened the app for two weeks stops getting the evening question: no nagging.
 const QUIET_AFTER = 14 * DAY;
+// The old Intentionally app's notifications are switched off (alex, 2026-11-15). Only Daydeck marks its plans
+// with app: "daydeck"; anything else is the old app. Daydeck plans saved before the mark existed get until
+// OLD_OFF to be re-sent (Daydeck re-sends every time it opens), then unmarked plans stop for good.
+const DAYDECK = "daydeck";
+const OLD_OFF = Date.parse("2026-11-17T00:00:00Z");
+const oldApp = (p) => p.app !== DAYDECK && (p.timerAt || p.eveningAt || (p.daily ?? []).length > 2 || Date.now() > OLD_OFF);
 
 const cors = { "Access-Control-Allow-Origin": APP, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -25,7 +31,9 @@ export default {
       const later = (t) => Number.isFinite(t) && t > Date.now() - DAY && t < Date.now() + 8 * DAY ? t : null;
       // Other daily times (words of affirmation): at most ten, each a time only.
       const daily = (Array.isArray(body.dailyAt) ? body.dailyAt : []).slice(0, 10).map(later).filter(Boolean);
-      await env.PHONES.get(env.PHONES.idFromName(body.endpoint)).plan(body.endpoint, later(body.timerAt), later(body.eveningAt), daily);
+      const phone = env.PHONES.get(env.PHONES.idFromName(body.endpoint));
+      if (body.app !== DAYDECK) { await phone.stop(); return reply({ ok: true, off: true }); } // old app: notifications off
+      await phone.plan(body.endpoint, later(body.timerAt), later(body.eveningAt), daily, DAYDECK);
       return reply({ ok: true });
     }
     if (pathname.startsWith("/t/")) return testers(req, env, pathname);
@@ -44,8 +52,8 @@ function pushable(endpoint) {
 
 // One per phone: holds its address and the next times, and wakes itself up when one is due.
 export class Phone extends DurableObject {
-  async plan(endpoint, timerAt, eveningAt, daily = []) {
-    const p = { endpoint, timerAt, eveningAt, daily, seen: Date.now() };
+  async plan(endpoint, timerAt, eveningAt, daily = [], app = null) {
+    const p = { endpoint, timerAt, eveningAt, daily, app, seen: Date.now() };
     await this.ctx.storage.put("plan", p);
     await this.wake(p);
   }
@@ -53,6 +61,7 @@ export class Phone extends DurableObject {
   async alarm() {
     const p = await this.ctx.storage.get("plan");
     if (!p) return;
+    if (oldApp(p)) return this.stop();
     const soon = Date.now() + 30000;
     let due = false;
     if (p.timerAt && p.timerAt <= soon) { due = true; p.timerAt = null; }
@@ -72,6 +81,8 @@ export class Phone extends DurableObject {
     await this.ctx.storage.put("plan", p);
     await this.wake(p);
   }
+
+  async stop() { await this.ctx.storage.deleteAlarm(); await this.ctx.storage.deleteAll(); }
 
   async wake(p) {
     const next = Math.min(...[p.timerAt, p.eveningAt, ...(p.daily ?? [])].filter(Boolean));

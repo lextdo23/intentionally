@@ -51,7 +51,7 @@ export async function sync() {
     if (!sub) return;
     const sig = sub.endpoint + times.join(",");
     if (sig === sent) return;
-    const res = await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: times }) });
+    const res = await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "daydeck", endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: times }) });
     if (res.ok) sent = sig;
   } catch { /* offline: tries again next time the app opens or something changes */ }
 }
