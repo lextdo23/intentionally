@@ -99,7 +99,9 @@ const vapid = (env) => env.KEYS.get(env.KEYS.idFromName("vapid")).get();
 async function ping(env, endpoint) {
   const k = await vapid(env);
   const jwt = await sign({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: CONTACT }, k.private);
-  const res = await fetch(endpoint, { method: "POST", body: "", headers: { TTL: "3600", Urgency: "normal", Authorization: `vapid t=${jwt}, k=${k.public}` } });
+  // "high": a "normal" ping can be held back while a phone sits idle (overnight, so mornings), then thrown
+  // away when its hour runs out. These are timed nudges, so they should arrive on time.
+  const res = await fetch(endpoint, { method: "POST", body: "", headers: { TTL: "3600", Urgency: "high", Authorization: `vapid t=${jwt}, k=${k.public}` } });
   return res.status === 404 || res.status === 410;
 }
 

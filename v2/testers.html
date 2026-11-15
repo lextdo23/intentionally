@@ -192,12 +192,15 @@ function render(D) {
   const nud = testers.map((t) => { try { return JSON.parse(t.nudges || "{}"); } catch { return {}; } });
   const amOn = nud.filter((n) => n.am && n.am !== "off").length, pmOn = nud.filter((n) => n.pm && n.pm !== "off").length;
   const fromNudge = by("open").filter((e) => e.val === "nudge").length;
+  const nSent = (k) => by("nudge_sent").filter((e) => e.val === k).length, nTap = (k) => by("nudge_tap").filter((e) => e.val === k).length;
+  const sAm = nSent("am"), sPm = nSent("pm"), tAm = nTap("am"), tPm = nTap("pm");
   const hours = (n) => { const c = Array(24).fill(0); by(n).forEach((e) => c[new Date(e.t).getHours()]++); return c; };
   const hRows = (c) => c.map((n, h) => [`${h % 12 || 12} ${h < 12 ? "am" : "pm"}`, n]).filter((r) => r[1]);
   const within = (k) => { let hit = 0, all = 0; by(k + "_done").forEach((e) => { const t = testers.findIndex((x) => x.code === e.code), set = nud[t] && nud[t][k]; if (!set || set === "off") return; all++; const [hh, mm] = set.split(":").map(Number), d = new Date(e.t), n = new Date(d); n.setHours(hh, mm, 0, 0); const gap = (d - n) / 6e4; if (gap >= 0 && gap <= 60) hit++; }); return [hit, all]; };
   const [wa, aa] = within("am"), [wp, ap] = within("pm");
   html += sec("Do nudges bring people in?", "Who has nudges on, how often a nudge opened the app, and when people actually check in.",
     bars([["Morning nudge on", amOn], ["Evening nudge on", pmOn]], T) +
+    `<p class="note">Nudges that reached phones: ${sAm} morning, ${sPm} evening. Tapped: ${tAm} morning (${pct(tAm, sAm)}%), ${tPm} evening (${pct(tPm, sPm)}%).</p>` +
     bars([["Morning: checked in within an hour of the nudge", pct(wa, aa)], ["Evening: checked in within an hour of the nudge", pct(wp, ap)]], 100, "%") +
     `<p class="note">The app was opened from a nudge ${fromNudge} time${fromNudge === 1 ? "" : "s"}.</p>
      <p class="note">When mornings get done</p>${bars(hRows(hours("am_done")))}<p class="note">When evenings get done</p>${bars(hRows(hours("pm_done")))}`,

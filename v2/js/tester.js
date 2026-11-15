@@ -119,10 +119,26 @@ addEventListener("unhandledrejection", (e) => log("error", cut(e.reason && (e.re
 // "Need to talk to someone?" taps: a count only.
 document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("a.lifeline")) log("lifeline_tap"); }, true);
 
+// Nudges that reached the phone, and which ones were tapped. The service worker notes them while the app is
+// closed; here they become nudge_sent / nudge_tap ("am" or "pm") at the time they really happened.
+async function nudges() {
+  try {
+    const c = await caches.open("nudge-log"), r = await c.match("log");
+    if (!r) return;
+    const list = await r.json();
+    await c.delete("log");
+    if (!on()) return;
+    const q = t().queue;
+    for (const [at, what, kind] of list) if (Number.isFinite(at) && (what === "sent" || what === "tap") && (kind === "am" || kind === "pm")) q.push([at, "nudge_" + what, kind]);
+    store.save();
+  } catch { /* try again next open */ }
+}
+
 // App opened, and whether a nudge opened it.
-export function opened() {
+export async function opened() {
   const fromNudge = new URLSearchParams(location.search).get("from") === "nudge";
   log("open", fromNudge ? "nudge" : undefined);
+  await nudges();
   send();
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.nudge) log("open", "nudge"); });
