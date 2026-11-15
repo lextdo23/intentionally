@@ -94,7 +94,7 @@ function nudges() {
     return h("div.set-row.set-toggle", null, h("span.set-label", null, label), time, sw);
   };
   say();
-  return group("Nudges", [row("am", "Start of your day"), row("pm", "End your day")], msg);
+  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day")], msg);
 }
 
 // A copy of everything, as a file the person keeps. Tester details stay out of it.

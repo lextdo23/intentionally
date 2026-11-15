@@ -29,8 +29,11 @@ h1, h2, p { margin: 0; }
 .col { display: flex; flex-direction: column; }
 
 /* ---------- The sun: the one hero. It breathes (about 4s in, 5s out) and stays put between screens. ---------- */
-#sun { position: fixed; left: 50%; top: 46%; width: 620px; height: 620px; margin: -310px 0 0 -310px; pointer-events: none;
-  transition: transform .8s var(--ease), opacity .42s ease; }
+#sun { position: fixed; left: var(--sx, 50%); top: var(--sy, 46%); width: 620px; height: 620px; margin: -310px 0 0 -310px; pointer-events: none;
+  transition: transform .8s var(--ease), opacity .8s ease, left 1.6s var(--ease), top 1.6s var(--ease); }
+/* Through the day the glow moves across the sky (set in main.js); check-ins bring it back to the middle. Once the day is done it dims. */
+.in-flow #sun { left: 50%; top: 46%; }
+.day-done:not(.in-flow) #sun { opacity: .6; }
 #sun i { position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(circle, rgb(var(--glow) / .32) 0, rgb(var(--glow) / .11) 150px, rgb(var(--glow) / 0) 310px);
   animation: breathe 9s ease-in-out infinite; transition: background 0.4s; }
@@ -45,7 +48,11 @@ h1, h2, p { margin: 0; }
 #dim { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); opacity: 0; pointer-events: none; transition: opacity .52s var(--ease); }
 
 .top-line { font-size: 13px; color: #b9b5ad; }
-.greet { font-size: 22px; font-weight: 500; }
+.greet { font-size: 22px; font-weight: 500; transition: color 1.2s ease; }
+.greet-line { font-size: 15px; color: var(--ink2); transition: color 1.2s ease; }
+.greet-words { transition: opacity .4s ease; }
+.greet-words.moment .greet { color: var(--gold); transition-duration: .3s; }
+.greet-words.fading { opacity: 0; }
 .home-mid { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
 .home-note { font-size: 15px; color: var(--ink2); }
 .lifeline { font-size: 12px; color: #a29e96; text-align: center; text-decoration: none; padding: 4px 0; }
@@ -68,6 +75,7 @@ h1, h2, p { margin: 0; }
 .slide-words { padding-left: 44px; font-size: 17px; color: var(--ink2); pointer-events: none; }
 .slide-knob { position: absolute; left: 4px; top: 4px; width: 52px; height: 52px; border-radius: 26px; background: var(--sun); box-shadow: 0 0 24px rgb(242 192 143 / .5); touch-action: none; }
 .slide-knob:active { transform: none; }
+.btn-main.soft { background: rgba(239, 237, 233, .12); color: var(--ink); }
 .btn-quiet { min-height: 44px; color: var(--ink2); font-size: 15px; }
 button:active { transform: scale(.97); }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -273,11 +281,34 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card .front { padding: 12px; gap: 6px; border-radius: 16px; }
 .home-card .back { border-radius: 16px; }
 .home-card .task { font-size: 17px; }
+/* "I did it" sits on the card's bottom row, beside its size. Soft, never gold. The card is zoomed, so sizes here are 1/1.85 of real. */
+.home-card .card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.home-card .card-foot .size { margin-top: 0; }
+.home-card .did { position: relative; min-height: 24px; padding: 0 10px; border-radius: 12px; background: rgba(239, 237, 233, .14); color: var(--ink); font-size: 9.5px; font-weight: 600; }
+.home-card .did::after { content: ""; position: absolute; inset: -6px -4px; }   /* a bigger tap area than it looks */
+.home-card .did:active { background: rgba(239, 237, 233, .24); }
+/* Done: the card stays face up and steps back; a circle in its pillar's colour fills with a tick. */
+.home-card.did .task { color: #8d8981; }
+.home-card.did .ctag, .home-card.did .size { color: #77746e; }
+.home-card.did .front { box-shadow: 0 0 0 1px rgb(227 196 134 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
+.home-card .tick-done { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.home-card.fresh .task { animation: settle 1.4s var(--ease) both; }
+.home-card.fresh .tick-done { animation: fill .5s var(--ease) both; }
+@keyframes settle { 0%, 35% { color: var(--ink) } 100% { color: #8d8981 } }
+@keyframes fill { 0% { transform: scale(.4); opacity: 0 } 60% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
+/* The back when the day ended without the card: a quiet "Back in the deck for another day". */
+.home-card .back.marked { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 14px; text-align: center; }
+.home-card .back.marked::after { display: none; }
+.home-card .done-task { font-size: 8px; line-height: 1.35; color: #a9a59d; max-width: 85%; }
+.home-card .dot { width: 10px; height: 10px; border-radius: 50%; background: rgb(242 192 143 / .5); }
+/* A moment: the card lifts a little and glows, then settles. */
+.lifter { transition: translate .8s var(--ease), filter 1s ease; }
+.lifter.on { translate: 0 -12px; filter: drop-shadow(0 0 30px rgb(242 192 143 / .35)); }
 @keyframes sway { 0%, 100% { transform: rotateY(-8deg) rotateZ(-1deg) } 50% { transform: rotateY(8deg) rotateZ(1deg) } }
 .home-card.twirl .in { animation: spin 3.2s linear, hop 3.2s linear; }
 @keyframes spin { 0% { transform: rotateY(180deg); animation-timing-function: cubic-bezier(.4, 0, .3, 1) } 42%, 100% { transform: rotateY(900deg) } }
 @keyframes hop { 0% { translate: 0 0; animation-timing-function: cubic-bezier(.3, 0, .4, 1) } 42% { translate: 0 -14px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 70% { translate: 0 4px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 100% { translate: 0 0 } }
-@media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } .lifter.on { translate: none; } #sun { transition: none; } }
 
 /* ---------- Choosing pillars and where you're at ---------- */
 .pick-group { display: flex; flex-direction: column; gap: 8px; }

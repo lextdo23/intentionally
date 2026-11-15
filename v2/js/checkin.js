@@ -6,7 +6,7 @@ import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecen
 import { openSheet, pillPicker, roundBtn } from "./ui.js";
 import { sync as syncNotify } from "./notify.js";
 import { log } from "./tester.js";
-import { drawSteps, cardDue, howStep } from "./draw.js";
+import { howStep } from "./draw.js";
 import * as deck from "./deck.js";
 
 // Starts a flow from somewhere else (the card draw from home): the sun stays, home steps back.
@@ -107,9 +107,8 @@ export function morning(onDone) {
     st.tags.forEach((t) => (s2.sleepTags.last[t] = n));
     if (!s2.started) s2.started = k;
     store.save();
-    // Straight on to today's card, in the same flow.
-    if (cardDue(k)) { log("am_done", { secs: Math.round((Date.now() - track.t0) / 1000), set: track.set || "none" }); track = null; syncNotify(); drawSteps(); }
-    else close(true);
+    // Back home for a moment ("Sleep, done."); the card is its own step, drawn from home.
+    close(true);
   });
   const rested = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "How rested do you feel?" },
     RESTED.map((label, i) => h("button.pill", { role: "radio", "aria-checked": String(st.rested === i), "aria-pressed": String(st.rested === i), onclick: (e) => {
@@ -132,7 +131,7 @@ export function morning(onDone) {
   }, { label: "About last night", onClose: moreLabel }); };
 
   show(step(
-    [roundBtn("close", "Not now", () => close(false)), where("Start of your day"), spacer()],
+    [roundBtn("close", "Not now", () => close(false)), where("Start your day"), spacer()],
     [h("h1.q.rise", null, "Last night"), h("div.arc-wrap.rise", null, svg, hrs),
       h("div.times.rise", null, h("label.time", null, h("span", null, "Went to sleep"), tBed, iBed), h("label.time", null, h("span", null, "Woke up"), tWake, iWake)),
       h("div.col.rise", { style: { gap: "8px" } }, h("span.q2", null, "How rested do you feel?"), rested)],
@@ -186,13 +185,15 @@ export function evening(onDone) {
       [h("span.q2.rise", { style: { color: MOOD_COL[m], fontWeight: "600" } }, MOODS[m]), h("h1.q.rise", null, "What were you feeling?"), h("div.rise", null, pick.el)],
       [done, LIFELINE()]));
   };
-  const three = () => { at("card"); show(howStep(cid, st.how, two, (i) => { st.how = i; save(); }, `End your day · 3 of ${N}`)); };
+  const did = !!(cid && had.card.done);
+  const three = () => { at("card"); show(howStep(cid, st.how, two, (i) => { st.how = i; save(); }, `End your day · 3 of ${N}`, { did })); };
   const save = () => {
     const s2 = store.get(), d = store.day(k), m = toMood(st.v), b = band(m), n = dayNum(k);
     d.mood = m; d.feel = [...st.feel];
     if (cid && st.how != null) {
       const first = d.card.how == null;
       d.card.how = st.how;
+      d.card.done = st.how >= 1;
       if (first) deck.howWent(cid, st.how);
       const p = deck.card(cid).pillar;
       d.pil = (d.pil || []).filter((x) => x !== p);
