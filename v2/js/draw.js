@@ -212,16 +212,24 @@ export function howStep(id, picked, back, done, label, { did = false } = {}) {
 
 // ---------------- Home: today's card floats where the sun is ----------------
 // state: "down" (face down, waiting to be drawn), "up" (face up, with "I did it"), "done" (turned back over with a tick),
-// "skip" (the day ended without it: back in the deck, no guilt). flip = start face up and turn over (just tapped "I did it").
+// "skip" (the day ended without it: back in the deck, no guilt). flip = it was just done, so the tick fills in now.
 let visitMoves = 0, timers = [];
 const T0 = performance.now();
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") visitMoves = 0; });
 export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo } = {}) {
   timers.forEach(clearTimeout); timers = [];
   const el = cardEl(id || null, { tag: "div" }); el.classList.add("home-card");
-  if (state === "up" || flip) el.classList.add("up");
+  if (state === "up" || state === "done") el.classList.add("up");
   const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
-  if (state === "done") { back.classList.add("marked"); back.append(h("span.mark", { "aria-hidden": "true" }, "✓"), h("span.done-word", null, "Done today"), h("span.done-task", null, c.text)); }
+  // Done (alex 2026-11-15, "fill the circle, step back"): the card stays face up, a small circle in its pillar's colour
+  // fills with a tick where "I did it" was, and the whole card steps back a little.
+  if (state === "done") {
+    el.classList.add("did"); if (flip) el.classList.add("fresh");
+    const size = el.querySelector(".front .size"), foot = h("span.card-foot");
+    size.replaceWith(foot);
+    foot.append(size, h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
+      h("svg", { width: "11", height: "11", viewBox: "0 0 24 24", fill: "none", stroke: "#1d1e22", "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round" }, h("path", { d: "M5 12.5l4.5 4.5L19 7.5" }))));
+  }
   if (state === "skip") { back.classList.add("marked"); back.append(h("span.dot", { "aria-hidden": "true" }), h("span.done-task", null, "Back in the deck for another day")); }
   if (state === "up") {
     const did = h("button.did", { type: "button", onclick: (e) => { e.stopPropagation(); onDid && onDid(); } }, "I did it");
@@ -237,7 +245,6 @@ export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo 
     el.addEventListener("click", tap);
     el.addEventListener("keydown", (e) => { if (e.target === el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); tap(); } });
   } else el.setAttribute("role", "img");
-  if (flip) requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("up")));
   // Keep the float and sway going smoothly when home redraws (no jump back to the start).
   const t = performance.now() - T0;
   el.style.animationDelay = `${-(t % 11000)}ms`;

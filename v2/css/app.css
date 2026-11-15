@@ -287,13 +287,18 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card .did { position: relative; min-height: 24px; padding: 0 10px; border-radius: 12px; background: rgba(239, 237, 233, .14); color: var(--ink); font-size: 9.5px; font-weight: 600; }
 .home-card .did::after { content: ""; position: absolute; inset: -6px -4px; }   /* a bigger tap area than it looks */
 .home-card .did:active { background: rgba(239, 237, 233, .24); }
-/* The back once the day has its answer: a gold tick and "Done today", or a quiet "Back in the deck for another day". */
+/* Done: the card stays face up and steps back; a circle in its pillar's colour fills with a tick. */
+.home-card.did .task { color: #8d8981; }
+.home-card.did .ctag, .home-card.did .size { color: #77746e; }
+.home-card.did .front { box-shadow: 0 0 0 1px rgb(227 196 134 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
+.home-card .tick-done { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.home-card.fresh .task { animation: settle 1.4s var(--ease) both; }
+.home-card.fresh .tick-done { animation: fill .5s var(--ease) both; }
+@keyframes settle { 0%, 35% { color: var(--ink) } 100% { color: #8d8981 } }
+@keyframes fill { 0% { transform: scale(.4); opacity: 0 } 60% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
+/* The back when the day ended without the card: a quiet "Back in the deck for another day". */
 .home-card .back.marked { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 14px; text-align: center; }
 .home-card .back.marked::after { display: none; }
-.home-card .back:has(.mark) { box-shadow: 0 0 0 1px rgb(227 196 134 / .6), 0 2px 4px rgba(0, 0, 0, .35); }
-.home-card .mark { width: 35px; height: 35px; border-radius: 50%; background: var(--gold); color: var(--on-sun); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600;
-  box-shadow: 0 0 0 5px rgb(227 196 134 / .14), 0 0 22px rgb(242 192 143 / .6); }
-.home-card .done-word { font-size: 9.5px; font-weight: 600; color: var(--gold); }
 .home-card .done-task { font-size: 8px; line-height: 1.35; color: #a9a59d; max-width: 85%; }
 .home-card .dot { width: 10px; height: 10px; border-radius: 50%; background: rgb(242 192 143 / .5); }
 /* A moment: the card lifts a little and glows, then settles. */
