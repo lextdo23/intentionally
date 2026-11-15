@@ -28,21 +28,24 @@ export async function enable() {
   } catch { return false; }
 }
 
-// The next time the clock reads hh:mm, skipping today if that check-in is already done.
-function nextAt(hhmm, doneToday) {
+// The next time the clock reads hh:mm, skipped if the check-in for that nudge's own day is already done.
+// (Checking "today" instead broke mornings: a day runs until 4am, so opening the app after midnight saw
+// yesterday's sleep as done and skipped the coming morning's nudge.)
+function nextAt(hhmm, done) {
   const [h, m] = hhmm.split(":").map(Number), d = new Date();
   d.setHours(h, m, 0, 0);
   let t = d.getTime();
-  if (t <= Date.now() || doneToday) t += DAY;
+  if (t <= Date.now()) t += DAY;
+  if (done(store.get().days[dayKey(t)] || {})) t += DAY;
   return t;
 }
 
 let sent = "";
 export async function sync() {
   if (!supported() || Notification.permission !== "granted") return;
-  const n = prefs(), today = store.get().days[dayKey(Date.now())] || {}, times = [];
-  if (n.am.on) times.push(nextAt(n.am.t, !!today.sleep));
-  if (n.pm.on) times.push(nextAt(n.pm.t, today.mood != null));
+  const n = prefs(), times = [];
+  if (n.am.on) times.push(nextAt(n.am.t, (d) => !!d.sleep));
+  if (n.pm.on) times.push(nextAt(n.pm.t, (d) => d.mood != null));
   try {
     const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
     if (!sub) return;
