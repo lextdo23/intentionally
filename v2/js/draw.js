@@ -25,6 +25,37 @@ export function cardEl(id, { big = false, tag = "button" } = {}) {
   if (id) fill(el, id, big);
   return el;
 }
+// Testers only: does this card fit the pillar and where you're at with it? Up or down, once per card, then it's locked.
+// It isn't "is this a good card", it's "does it fit me" (alex 2026-11-16). Sends the card number, the answer and the
+// pillar's mindsets (words from the app's own list).
+const THUMB = () => h("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
+  h("path", { d: "M7 10v11H4V10h3zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.6a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 17.7 21H7" }));
+function thumbs(id) {
+  const row = h("span.thumbs");
+  const draw = () => {
+    const v = deck.mem().thumbs[id];
+    row.classList.toggle("locked", v != null);
+    row.replaceChildren(...[[1, "Fits my pillar and mindset", ""], [-1, "Doesn't fit my pillar and mindset", ".dn"]].map(([val, label, cls]) => {
+      const b = h("button.thumb" + cls, { type: "button", "aria-label": label, "aria-pressed": String(v === val), disabled: v != null ? true : null }, THUMB());
+      // Only on a card that's face up: a tap on a face-down card turns it, never rates it.
+      const up = () => { const c = row.closest(".dcard"); return c && c.classList.contains("up"); };
+      const stop = (e) => { if (up()) e.stopPropagation(); };
+      b.addEventListener("pointerdown", stop); b.addEventListener("touchstart", stop, { passive: true });
+      b.addEventListener("click", (e) => {
+        if (!up()) return;
+        e.stopPropagation(); e.preventDefault();
+        const m = deck.mem(); if (m.thumbs[id] != null) return;
+        m.thumbs[id] = val; store.save();
+        const c = deck.card(id), p = deck.myPillars().find((x) => x.name === c.pillar);
+        log("card_thumb", { id, v: val, p: c.pillar, m: p ? (p.mindsets || []) : [] });
+        draw();
+      });
+      return b;
+    }));
+  };
+  draw();
+  return row;
+}
 function fill(el, id, big) {
   const c = deck.card(id), front = el.querySelector(".front"), times = deck.doneTimes(id);
   el.dataset.id = id;
@@ -34,7 +65,8 @@ function fill(el, id, big) {
     big && times ? h("span.again", null, `Back again · done ${times === 1 ? "once" : times + " times"}`) : null,
     big ? h("span.why", null, c.why) : null,
     big && c.source ? h("span.src", null, c.source) : null,
-    h("span.size", null, SIZE[c.size] || c.size)].filter(Boolean));
+    h("span.size", null, SIZE[c.size] || c.size),
+    !big && testerOn() ? thumbs(id) : null].filter(Boolean));
   el.setAttribute("aria-label", el.classList.contains("up") || big ? `${c.pillar}: ${c.text}` : "Face-down card");
 }
 
@@ -149,7 +181,7 @@ function hand(st, dealIn) {
   const foot = [keep, d.card.hands.length >= 2 ? lastLine : again, rest, LIFELINE()];
   show(step(
     [roundBtn("close", "Not now", () => { log("card_later"); close(false); }), where("Today's card"), spacer()],
-    [h("h1.q.rise", null, "Pick one for today"), h("div.rise", null, stage), h("div.rise", null, hint)],
+    [h("h1.q.rise", null, "Pick one for today"), h("div.rise", null, stage), h("div.rise", null, hint), testerOn() ? h("p.note.rise", null, "Testers: thumbs up if a card fits your pillar and where you're at with it. One go per card.") : null],
     foot));
   if (dealIn && !reduceMotion()) { pile(); requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => deal(false), 260))); }
   else { pile(); deal(true); }
@@ -318,15 +350,5 @@ function openCard(id, onUndo) {
     const face = cardEl(id, { big: true, tag: "div" }); face.classList.add("up");
     panel.append(h("div.big-holder", { style: { padding: "8px 0" } }, face));
     if (onUndo) panel.append(h("div.helpers", null, h("button.btn-pill", { onclick: () => { close(); onUndo(); } }, "Not done yet")));
-    if (testerOn()) {
-      const d = store.day(dayKey()), cur = d.card && d.card.thumb;
-      const row = h("div.helpers");
-      const t = (v, label) => h("button.btn-pill", { "aria-pressed": String(cur === v), onclick: () => {
-        d.card.thumb = v; store.save(); log("card_thumb", { id, v });
-        row.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String((i ? -1 : 1) === v)));
-      } }, label);
-      panel.append(h("div.col", { style: { gap: "8px" } }, h("span.note", null, "Testers: is this a good card?"), row));
-      row.append(t(1, "Good card"), t(-1, "Needs work"));
-    }
   }, { label: "Today's card" });
 }
