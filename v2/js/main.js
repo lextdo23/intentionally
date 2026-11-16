@@ -60,7 +60,7 @@ function render(moment) {
   const st = store.get(), k = dayKey(), today = st.days[k] || {}, t = new Date(now()), hr = t.getHours();
   const needAM = !today.sleep, ended = today.mood != null;
   const dayN = st.started ? Math.round((keyDate(k) - keyDate(st.started)) / 864e5) + 1 : 1;
-  const topLine = `${DAY_NAME[t.getDay()]} ${t.getDate()} ${MONTH[t.getMonth()]}` + (dayN <= 7 ? ` · Day ${dayN} of 7` : "");
+  const topLine = `${DAY_NAME[t.getDay()]} ${t.getDate()} ${MONTH[t.getMonth()]}` + (dayN <= 7 ? ` · Day ${dayN} of your first week` : "");
   const go = (fn, m) => () => fn((saved) => render(saved ? m : null));
   const c = !today.rest && today.card && today.card.id ? today.card : null;
   const did = !!(c && (c.done || c.how >= 1));
