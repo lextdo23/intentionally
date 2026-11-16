@@ -59,6 +59,13 @@ button{min-height:44px;border:0;border-radius:14px;background:rgba(255,255,255,.
 button.main{background:var(--sun);color:#1d1e22;font-weight:600}
 button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .tbl{overflow-x:auto}
+.tcard{background:rgba(255,255,255,.05);border-radius:16px;padding:12px 12px 12px 16px;display:flex;flex-direction:column;gap:8px}
+.ttop{display:flex;align-items:center;gap:12px}
+.who{flex:1;min-width:0;display:flex;flex-direction:column}.who b{font-weight:600}.who span{font-size:13px;color:var(--dim)}
+.confirm{border-top:1px solid var(--faint);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.confirm p{font-size:15px;color:var(--dim)}
+.row.two button{flex:1}
+button.danger{background:rgba(224,165,126,.2);color:var(--warn);font-weight:600}
 table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:tabular-nums}
 td,th{padding:6px 8px;text-align:left;border-bottom:1px solid var(--faint);white-space:nowrap}
 th{color:var(--dim);font-weight:500}
@@ -97,7 +104,7 @@ $("pw").value = pw;
 $("login").addEventListener("submit", (e) => { e.preventDefault(); pw = $("pw").value.trim(); try { localStorage.setItem("daydeck-tester-pw", pw); } catch {} load(); });
 if (pw) load();
 
-let raw = null;
+let raw = null, removedMsg = "";
 async function load() {
   $("status").textContent = "Loading…";
   try {
@@ -306,13 +313,32 @@ function render(D) {
 
   // Testers table + actions
   const fmt = (t) => new Date(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
-  html += `<section><h2>Testers</h2><div class="tbl"><table><tr><th>Code</th><th>Phone</th><th>Version</th><th>Joined</th><th>Last sent</th><th>Days noted</th></tr>${testers.map((t) =>
-    `<tr><td>${esc(t.code)}</td><td>${esc(t.phone || "")}</td><td>${esc(t.version || "")}</td><td>${fmt(t.joined)}</td><td>${fmt(t.seen)}</td><td>${Object.keys(days[t.code] || {}).length}</td></tr>`).join("")}</table></div>
+  html += `<section><h2>Testers</h2><p class="ask">Everyone sharing with you.</p>${removedMsg ? `<p class="sub" aria-live="polite">${esc(removedMsg)}</p>` : ""}
+    <div class="items">${testers.map((t) => `<div class="tcard" data-code="${esc(t.code)}"><div class="ttop"><div class="who"><b>${esc(t.code)}</b>
+      <span>${esc(t.phone || "")} · app ${esc(t.version || "?")} · joined ${fmt(t.joined)} · last sent ${fmt(t.seen)} · ${Object.keys(days[t.code] || {}).length} days noted</span></div>
+      <button class="rm">Remove</button></div></div>`).join("")}</div>
     <p class="note">Invite link for testers: https://lextdo23.github.io/intentionally/v2/?tester</p></section>`;
   html += `<section class="foot"><h2>Your data</h2><p class="ask" style="margin:0">Download everything to keep a copy or to send to Claude. When testing ends, delete it all.</p>
     <div class="row"><button id="dl" class="main">Download all data</button><button id="wipe">Delete all tester data</button></div><p class="note" id="wipemsg" aria-live="polite"></p></section>`;
   $("out").innerHTML = html;
 
+  // Remove a tester: one tap asks, the second removes. Deletes what they shared and stops their phone sending.
+  document.querySelectorAll(".tcard").forEach((card) => {
+    const code = card.dataset.code;
+    card.querySelector(".rm").onclick = () => {
+      card.querySelector(".rm").hidden = true;
+      const box = document.createElement("div"); box.className = "confirm";
+      box.innerHTML = `<p>Remove ${esc(code)}? Everything they've shared is deleted and their phone stops sending. This can't be undone.</p><div class="row two"><button class="keep">Keep</button><button class="danger">Remove tester</button></div><p class="note" aria-live="polite"></p>`;
+      card.append(box);
+      box.querySelector(".keep").onclick = () => { box.remove(); card.querySelector(".rm").hidden = false; };
+      box.querySelector(".danger").onclick = async () => {
+        const res = await fetch(`${SERVICE}/t/remove`, { method: "POST", headers: { Authorization: "Bearer " + pw, "Content-Type": "application/json" }, body: JSON.stringify({ code }) }).catch(() => null);
+        if (!res || !res.ok) { box.querySelector(".note").textContent = "Couldn't remove. Check you're online and try again."; return; }
+        raw.testers = raw.testers.filter((t) => t.code !== code); raw.days = raw.days.filter((d) => d.code !== code); raw.events = raw.events.filter((e) => e.code !== code);
+        removedMsg = `${code} removed. Their data is deleted.`; render(raw);
+      };
+    };
+  });
   $("dl").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(raw, null, 1)], { type: "application/json" })); a.download = `daydeck-testers-${today}.json`; a.click(); };
   let armed = false;
   $("wipe").onclick = async () => {
