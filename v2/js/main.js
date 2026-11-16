@@ -154,9 +154,28 @@ function testBar() {
     h("button", { onclick: () => { testOn = false; st.test.on = false; store.save(); render(); } }, "Hide")));
 }
 
+// A one-time note about what's new, for people who already use the app (alex 2026-11-16). New people never see it.
+const NEW_NOTE = "sleep";
+function whatsNew() {
+  const st = store.get();
+  if (document.body.classList.contains("in-flow") || document.querySelector(".sheet-host")) return;
+  log("update_note", NEW_NOTE);
+  openSheet((panel, close) => {
+    panel.append(
+      h("span", { style: { marginTop: "8px" } }, moonIcon("#e3c486", 28)),
+      h("h2", null, "New: Going to sleep"),
+      h("p.update-text", null, "After you end your day, tap Going to sleep. You can play a sound to fall asleep to."),
+      h("p.update-text", null, "In the morning, your sleep check starts from that time, so there's less to fill in."),
+      h("p.update-from", null, "From Alex"),
+      h("button.btn-main", { onclick: () => close("done") }, "Got it"));
+  }, { label: "What's new", onClose: () => { st.seen.note = NEW_NOTE; store.save(); } });
+}
+{ const st = store.get(); st.seen = st.seen || {}; if (!st.started && !st.seen.note) { st.seen.note = NEW_NOTE; store.save(); } }
+
 render();
 notify.sync();
 tester.opened();
+if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
