@@ -155,6 +155,11 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .sections { display: flex; flex-direction: column; gap: 24px; }
 .card { padding: 16px; border-radius: 16px; background: rgba(239, 237, 233, .04); display: flex; flex-direction: column; gap: 8px; }
 .card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+/* Your moods: the box holds its own Week / Month / Year switch, dates and summary. */
+.card.moods { gap: 16px; }
+.card.moods h3 { font-size: 20px; }
+.card.moods .chart-wide { margin: 0 -8px; }
+.prev { font-size: 15px; color: var(--ink2); }
 .card .lead { font-size: 17px; line-height: 1.35; }
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
