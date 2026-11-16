@@ -7,6 +7,8 @@ import { openSheet, pillPicker, roundBtn } from "./ui.js";
 import { sync as syncNotify } from "./notify.js";
 import { log } from "./tester.js";
 import { howStep } from "./draw.js";
+import { lastNote, markUsed } from "./sleep.js";
+import { now } from "./clock.js";
 import * as deck from "./deck.js";
 
 // Starts a flow from somewhere else (the card draw from home): the sun stays, home steps back.
@@ -53,6 +55,10 @@ export function morning(onDone) {
   const s = store.get(), k = dayKey(), had = s.days[k] && s.days[k].sleep;
   const prev = Object.keys(s.days).sort().reverse().map((x) => s.days[x].sleep).find(Boolean);
   const st = { bed: had ? had.bed : prev ? prev.bed : 23 * 60, wake: had ? had.wake : prev ? prev.wake : 6 * 60 + 30, rested: had ? had.rested : null, tags: new Set(had ? had.tags : []) };
+  // Tapped "Going to sleep" last night: start the moon at that time and the sun at now (when the app was opened).
+  const note = had ? null : lastNote(), r5 = (t) => { const d = new Date(t); return Math.round((d.getHours() * 60 + d.getMinutes()) / 5) * 5 % 1440; };
+  let fromBtn = null;
+  if (note) { st.bed = r5(note.at); st.wake = r5(now()); fromBtn = { bed: st.bed, wake: st.wake }; }
   document.body.classList.add("in-flow");
 
   // The arc: 6pm on the left, 3am at the top, noon on the right. Drag the moon (bed) and sun (wake), 5 minutes a step.
@@ -99,6 +105,7 @@ export function morning(onDone) {
   svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
   const fromInput = (which, inp) => { const [a, b] = inp.value.split(":").map(Number); if (isNaN(a)) return; st[which] = fit(which, a * 60 + Math.round(b / 5) * 5); draw(); };
   iBed.addEventListener("change", () => { howSet("wheel"); fromInput("bed", iBed); }); iWake.addEventListener("change", () => { howSet("wheel"); fromInput("wake", iWake); });
+  if (fromBtn) { st.wake = fit("wake", st.wake); st.bed = fit("bed", st.bed); fromBtn = { bed: st.bed, wake: st.wake }; }
   draw();
 
   const done = mainBtn("Done", st.rested != null, () => {
@@ -106,6 +113,7 @@ export function morning(onDone) {
     d.sleep = { bed: st.bed, wake: st.wake, rested: st.rested, tags: [...st.tags] };
     st.tags.forEach((t) => (s2.sleepTags.last[t] = n));
     if (!s2.started) s2.started = k;
+    if (fromBtn) { markUsed(); log("sleep_prefill", { moved: st.bed !== fromBtn.bed || st.wake !== fromBtn.wake }); }
     store.save();
     // Back home for a moment ("Sleep, done."); the card is its own step, drawn from home.
     close(true);
@@ -134,6 +142,7 @@ export function morning(onDone) {
     [roundBtn("close", "Not now", () => close(false)), where("Start your day"), spacer()],
     [h("h1.q.rise", null, "Last night"), h("div.arc-wrap.rise", null, svg, hrs),
       h("div.times.rise", null, h("label.time", null, h("span", null, "Went to sleep"), tBed, iBed), h("label.time", null, h("span", null, "Woke up"), tWake, iWake)),
+      fromBtn ? h("p.from-btn.rise", null, "From your sleep button. Move them if they're off.") : null,
       h("div.col.rise", { style: { gap: "8px" } }, h("span.q2", null, "How rested do you feel?"), rested)],
     [moreBtn, done, LIFELINE()]));
 }
