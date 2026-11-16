@@ -151,7 +151,7 @@ function secPillars(s) {
   const card = h("div.card", { style: { gap: "12px" } }, h("h3", null, "Mood and what you did"));
   if (!rows.length) { card.append(h("p.sub", null, "Once daily cards are in, this shows how days with each part of your life felt.")); return card; }
   card.append(best ? h("p.lead", null, "Days with ", h("span", { style: { color: best.col || "#a9b9d6", fontWeight: "600" } }, best.name), " often felt ", coloured(best.top), ".")
-    : h("p.lead", null, "Getting to know you. Here's how your days have felt so far."));
+    : h("p.lead", null, "Your first week so far."));
   const pct = (m) => 4 + m / 6 * 92;
   rows.forEach((r) => {
     const dashed = r.n < SOLID, c = MOOD_COL[Math.round(r.av)];

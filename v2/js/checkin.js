@@ -115,7 +115,7 @@ export function morning(onDone) {
     if (!s2.started) s2.started = k;
     if (fromBtn) { markUsed(); log("sleep_prefill", { moved: st.bed !== fromBtn.bed || st.wake !== fromBtn.wake }); }
     store.save();
-    // Back home for a moment ("Sleep, done."); the card is its own step, drawn from home.
+    // Back home for a moment ("That's last night."); the card is its own step, drawn from home.
     close(true);
   });
   const rested = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "How rested do you feel?" },

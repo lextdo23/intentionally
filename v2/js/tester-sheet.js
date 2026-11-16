@@ -9,7 +9,7 @@ export function openTester(onDone) {
     if (!tester.on()) {
       panel.append(
         h("div.col", { style: { gap: "4px" } }, h("h2", null, "Help shape Daydeck"),
-          h("p.sub", null, "While Daydeck is being tested, you can share how you use it with the person making it. It shows what to keep, fix and cut.")),
+          h("p.sub", null, "While Daydeck is being tested, you can share how you use it with the person making it. It shows what's working and what isn't.")),
         h("div.col", { style: { gap: "8px" } }, h("span.tlabel", null, "What's shared"), list(tester.SHARED)),
         h("div.col", { style: { gap: "8px" } }, h("span.tlabel", null, "Never shared"), list(tester.NEVER)),
         h("p.sub", null, "It's kept under a random tester code on Cloudflare's servers, which may be outside Australia. Only the person making Daydeck can see it, and it's deleted when testing ends. You can stop any time from Settings, and what's been shared is deleted."),

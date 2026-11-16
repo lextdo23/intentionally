@@ -1,6 +1,6 @@
 // Keeps Daydeck working offline. Only looks after the v2 folder, never the old app.
 // Bump VERSION whenever any file below changes.
-const VERSION = "d21";
+const VERSION = "d22";
 const FILES = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/main.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js",
@@ -34,7 +34,7 @@ self.addEventListener("push", (e) => {
   const morning = new Date().getHours() < 14, kind = morning ? "am" : "pm";
   e.waitUntil(Promise.all([
     self.registration.showNotification("Daydeck", {
-      body: morning ? "Good morning. How did you sleep?" : "How was today? Your evening check-in is here.",
+      body: morning ? "How did you sleep?" : "How was today?",
       icon: "icons/icon-192.png", tag: "daydeck-" + kind, // own tag each, so an unread morning nudge isn't replaced by the evening one
     }),
     note([Date.now(), "sent", kind]),

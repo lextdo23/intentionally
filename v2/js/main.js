@@ -40,10 +40,10 @@ function peek() {
 // After each step, home says so in place for a few seconds: the greeting turns gold with what's next, the card lifts
 // and glows, then it all softens back. No separate screen, no confetti (alex 2026-11-15, "words in place").
 const MOMENT = {
-  sleep: ["Sleep, done.", "Next, your card."],
-  card: ["Your card for today.", "Do it whenever suits you."],
-  rest: ["A rest day today.", "No card. Rest is part of it."],
-  did: ["Card, done.", null],
+  sleep: ["That's last night.", "Next, your card."],
+  card: ["Your card for today.", "Do your card any time today."],
+  rest: ["Rest day.", "No card today."],
+  did: ["Card's done.", null],
   end: ["That's today.", null],
 };
 let momentT = 0;
@@ -60,7 +60,7 @@ function render(moment) {
   const st = store.get(), k = dayKey(), today = st.days[k] || {}, t = new Date(now()), hr = t.getHours();
   const needAM = !today.sleep, ended = today.mood != null;
   const dayN = st.started ? Math.round((keyDate(k) - keyDate(st.started)) / 864e5) + 1 : 1;
-  const topLine = `${DAY_NAME[t.getDay()]} ${t.getDate()} ${MONTH[t.getMonth()]}` + (dayN <= 7 ? ` · Getting to know you, day ${dayN} of 7` : "");
+  const topLine = `${DAY_NAME[t.getDay()]} ${t.getDate()} ${MONTH[t.getMonth()]}` + (dayN <= 7 ? ` · Day ${dayN} of 7` : "");
   const go = (fn, m) => () => fn((saved) => render(saved ? m : null));
   const c = !today.rest && today.card && today.card.id ? today.card : null;
   const did = !!(c && (c.done || c.how >= 1));
@@ -80,11 +80,11 @@ function render(moment) {
   let head = ended ? "That's today." : greeting(), line;
   const noted = notedTonight();
   if (ended && noted) line = `Sleep noted at ${clock12(Math.round((new Date(noted.at).getHours() * 60 + new Date(noted.at).getMinutes()) / 5) * 5 % 1440)}.`;
-  else if (ended) line = today.rest ? "Rest well." : c && !did ? "Not every day fits a card. Rest well." : "Rest well. Tomorrow, a new card.";
-  else if (needAM && hr < 15) line = "A new day. Start with last night.";
-  else if (today.rest) line = "A rest day, no card today.";
-  else if (!c) line = needAM ? "End your day whenever you're ready." : canDraw && hr < 15 ? "Next, your card." : canDraw ? "Your card is waiting. Tap it to draw." : "End your day whenever you're ready.";
-  else if (!did) line = dayN <= 7 ? "Done it? Tap “I did it” on your card." : "Do it whenever suits you.";
+  else if (ended) line = today.rest ? "Nothing else to do." : c && !did ? "" : "A new card tomorrow morning."; // a skipped card already says "Back in the deck for another day"
+  else if (needAM && hr < 15) line = "How did you sleep?";
+  else if (today.rest) line = "No card today.";
+  else if (!c) line = needAM ? "End your day whenever you're ready." : canDraw && hr < 15 ? "Next, your card." : canDraw ? "Tap the card to draw." : "End your day whenever you're ready.";
+  else if (!did) line = dayN <= 7 ? "Done it? Tap “I did it” on your card." : "Do your card any time today.";
   else line = "Next, end your day tonight.";
 
   // Today's card sits where the sun is: face down until drawn, face up until done, then turned over with a tick.
