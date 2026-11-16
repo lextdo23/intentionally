@@ -305,6 +305,11 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lifter { transition: translate .8s var(--ease), filter 1s ease; }
 .lifter.on { translate: 0 -12px; filter: drop-shadow(0 0 30px rgb(242 192 143 / .35)); }
 @keyframes sway { 0%, 100% { transform: rotateY(-8deg) rotateZ(-1deg) } 50% { transform: rotateY(8deg) rotateZ(1deg) } }
+/* Not done yet: a soft gold edge that breathes with the sun (about 4s in, 5s out). Goes once "I did it" is tapped. */
+.home-card.todo.up .front, .home-card.todo:not(.up) .back, .home-card.todo.blank .front { animation: rim 9s ease-in-out infinite; }
+@keyframes rim { 0%, 100% { box-shadow: 0 0 0 1px rgb(227 196 134 / .35), 0 0 10px rgb(242 192 143 / .15), 0 14px 30px rgba(0, 0, 0, .5) }
+  44% { box-shadow: 0 0 0 1px rgb(227 196 134 / .75), 0 0 18px rgb(242 192 143 / .5), 0 0 44px rgb(242 192 143 / .25), 0 14px 30px rgba(0, 0, 0, .5) } }
+@media (prefers-reduced-motion: reduce) { .home-card.todo.up .front, .home-card.todo:not(.up) .back, .home-card.todo.blank .front { animation: none; box-shadow: 0 0 0 1px rgb(227 196 134 / .6), 0 0 18px rgb(242 192 143 / .4), 0 14px 30px rgba(0, 0, 0, .5); } }
 /* The card turns with your finger, or on its own every 15 seconds (draw.js spinner); it hops a little as it turns. */
 .home-card .in.hop { animation: hop 3.2s linear; }
 /* Face down, both sides are the back, so turning it never shows a blank face. */

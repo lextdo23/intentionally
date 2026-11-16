@@ -249,6 +249,8 @@ export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo 
   el.style.animationDelay = `${-(t % 11000)}ms`;
   // It turns: follow your finger, or on its own every 15 seconds (alex 2026-11-15). A face-down card shows its back both ways.
   if (state === "down") el.classList.add("blank");
+  // Until today's card is done, a soft gold edge breathes with the sun (alex 2026-11-16, option 3B).
+  if (state === "up" || state === "down") el.classList.add("todo");
   if (state !== "skip") spinner(el, state === "down" ? 0 : 180);
   return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
 }
