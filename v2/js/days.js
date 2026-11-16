@@ -84,10 +84,16 @@ function secMoods(s) {
   const max = oldestBack(s.days, view), step = (d) => { back = Math.max(0, Math.min(max, back + d)); redraw(); };
   const arrow = (d, t, on) => h("button.round", { "aria-label": d > 0 ? `Earlier ${view}` : `Later ${view}`, disabled: !on, style: { visibility: on ? "visible" : "hidden" }, onclick: () => step(d) }, t);
   const date = h("div.period", null, arrow(1, "‹", back < max), h("span", { "aria-live": "polite" }, ser.label), arrow(-1, "›", back > 0));
-  const top = mostlyWord(s.days, view, back);
-  const head = top == null ? h("p.headline", null, view === "week" && !back ? "Your moods show here after your first evening." : `Nothing noted ${ser.when}.`)
-    : h("p.headline", null, "Mostly ", coloured(top), ` ${ser.when}.`);
-  const out = h("div.col", { style: { gap: "16px" } }, seg, h("div.col", { style: { gap: "4px" } }, date, head));
+  const top = mostlyWord(s.days, view, back), anyEver = Object.values(s.days).some((d) => d.mood != null);
+  // A new period with nothing noted yet says so, so it never reads as lost data (alex 2026-11-16).
+  const head = top != null ? h("p.headline", null, "Mostly ", coloured(top), ` ${ser.when}.`)
+    : view === "week" && !back ? h("p.headline", null, anyEver ? "A new week. Your moods show here from tonight." : "Your moods show here after your first evening.")
+    : h("p.headline", null, `Nothing noted ${ser.when}.`);
+  // "Last week was mostly okay." Under the headline while this period is empty, under the graph once it fills.
+  const prev = back ? null : mostlyWord(s.days, view, 1);
+  const prevLine = prev == null ? null : h("p.prev", null, `Last ${view} was mostly `, coloured(prev), ".");
+  // The switch lives inside the Your moods box, so it's clear it only changes the mood line (alex 2026-11-16, 2A).
+  const out = h("div.card.moods", null, h("h3", null, "Your moods"), seg, h("div.col", { style: { gap: "4px" } }, date, head, have.length ? null : prevLine));
   if (!have.length) return out;
   const W = 334, L = 40, R = 334, n = ser.n, X = (i) => L + (i + 0.5) / n * (R - L), Y = (m) => 150 - m * 22.7;
   const P = ser.pts.map((p, i) => (p.m == null ? null : [X(i), Y(p.m), p.m]));
@@ -111,7 +117,7 @@ function secMoods(s) {
   if (view !== "year") ser.pts.forEach((p, i) => p.k && chart.append(h("button.hit", { "aria-label": `${dayTitle(p.k)}${p.m != null ? ", " + MOODS[p.m] : ""}`, style: { left: `${(X(i) - (R - L) / n / 2) / W * 100}%`, width: `${(R - L) / n / W * 100}%` }, onclick: () => openDay(p.k) })));
   const ticks = h("div", { style: { position: "relative", height: "16px", marginLeft: `${L / W * 100}%` } }, ser.ticks.map((t) =>
     h("span.lab", { style: { position: "absolute", top: "0", left: `${(t.i + 0.5) / n * 100}%`, transform: "translateX(-50%)", fontSize: "11px", color: "#a9a59d", whiteSpace: "nowrap" } }, t.l)));
-  out.append(h("div.card", { style: { padding: "16px 8px 12px" } }, h("h3", { style: { paddingLeft: "8px" } }, "Your moods"), chart, ticks));
+  out.append(h("div.chart-wide", null, chart, ticks), prevLine);
   return out;
 }
 
