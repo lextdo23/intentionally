@@ -185,7 +185,7 @@ function render(D) {
   const restWho = testers.filter((t) => Object.values(days[t.code] || {}).some((d) => d.rest)).length;
   html += sec("Which features get used?", `How many of the ${T} testers used each one at least once.`,
     bars([["Your days", who("days_open")], ["Tapped a day in Your days", who("day_tap")], ["Switched Week, Month, Year", who("days_view")], ["Arranged Your days", who("arrange")],
-      ["Added more about last night", who("am_extras")], ["Opened Show more", who("show_more")], ["Added their own word", who("own_word")], ["Rest day", restWho], ["Opened Settings", who("settings_open")], ["Saved a copy", who("save_copy")], ["Restored from a file", who("restore")]], T),
+      ["Added more about last night", who("am_extras")], ["Opened Show more", who("show_more")], ["Added their own word", who("own_word")], ["Rest day", restWho], ["Sleep button", who("sleep_button")], ["Saw the update note", who("update_note")], ["Opened Settings", who("settings_open")], ["Saved a copy", who("save_copy")], ["Restored from a file", who("restore")]], T),
     "features hardly anyone uses can stay small or go. Ones used a lot are worth polishing.");
 
   // 5. Mood by week
@@ -232,6 +232,17 @@ function render(D) {
   html += sec("Dragging the sun and moon", "How bed and wake times were set in each morning check-in.",
     bars([["Dragged the sun and moon", sets.drag || 0], ["Tapped a box for the time wheel", sets.wheel || 0], ["Both", sets.both || 0], ["Left as it was", sets.none || 0]]),
     "if most people use the wheel, dragging may be too fiddly. \"Left as it was\" means last night's times were already right.");
+
+  // 8b. Going to sleep (sleep button + sounds)
+  const sndN = {}; by("sleep_sound").forEach((e) => (sndN[e.val] = (sndN[e.val] || 0) + 1));
+  const lenN = {}; by("sleep_len").forEach((e) => (lenN[e.val] = (lenN[e.val] || 0) + 1));
+  const pre = by("sleep_prefill"), moved = pre.filter((e) => e.val && e.val.moved).length;
+  const SND = { none: "No sound", brown: "Brown noise", pink: "Pink noise", white: "White noise", fan: "Fan", "gentle-rain": "Gentle rain", "window-rain": "Rain on a window", storm: "Rainstorm", river: "River", waves: "Ocean waves", wind: "Wind", pad: "Soft pad", hum: "Soft hum" };
+  const LEN = { 15: "15 minutes", 30: "30 minutes", 60: "1 hour", 120: "2 hours", 0: "All night" };
+  html += sec("Going to sleep", `${who("sleep_button")} of ${T} testers have used the sleep button, ${by("sleep_button").length} nights in all. Which sounds they pick (each pick or switch counts once), how long they play, and whether the morning times needed moving.`,
+    by("sleep_button").length ? `${bars(Object.keys(SND).map((k) => [SND[k], sndN[k] || 0]))}<div style="height:16px"></div>${bars(Object.keys(LEN).map((k) => [LEN[k], lenN[k] || 0]))}
+     <p class="note">Mornings that started from the button: ${pre.length}. Times moved: ${moved} (${pct(moved, pre.length)}%). Changed their mind within a minute: ${by("sleep_cancel").length}.</p>` : `<p class="sub">Nobody has used the sleep button yet.</p>`,
+    "sounds nobody picks can go. If most mornings need moving, people tap the button long before sleeping, or open the app long after waking.");
 
   // 9. Patterns
   const shown = {}, hid = {};

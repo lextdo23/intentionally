@@ -1,5 +1,5 @@
 // Daydeck (test build). Home: the greeting, a peek at your week, the sun, and one main button.
-import { h, MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LIFELINE, reduceMotion } from "./util.js";
+import { h, MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LIFELINE, reduceMotion, clock12 } from "./util.js";
 import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
@@ -14,6 +14,7 @@ import { openSettings } from "./settings.js";
 import * as tester from "./tester.js";
 import { log } from "./tester.js";
 import { openTester } from "./tester-sheet.js";
+import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -67,14 +68,19 @@ function render(moment) {
 
   // One main button, always in the same place: Start your day, Draw your card, End your day, then Change today.
   let main;
-  if (ended) main = h("button.btn-main.soft", { onclick: changeToday }, "Change today");
+  // Once the day is ended, in the evening the main button's last job is bedtime (alex 2026-11-16).
+  const bedtime = ended && (hr >= 17 || hr < 4);
+  if (bedtime) main = h("button.btn-main.with-ico", { onclick: () => goToSleep(() => render()) }, moonIcon(), h("span", null, "Going to sleep"));
+  else if (ended) main = h("button.btn-main.soft", { onclick: changeToday }, "Change today");
   else if (needAM && hr < 15) main = h("button.btn-main", { onclick: go(morning, "sleep") }, "Start your day");
   else if (canDraw && hr < 15) main = h("button.btn-main", { onclick: go(openDraw, "card") }, "Draw your card");
   else main = h("button.btn-main", { onclick: go(evening, "end") }, "End your day");
 
   // The line under the greeting says where the day is.
   let head = ended ? "That's today." : greeting(), line;
-  if (ended) line = today.rest ? "Rest well." : c && !did ? "Not every day fits a card. Rest well." : "Rest well. Tomorrow, a new card.";
+  const noted = notedTonight();
+  if (ended && noted) line = `Sleep noted at ${clock12(Math.round((new Date(noted.at).getHours() * 60 + new Date(noted.at).getMinutes()) / 5) * 5 % 1440)}.`;
+  else if (ended) line = today.rest ? "Rest well." : c && !did ? "Not every day fits a card. Rest well." : "Rest well. Tomorrow, a new card.";
   else if (needAM && hr < 15) line = "A new day. Start with last night.";
   else if (today.rest) line = "A rest day, no card today.";
   else if (!c) line = needAM ? "End your day whenever you're ready." : canDraw && hr < 15 ? "Next, your card." : canDraw ? "Your card is waiting. Tap it to draw." : "End your day whenever you're ready.";
@@ -107,7 +113,7 @@ function render(moment) {
       words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
     h("div.home-mid", null, card),
-    h("div.col", { style: { gap: "4px" } }, main, LIFELINE()));
+    h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
   testBar();
 
@@ -148,9 +154,28 @@ function testBar() {
     h("button", { onclick: () => { testOn = false; st.test.on = false; store.save(); render(); } }, "Hide")));
 }
 
+// A one-time note about what's new, for people who already use the app (alex 2026-11-16). New people never see it.
+const NEW_NOTE = "sleep";
+function whatsNew() {
+  const st = store.get();
+  if (document.body.classList.contains("in-flow") || document.querySelector(".sheet-host")) return;
+  log("update_note", NEW_NOTE);
+  openSheet((panel, close) => {
+    panel.append(
+      h("span", { style: { marginTop: "8px" } }, moonIcon("#e3c486", 28)),
+      h("h2", null, "New: Going to sleep"),
+      h("p.update-text", null, "After you end your day, tap Going to sleep. You can play a sound to fall asleep to."),
+      h("p.update-text", null, "In the morning, your sleep check starts from that time, so there's less to fill in."),
+      h("p.update-from", null, "From Alex"),
+      h("button.btn-main", { onclick: () => close("done") }, "Got it"));
+  }, { label: "What's new", onClose: () => { st.seen.note = NEW_NOTE; store.save(); } });
+}
+{ const st = store.get(); st.seen = st.seen || {}; if (!st.started && !st.seen.note) { st.seen.note = NEW_NOTE; store.save(); } }
+
 render();
 notify.sync();
 tester.opened();
+if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
