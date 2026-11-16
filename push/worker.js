@@ -144,6 +144,14 @@ async function testers(req, env, path) {
     await db(env).wipe();
     return reply({ ok: true });
   }
+  // Removes one tester: deletes what they shared and stops their phone sending any more.
+  if (path === "/t/remove") {
+    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const b = await req.json().catch(() => null);
+    if (!b || !CODE.test(b.code)) return reply({ error: "bad request" }, 400);
+    await db(env).remove(b.code);
+    return reply({ ok: true });
+  }
   const text = await req.text();
   if (text.length > 200000) return reply({ error: "too big" }, 413);
   let b; try { b = JSON.parse(text); } catch { return reply({ error: "bad request" }, 400); }
@@ -166,7 +174,7 @@ async function testers(req, env, path) {
   const info = { phone: short(b.phone), version: short(b.version, 12), started: DAYK.test(b.started) ? b.started : null,
     nudges: JSON.stringify({ am: short(b.nudges?.am, 5), pm: short(b.nudges?.pm, 5) }) };
   const res = await db(env).send(b.code, hash, info, days, events);
-  return reply(res.ok ? { ok: true } : { error: res.error }, res.ok ? 200 : 409);
+  return reply(res.ok ? { ok: true } : { error: res.error }, res.ok ? 200 : res.error === "removed" ? 410 : 409);
 }
 
 function admin(req, env) {
@@ -179,6 +187,9 @@ async function sha(s) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
+// Testers alex removed by hand. Their data is deleted when the service starts, and their phones are told to stop.
+const REMOVED = ["T-ACAY"];
+
 // One store for all testers (a beta is 20 to 30 people).
 export class Testers extends DurableObject {
   constructor(ctx, env) {
@@ -187,9 +198,17 @@ export class Testers extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS testers (code TEXT PRIMARY KEY, hash TEXT, joined INTEGER, seen INTEGER, phone TEXT, version TEXT, started TEXT, nudges TEXT);
       CREATE TABLE IF NOT EXISTS days (code TEXT, day TEXT, data TEXT, PRIMARY KEY (code, day));
       CREATE TABLE IF NOT EXISTS events (code TEXT, t INTEGER, name TEXT, val TEXT);
-      CREATE INDEX IF NOT EXISTS ev_code ON events (code);`);
+      CREATE INDEX IF NOT EXISTS ev_code ON events (code);
+      CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);`);
+    REMOVED.forEach((c) => this.remove(c));
+  }
+  remove(code) {
+    this.sql.exec("INSERT OR IGNORE INTO removed VALUES (?)", code);
+    for (const t of ["testers", "days", "events"]) this.sql.exec(`DELETE FROM ${t} WHERE code = ?`, code);
+    return true;
   }
   send(code, hash, info, days, events) {
+    if (this.sql.exec("SELECT code FROM removed WHERE code = ?", code).toArray().length) return { ok: false, error: "removed" };
     const had = this.sql.exec("SELECT hash FROM testers WHERE code = ?", code).toArray()[0];
     if (had && had.hash !== hash) return { ok: false, error: "code taken" };
     const n = Date.now();

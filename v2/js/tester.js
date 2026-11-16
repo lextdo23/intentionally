@@ -104,6 +104,7 @@ export async function send(force) {
     nudges: { am: n.am ? (n.am.on ? n.am.t : "off") : "off", pm: n.pm ? (n.pm.on ? n.pm.t : "off") : "off" } };
   try {
     const res = await fetch(`${SERVICE}/t/send`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: JSON.stringify(body).length < 60000 });
+    if (res.status === 410) { s.tester = { on: false, consent: 0, removed: true }; store.save(); busy = false; return; } // removed from the test: stop sending
     if (res.status === 409 && !tt.sent) { tt.code = newCode(); store.save(); busy = false; return send(true); } // code already taken: pick another
     if (res.ok) { tt.queue.splice(0, events.length); tt.sent = Date.now(); tt.all = false; store.save(); }
   } catch { /* offline: try again later */ }
