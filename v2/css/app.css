@@ -380,3 +380,13 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 /* One-time update note */
 .update-text { font-size: 17px; line-height: 1.4; color: rgba(239, 237, 233, .75); }
 .update-from { font-size: 15px; color: var(--gold); }
+/* Testers only: thumbs on a card, "does it fit my pillar and mindset". Once answered, it's locked. */
+.thumbs { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
+.home-card .thumbs { top: 10px; bottom: auto; right: 10px; }
+.thumb { position: relative; width: 22px; height: 22px; border-radius: 11px; background: rgba(239, 237, 233, .10); color: #a9a59d; display: flex; align-items: center; justify-content: center; }
+.thumb::after { content: ""; position: absolute; inset: -8px -2px; }   /* a bigger tap area than it looks */
+.thumb.dn svg { transform: scaleY(-1); }
+.thumb[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); }
+.thumbs.locked .thumb[aria-pressed="false"] { opacity: .35; }
+.thumb:disabled { cursor: default; }
+.thumb:active { transform: none; }

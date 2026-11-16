@@ -24,7 +24,7 @@ export function deck() {
 
 export function mem() {
   const s = store.get();
-  return (s.cards = Object.assign({ seen: {}, passed: {}, done: {}, loved: {}, less: {}, last: {}, saved: [] }, s.cards || {}));
+  return (s.cards = Object.assign({ seen: {}, passed: {}, done: {}, loved: {}, less: {}, last: {}, saved: [], thumbs: {} }, s.cards || {}));
 }
 const dayN = (k) => Math.floor(keyDate(k).getTime() / 864e5);
 export function dayOfUse(k = dayKey()) { const st = store.get().started; return st ? dayN(k) - dayN(st) + 1 : 1; }

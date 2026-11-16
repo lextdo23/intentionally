@@ -269,7 +269,7 @@ function render(D) {
   by("card_draw").concat(by("card_redraw")).forEach((e) => (e.val || []).forEach((id) => C(id).drawn++));
   by("card_keep").forEach((e) => C(e.val.id).kept++);
   by("card_how").forEach((e) => C(e.val.id).how[e.val.how]++);
-  by("card_thumb").forEach((e) => (e.val.v > 0 ? C(e.val.id).up++ : C(e.val.id).down++));
+  const misfit = {}; by("card_thumb").forEach((e) => { const c = C(e.val.id); if (e.val.v > 0) c.up++; else { c.down++; (e.val.m || []).forEach((m) => { const k = `${e.val.p}: ${m}`; (misfit[k] = misfit[k] || 0); misfit[k]++; }); (c.downM = c.downM || new Set()); (e.val.m || []).forEach((m) => c.downM.add(m)); } });
   by("card_smaller").forEach((e) => C(e.val.from).smaller++);
   by("card_save").forEach((e) => C(e.val).saved++);
   const draws = by("card_draw").length, howAll = [0, 0, 0, 0, 0]; by("card_how").forEach((e) => howAll[e.val.how]++);
@@ -278,9 +278,10 @@ function render(D) {
   html += sec("Which cards need a look?", "How the daily card draw goes, and which cards people pass over, don't get to, or mark as needing work. Only card numbers are sent; the words come from the app's own list.",
     draws ? bars([["Mornings with a draw", draws], ["Drew again", by("card_redraw").length], ["Kept a card", by("card_keep").length], ["Made it smaller", by("card_smaller").length], ["Saved for later", by("card_save").length], ["Rest days", by("card_rest").length], ["Said \"Not now\"", by("card_later").length], ["Tapped \"I did it\" on home", by("card_did").length], ["Took \"I did it\" back", by("card_undo").length], ["Turned the card by hand", by("card_spin").length]], draws) +
       `<p class="note">How it went, in the evening:</p>` + bars(HOW.map((w, i) => [w, howAll[i]])) +
-      (look.length ? `<div class="items">${look.slice(0, 25).map(([id, c]) => item(name(id), `Drawn ${c.drawn} · kept ${c.kept} · didn't get to it ${c.how[0]} · drained ${c.how[1]} · loved ${c.how[4]} · thumbs ${c.up} up, ${c.down} down`, c.down ? "Needs work" : "Watch", true)).join("")}</div>` : `<p class="sub">No card stands out as a problem yet.</p>`)
+      (look.length ? `<div class="items">${look.slice(0, 25).map(([id, c]) => item(name(id), `Drawn ${c.drawn} · kept ${c.kept} · didn't get to it ${c.how[0]} · drained ${c.how[1]} · loved ${c.how[4]} · fits ${c.up}, doesn't fit ${c.down}${c.downM && c.downM.size ? ` (for: ${[...c.downM].join(", ")})` : ""}`, c.down ? "Doesn't fit" : "Watch", true)).join("")}</div>` : `<p class="sub">No card stands out as a problem yet.</p>`) +
+      (Object.keys(misfit).length ? `<p class="note">"Doesn't fit" by pillar and mindset:</p>` + bars(Object.entries(misfit).sort((a, b) => b[1] - a[1]).slice(0, 12)) : "")
     : `<p class="sub">No cards drawn yet.</p>`,
-    "cards with thumbs down, or often \"Didn't get to it\" or \"Drained\", are the first to rewrite or cut. Lots of \"Drew again\" means the first three often don't fit.");
+    "thumbs ask testers whether a card fits their pillar and where they're at with it, not whether the card is good. A card that doesn't fit may belong under a different mindset. Cards with thumbs down, or often \"Didn't get to it\" or \"Drained\", are the first to rewrite or cut. Lots of \"Drew again\" means the first three often don't fit.");
   // Setup: choosing pillars and where you're at
   const pStart = by("pick_start").filter((e) => e.val === "setup"), pDone = by("pick_done").filter((e) => e.val && e.val.first);
   const pQuit = {}; by("pick_quit").forEach((e) => { const k = String(e.val).startsWith("mindset_") ? "On a pillar's question" : "Choosing pillars"; pQuit[k] = (pQuit[k] || 0) + 1; });
