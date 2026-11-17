@@ -27,7 +27,7 @@ export function makeSample(n = 60) {
     const mood = Math.max(0, Math.min(6, Math.round(1.6 + rested * 0.6 + lift * 0.9 - (late ? 0.5 : 0) + (rnd() - 0.5) * 2)));
     const b = band(mood), pool = FEELINGS.filter((w) => Math.abs(w[1] - b) <= (rnd() < 0.3 ? 1 : 0));
     const feel = [...new Set([0, 1, 2].slice(0, 1 + Math.floor(rnd() * 3)).map(() => pool[Math.floor(rnd() * pool.length)][0]))];
-    days[k] = { sleep: { bed: bed % 1440, wake, rested, tags }, mood, feel, pil, rest };
+    days[k] = { sleep: { bed: bed % 1440, wake, rested, tags }, mood, feel, pil, rest, sample: 1 };   // sample: never counts towards levels
   }
   return days;
 }

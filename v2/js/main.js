@@ -15,6 +15,7 @@ import * as tester from "./tester.js";
 import { log } from "./tester.js";
 import { openTester } from "./tester-sheet.js";
 import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
+import * as levels from "./levels.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -35,6 +36,34 @@ function peek() {
     top == null ? h("span", null, "Your days") : h("span", null, "Mostly ", h("span", { style: { color: MOOD_COL[top] } }, moodWord(top)), " this week"), h("span.chev", { "aria-hidden": "true" }, "›"));
   btn.addEventListener("click", () => openDays(btn, () => render()));
   return btn;
+}
+
+// Level (alex 2026-11-17): "Level 3" in gold and a gold bar under Your days. "Next pack at level 4" fades in once
+// the bar is nearly full. While the card is being rated the row fades out (body.in-ask), and fades back after.
+// The bar slides from where it was to where it is now; on a new level it fills, then starts again from empty.
+let lvShown = null, lvBack = false;
+function levelRow() {
+  const L = levels.level(), was = lvShown;
+  lvShown = { level: L.level, frac: L.frac };
+  const fill = h("i"), bar = h("div.lv-bar", { "aria-hidden": "true" }, fill);
+  const next = h("span.lv-next", null, `Next pack at level ${L.level + 1}`);
+  const num = h("span.lv-num", null, `Level ${(was && was.level < L.level ? was.level : L.level)}`);
+  const row = h("div.lv-row", { role: "img", "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next pack at level ${L.level + 1}.` : ""}` }, num, bar, next);
+  if (lvBack) { row.classList.add("lv-back"); lvBack = false; }
+  const set = (f, near) => { fill.style.width = `${Math.round(f * 1000) / 10}%`; next.classList.toggle("on", near); };
+  if (!was || reduceMotion() || (was.level === L.level && was.frac === L.frac)) { set(L.frac, L.frac >= levels.NEAR); return row; }
+  // Start from where it was, then slide (after the row has faded back in, if it was hidden for the rating).
+  fill.style.transition = "none"; set(was.frac, was.level === L.level && was.frac >= levels.NEAR);
+  const wait = row.classList.contains("lv-back") ? 700 : 150;
+  setTimeout(() => {
+    fill.style.transition = "";
+    if (was.level < L.level) {
+      set(1, false);
+      setTimeout(() => { num.textContent = `Level ${L.level}`; fill.style.transition = "none"; set(0, false);
+        requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = ""; set(L.frac, L.frac >= levels.NEAR); })); }, 1100);
+    } else set(L.frac, L.frac >= levels.NEAR);
+  }, wait);
+  return row;
 }
 
 // After each step, home says so in place for a few seconds: the greeting turns gold with what's next, the card lifts
@@ -105,7 +134,7 @@ function render(moment) {
         store.save();
         play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
       },
-      onEnd: () => render() });
+      onEnd: () => { lvBack = true; render(); } });
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
@@ -118,7 +147,11 @@ function render(moment) {
   if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt } : did ? { state: "done", flip: moment === "did", felt } : { state: "up", onDid: markDid });
   else if (!today.rest && !ended && deck.deck().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
 
-  const mo = moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
+  // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
+  const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
+  if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
+  if (lvNew) log("level", lvNew);
+  const mo = lvNew ? [`Level ${lvNew}.`, null] : moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
   const greet = h("h1.greet", null, mo ? mo[0] : head);
   const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
   let taps = 0, tapT = 0;
@@ -131,6 +164,7 @@ function render(moment) {
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
+    levelRow(),
     mid,
     h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
