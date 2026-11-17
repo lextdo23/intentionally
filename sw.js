@@ -1,9 +1,9 @@
 // Keeps the app working offline. Files come fresh from the internet when there is a connection (so updates
 // show straight away) and from the saved copy when there isn't. Bump VERSION whenever any file below changes.
-const VERSION = "v52";
+const VERSION = "v54";
 const FILES = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
-  "js/main.js", "js/store.js", "js/sky.js", "js/clock.js", "js/pillars.js", "js/thoughts.js", "js/sort.js", "js/helps.js", "js/week.js", "js/weekview.js", "js/lookback.js", "js/notify.js", "js/welcome.js", "js/affirm.js",
+  "js/main.js", "js/standalone.js", "js/store.js", "js/sky.js", "js/clock.js", "js/pillars.js", "js/thoughts.js", "js/sort.js", "js/helps.js", "js/week.js", "js/weekview.js", "js/lookback.js", "js/notify.js", "js/welcome.js", "js/affirm.js",
   "img/sky.jpg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png?v=4",
 ];
 
@@ -13,7 +13,8 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== "notify").map((k) => caches.delete(k))))
+    // Only this app's own old copies (named v1, v2 …). Daydeck (/v2/) shares this storage, so its saved files stay.
+    .then((keys) => Promise.all(keys.filter((k) => /^v\d+$/.test(k) && k !== VERSION).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 

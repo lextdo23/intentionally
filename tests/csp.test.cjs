@@ -1,4 +1,4 @@
-// Safety net (Content-Security-Policy): every Daydeck screen and the tester page work with it on, nothing they
+// Safety net (Content-Security-Policy): every Daydeck screen, the tester page and the old app work with it on, nothing they
 // need is blocked, and a planted outside or inline script is refused. Made-up data only.
 const { chromium } = require("playwright");
 const { serve, checker } = require("./helpers.cjs");
@@ -62,6 +62,23 @@ const SCREENS = [
   await p.fill("#pw", "made-up-password-for-testing"); await p.click("button.main"); await p.waitForTimeout(800);
   const t = await p.evaluate(() => ({ sections: document.querySelectorAll("#out section").length, v: window.__csp }));
   check(t.sections > 10 && t.v.length === 0, `tester page logs in and shows every section with nothing blocked` + (t.v.length ? ` (blocked: ${t.v.join(", ")})` : ""));
+
+  // The old app (Intentionally, at the root) shares its browser storage with Daydeck, so it has the same safety net.
+  await p.goto(server.url);
+  check(/script-src 'self'(;|$)/.test(await csp()), "the old app has the safety net too");
+  await p.waitForTimeout(1200);
+  const welcome = await p.evaluate(() => ({ v: window.__csp, drawn: document.getElementById("app").children.length }));
+  check(welcome.drawn > 0 && welcome.v.length === 0, "the old app's first screen shows with nothing blocked" + (welcome.v.length ? ` (blocked: ${welcome.v.join(", ")})` : ""));
+  await p.goto(server.url + "?test"); await p.waitForTimeout(1000);
+  await p.evaluate(() => [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Example sky")?.click()); await p.waitForTimeout(1500);
+  check(await p.evaluate(() => document.querySelectorAll("svg .hit").length > 0), "the old app's example sky shows its planets");
+  for (const sel of ["svg .hit", "svg .sundisc"]) {
+    await p.evaluate((sel) => { const el = document.querySelector(sel); if (el) el.dispatchEvent(new MouseEvent("click", { bubbles: true })); }, sel);
+    await p.waitForTimeout(700);
+  }
+  const old = await p.evaluate(() => ({ v: window.__csp, standalone: !!document.querySelector('script[src="js/standalone.js"]'), inline: [...document.scripts].filter((x) => !x.src).length }));
+  check(old.v.length === 0, "the old app's sky, a planet and the sun work with nothing blocked" + (old.v.length ? ` (blocked: ${old.v.join(", ")})` : ""));
+  check(old.standalone && old.inline === 0, "the old app has no inline script left");
 
   check(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await b.close(); server.close(); done();

@@ -269,7 +269,9 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .big-holder { display: flex; justify-content: center; }
 .dcard.big { width: 220px; height: 310px; }
 .dcard.big .face { border-radius: 16px; }
-.dcard.big .front { padding: 20px; gap: 12px; }
+.dcard.big .front { padding: 20px; gap: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }   /* long cards scroll inside (alex 2026-11-17) */
+.dcard.big .front::-webkit-scrollbar { display: none; }
+.dcard.big .front > * { flex-shrink: 0; }
 .dcard.big .ctag { font-size: 12px; }
 .dcard.big .task { font-size: 24px; }
 .dcard.big .again { font-size: 12px; color: var(--gold); }
