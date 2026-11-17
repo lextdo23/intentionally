@@ -168,10 +168,42 @@ const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title]
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
 const notYet = (title, what) => sec(title, `Starts filling in once ${what} is built in the app.`, "", "", true);
 
+// ---- Checking records before they're used ----
+const BAD = Symbol("bad");
+const parse = (j) => { try { return JSON.parse(j); } catch { return BAD; } };
+const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
+const isNum = Number.isFinite, isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
+const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isArray(x);
+const SHAPE = {
+  card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
+  card_keep: (v) => isObj(v) && isNum(v.id),
+  card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
+  card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
+  card_smaller: (v) => isObj(v) && isNum(v.from),
+  pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
+};
+const okEvent = (name, val) => typeof name === "string" && (!SHAPE[name] || SHAPE[name](val));
+const okDay = (d) => isObj(d) && (d.mood == null || isInt(d.mood, 0, 6)) && arrOrNone(d.feel) && arrOrNone(d.pil)
+  && (d.sleep == null || (isObj(d.sleep) && arrOrNone(d.sleep.tags)));
+let skipped = 0;
+
 function render(D) {
+  skipped = 0;
+  try { drawAll(D); }
+  catch (err) {
+    // Last resort: still show the tester list (with its Remove buttons) so a bad record can be removed.
+    drawAll({ ...D, days: [], events: [] });
+    $("status").textContent += ` · Some data couldn't be shown (${String(err && err.message || err).slice(0, 80)}). Remove the tester it came from, or send the downloaded data to Claude.`;
+    return;
+  }
+  if (skipped) $("status").textContent += ` · ${skipped} record${skipped === 1 ? "" : "s"} skipped because ${skipped === 1 ? "it" : "they"} didn't look right`;
+}
+
+function drawAll(D) {
   const testers = D.testers, T = testers.length;
-  const days = {}; D.days.forEach((r) => { (days[r.code] = days[r.code] || {})[r.day] = JSON.parse(r.data); });
-  const ev = D.events.map((e) => ({ code: e.code, t: e.t, name: e.name, val: e.val == null ? null : JSON.parse(e.val) }));
+  // Records that don't look the way the app sends them (a bug, or someone sending junk) are skipped, not shown.
+  const days = {}; D.days.forEach((r) => { const d = parse(r.data); if (okDay(d)) (days[r.code] = days[r.code] || {})[r.day] = d; else skipped++; });
+  const ev = []; D.events.forEach((e) => { const val = e.val == null ? null : parse(e.val); if (val !== BAD && okEvent(e.name, val) && Number.isFinite(e.t)) ev.push({ code: e.code, t: e.t, name: e.name, val }); else skipped++; });
   const by = (n) => ev.filter((e) => e.name === n);
   const who = (n) => new Set(by(n).map((e) => e.code)).size;
   const today = keyOf(Date.now());
