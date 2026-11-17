@@ -52,6 +52,13 @@ export function mem() {
 const dayN = (k) => Math.floor(keyDate(k).getTime() / 864e5);
 export function dayOfUse(k = dayKey()) { const st = store.get().started; return st ? dayN(k) - dayN(st) + 1 : 1; }
 
+// Next week's plan, kept on screen 5 of the weekly wrapped (js/wrapped.js): items still running on day k.
+export function planItems(k = dayKey()) {
+  const p = store.get().wrap && store.get().wrap.plan;
+  if (!p || k < p.start || k > p.end) return [];
+  return p.items.filter((it) => !it.off);
+}
+
 // How likely each card is to be drawn today. Never predicts: it's mostly random, leaning gently.
 function weight(id, k) {
   const m = mem(), c = card(id), d = dayOfUse(k), n = dayN(k);
@@ -63,13 +70,16 @@ function weight(id, k) {
   else w = 2;
   if (m.last[id] != null && n - m.last[id] < 3) w *= 0.15;    // not the same faces two mornings running
   if (c.size === "Bigger") w *= d <= 3 ? 0.3 : 0.8;           // first days: mostly tiny and small
+  if (planItems(k).some((it) => (it.kind === "more" || it.kind === "try") && it.pillar === c.pillar)) w *= 2.5;   // "More Friends cards"
   return w;
 }
 const pick = (ids, ws) => { let t = ws.reduce((a, b) => a + b, 0), r = Math.random() * t; for (let i = 0; i < ids.length; i++) { r -= ws[i]; if (r <= 0) return ids[i]; } return ids[ids.length - 1]; };
 
 // Three different cards. At most one bigger card, and never two from the same pillar if it can be helped.
 export function draw3(exclude = [], k = dayKey()) {
-  const m = mem(), all = deck().filter((id) => !exclude.includes(id)), out = [];
+  const m = mem(), out = [];
+  let all = deck().filter((id) => !exclude.includes(id));
+  if (planItems(k).some((it) => it.kind === "tiny")) { const t = all.filter((id) => card(id).size === "Tiny"); if (t.length >= 3) all = t; }   // "Only tiny cards"
   const saved = m.saved.find((id) => all.includes(id));
   if (saved) out.push(saved);                                 // a card saved for later comes back first
   while (out.length < 3) {

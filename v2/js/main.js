@@ -16,6 +16,7 @@ import { log } from "./tester.js";
 import { openTester } from "./tester-sheet.js";
 import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
 import * as levels from "./levels.js";
+import * as wrapped from "./wrapped.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -96,6 +97,7 @@ function placeSun(t, done) {
 }
 
 function render(moment) {
+  wrapped.applyPlan();   // a rest day kept for this week arrives on its own
   const st = store.get(), k = dayKey(), today = st.days[k] || {}, t = new Date(now()), hr = t.getHours();
   const needAM = !today.sleep, ended = today.mood != null;
   const dayN = st.started ? Math.round((keyDate(k) - keyDate(st.started)) / 864e5) + 1 : 1;
@@ -175,6 +177,7 @@ function render(moment) {
       words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
     levelRow(),
+    wrapped.homeLines(() => render()),
     mid,
     h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
@@ -207,6 +210,7 @@ function changeToday() {
   }, { label: "Change today" });
 }
 
+const alertLine = () => { const g = document.querySelector(".greet-line"); if (g) g.textContent = "Nothing noted last week. Try Fill 2 months."; };
 // Test mode (?test, or tap the greeting 5 times): fill made-up days, move a day forward, start again.
 function testBar() {
   document.querySelector(".testbar")?.remove();
@@ -216,6 +220,7 @@ function testBar() {
   const clear = h("button", { onclick: () => { if (!armed) { armed = true; clear.textContent = "Tap again to clear"; return; } store.reset(); setOffsetDays(0); render(); } }, "Start again");
   document.body.append(h("div.testbar", null,
     h("button", { onclick: () => { Object.assign(st.days, makeSample(60)); if (!st.started) st.started = Object.keys(st.days).sort()[0]; store.save(); render(); } }, "Fill 2 months"),
+    h("button", { onclick: () => { if (!wrapped.testOpen(() => render())) alertLine(); } }, "Wrapped"),
     h("button", { onclick: () => { st.test.offset = (st.test.offset || 0) + 1; setOffsetDays(st.test.offset); store.save(); render(); } }, "+1 day"),
     clear,
     h("button", { onclick: () => { testOn = false; st.test.on = false; store.save(); render(); } }, "Hide")));
@@ -245,7 +250,7 @@ tester.opened();
 if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask"].some((x) => document.body.classList.contains(x))) render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap"].some((x) => document.body.classList.contains(x))) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;
