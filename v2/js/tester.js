@@ -13,7 +13,7 @@ import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./words.js";
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 export const CONSENT = 1;
 export const SHARED = [
-  "Your check-in answers: sleep times, how rested you felt, your mood, and the feelings and tags you tap",
+  "Your check-in answers: your mood, and the feelings and sleep tags you tap",
   "What you choose and do in the app, like pillars, cards, thumbs up or down, levels and which screens you use",
   "How many times you tap the Lifeline link",
   "How long check-ins take, when nudges arrive and when you check in",
@@ -88,7 +88,8 @@ function clean(d) {
   if (Array.isArray(d.feel)) { out.feel = d.feel.filter((w) => FEEL_OK.has(w)); out.feelOwn = d.feel.length - out.feel.length; }
   if (d.sleep) {
     const tags = d.sleep.tags || [];
-    out.sleep = { bed: d.sleep.bed, wake: d.sleep.wake, rested: d.sleep.rested, tags: tags.filter((w) => SLEEP_OK.has(w)), own: tags.filter((w) => !SLEEP_OK.has(w)).length };
+    // Bed and wake times and how rested stay on the phone: only that the morning was done, and which tags.
+    out.sleep = { tags: tags.filter((w) => SLEEP_OK.has(w)), own: tags.filter((w) => !SLEEP_OK.has(w)).length };
   }
   if (Array.isArray(d.pil)) out.pil = d.pil.filter((p) => typeof p === "string" && p.length < 30);
   if (d.rest) out.rest = true;
@@ -116,7 +117,9 @@ export async function send(force) {
   if (!force && Date.now() - lastTry < 10 * 60e3) return;
   busy = true; lastTry = Date.now();
   const s = store.get(), tt = s.tester, today = dayKey();
-  const keys = Object.keys(s.days).filter((k) => tt.all || k >= shift(today, -3));
+  // Every day is sent again once after sleep times stopped being shared, so older copies on the service lose them too.
+  const full = tt.all || !tt.lean;
+  const keys = Object.keys(s.days).filter((k) => full || k >= shift(today, -3));
   const days = {}; keys.forEach((k) => (days[k] = clean(s.days[k])));
   const events = tt.queue.slice(0, 500);
   const n = s.notify || {};
@@ -126,7 +129,7 @@ export async function send(force) {
     const res = await fetch(`${SERVICE}/t/send`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: JSON.stringify(body).length < 60000 });
     if (res.status === 410) { s.tester = { on: false, consent: 0, removed: true }; store.save(); busy = false; return; } // removed from the test: stop sending
     if (res.status === 409 && !tt.sent) { tt.code = newCode(); store.save(); busy = false; return send(true); } // code already taken: pick another
-    if (res.ok) { tt.queue.splice(0, events.length); tt.sent = Date.now(); tt.all = false; store.save(); }
+    if (res.ok) { tt.queue.splice(0, events.length); tt.sent = Date.now(); tt.all = false; tt.lean = true; store.save(); }
   } catch { /* offline: try again later */ }
   busy = false;
 }
