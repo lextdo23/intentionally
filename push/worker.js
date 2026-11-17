@@ -177,7 +177,7 @@ async function testers(req, env, path) {
   const info = { phone: short(b.phone), version: short(b.version, 12), started: DAYK.test(b.started) ? b.started : null,
     nudges: JSON.stringify({ am: short(b.nudges?.am, 5), pm: short(b.nudges?.pm, 5) }) };
   const res = await db(env).send(b.code, hash, info, days, events);
-  return reply(res.ok ? { ok: true } : { error: res.error }, res.ok ? 200 : res.error === "removed" ? 410 : 409);
+  return reply(res.ok ? { ok: true } : { error: res.error }, res.ok ? 200 : res.error === "removed" ? 410 : res.error === "full" ? 403 : 409);
 }
 
 function admin(req, env) {
@@ -207,6 +207,7 @@ async function sha(s) {
 
 // Testers alex removed by hand. Their data is deleted when the service starts, and their phones are told to stop.
 const REMOVED = ["T-ACAY"];
+const PLACES = 60; // the most testers at once; also shown on v2/testers.html
 
 // One store for all testers (a beta is 20 to 30 people).
 export class Testers extends DurableObject {
@@ -231,6 +232,9 @@ export class Testers extends DurableObject {
     if (this.sql.exec("SELECT code FROM removed WHERE code = ?", code).toArray().length) return { ok: false, error: "removed" };
     const had = this.sql.exec("SELECT hash FROM testers WHERE code = ?", code).toArray()[0];
     if (had && had.hash !== hash) return { ok: false, error: "code taken" };
+    // At most PLACES testers at once (alex, 2026-11-17), so nobody can flood the service with made-up testers.
+    // A phone that finds it full keeps its data and quietly tries again later; removing a tester frees a place.
+    if (!had && this.sql.exec("SELECT COUNT(*) AS c FROM testers").one().c >= PLACES) return { ok: false, error: "full" };
     const n = Date.now();
     if (!had) this.sql.exec("INSERT INTO testers VALUES (?, ?, ?, ?, ?, ?, ?, ?)", code, hash, n, n, info.phone, info.version, info.started, info.nudges);
     else this.sql.exec("UPDATE testers SET seen = ?, phone = ?, version = ?, started = ?, nudges = ? WHERE code = ?", n, info.phone, info.version, info.started, info.nudges, code);
