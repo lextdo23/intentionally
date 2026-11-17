@@ -66,10 +66,18 @@ h1, h2, p { margin: 0; }
    the bar is nearly full. The row fades out slowly while the card is rated, and back in once it settles. */
 .lv-row { display: flex; align-items: center; gap: 12px; width: 100%; transition: opacity .8s ease; }
 .lv-num { font-size: 15px; font-weight: 600; color: var(--gold); white-space: nowrap; }
-.lv-bar { position: relative; flex: 1; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .1); overflow: hidden; }
+.lv-track { position: relative; flex: 1; }
+.lv-bar { position: relative; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .1); overflow: hidden; }
 .lv-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--gold); box-shadow: 0 0 10px rgb(227 196 134 / .45); transition: width 1s var(--ease); }
 .lv-next { font-size: 13px; color: var(--dim); white-space: nowrap; max-width: 0; margin-left: -12px; opacity: 0; overflow: hidden; transition: opacity 1.2s ease, max-width 1.2s var(--ease), margin-left 1.2s var(--ease); }
 .lv-next.on { max-width: 200px; margin-left: 0; opacity: 1; }
+/* While the bar slides, only its end brightens a little (alex 2026-11-17: no circle), then fades back. */
+.lv-bar i::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 28px; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, rgb(246 226 181 / 0), #f8e8c4); opacity: 0; transition: opacity .5s ease; }
+.lv-bar i.moving::after { opacity: 1; transition-duration: .2s; }
+/* The points a step gave, rising from the end of the bar and fading. */
+.lv-plus { position: absolute; bottom: 10px; font-size: 15px; font-weight: 600; color: var(--gold); white-space: nowrap; pointer-events: none; translate: -50% 0; opacity: 0; animation: lv-plus 2.2s ease-out .2s both; }
+@keyframes lv-plus { 0% { opacity: 0; transform: translateY(6px); } 25% { opacity: 1; transform: none; } 70% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-12px); } }
+@media (prefers-reduced-motion: reduce) { .lv-plus { animation: none; opacity: 1; } }
 .in-ask .lv-row { opacity: 0; }
 .lv-row.lv-back { animation: lv-back .8s ease both; }
 @keyframes lv-back { from { opacity: 0; } to { opacity: 1; } }
