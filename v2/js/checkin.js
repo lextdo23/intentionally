@@ -156,8 +156,8 @@ export function evening(onDone) {
   finish = onDone;
   track = { kind: "pm", t0: Date.now(), step: "mood" }; log("pm_start");
   const s = store.get(), k = dayKey(), had = s.days[k] || {};
-  const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [], how: had.card ? had.card.how : null };
-  // With a card today, "How did it go?" is a third step.
+  const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [], ans: had.card ? { how: had.card.how, felt: had.card.felt } : {} };
+  // With a card today, "How did doing it feel?" is a third step.
   const cid = had.card && had.card.id && !had.rest ? had.card.id : null, N = cid ? 3 : 2;
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
@@ -195,19 +195,21 @@ export function evening(onDone) {
       [done, LIFELINE()]));
   };
   const did = !!(cid && had.card.done);
-  const three = () => { at("card"); show(howStep(cid, st.how, two, (i) => { st.how = i; save(); }, `End your day · 3 of ${N}`, { did })); };
+  const three = () => { at("card"); show(howStep(cid, st.ans, two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did })); };
   const save = () => {
     const s2 = store.get(), d = store.day(k), m = toMood(st.v), b = band(m), n = dayNum(k);
     d.mood = m; d.feel = [...st.feel];
-    if (cid && st.how != null) {
+    const a = st.ans;
+    if (cid && a.how != null) {
       const first = d.card.how == null;
-      d.card.how = st.how;
-      d.card.done = st.how >= 1;
-      if (first) deck.howWent(cid, st.how);
+      d.card.how = a.how; d.card.felt = a.felt || [];
+      d.card.done = a.how >= 1;
+      if (first) { deck.howWent(cid, a.how); deck.feltWent(cid, d.card.felt); }
       const p = deck.card(cid).pillar;
       d.pil = (d.pil || []).filter((x) => x !== p);
-      if (st.how >= 1) d.pil.unshift(p);
-      log("card_how", { id: cid, how: st.how });
+      if (a.how >= 1) d.pil.unshift(p);
+      log("card_how", { id: cid, how: a.how });
+      if (d.card.felt.length) log("card_felt", { id: cid, f: d.card.felt.map((w) => deck.FELT.indexOf(w)) }); // positions only, never words
     }
     const L = (s2.feel.last[b] = s2.feel.last[b] || {});
     st.feel.forEach((w) => { if (w !== "Not sure") L[w] = n; });
