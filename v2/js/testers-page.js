@@ -42,7 +42,7 @@ function bars(rows, max, unit = "") {
   max = max || Math.max(1, ...rows.map((r) => r[1]));
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
-const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards",
+const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
   "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
@@ -163,18 +163,14 @@ function drawAll(D) {
   const fromNudge = by("open").filter((e) => e.val === "nudge").length;
   const nSent = (k) => by("nudge_sent").filter((e) => e.val === k).length, nTap = (k) => by("nudge_tap").filter((e) => e.val === k).length;
   const sAm = nSent("am"), sPm = nSent("pm"), tAm = nTap("am"), tPm = nTap("pm");
-  // Card reminders: sent, tapped, and how many were followed by "I did it" the same day (within 12 hours).
-  const cSent = by("nudge_sent").filter((e) => e.val === "card"), sCard = cSent.length, tCard = nTap("card");
-  const didAfter = cSent.filter((e) => by("card_did").some((x) => x.code === e.code && x.t > e.t && x.t - e.t < 12 * 36e5)).length;
-  const cardOff = by("nudge_card").filter((e) => e.val === "off").length;
   const hours = (n) => { const c = Array(24).fill(0); by(n).forEach((e) => c[new Date(e.t).getHours()]++); return c; };
   const hRows = (c) => c.map((n, h) => [`${h % 12 || 12} ${h < 12 ? "am" : "pm"}`, n]).filter((r) => r[1]);
   const within = (k) => { let hit = 0, all = 0; by(k + "_done").forEach((e) => { const t = testers.findIndex((x) => x.code === e.code), set = nud[t] && nud[t][k]; if (!set || set === "off") return; all++; const [hh, mm] = set.split(":").map(Number), d = new Date(e.t), n = new Date(d); n.setHours(hh, mm, 0, 0); const gap = (d - n) / 6e4; if (gap >= 0 && gap <= 60) hit++; }); return [hit, all]; };
   const [wa, aa] = within("am"), [wp, ap] = within("pm");
   html += sec("Do nudges bring people in?", "Who has nudges on, how often a nudge opened the app, and when people actually check in.",
     bars([["Morning nudge on", amOn], ["Evening nudge on", pmOn]], T) +
-    `<p class="note">Nudges that reached phones: ${sAm} morning, ${sPm} evening. Tapped: ${tAm} morning (${pct(tAm, sAm)}%), ${tPm} evening (${pct(tPm, sPm)}%).</p>` +
-    `<p class="note">Card reminders sent: ${sCard}. Tapped: ${tCard} (${pct(tCard, sCard)}%). Card done afterwards: ${didAfter} (${pct(didAfter, sCard)}%). Turned card reminders off: ${cardOff}.</p>` +
+    `<p class="note">Nudges that reached phones, and how many were tapped</p>` +
+    bars([["Morning: sent", sAm], ["Morning: tapped", tAm], ["Evening: sent", sPm], ["Evening: tapped", tPm]]) +
     bars([["Morning: checked in within an hour of the nudge", pct(wa, aa)], ["Evening: checked in within an hour of the nudge", pct(wp, ap)]], 100, "%") +
     `<p class="note">The app was opened from a nudge ${fromNudge} time${fromNudge === 1 ? "" : "s"}.</p>
      <p class="note">When mornings get done</p>${bars(hRows(hours("am_done")))}<p class="note">When evenings get done</p>${bars(hRows(hours("pm_done")))}`,
@@ -244,6 +240,25 @@ function drawAll(D) {
   delete cs[0];   // 0 = a card someone made themselves: never named here
   const look = Object.entries(cs).map(([id, c]) => [+id, c, c.down * 3 + c.how[0] + c.how[1] + (c.drawn - c.kept > 3 && !c.kept ? 2 : 0)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
   const name = (id) => { const r = BANK[id - 1]; return r ? `#${id} ${r[4]}` : `#${id}`; };
+  // Card reminders (alex 2026-11-17): sent, tapped, card done afterwards, switched off. "First" is the day's first
+  // reminder (usually lunch), "second" the later one (usually after work).
+  {
+    const sent = by("nudge_sent").filter((e) => e.val === "card"), taps = by("nudge_tap").filter((e) => e.val === "card");
+    const slot = new Map(), seen = {};
+    sent.slice().sort((a, b) => a.t - b.t).forEach((e) => { const k = e.code + keyOf(e.t); seen[k] = (seen[k] || 0) + 1; slot.set(e, seen[k] === 1 ? 0 : 1); });
+    const tapSlot = (e) => { const s = sent.filter((x) => x.code === e.code && x.t <= e.t).sort((a, b) => b.t - a.t)[0]; return s ? slot.get(s) : 0; };
+    // Done after a reminder = "I did it" later that day, before the day's next reminder (so each one counts once).
+    const did = (e) => { const nx = sent.filter((x) => x.code === e.code && x.t > e.t && keyOf(x.t) === keyOf(e.t)).reduce((m, x) => Math.min(m, x.t), Infinity);
+      return by("card_did").some((x) => x.code === e.code && x.t > e.t && x.t < nx && keyOf(x.t) === keyOf(e.t)); };
+    const row = (i) => { const s = sent.filter((e) => slot.get(e) === i); return [s.length, taps.filter((e) => tapSlot(e) === i).length, s.filter(did).length]; };
+    const [s1, t1, d1] = row(0), [s2, t2, d2] = row(1), off = new Set(by("nudge_card").filter((e) => e.val === "off").map((e) => e.code)).size;
+    html += sec("Do card reminders help?", "Reminders sent when a tester's card wasn't done yet, how many were tapped, and how often the card got done afterwards (before the next reminder, or by the end of the day). First is the day's first reminder (usually 12:30pm), second the later one (usually after work).",
+      sent.length ? `<p class="note">First reminder</p>${bars([["Sent", s1], ["Tapped", t1], ["Card done after", d1]], Math.max(1, s1))}
+        <p class="note">Second reminder</p>${bars([["Sent", s2], ["Tapped", t2], ["Card done after", d2]], Math.max(1, s2))}
+        <p class="note">Testers who turned card reminders off</p>${bars([["Turned off", off]], Math.max(1, T))}` : `<p class="sub">No card reminders sent yet. They count once a tester opens the app after one arrives.</p>`,
+      "if the second reminder gets done more often than the first, lunch may be too early; if few cards get done after either, the reminder words or times need a rethink.");
+  }
+
   html += sec("Which cards need a look?", "How the daily card draw goes, and which cards people pass over, don't get to, or mark as needing work. Only card numbers are sent; the words come from the app's own list.",
     draws ? bars([["Mornings with a draw", draws], ["Drew again", by("card_redraw").length], ["Kept a card", by("card_keep").length], ["Made it smaller", by("card_smaller").length], ["Saved for later", by("card_save").length], ["Rest days", by("card_rest").length], ["Said \"Not now\"", by("card_later").length], ["Tapped \"I did it\" on home", by("card_did").length], ["Took \"I did it\" back", by("card_undo").length], ["Said how it felt right after \"I did it\"", by("card_felt").filter((e) => e.val && e.val.home).length], ["Said \"Not now\" to how it felt", by("card_felt_later").length], ["Turned the card by hand", by("card_spin").length]], draws) +
       `<p class="note">How it went, in the evening:</p>` + bars(HOW.map((w, i) => [w, howAll[i]])) +
