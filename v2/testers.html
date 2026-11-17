@@ -134,6 +134,7 @@ async function load() {
   try {
     const res = await fetch(`${SERVICE}/t/all`, { headers: { Authorization: "Bearer " + pw } });
     if (res.status === 403) { $("status").textContent = "That password didn't work. Check it matches the TESTER_KEY you set on GitHub."; return; }
+    if (res.status === 429) { $("status").textContent = "Too many wrong passwords from this connection. Wait an hour, then try again."; return; }
     if (!res.ok) throw new Error(res.status);
     raw = await res.json();
   } catch { $("status").textContent = "Couldn't reach the Daydeck service. Check you're online and try again."; return; }

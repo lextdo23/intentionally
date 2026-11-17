@@ -135,18 +135,18 @@ const short = (x, n = 30) => (typeof x === "string" ? x.slice(0, n) : "");
 
 async function testers(req, env, path) {
   if (req.method === "GET" && path === "/t/all") {
-    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const no = await gate(req, env); if (no) return no;
     return reply(await db(env).all());
   }
   if (req.method !== "POST") return reply({ error: "not found" }, 404);
   if (path === "/t/wipe") {
-    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const no = await gate(req, env); if (no) return no;
     await db(env).wipe();
     return reply({ ok: true });
   }
   // Removes one tester: deletes what they shared and stops their phone sending any more.
   if (path === "/t/remove") {
-    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const no = await gate(req, env); if (no) return no;
     const b = await req.json().catch(() => null);
     if (!b || !CODE.test(b.code)) return reply({ error: "bad request" }, 400);
     await db(env).remove(b.code);
@@ -183,6 +183,18 @@ function admin(req, env) {
   let d = 0; for (let i = 0; i < want.length; i++) d |= want.charCodeAt(i) ^ got.charCodeAt(i);
   return d === 0;
 }
+// A limit on wrong passwords for the tester page: after TRIES wrong ones from the same internet address within
+// an hour, that address must wait until the hour has passed. Only a scrambled form of the address is kept, and
+// only for that hour. A right password clears it.
+const TRIES = 10, HOUR = 3600000;
+async function gate(req, env) {
+  const who = await sha("ip:" + (req.headers.get("CF-Connecting-IP") || "unknown"));
+  const store = db(env);
+  if (await store.fails(who) >= TRIES) return reply({ error: "too many tries" }, 429);
+  if (!admin(req, env)) { await store.fail(who); return reply({ error: "wrong key" }, 403); }
+  await store.clearFails(who);
+  return null;
+}
 async function sha(s) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
@@ -199,7 +211,8 @@ export class Testers extends DurableObject {
       CREATE TABLE IF NOT EXISTS days (code TEXT, day TEXT, data TEXT, PRIMARY KEY (code, day));
       CREATE TABLE IF NOT EXISTS events (code TEXT, t INTEGER, name TEXT, val TEXT);
       CREATE INDEX IF NOT EXISTS ev_code ON events (code);
-      CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);`);
+      CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS fails (who TEXT, t INTEGER);`);
     REMOVED.forEach((c) => this.remove(c));
   }
   remove(code) {
@@ -231,5 +244,12 @@ export class Testers extends DurableObject {
     return { at: Date.now(), testers: q("SELECT code, joined, seen, phone, version, started, nudges FROM testers"),
       days: q("SELECT code, day, data FROM days"), events: q("SELECT code, t, name, val FROM events ORDER BY t") };
   }
+  // Wrong tester page passwords in the last hour, per scrambled internet address (see gate()).
+  fails(who) {
+    this.sql.exec("DELETE FROM fails WHERE t < ?", Date.now() - HOUR);
+    return this.sql.exec("SELECT COUNT(*) AS c FROM fails WHERE who = ?", who).one().c;
+  }
+  fail(who) { this.sql.exec("INSERT INTO fails VALUES (?, ?)", who, Date.now()); }
+  clearFails(who) { this.sql.exec("DELETE FROM fails WHERE who = ?", who); }
   wipe() { for (const t of ["testers", "days", "events"]) this.sql.exec(`DELETE FROM ${t}`); }
 }
