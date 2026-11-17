@@ -592,35 +592,128 @@ function scrNext(ctx, j) {
 }
 
 // ---- 6 · your week on a card ----
-// What people would want to show a friend: the name of the week, its line (moods: on unless switched off), the card
-// they loved, as a tip, and what the week was about. Never feelings, sleep, anything typed, level or counts.
+// The picture people would want to post: the week's colours as a wash, its days as a hand of cards, the name and
+// line, best (or lightest) day, where time went, the card of the week and one thing we noticed. Never feelings
+// words, sleep lengths, anything typed, level or counts. Moods are on unless switched off. Story shaped (9 by 16),
+// so it fills a story without cropping. The screen shows the very picture that gets shared.
+const NOTICED = { pattern: (F) => `${F.big} have been a good day three weeks running`, then: (F) => `${F.big} more sleep a night than last week`,
+  rhythm: (F) => `${F.big} is your usual lights out`, deck: (F) => `${F.big} new cards met this week` };
 export function posterData(D) {
-  const c = D.loved ? D.loved.c : null;
-  return { w: D.w, dates: D.dates, name: D.name.name, ms: D.ms, card: c && !c.own ? { text: c.text, pillar: c.pillar } : null, pil: D.pil };
+  const c = D.loved ? D.loved.c : null, b = D.light[0];
+  return { w: D.w, dates: D.dates, name: D.name.name, line: D.name.line, ms: D.ms, hard: D.hard,
+    best: b ? { day: dn(b.k), m: b.m } : null, pil: D.pil, card: c && !c.own ? c.text : null,
+    noticed: D.find && NOTICED[D.find.kind] ? NOTICED[D.find.kind](D.find) : null };
 }
-export function posterEl(P, { anim = true, moods = true } = {}) {
-  const dd = (d) => (anim ? `--d:${d}s` : "");
-  const line = posterLine(P.ms, anim);
-  const face = h("div.fc" + (anim ? ".wr-fcin" : ""), { style: dd(1.35) },
-    h("div.ptop", null, h("span", null, P.dates), h("span.logo", { "aria-hidden": "true" })),
-    h("div.pname", null, P.name), line,
-    P.card ? h("div.cotw" + (anim ? ".wr-rise" : ""), { style: dd(3.4) }, h("small", null, "Card of the week"), h("b", null, P.card.text), h("span.pills", { style: "margin-top:2px" }, h("span", null, h("i", { style: `background:${tint(P.card.pillar)}` }), P.card.pillar))) : null,
-    P.pil.length ? h("div.plab" + (anim ? ".wr-rise" : ""), { style: dd(3.7) }, "My week was about") : null,
-    P.pil.length ? h("div.pills" + (anim ? ".wr-rise" : ""), { style: dd(3.8) }, P.pil.map((p) => h("span", null, h("i", { style: `background:${tint(p)}` }), p))) : null,
-    h("div.pbrand", null, "Daydeck"));
-  const el = h("div.wr-poster" + (anim ? ".wr-flipin" : "") + (moods ? "" : ".nomood"), { style: dd(0.2) }, anim ? h("div.bk.wr-bkout", { style: dd(1) }) : null, face);
-  el.setAttribute("aria-label", `${P.name}, ${P.dates}`); el.setAttribute("role", "img");
-  return el;
+const PW = 430, PH = PW * 16 / 9;                                   // the picture's size in points; drawn at 1080 by 1920
+const SYS = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif`;
+const hexRgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+const mix = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",")})`; };
+let grainTile = null;
+function grain() {
+  if (grainTile) return grainTile;
+  const c = h("canvas", { width: "160", height: "160" }), g = c.getContext("2d"), im = g.createImageData(160, 160);
+  for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 140; }
+  g.putImageData(im, 0, 0); return (grainTile = c);
 }
-function posterLine(ms, anim) {
-  const W = 286, H = 78, X = (i) => 10 + i * (W - 20) / 6, Y = (m) => 8 + (6 - m) * (H - 30) / 6;
-  const P = ms.map((m, i) => (m == null ? null : [X(i), Y(m), m])).filter(Boolean);
-  const svg = h("svg.mood", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: String(H), style: "overflow:visible;margin-top:8px", "aria-hidden": "true" });
-  if (P.length > 1) { let d = `M${P[0][0]},${P[0][1]}`; for (let i = 1; i < P.length; i++) { const [x0, y0] = P[i - 1], [x1, y1] = P[i], cx = (x0 + x1) / 2; d += ` C${cx},${y0} ${cx},${y1} ${x1},${y1}`; }
-    svg.append(h("path" + (anim ? ".wr-draw" : ""), { d, fill: "none", stroke: "#efede9", "stroke-width": "3", "stroke-linecap": "round", style: anim ? "--d:1.6s" : "" })); }
-  P.forEach(([x, y, m], k) => svg.append(h("circle" + (anim ? ".wr-popg" : ""), { cx: x, cy: y, r: "6", fill: MC[m], stroke: "#efede9", "stroke-width": "2", style: anim ? `--d:${1.7 + k * 0.25}s` : "" })));
-  ["M", "T", "W", "T", "F", "S", "S"].forEach((l, i) => svg.append(h("text", { x: X(i), y: H - 2, "font-size": "11", "font-weight": "700", "text-anchor": "middle", fill: "#efede9", opacity: ms[i] == null ? ".3" : ".7" }, l)));
-  return svg;
+function wrap(g, text, max) {
+  const out = []; let cur = "";
+  text.split(" ").forEach((wd) => { const t = cur ? cur + " " + wd : wd; if (g.measureText(t).width > max && cur) { out.push(cur); cur = wd; } else cur = t; });
+  if (cur) out.push(cur); return out;
+}
+export function posterCanvas(P, moods = true, px = 1080) {
+  const S = px / PW, c = h("canvas", { width: String(px), height: String(Math.round(PH * S)) }), g = c.getContext("2d");
+  g.scale(S, S); g.textBaseline = "top";
+  const F = (wt, size) => `${wt} ${size}px ${SYS}`, X = 28, CW = PW - 56;
+  const rr = (x, y, w, hh, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, hh, r) : g.rect(x, y, w, hh); };
+  const ls = (v) => { if ("letterSpacing" in g) g.letterSpacing = v; };
+  const noted = (P.ms || []).filter((m) => m != null);
+
+  // the wash: the week's own colours, a soft light top right, darker towards the bottom, then grain
+  const A = 165 * Math.PI / 180, dx = Math.sin(A), dy = -Math.cos(A), half = Math.abs(PW * dx) / 2 + Math.abs(PH * dy) / 2;
+  const bg = g.createLinearGradient(PW / 2 - dx * half, PH / 2 - dy * half, PW / 2 + dx * half, PH / 2 + dy * half);
+  const cols = moods && noted.length ? noted.map((m) => MC[m]) : ["#3a3c44", "#24262b", "#141518"];
+  if (cols.length === 1) cols.push(cols[0]);
+  cols.forEach((col, i) => bg.addColorStop(i / (cols.length - 1), col));
+  g.fillStyle = bg; g.fillRect(0, 0, PW, PH);
+  g.save(); g.translate(PW * 0.8, PH * 0.15); g.scale(1, (PH * 0.4) / (PW * 0.7));
+  const hi = g.createRadialGradient(0, 0, 0, 0, 0, PW * 0.7); hi.addColorStop(0, moods ? "rgba(255,243,223,.4)" : "rgba(242,192,143,.28)"); hi.addColorStop(0.7, "rgba(255,243,223,0)");
+  g.fillStyle = hi; g.fillRect(-PW, -PW, PW * 2, PW * 2); g.restore();
+  const dk = g.createLinearGradient(0, PH * 0.45, 0, PH); dk.addColorStop(0, "rgba(0,0,0,0)"); dk.addColorStop(1, "rgba(0,0,0,.35)"); g.fillStyle = dk; g.fillRect(0, 0, PW, PH);
+  g.save(); g.globalAlpha = 0.1; g.globalCompositeOperation = "overlay"; g.fillStyle = g.createPattern(grain(), "repeat"); g.scale(1 / S, 1 / S); g.fillRect(0, 0, PW * S, PH * S); g.restore();
+
+  const W = (a) => `rgba(255,255,255,${a})`;
+  // top: dates, the name, the week's line
+  let y = 56;
+  g.fillStyle = W(0.85); g.font = F(400, 15); g.fillText(P.dates, X, y); y += 15 + 10;
+  const big = P.name.length > 20 ? 42 : 54;
+  g.fillStyle = "#fff"; g.font = F(800, big); ls(`${-0.035 * big}px`);
+  wrap(g, P.name, CW).forEach((l) => { g.fillText(l, X, y); y += big; }); ls("0px");
+  if (P.line && moods) { y += 12; g.fillStyle = W(0.88); g.font = F(400, 17); wrap(g, P.line, CW).forEach((l) => { g.fillText(l, X, y); y += 22; }); }
+  const topEnd = y;
+
+  // bottom up: Daydeck, we noticed, the facts
+  const sub = W(0.75);
+  g.font = F(400, 13); ls("1px"); g.fillStyle = W(0.75); g.textAlign = "center"; g.fillText("DAYDECK", PW / 2, PH - 44); g.textAlign = "left"; ls("0px");
+  let b = PH - 44 - 28;
+  if (P.noticed) {
+    g.font = F(600, 13); const lw = g.measureText("We noticed").width + 10;
+    g.font = F(600, 15); const nl = wrap(g, P.noticed, CW - lw);
+    const top = b - nl.length * 20;
+    g.fillStyle = sub; g.font = F(600, 13); g.fillText("We noticed", X, top + 2);
+    g.fillStyle = "#fff"; g.font = F(600, 15); nl.forEach((l, i) => g.fillText(l, X + lw, top + i * 20));
+    g.fillStyle = W(0.3); g.fillRect(X, top - 16, CW, 1);
+    b = top - 16 - 22;
+  }
+  if (P.card) {
+    g.font = F(700, 24); ls("-0.24px"); const cl = wrap(g, P.card, CW);
+    const top = b - 18 - cl.length * 29;
+    g.fillStyle = sub; ls("0px"); g.font = F(600, 13); g.fillText("Card of the week", X, top);
+    g.fillStyle = "#fff"; g.font = F(700, 24); ls("-0.24px"); cl.forEach((l, i) => g.fillText(l, X, top + 18 + i * 29)); ls("0px");
+    b = top - 26;
+  }
+  const pil = (P.pil || []).slice(0, 3), C2 = X + CW / 2 + 10;
+  if (P.best || pil.length) {
+    const hb = P.best ? 18 + 37 + (moods ? 20 : 0) : 0, hp = pil.length ? 18 + pil.length * 28 : 0, top = b - Math.max(hb, hp);
+    if (P.best) {
+      g.fillStyle = sub; g.font = F(600, 13); g.fillText(P.hard ? "Lightest day" : "Best day", X, top);
+      g.fillStyle = "#fff"; g.font = F(800, 34); ls("-0.68px"); g.fillText(P.best.day, X, top + 18); ls("0px");
+      if (moods) { g.fillStyle = sub; g.font = F(400, 15); g.fillText(`felt ${MOODS[P.best.m].toLowerCase()}`, X, top + 18 + 39); }
+    }
+    if (pil.length) {
+      const x0 = P.best ? C2 : X;
+      g.fillStyle = sub; g.font = F(600, 13); g.fillText("Time went to", x0, top);
+      pil.forEach((p, i) => { const yy = top + 18 + i * 28; g.fillStyle = sub; g.font = F(400, 13); g.fillText(String(i + 1), x0, yy + 5); g.fillStyle = "#fff"; g.font = F(700, 20); g.fillText(p, x0 + 18, yy); });
+    }
+    b = top;
+  }
+
+  // the middle: the week as a hand of seven cards, face down for days not noted
+  const cw = 80, ch = 112, step = 49, handH = 150, hy = topEnd + Math.max(16, (b - topEnd - handH) / 2);
+  (P.ms || []).forEach((m, i) => {
+    const off = i - 3, cx = PW / 2 + off * step, cy = hy + off * off * 4 + ch / 2;
+    g.save(); g.translate(cx, cy); g.rotate(off * 6 * Math.PI / 180);
+    g.shadowColor = "rgba(0,0,0,.3)"; g.shadowBlur = 22; g.shadowOffsetY = 10;
+    rr(-cw / 2, -ch / 2, cw, ch, 11);
+    if (m == null) {
+      const fd = g.createLinearGradient(-cw / 2, -ch / 2, cw / 2, ch / 2); fd.addColorStop(0, "#2c2e34"); fd.addColorStop(1, "#17181b"); g.fillStyle = fd; g.fill();
+      g.shadowColor = "transparent"; g.save(); g.clip(); g.strokeStyle = "rgba(242,192,143,.16)"; g.lineWidth = 1;
+      for (let r = 6; r < 80; r += 6) { g.beginPath(); g.arc(0, 0, r, 0, 7); g.stroke(); } g.restore();
+    } else {
+      const top = moods ? MC[m] : "#cfcac1";
+      const fc = g.createLinearGradient(-cw / 2 + 10, -ch / 2, cw / 2 - 10, ch / 2); fc.addColorStop(0, mix(top, "#ffffff", 0.45)); fc.addColorStop(1, moods ? top : "#a9a59d"); g.fillStyle = fc; g.fill();
+      g.shadowColor = "transparent";
+      g.fillStyle = "#17181b"; g.font = F(800, 15); g.fillText("MTWTFSS"[i], -cw / 2 + 8, -ch / 2 + 8);
+      if (moods) { g.font = F(700, 11); const wl = wrap(g, MOODS[m].toLowerCase(), 40); wl.forEach((l, k) => g.fillText(l, -cw / 2 + 8, ch / 2 - 8 - (wl.length - k) * 12)); }
+    }
+    g.shadowColor = "transparent"; rr(-cw / 2, -ch / 2, cw, ch, 11); g.lineWidth = 1.5; g.strokeStyle = W(m == null ? 0.7 : 0.85); g.stroke();
+    g.restore();
+  });
+  return c;
+}
+function posterView(P, moods) {
+  const v = posterCanvas(P, moods, 900);
+  v.className = "wr-pic6"; v.setAttribute("role", "img"); v.setAttribute("aria-label", `${P.name}, ${P.dates}`);
+  return v;
 }
 function scrPoster(ctx, j) {
   const D = ctx.D, P = posterData(D), m = mem();
@@ -632,71 +725,30 @@ function scrPoster(ctx, j) {
   log("wrap_name", D.name.key);
   const el = h("section.wr-scr");
   let moods = true;
-  const poster = posterEl(P);
+  const box = ab(".wr-pic6box.wr-flipin", "--d:.2s", posterView(P, true));
   const sw = h("button.switch", { role: "switch", "aria-checked": "true", "aria-label": "Show moods when sharing" });
-  const row = h("div.wr-ab.wr-sw.wr-rise", { style: "--d:4.4s" }, h("span", null, "Show moods when sharing"), sw);
-  row.addEventListener("click", (e) => { e.stopPropagation(); moods = !moods; sw.setAttribute("aria-checked", String(moods)); poster.classList.toggle("nomood", !moods); log("wrap_moods", moods ? "on" : "off"); });
-  const share = h("button.btn-main.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:736px;--d:4.6s", onclick: (e) => { e.stopPropagation(); sharePoster(P, moods); } }, "Share");
-  const done = h("button.btn-text.wr-ab.wr-rise", { style: "left:0;right:0;top:796px;--d:4.8s", onclick: (e) => { e.stopPropagation(); ctx.close(); } }, "Done");
-  el.append(...chrome(ctx, j, 0), ab(".wr-lab.wr-rise", { left: 24, top: 136 }, "Your week on a card"), poster, row, share, done);
+  const row = h("div.wr-ab.wr-sw.wr-rise", { style: "--d:1.2s" }, h("span", null, "Show moods when sharing"), sw);
+  row.addEventListener("click", (e) => { e.stopPropagation(); moods = !moods; sw.setAttribute("aria-checked", String(moods)); box.replaceChildren(posterView(P, moods)); log("wrap_moods", moods ? "on" : "off"); });
+  const share = h("button.btn-main.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:736px;--d:1.4s", onclick: (e) => { e.stopPropagation(); sharePoster(P, moods); } }, "Share");
+  const done = h("button.btn-text.wr-ab.wr-rise", { style: "left:0;right:0;top:796px;--d:1.6s", onclick: (e) => { e.stopPropagation(); ctx.close(); } }, "Done");
+  el.append(...chrome(ctx, j, 0), box, row, share, done);
   return { el, canNext: () => false };
 }
 
-// The shared picture: drawn fresh at 1080 by 1512 (the card's 5 by 7), then handed to the phone's share sheet.
+// The shared picture, drawn fresh at 1080 by 1920, then handed to the phone's share sheet.
 // Nothing leaves the phone unless the person sends it.
 export async function sharePoster(P, moods = true) {
   log("wrap_share", moods ? "moods" : "no_moods");
   try {
-    const blob = await posterPNG(P, moods), file = new File([blob], `Daydeck ${P.dates}.png`, { type: "image/png" });
+    const blob = await new Promise((res, rej) => posterCanvas(P, moods).toBlob((b) => (b ? res(b) : rej(new Error("no picture"))), "image/png"));
+    const file = new File([blob], `Daydeck ${P.dates}.png`, { type: "image/png" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
     const a = h("a", { href: URL.createObjectURL(blob), download: file.name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   } catch { /* closed the share sheet */ }
 }
-function posterPNG(P, moods) {
-  const S = 1080 / 330, c = h("canvas", { width: "1080", height: "1512" }), g = c.getContext("2d");
-  const F = (wt, px) => `${wt} ${px * S}px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif`;
-  const rr = (x, y, w, hh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + hh, r); g.arcTo(x + w, y + hh, x, y + hh, r); g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-  let bg = g.createLinearGradient(0, 0, 200, 1512); bg.addColorStop(0, "#2f3036"); bg.addColorStop(1, "#1c1d21"); g.fillStyle = bg; g.fillRect(0, 0, 1080, 1512);
-  const glow = g.createRadialGradient(540, -80, 0, 540, -80, 900); glow.addColorStop(0, "rgba(242,192,143,.30)"); glow.addColorStop(1, "rgba(242,192,143,0)"); g.fillStyle = glow; g.fillRect(0, 0, 1080, 700);
-  g.strokeStyle = "rgba(227,196,134,.6)"; g.lineWidth = 5; rr(14, 14, 1052, 1484, 48); g.stroke();
-  const L = 22 * S, R = 1080 - L; let y = 22 * S;
-  g.fillStyle = "rgba(239,237,233,.75)"; g.font = F(400, 13); g.textBaseline = "top"; g.fillText(P.dates, L, y);
-  g.fillStyle = "#fff"; g.beginPath(); g.arc(R - 10 * S, y + 8 * S, 10 * S, 0, 7); g.fill(); g.fillStyle = "#f2c08f"; g.beginPath(); g.arc(R - 6 * S, y + 8 * S, 4 * S, 0, 7); g.fill();
-  y += 28 * S; g.fillStyle = "#efede9"; g.font = F(800, 34);
-  const words = P.name.split(" "), lines = []; let cur = "";
-  words.forEach((wd) => { const t = cur ? cur + " " + wd : wd; if (g.measureText(t).width > R - L && cur) { lines.push(cur); cur = wd; } else cur = t; }); lines.push(cur);
-  lines.forEach((l) => { g.fillText(l, L, y); y += 34 * S; });
-  if (moods) {
-    y += 8 * S; const W = R - L, H = 78 * S, X = (i) => L + 10 * S + i * (W - 20 * S) / 6, Y = (m) => y + 8 * S + (6 - m) * (H - 30 * S) / 6;
-    const pts = P.ms.map((m, i) => (m == null ? null : [X(i), Y(m), m])).filter(Boolean);
-    if (pts.length > 1) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], cx = (x0 + x1) / 2; g.bezierCurveTo(cx, y0, cx, y1, x1, y1); }
-      g.strokeStyle = "#efede9"; g.lineWidth = 3 * S; g.lineCap = "round"; g.stroke(); }
-    pts.forEach(([x, yy, m]) => { g.beginPath(); g.arc(x, yy, 6 * S, 0, 7); g.fillStyle = MC[m]; g.fill(); g.lineWidth = 2 * S; g.strokeStyle = "#efede9"; g.stroke(); });
-    g.font = F(700, 11); g.textAlign = "center"; g.textBaseline = "alphabetic";
-    ["M", "T", "W", "T", "F", "S", "S"].forEach((l, i) => { g.fillStyle = P.ms[i] == null ? "rgba(239,237,233,.3)" : "rgba(239,237,233,.7)"; g.fillText(l, X(i), y + H - 2 * S); });
-    g.textAlign = "left"; g.textBaseline = "top"; y += H + 6 * S;
-  } else y += 16 * S;
-  if (P.card) {
-    g.font = F(600, 17); const tl = [], ws = P.card.text.split(" "); let c2 = "";
-    ws.forEach((wd) => { const t = c2 ? c2 + " " + wd : wd; if (g.measureText(t).width > R - L - 28 * S && c2) { tl.push(c2); c2 = wd; } else c2 = t; }); tl.push(c2);
-    const bh = (12 + 16 + 4 + tl.length * 22 + 4 + 20 + 12) * S;
-    const bx = g.createLinearGradient(0, y, 0, y + bh); bx.addColorStop(0, "#34353b"); bx.addColorStop(1, "#232428"); g.fillStyle = bx; rr(L, y, R - L, bh, 12 * S); g.fill();
-    g.strokeStyle = "rgba(227,196,134,.5)"; g.lineWidth = 3; g.stroke();
-    let yy = y + 12 * S; g.fillStyle = "#e3c486"; g.font = F(600, 12); g.fillText("Card of the week", L + 14 * S, yy); yy += 20 * S;
-    g.fillStyle = "#efede9"; g.font = F(600, 17); tl.forEach((l) => { g.fillText(l, L + 14 * S, yy); yy += 22 * S; }); yy += 4 * S;
-    g.fillStyle = tint(P.card.pillar); g.fillRect(L + 14 * S, yy + 5 * S, 8 * S, 8 * S); g.fillStyle = "#cfcac1"; g.font = F(400, 15); g.fillText(P.card.pillar, L + 28 * S, yy);
-    y += bh + 10 * S;
-  }
-  if (P.pil.length) {
-    g.fillStyle = "rgba(239,237,233,.7)"; g.font = F(400, 12); g.fillText("My week was about", L, y); y += 20 * S;
-    let x = L; g.font = F(400, 15);
-    P.pil.forEach((p) => { g.fillStyle = tint(p); g.fillRect(x, y + 5 * S, 8 * S, 8 * S); g.fillStyle = "#cfcac1"; g.fillText(p, x + 14 * S, y); x += 14 * S + g.measureText(p).width + 14 * S; });
-  }
-  g.fillStyle = "rgba(239,237,233,.55)"; g.font = F(400, 11); g.textBaseline = "alphabetic"; g.fillText("Daydeck", L, 1512 - 22 * S);
-  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("no picture"))), "image/png"));
-}
 
 // ---------------- Your weeks, in Your days: every week's card, newest first ----------------
+const thumbBg = (P) => { const c = (P.ms || []).filter((m) => m != null).map((m) => MC[m]); return c.length > 1 ? `background:linear-gradient(165deg,${c.join(",")})` : ""; };
 export function weeksSection() {
   const list = mem().weeks;
   if (!list.length) return null;
@@ -704,11 +756,11 @@ export function weeksSection() {
     h("div.wr-weeks-row", null, list.map((P) => h("button.wr-week-thumb", { "aria-label": `${P.name}, ${P.dates}`, onclick: () => {
       log("wrap_week_open");
       openSheet((panel) => {
-        const card = posterEl(P, { anim: false });
+        const card = posterView(P, true);
         card.classList.add("in-sheet");
         panel.append(card, h("button.btn-main", { style: { marginTop: "8px" }, onclick: () => sharePoster(P, true) }, "Share"));
       }, { label: P.name });
-    } }, h("span.d", null, P.dates), h("span.n", null, P.name)))));
+    }, style: thumbBg(P) }, h("span.d", null, P.dates), h("span.n", null, P.name)))));
 }
 
 // Test mode: open last week's wrapped whether or not it was seen.
