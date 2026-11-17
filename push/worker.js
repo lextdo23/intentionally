@@ -31,9 +31,11 @@ export default {
       const later = (t) => Number.isFinite(t) && t > Date.now() - DAY && t < Date.now() + 8 * DAY ? t : null;
       // Other daily times (words of affirmation): at most ten, each a time only.
       const daily = (Array.isArray(body.dailyAt) ? body.dailyAt : []).slice(0, 10).map(later).filter(Boolean);
+      // One-off times (Daydeck's card reminders): each sent once, then gone.
+      const once = (Array.isArray(body.onceAt) ? body.onceAt : []).slice(0, 4).map(later).filter(Boolean);
       const phone = env.PHONES.get(env.PHONES.idFromName(body.endpoint));
       if (body.app !== DAYDECK) { await phone.stop(); return reply({ ok: true, off: true }); } // old app: notifications off
-      await phone.plan(body.endpoint, later(body.timerAt), later(body.eveningAt), daily, DAYDECK);
+      await phone.plan(body.endpoint, later(body.timerAt), later(body.eveningAt), daily, DAYDECK, once);
       return reply({ ok: true });
     }
     if (pathname.startsWith("/t/")) return testers(req, env, pathname);
@@ -52,8 +54,8 @@ function pushable(endpoint) {
 
 // One per phone: holds its address and the next times, and wakes itself up when one is due.
 export class Phone extends DurableObject {
-  async plan(endpoint, timerAt, eveningAt, daily = [], app = null) {
-    const p = { endpoint, timerAt, eveningAt, daily, app, seen: Date.now() };
+  async plan(endpoint, timerAt, eveningAt, daily = [], app = null, once = []) {
+    const p = { endpoint, timerAt, eveningAt, daily, app, once, seen: Date.now() };
     await this.ctx.storage.put("plan", p);
     await this.wake(p);
   }
@@ -65,6 +67,7 @@ export class Phone extends DurableObject {
     const soon = Date.now() + 30000;
     let due = false;
     if (p.timerAt && p.timerAt <= soon) { due = true; p.timerAt = null; }
+    if ((p.once ?? []).some((t) => t <= soon)) { due = true; p.once = p.once.filter((t) => t > soon); }
     if (p.eveningAt && p.eveningAt <= soon) {
       due = Date.now() - p.seen < QUIET_AFTER;
       while (p.eveningAt <= soon) p.eveningAt += DAY;
@@ -85,7 +88,7 @@ export class Phone extends DurableObject {
   async stop() { await this.ctx.storage.deleteAlarm(); await this.ctx.storage.deleteAll(); }
 
   async wake(p) {
-    const next = Math.min(...[p.timerAt, p.eveningAt, ...(p.daily ?? [])].filter(Boolean));
+    const next = Math.min(...[p.timerAt, p.eveningAt, ...(p.daily ?? []), ...(p.once ?? [])].filter(Boolean));
     if (Number.isFinite(next)) await this.ctx.storage.setAlarm(next);
     else await this.ctx.storage.deleteAll();
   }

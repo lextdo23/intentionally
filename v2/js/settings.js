@@ -79,7 +79,7 @@ function nudges() {
   const say = () => {
     msg.textContent = notify.needsInstall() ? "On iPhone, add Daydeck to your Home Screen first (Share, then Add to Home Screen), then turn these on there."
       : !notify.supported() ? "This browser can't show notifications."
-      : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings app." : "One gentle nudge each, skipped if you've already checked in. It never shows anything you wrote.";
+      : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings app." : "One gentle nudge each, skipped if you've already checked in. Card reminders come at lunch and after work, only if your card isn't done yet. Nothing you wrote is ever shown.";
   };
   const row = (key, label) => {
     const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": label });
@@ -88,13 +88,20 @@ function nudges() {
     sw.addEventListener("click", async () => {
       const on = !n[key].on;
       if (on && (!notify.supported() || Notification.permission !== "granted")) { const ok = await notify.enable(); say(); if (!ok) return; }
-      n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
+      n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; cardShow(); store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
     });
     time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
     return h("div.set-row.set-toggle", null, h("span.set-label", null, label), time, sw);
   };
+  // Card reminders: on/off only. Times follow the day (see cardTimes in notify.js).
+  // It only works alongside a morning or evening nudge, so it shows off (and can't be pressed) while both are off.
+  const cardSw = h("button.switch", { role: "switch", "aria-label": "Card reminders" });
+  const cardShow = () => { const can = n.am.on || n.pm.on; cardSw.disabled = !can; cardSw.setAttribute("aria-checked", String(can && n.card.on)); };
+  cardSw.addEventListener("click", () => { n.card.on = !n.card.on; cardShow(); store.save(); notify.sync(); tester.log("nudge_card", n.card.on ? "on" : "off"); });
+  cardShow();
+  const cardRow = () => h("div.set-row.set-toggle", null, h("span.set-label", null, "Card reminders"), cardSw);
   say();
-  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day")], msg);
+  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()], msg);
 }
 
 // A copy of everything, as a file the person keeps. Tester details stay out of it.
