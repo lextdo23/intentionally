@@ -98,15 +98,15 @@ export function pillPicker(opts) {
     onclick: () => { opts.onToggle(w); sync(); } }, w);
   const draw = (focus) => {
     root.replaceChildren();
-    const plusA = h("button.plus", { "aria-label": "Add your own", onclick: () => adding() }, "+");
-    const plusB = h("button.plus", { "aria-label": "Add your own", onclick: () => adding() }, "+");
+    const plusA = opts.noAdd ? null : h("button.plus", { "aria-label": "Add your own", onclick: () => adding() }, "+");
+    const plusB = opts.noAdd ? null : h("button.plus", { "aria-label": "Add your own", onclick: () => adding() }, "+");
     const nsA = opts.notSure ? pill(opts.notSure, null, ".outline") : null, nsB = opts.notSure ? pill(opts.notSure, opts.more.length, ".outline") : null;
     const wrap = h("div.more-wrap", null, h("div", null, h("div.pills", { style: { paddingTop: "0" } }, opts.more.map((w, i) => pill(w, i)), plusB, nsB)));
     const label = h("button.btn-text", { style: { alignSelf: "center", fontSize: "15px", color: "var(--ink2)" }, "aria-expanded": "false" });
     const set = () => {
       wrap.classList.toggle("open", open);
-      plusA.hidden = open; if (nsA) nsA.hidden = open;
-      plusB.tabIndex = open ? 0 : -1; wrap.querySelectorAll(".pill").forEach((p) => (p.tabIndex = open ? 0 : -1));
+      if (plusA) plusA.hidden = open; if (nsA) nsA.hidden = open;
+      if (plusB) plusB.tabIndex = open ? 0 : -1; wrap.querySelectorAll(".pill").forEach((p) => (p.tabIndex = open ? 0 : -1));
       label.textContent = open ? "Show fewer" : `Show ${opts.more.length} more`; label.setAttribute("aria-expanded", String(open));
     };
     label.addEventListener("click", () => { open = !open; set(); if (open) log("show_more"); });

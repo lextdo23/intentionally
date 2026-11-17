@@ -4,7 +4,7 @@
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
-import { roundBtn, openSheet } from "./ui.js";
+import { roundBtn, openSheet, pillPicker } from "./ui.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 import { pickSteps } from "./pillars.js";
@@ -226,19 +226,36 @@ export function openDraw(onDone) { begin(onDone); log("card_open_draw"); drawSte
 
 // ---------------- Evening: how did it go? ----------------
 // If "I did it" was tapped, it asks how it went (no "Didn't get to it"). If not, it first asks if they got to it.
-export function howStep(id, picked, back, done, label, { did = false } = {}) {
-  const c = deck.card(id), from = did ? 1 : 0;
-  const go = mainBtn("Done", picked != null && picked >= from, () => done(sel));
-  let sel = picked;
-  const pills = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": did ? "How did it go?" : "Did you get to your card?" },
-    deck.HOW.map((w, i) => i < from ? null : h("button.pill", { role: "radio", "aria-checked": String(sel === i), "aria-pressed": String(sel === i), onclick: () => {
-      sel = i; pills.querySelectorAll(".pill").forEach((p) => { const on = +p.dataset.i === i; p.setAttribute("aria-pressed", String(on)); p.setAttribute("aria-checked", String(on)); });
-      go.setAttribute("aria-disabled", "false");
-    }, "data-i": String(i) }, w)).filter(Boolean));
+// The evening card step. ans = { how, felt } from before (or {}). If the card wasn't ticked, it first asks
+// "Did you get to your card?" (Yes / Didn't get to it); then "How did doing it feel?" with pick-any answers (deck.FELT).
+// done(ans) gets { how, felt }: how 0 = didn't get to it, otherwise worked out from felt (deck.howFromFelt).
+export function howStep(id, ans, back, done, label, { did = false } = {}) {
+  const c = deck.card(id), felt = new Set(ans.felt || []);
+  let yes = did || felt.size > 0, no = !did && ans.how === 0;
+  const holder = h("div.col", { style: { gap: "16px" } });
+  const go = mainBtn("Done", false, () => done(no ? { how: 0, felt: [] } : { how: deck.howFromFelt([...felt]), felt: [...felt] }));
+  const ready = () => go.setAttribute("aria-disabled", no || felt.size ? "false" : "true");
+  const draw = () => {
+    if (!yes) {
+      const pick = (v) => () => { if (v) { yes = true; no = false; } else no = true; draw(); };
+      holder.replaceChildren(h("h1.q", null, "Did you get to your card?"),
+        h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "Did you get to your card?" },
+          h("button.pill", { role: "radio", "aria-checked": "false", "aria-pressed": "false", onclick: pick(true) }, "Yes"),
+          h("button.pill", { role: "radio", "aria-checked": String(no), "aria-pressed": String(no), onclick: pick(false) }, "Didn't get to it")));
+    } else {
+      const main = deck.feltMain(c.pillar), more = deck.FELT.filter((w) => !main.includes(w));
+      felt.forEach((w) => { if (!main.includes(w)) { main.push(w); more.splice(more.indexOf(w), 1); } });
+      const pp = pillPicker({ main, more, picked: felt, noAdd: true, onToggle: (w) => { felt.has(w) ? felt.delete(w) : felt.add(w); ready(); } });
+      pp.el.querySelectorAll(".pills").forEach((x) => (x.style.justifyContent = "center"));
+      holder.replaceChildren(h("h1.q", null, "How did doing it feel?"), pp.el);
+    }
+    ready();
+  };
+  draw();
   return step(
-    [roundBtn("back", "Back", back), where(label), spacer()],
+    [roundBtn("back", "Back", () => { if (yes && !did) { yes = false; draw(); } else back(); }), where(label), spacer()],
     [h("div.mini.rise", null, h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[c.pillar] } }), c.pillar), h("span", null, c.text)),
-      h("h1.q.rise", null, did ? "How did it go?" : "Did you get to your card?"), h("div.rise", null, pills)],
+      h("div.rise", null, holder)],
     [go, LIFELINE()]);
 }
 

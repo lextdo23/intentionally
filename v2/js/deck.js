@@ -78,6 +78,25 @@ export function shown(ids, k = dayKey()) { const m = mem(), n = dayN(k); ids.for
 export function passed(ids) { const m = mem(); ids.forEach((id) => (m.passed[id] = (m.passed[id] || 0) + 1)); }
 export function save(id) { const m = mem(); if (!m.saved.includes(id)) m.saved.push(id); }
 export function unsave(id) { const m = mem(); m.saved = m.saved.filter((x) => x !== id); }
+// "How did doing it feel?" (alex 2026-11-17, option 4B): pick any that fit. Five that suit the card's pillar show first,
+// the rest sit under "Show more". Research: behavioural activation rates enjoyment and achievement separately, plus
+// energy, calm, connection and values. Shared by the evening step and anything else that asks after a card.
+// The order never changes: tester data sends positions in this list, never words.
+export const FELT = ["Enjoyed it", "Proud of myself", "Glad it's done", "Calmer", "Closer to someone", "More energy", "Felt like me", "Hard", "Drained me", "Not for me"];
+const FELT_GOOD = FELT.slice(0, 7);
+const FELT_PILLAR = { Friends: "Closer to someone", Family: "Closer to someone", Love: "Closer to someone", Community: "Closer to someone",
+  Move: "More energy", Outdoors: "More energy", Rest: "Calmer", Food: "Calmer",
+  "Work and study": "Proud of myself", Money: "Proud of myself", Learn: "Proud of myself",
+  "Play and create": "Felt like me", Give: "Felt like me", Meaning: "Felt like me" };
+// The five shown first for a pillar (a pillar of your own gets "Felt like me"); always with an honest low end.
+export function feltMain(pillar) { return [...new Set([FELT_PILLAR[pillar] || "Felt like me", "Enjoyed it", "Glad it's done", "Hard", "Drained me"])]; }
+// The old one-tap scale (HOW) still drives card memory and charts: none good = Drained, good and hard = Okay, one good = Good, two or more = Loved it.
+export function howFromFelt(felt) {
+  const good = felt.filter((w) => FELT_GOOD.includes(w)).length, low = felt.length - good;
+  return !felt.length ? null : !good ? 1 : low ? 2 : good === 1 ? 3 : 4;
+}
+// "Not for me" works like "Show less": the card comes up much less often.
+export function feltWent(id, felt) { if (felt.includes("Not for me")) mem().less[id] = 1; }
 export function howWent(id, how) {
   const m = mem();
   if (how >= 1) m.done[id] = (m.done[id] || 0) + 1;

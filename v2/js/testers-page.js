@@ -3,6 +3,8 @@ import { MOODS, MOOD_COL } from "./util.js";
 import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./words.js";
 import { BANK } from "./cards-data.js";
 const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
+// Same order as FELT in js/deck.js: testers send positions in this list, never words.
+const FELT = ["Enjoyed it", "Proud of myself", "Glad it's done", "Calmer", "Closer to someone", "More energy", "Felt like me", "Hard", "Drained me", "Not for me"];
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const $ = (id) => document.getElementById(id);
@@ -58,6 +60,7 @@ const SHAPE = {
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
   card_keep: (v) => isObj(v) && isNum(v.id),
   card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
+  card_felt: (v) => isObj(v) && isNum(v.id) && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)),
   card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
   card_smaller: (v) => isObj(v) && isNum(v.from),
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
@@ -233,11 +236,13 @@ function drawAll(D) {
   by("card_smaller").forEach((e) => C(e.val.from).smaller++);
   by("card_save").forEach((e) => C(e.val).saved++);
   const draws = by("card_draw").length, howAll = [0, 0, 0, 0, 0]; by("card_how").forEach((e) => howAll[e.val.how]++);
+  const feltAll = FELT.map(() => 0); by("card_felt").forEach((e) => e.val.f.forEach((i) => feltAll[i]++));
   const look = Object.entries(cs).map(([id, c]) => [+id, c, c.down * 3 + c.how[0] + c.how[1] + (c.drawn - c.kept > 3 && !c.kept ? 2 : 0)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
   const name = (id) => { const r = BANK[id - 1]; return r ? `#${id} ${r[4]}` : `#${id}`; };
   html += sec("Which cards need a look?", "How the daily card draw goes, and which cards people pass over, don't get to, or mark as needing work. Only card numbers are sent; the words come from the app's own list.",
     draws ? bars([["Mornings with a draw", draws], ["Drew again", by("card_redraw").length], ["Kept a card", by("card_keep").length], ["Made it smaller", by("card_smaller").length], ["Saved for later", by("card_save").length], ["Rest days", by("card_rest").length], ["Said \"Not now\"", by("card_later").length], ["Tapped \"I did it\" on home", by("card_did").length], ["Took \"I did it\" back", by("card_undo").length], ["Turned the card by hand", by("card_spin").length]], draws) +
       `<p class="note">How it went, in the evening:</p>` + bars(HOW.map((w, i) => [w, howAll[i]])) +
+      (feltAll.some(Boolean) ? `<p class="note">How doing it felt (pick any, from 17 Nov):</p>` + bars(FELT.map((w, i) => [w, feltAll[i]]).sort((a, b) => b[1] - a[1])) : "") +
       (look.length ? `<div class="items">${look.slice(0, 25).map(([id, c]) => item(name(id), `Drawn ${c.drawn} · kept ${c.kept} · didn't get to it ${c.how[0]} · drained ${c.how[1]} · loved ${c.how[4]} · fits ${c.up}, doesn't fit ${c.down}${c.downM && c.downM.size ? ` (for: ${[...c.downM].join(", ")})` : ""}`, c.down ? "Doesn't fit" : "Watch", true)).join("")}</div>` : `<p class="sub">No card stands out as a problem yet.</p>`) +
       (Object.keys(misfit).length ? `<p class="note">"Doesn't fit" by pillar and mindset:</p>` + bars(Object.entries(misfit).sort((a, b) => b[1] - a[1]).slice(0, 12)) : "")
     : `<p class="sub">No cards drawn yet.</p>`,

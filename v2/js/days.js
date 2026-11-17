@@ -243,7 +243,7 @@ function openDay(k) {
       if (d.feel && d.feel.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You felt"), h("div.pills", null, d.feel.map((f) => h("span.chip", null, f)))));
       if (d.rest) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You did"), h("span.chip", { style: { alignSelf: "flex-start" } }, "No card today, on purpose")));
       else if (d.card && d.card.id && cardOf(d.card.id)) { const c = cardOf(d.card.id); parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "Today's card"),
-        h("span", null, c.text), d.card.how != null ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, HOW[d.card.how]) : null,
+        h("span", null, c.text), d.card.how != null ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, d.card.felt && d.card.felt.length ? d.card.felt.join(", ") : HOW[d.card.how]) : null,
         d.pil && d.pil.length ? h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p))) : null)); }
       else if (d.pil && d.pil.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You gave time to"), h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p)))));
       if (d.sleep) parts.push(h("div.col", { style: { gap: "4px" } }, h("span.note", { style: { textAlign: "left" } }, "The night before"),
