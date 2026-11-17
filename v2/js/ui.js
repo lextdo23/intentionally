@@ -48,9 +48,10 @@ export function openSheet(build, { onClose, label } = {}) {
   else { set(H + 24); stop = spring(H + 24, 0, 0, set); }
 
   // Dragging. Touch and mouse share start / move / end. Rows moved by a handle (.grip), text fields and sliders are left alone.
-  let s0 = null, dragging = false, moved = false, base = 0, tr = null;
+  let s0 = null, dragging = false, moved = false, base = 0, tr = null, inner = null;
   const start = (x, yy, target) => {
     if (closed || target.closest(".grip, input, textarea, [data-nodrag]")) return;
+    inner = target.closest(".dcard.big .front");   // a long card scrolls inside; pulling down scrolls it back up first
     s0 = [x, yy]; dragging = false; moved = false; base = y; tr = tracker(); tr.add(yy);
   };
   const move = (x, yy) => {
@@ -58,8 +59,8 @@ export function openSheet(build, { onClose, label } = {}) {
     const dx = x - s0[0], dy = yy - s0[1];
     if (!dragging) {
       if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return false;
-      // Only take over when the pull is mostly downward and the card's own content is scrolled to the top (or the card is already moved).
-      if (Math.abs(dy) > Math.abs(dx) && ((dy > 0 && panel.scrollTop <= 0) || base !== 0)) { dragging = true; moved = true; stop(); }
+      // Only take over when the pull is mostly downward and the sheet's content (and any long card in it) is scrolled to the top (or the card is already moved).
+      if (Math.abs(dy) > Math.abs(dx) && ((dy > 0 && panel.scrollTop <= 0 && !(inner && inner.scrollTop > 0)) || base !== 0)) { dragging = true; moved = true; stop(); }
       else { s0 = null; return false; }
     }
     tr.add(yy);
