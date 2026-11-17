@@ -91,12 +91,12 @@ function render(moment) {
   const markDid = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
-    log("card_did", c.id); render("did");
+    log("card_did", c.id); notify.sync(); render("did");
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = false; d.pil = (d.pil || []).filter((x) => x !== p); store.save();
-    log("card_undo", c.id); render();
+    log("card_undo", c.id); notify.sync(); render();
   };
   let card = null;
   if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip" } : did ? { state: "done", flip: moment === "did", onUndo: ended ? null : undo } : { state: "up", onDid: markDid });

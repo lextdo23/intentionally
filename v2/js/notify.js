@@ -2,11 +2,13 @@
 // notification service (push/, shared with the old app) only those times. The service sends an empty ping and
 // the service worker here picks the words, so nothing the person noted ever leaves the phone.
 import * as store from "./store.js";
-import { dayKey } from "./util.js";
+import { dayKey, keyDate } from "./util.js";
+import { card as cardOf } from "./deck.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const DAY = 864e5;
-export const defaults = () => ({ am: { on: false, t: "08:00" }, pm: { on: false, t: "21:00" } });
+export const defaults = () => ({ am: { on: false, t: "08:00" }, pm: { on: false, t: "21:00" }, card: { on: true } });
+const HOUR = 36e5;
 export const supported = () => "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
 export const blocked = () => supported() && Notification.permission === "denied";
 // On iPhone, notifications only work once the app has been added to the Home Screen.
@@ -40,6 +42,29 @@ function nextAt(hhmm, done) {
   return t;
 }
 
+// Card reminders (alex 2026-11-17): up to two on a day you kept a card and haven't done it yet. "Lunch and after
+// work": 12:30pm, then 3 hours before your evening nudge. Kept the card after 12:30? Then 3 hours after keeping
+// it, and 3 hours after that. Never within an hour of the evening nudge, never on a rest day, and none at all
+// once the card is done. Only for people who have morning or evening nudges on.
+export function cardTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
+  const n = prefs(), k = dayKey(at), d = s.days[k] || {};
+  if (!n.card.on || !(n.am.on || n.pm.on) || d.rest || !d.card || !d.card.id || (d.card.done && !evenIfDone)) return [];
+  const on = (hhmm) => { const [h, m] = hhmm.split(":").map(Number), x = keyDate(k); x.setHours(h, m, 0, 0); let t = x.getTime(); if (h < 4) t += DAY; return t; };
+  const eve = on(n.pm.on ? n.pm.t : "21:00"), lunch = on("12:30"), kept = d.card.at || at;
+  const times = kept <= lunch ? [lunch, eve - 3 * HOUR] : [kept + 3 * HOUR, kept + 6 * HOUR];
+  return times.filter((t) => t > at && t <= eve - HOUR);
+}
+
+// The service worker picks the words for each ping, so it keeps a copy of today's card reminder times and task.
+// Only on this phone: the service still gets times and nothing else.
+// It also knows when the card is done, so a ping that was already on its way when "I did it" was tapped stays quiet.
+async function keepCardPlan(s) {
+  try {
+    const d = s.days[dayKey(Date.now())] || {}, c = d.card && d.card.id ? cardOf(d.card.id) : null, at = cardTimes(s, Date.now(), true);
+    await (await caches.open("nudge-plan")).put("card", new Response(JSON.stringify({ at, task: at.length && c ? c.text : "", done: !!(d.card && d.card.done) })));
+  } catch { /* no copy: a ping then gets the morning or evening words */ }
+}
+
 let sent = "";
 export async function sync() {
   if (!supported() || Notification.permission !== "granted") return;
@@ -49,9 +74,11 @@ export async function sync() {
   try {
     const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
     if (!sub) return;
-    const sig = sub.endpoint + times.join(",");
+    const once = cardTimes();
+    await keepCardPlan(store.get());
+    const sig = sub.endpoint + times.join(",") + "|" + once.join(",");
     if (sig === sent) return;
-    const res = await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "daydeck", endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: times }) });
+    const res = await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "daydeck", endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: times, onceAt: once }) });
     if (res.ok) sent = sig;
   } catch { /* offline: tries again next time the app opens or something changes */ }
 }

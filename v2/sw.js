@@ -30,20 +30,29 @@ async function note(entry) {
     await c.put("log", new Response(JSON.stringify(list.slice(-200))));
   } catch { /* counting must never stop a nudge */ }
 }
-self.addEventListener("push", (e) => {
+// Card reminders: the app keeps today's reminder times and the card's task here (on the phone only).
+async function cardPlan() {
+  try { const r = await (await caches.open("nudge-plan")).match("card"); return r ? await r.json() : null; } catch { return null; }
+}
+async function show() {
+  const p = await cardPlan(), t = Date.now();
+  if (p && (p.at || []).some((x) => Math.abs(x - t) < 20 * 60e3) && p.task) {
+    if (p.done) return; // done since this was planned: stay quiet
+    await self.registration.showNotification("Today's card", { body: p.task, icon: "icons/icon-192.png", tag: "daydeck-card" });
+    return note([t, "sent", "card"]);
+  }
   const morning = new Date().getHours() < 14, kind = morning ? "am" : "pm";
-  e.waitUntil(Promise.all([
-    // The phone adds "from Daydeck" itself, so the bold title is a greeting rather than the app's name (alex 2026-11-17).
-    self.registration.showNotification(morning ? "Good morning" : "Good evening", {
-      body: morning ? "How did you sleep?" : "How was today?",
-      icon: "icons/icon-192.png", tag: "daydeck-" + kind, // own tag each, so an unread morning nudge isn't replaced by the evening one
-    }),
-    note([Date.now(), "sent", kind]),
-  ]));
-});
+  // The phone adds "from Daydeck" itself, so the bold title is a greeting rather than the app's name (alex 2026-11-17).
+  await self.registration.showNotification(morning ? "Good morning" : "Good evening", {
+    body: morning ? "How did you sleep?" : "How was today?",
+    icon: "icons/icon-192.png", tag: "daydeck-" + kind, // own tag each, so an unread morning nudge isn't replaced by the evening one
+  });
+  return note([t, "sent", kind]);
+}
+self.addEventListener("push", (e) => { e.waitUntil(show()); });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const kind = e.notification.tag === "daydeck-am" ? "am" : "pm";
+  const kind = { "daydeck-am": "am", "daydeck-card": "card" }[e.notification.tag] || "pm";
   // Tells the app a nudge opened it, and which one (counted only for testers who joined tester mode).
   e.waitUntil(note([Date.now(), "tap", kind]).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1 }), open[0].focus()) : self.clients.openWindow("./?from=nudge"))));
 });

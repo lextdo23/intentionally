@@ -153,7 +153,7 @@ async function nudges() {
     await c.delete("log");
     if (!on()) return;
     const q = t().queue;
-    for (const [at, what, kind] of list) if (Number.isFinite(at) && (what === "sent" || what === "tap") && (kind === "am" || kind === "pm")) q.push([at, "nudge_" + what, kind]);
+    for (const [at, what, kind] of list) if (Number.isFinite(at) && (what === "sent" || what === "tap") && (kind === "am" || kind === "pm" || kind === "card")) q.push([at, "nudge_" + what, kind]);
     store.save();
   } catch { /* try again next open */ }
 }

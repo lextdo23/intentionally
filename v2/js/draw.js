@@ -218,7 +218,7 @@ function big(st, id) {
   show(step(
     [roundBtn("back", "Back to the three", () => hand(st, false)), where("Today's card"), spacer()],
     [h("div.rise", null, holder), h("div.rise", null, helpers)],
-    [mainBtn("Done", true, () => { d.card.id = id; store.save(); deck.unsave(id); close(true); }), LIFELINE()]));
+    [mainBtn("Done", true, () => { d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id); close(true); }), LIFELINE()]));
 }
 
 // From home: draw today's card (when "Not now" was pressed after the sleep check-in).

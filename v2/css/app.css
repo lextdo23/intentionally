@@ -190,6 +190,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .switch[aria-checked="true"] { background: var(--sun); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
 .switch::before { content: ""; position: absolute; inset: -7px; }
+.switch:disabled { opacity: .4; }
 
 /* ---------- Settings: a full page that slides in from the right ---------- */
 #settings { position: fixed; inset: 0; background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 30%, var(--sky3) 100%);
