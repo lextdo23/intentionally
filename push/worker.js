@@ -135,18 +135,18 @@ const short = (x, n = 30) => (typeof x === "string" ? x.slice(0, n) : "");
 
 async function testers(req, env, path) {
   if (req.method === "GET" && path === "/t/all") {
-    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const no = await gate(req, env); if (no) return no;
     return reply(await db(env).all());
   }
   if (req.method !== "POST") return reply({ error: "not found" }, 404);
   if (path === "/t/wipe") {
-    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const no = await gate(req, env); if (no) return no;
     await db(env).wipe();
     return reply({ ok: true });
   }
   // Removes one tester: deletes what they shared and stops their phone sending any more.
   if (path === "/t/remove") {
-    if (!admin(req, env)) return reply({ error: "wrong key" }, 403);
+    const no = await gate(req, env); if (no) return no;
     const b = await req.json().catch(() => null);
     if (!b || !CODE.test(b.code)) return reply({ error: "bad request" }, 400);
     await db(env).remove(b.code);
@@ -183,6 +183,21 @@ function admin(req, env) {
   let d = 0; for (let i = 0; i < want.length; i++) d |= want.charCodeAt(i) ^ got.charCodeAt(i);
   return d === 0;
 }
+// A limit on wrong passwords for the tester page (alex, 2026-11-17): 3 wrong passwords from the same internet
+// address and that address is locked out for a week, even with the right password. Only a scrambled form of the
+// address is kept, and only for that week. A right password before the third try clears the count.
+// Way back in if alex is locked out: set a new TESTER_KEY on GitHub and run "Push service". Lockouts belong to
+// the password they were made under, so a new password starts everyone fresh.
+const TRIES = 3, LOCK = 7 * DAY;
+async function gate(req, env) {
+  const who = await sha("ip:" + (req.headers.get("CF-Connecting-IP") || "unknown"));
+  const under = (await sha("key:" + (env.TESTER_KEY || ""))).slice(0, 16);
+  const store = db(env);
+  if (await store.fails(who, under) >= TRIES) return reply({ error: "locked" }, 429);
+  if (!admin(req, env)) { await store.fail(who, under); return reply({ error: "wrong key", left: Math.max(0, TRIES - await store.fails(who, under)) }, 403); }
+  await store.clearFails(who, under);
+  return null;
+}
 async function sha(s) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
@@ -199,7 +214,9 @@ export class Testers extends DurableObject {
       CREATE TABLE IF NOT EXISTS days (code TEXT, day TEXT, data TEXT, PRIMARY KEY (code, day));
       CREATE TABLE IF NOT EXISTS events (code TEXT, t INTEGER, name TEXT, val TEXT);
       CREATE INDEX IF NOT EXISTS ev_code ON events (code);
-      CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);`);
+      CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS fails2 (who TEXT, k TEXT, t INTEGER);
+      DROP TABLE IF EXISTS fails;`);
     REMOVED.forEach((c) => this.remove(c));
   }
   remove(code) {
@@ -231,5 +248,12 @@ export class Testers extends DurableObject {
     return { at: Date.now(), testers: q("SELECT code, joined, seen, phone, version, started, nudges FROM testers"),
       days: q("SELECT code, day, data FROM days"), events: q("SELECT code, t, name, val FROM events ORDER BY t") };
   }
+  // Wrong tester page passwords in the last week, per scrambled internet address and password (see gate()).
+  fails(who, k) {
+    this.sql.exec("DELETE FROM fails2 WHERE t < ?", Date.now() - LOCK);
+    return this.sql.exec("SELECT COUNT(*) AS c FROM fails2 WHERE who = ? AND k = ?", who, k).one().c;
+  }
+  fail(who, k) { this.sql.exec("INSERT INTO fails2 VALUES (?, ?, ?)", who, k, Date.now()); }
+  clearFails(who, k) { this.sql.exec("DELETE FROM fails2 WHERE who = ? AND k = ?", who, k); }
   wipe() { for (const t of ["testers", "days", "events"]) this.sql.exec(`DELETE FROM ${t}`); }
 }

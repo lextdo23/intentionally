@@ -134,6 +134,7 @@ const dayDiff = (a, b) => Math.round((kd(b) - kd(a)) / 864e5);
 const keyOf = (t) => { const d = new Date(t - 4 * 3600e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 let pw = ""; try { pw = localStorage.getItem("daydeck-tester-pw") || ""; } catch {}
+const forget = () => { pw = ""; $("pw").value = ""; try { localStorage.removeItem("daydeck-tester-pw"); } catch {} };
 $("pw").value = pw;
 $("login").addEventListener("submit", (e) => { e.preventDefault(); pw = $("pw").value.trim(); try { localStorage.setItem("daydeck-tester-pw", pw); } catch {} load(); });
 if (pw) load();
@@ -143,7 +144,11 @@ async function load() {
   $("status").textContent = "Loading…";
   try {
     const res = await fetch(`${SERVICE}/t/all`, { headers: { Authorization: "Bearer " + pw } });
-    if (res.status === 403) { $("status").textContent = "That password didn't work. Check it matches the TESTER_KEY you set on GitHub."; return; }
+    // A wrong password is forgotten at once, so opening the page again doesn't use up another try.
+    if (res.status === 403) { forget(); const left = (await res.json().catch(() => ({}))).left;
+      $("status").textContent = left > 0 ? `That password didn't work. ${left} ${left === 1 ? "try" : "tries"} left before this connection is locked for a week.`
+        : "That password didn't work. This connection is now locked for a week."; return; }
+    if (res.status === 429) { forget(); $("status").textContent = "This connection is locked for a week after 3 wrong passwords. To get back in sooner, set a new TESTER_KEY on GitHub and run \"Push service\"."; return; }
     if (!res.ok) throw new Error(res.status);
     raw = await res.json();
   } catch { $("status").textContent = "Couldn't reach the Daydeck service. Check you're online and try again."; return; }
