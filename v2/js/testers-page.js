@@ -66,6 +66,9 @@ const okEvent = (name, val) => typeof name === "string" && (!SHAPE[name] || SHAP
 const okDay = (d) => isObj(d) && (d.mood == null || isInt(d.mood, 0, 6)) && arrOrNone(d.feel) && arrOrNone(d.pil)
   && (d.sleep == null || (isObj(d.sleep) && arrOrNone(d.sleep.tags)));
 let skipped = 0;
+const PLACES = 60; // same as PLACES in push/worker.js
+// Only a real number counts. Anyone can send the service records, so text where a number belongs must never reach the page.
+const count = (x) => (Number.isFinite(x) && x > 0 ? x : 0);
 
 function render(D) {
   skipped = 0;
@@ -176,7 +179,7 @@ function drawAll(D) {
   // 7. Words never picked
   const allDays = testers.flatMap((t) => Object.values(days[t.code] || {}));
   const tagC = {}, feelC = {}; let pmDays = 0, notSure = 0, ownW = 0;
-  allDays.forEach((d) => { (d.sleep && d.sleep.tags || []).forEach((w) => (tagC[w] = (tagC[w] || 0) + 1)); ownW += (d.sleep && d.sleep.own || 0) + (d.feelOwn || 0);
+  allDays.forEach((d) => { (d.sleep && d.sleep.tags || []).forEach((w) => (tagC[w] = (tagC[w] || 0) + 1)); ownW += count(d.sleep && d.sleep.own) + count(d.feelOwn);
     if (d.mood != null) { pmDays++; (d.feel || []).forEach((w) => (feelC[w] = (feelC[w] || 0) + 1)); if ((d.feel || []).includes("Not sure")) notSure++; } });
   const tagRows = SLEEP_TAGS.concat(SLEEP_MORE).map((w) => [w, tagC[w] || 0]).sort((a, b) => a[1] - b[1]);
   const feelRows = FEELINGS.map((f) => [f[0], feelC[f[0]] || 0]).sort((a, b) => a[1] - b[1]);
@@ -277,7 +280,7 @@ function drawAll(D) {
 
   // Testers table + actions
   const fmt = (t) => new Date(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
-  html += `<section data-g="testers"><h2>Testers</h2><p class="ask">Everyone sharing with you.</p>${removedMsg ? `<p class="sub" aria-live="polite">${esc(removedMsg)}</p>` : ""}
+  html += `<section data-g="testers"><h2>Testers</h2><p class="ask">Everyone sharing with you.</p><p class="note">${testers.length} of ${PLACES} places used. The service takes up to ${PLACES} testers; remove someone to free a place.</p>${removedMsg ? `<p class="sub" aria-live="polite">${esc(removedMsg)}</p>` : ""}
     <div class="items">${testers.map((t) => `<div class="tcard" data-code="${esc(t.code)}"><div class="ttop"><div class="who"><b>${esc(t.code)}</b>
       <span>${esc(t.phone || "")} · app ${esc(t.version || "?")} · joined ${fmt(t.joined)} · last sent ${fmt(t.seen)} · ${Object.keys(days[t.code] || {}).length} days noted</span></div>
       <button class="rm">Remove</button></div></div>`).join("")}</div>

@@ -35,6 +35,15 @@ const BADDAYS = [day("T-JUNK", { mood: 2, feel: "a string, not a list" }), { cod
   check(c.remove === 2, "both testers have a Remove button, so the junk sender can be removed");
   check(/9 records skipped/.test(c.status), `the page says how many records were skipped (${c.status.split("·").pop().trim()})`);
   check(c.pwn === 0 && c.imgs === 0, "nothing sent by testers runs as code");
+  // Text sent where a number belongs (the "own words" count) must never become part of the page.
+  const PLANT = '"><img src=x onerror="window.__pwn=1"><b id="planted">';
+  check(await show({ at: now, testers: [T("T-GOOD"), T("T-JUNK")], days: GOODDAYS.concat([day("T-JUNK", { mood: 3, feel: [], feelOwn: PLANT, sleep: { tags: [], own: PLANT } })]), events: GOOD }) === null, "text in a number's place doesn't stop the page");
+  await p.waitForTimeout(300);
+  const d = await p.evaluate(() => ({ planted: !!document.getElementById("planted"), imgs: document.querySelectorAll("#out img").length, pwn: window.__pwn || 0,
+    line: [...document.querySelectorAll("#out .note")].map((n) => n.textContent).find((t) => /own words/.test(t)) || "" }));
+  check(!d.planted && d.imgs === 0 && d.pwn === 0, "text sent in place of a number never becomes part of the page");
+  check(/own words 0 times/.test(d.line), "only real numbers are counted (" + d.line.slice(0, 60) + "…)");
+  check(await p.evaluate(() => /of 60 places used/.test(document.getElementById("out").textContent)), "the Testers tab shows how many of the 60 places are used");
   check(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await b.close(); server.close(); done();
 })();
