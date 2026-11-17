@@ -70,6 +70,30 @@ table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:ta
 td,th{padding:6px 8px;text-align:left;border-bottom:1px solid var(--faint);white-space:nowrap}
 th{color:var(--dim);font-weight:500}
 .foot{border-top:1px solid var(--faint);padding-top:24px}
+/* Card thumbs: every rated card, by pillar, with filters */
+.pils{display:flex;flex-direction:column;gap:8px}
+.pil{background:rgba(255,255,255,.05);border-radius:16px;padding:12px 16px;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;min-height:44px;font-size:17px}
+.pil[aria-pressed="true"]{box-shadow:0 0 0 2px var(--gold) inset}
+.ph{display:flex;align-items:center;gap:8px;font-weight:600}
+.ph .n{margin-left:auto;font-size:13px;color:var(--dim);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.split{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--faint)}
+.split i{display:block;height:100%}.split .u{background:var(--ok)}.split .d{background:var(--warn)}
+.ms{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--faint);padding-top:8px}
+.m{display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--dim)}
+.m b{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
+.m.warn b{color:var(--warn)}
+.seg{display:flex;background:rgba(255,255,255,.06);border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;min-height:36px;border-radius:10px;background:transparent;color:var(--dim);padding:0 8px}
+.seg button[aria-pressed="true"]{background:rgba(255,255,255,.12);color:var(--ink);font-weight:600}
+select{min-height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.08);color:var(--ink);font:inherit;font-size:15px;padding:0 12px;flex:1 1 160px;min-width:0}
+.titem{background:rgba(255,255,255,.05);border-radius:16px;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.titem .meta{font-size:13px;color:var(--dim)}
+.votes{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-start}
+.v{flex:0 0 auto;white-space:nowrap;font-size:13px;font-weight:600;border-radius:10px;padding:3px 10px;display:inline-flex;gap:6px;align-items:center;font-variant-numeric:tabular-nums}
+.v.up{background:rgba(169,196,181,.16);color:var(--ok)}.v.dn{background:rgba(224,165,126,.18);color:var(--warn)}
+.v.who{background:rgba(255,255,255,.06);color:var(--dim);font-weight:500}
+.v svg{width:12px;height:12px}.v.dn svg{transform:scaleY(-1)}
 </style>
 </head>
 <body>
@@ -282,6 +306,9 @@ function render(D) {
       (Object.keys(misfit).length ? `<p class="note">"Doesn't fit" by pillar and mindset:</p>` + bars(Object.entries(misfit).sort((a, b) => b[1] - a[1]).slice(0, 12)) : "")
     : `<p class="sub">No cards drawn yet.</p>`,
     "thumbs ask testers whether a card fits their pillar and where they're at with it, not whether the card is good. A card that doesn't fit may belong under a different mindset. Cards with thumbs down, or often \"Didn't get to it\" or \"Drained\", are the first to rewrite or cut. Lots of \"Drew again\" means the first three often don't fit.");
+  // Card thumbs: every rated card (not only the problem ones), by pillar then mindset, with filters (alex 2026-11-17)
+  html += sec("Card thumbs", "Every card a tester has rated: does it fit their pillar and where they're at with it? Tap a pillar to see only its cards.", `<div id="thumbs"></div>`,
+    "a thumbs down asks \"does this fit me\", not \"is this a good card\". A card that doesn't fit may belong under a different mindset.");
   // Setup: choosing pillars and where you're at
   const pStart = by("pick_start").filter((e) => e.val === "setup"), pDone = by("pick_done").filter((e) => e.val && e.val.first);
   const pQuit = {}; by("pick_quit").forEach((e) => { const k = String(e.val).startsWith("mindset_") ? "On a pillar's question" : "Choosing pillars"; pQuit[k] = (pQuit[k] || 0) + 1; });
@@ -322,6 +349,7 @@ function render(D) {
   html += `<section class="foot"><h2>Your data</h2><p class="ask" style="margin:0">Download everything to keep a copy or to send to Claude. When testing ends, delete it all.</p>
     <div class="row"><button id="dl" class="main">Download all data</button><button id="wipe">Delete all tester data</button></div><p class="note" id="wipemsg" aria-live="polite"></p></section>`;
   $("out").innerHTML = html;
+  thumbsView(by("card_thumb"));
 
   // Remove a tester: one tap asks, the second removes. Deletes what they shared and stops their phone sending.
   document.querySelectorAll(".tcard").forEach((card) => {
@@ -349,6 +377,61 @@ function render(D) {
   };
 }
 window.__render = (d) => { raw = d; $("login").hidden = true; render(d); };
+// ---------------- Card thumbs ----------------
+const PCOL = { Friends: "#d9b3a6", Family: "#d9b3a6", Love: "#d9b3a6", Community: "#d9b3a6", Move: "#a9c4b5", Outdoors: "#a9c4b5",
+  Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9" };
+const TH = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M7 10v11H4V10h3zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.6a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 17.7 21H7"/></svg>`;
+function thumbsView(events) {
+  const box = $("thumbs"); if (!box) return;
+  // One answer per tester per card (the latest), then add them up per card.
+  const last = {}; events.forEach((e) => { if (e.val && e.val.id) last[e.code + "|" + e.val.id] = e; });
+  const cards = {};
+  Object.values(last).forEach((e) => {
+    const r = BANK[e.val.id - 1]; if (!r) return;
+    const c = (cards[r[0]] = cards[r[0]] || { id: r[0], pillar: r[1], size: r[2], forWho: Array.isArray(r[3]) ? r[3] : [r[3]], text: r[4], up: 0, down: 0, upBy: [], downBy: [] });
+    if (e.val.v > 0) { c.up++; c.upBy.push(e.code); } else { c.down++; c.downBy.push(e.code); }
+  });
+  const all = Object.values(cards);
+  if (!all.length) { box.innerHTML = `<p class="sub">No thumbs yet.</p>`; return; }
+  const ups = all.reduce((a, c) => a + c.up, 0), downs = all.reduce((a, c) => a + c.down, 0);
+  // Pillars, most rated first; each split by the mindset the card was written for.
+  const pil = {}; all.forEach((c) => {
+    const p = (pil[c.pillar] = pil[c.pillar] || { name: c.pillar, up: 0, down: 0, ms: {} }); p.up += c.up; p.down += c.down;
+    c.forWho.forEach((m) => { const x = (p.ms[m] = p.ms[m] || [0, 0]); x[0] += c.up; x[1] += c.down; });
+  });
+  const pils = Object.values(pil).sort((a, b) => (b.up + b.down) - (a.up + a.down) || a.name.localeCompare(b.name));
+  const st = { pillar: "", show: "all", sort: "liked", more: false };
+  const draw = () => {
+    const tot = (p) => p.up + p.down;
+    let list = all.filter((c) => (!st.pillar || c.pillar === st.pillar) && (st.show === "all" || (st.show === "up" ? c.up : c.down)));
+    const net = (c) => c.up - c.down;
+    list.sort(st.sort === "liked" ? (a, b) => net(b) - net(a) || b.up - a.up || a.id - b.id
+      : st.sort === "least" ? (a, b) => net(a) - net(b) || b.down - a.down || a.id - b.id
+      : (a, b) => (b.up + b.down) - (a.up + a.down) || a.id - b.id);
+    const shown = st.more ? list : list.slice(0, 20);
+    box.innerHTML = `<div style="display:flex;flex-direction:column;gap:16px">
+      <div class="tiles"><div class="tile"><b>${all.length}</b><span>cards rated, of ${BANK.length}</span></div>
+        <div class="tile"><b>${ups}</b><span>thumbs up</span></div><div class="tile"><b>${downs}</b><span>thumbs down</span></div></div>
+      <div class="pils">${pils.map((p) => `<button type="button" class="pil" data-p="${esc(p.name)}" aria-pressed="${st.pillar === p.name}">
+        <span class="ph"><i class="dot" style="background:${PCOL[p.name] || "#a9a59d"}"></i>${esc(p.name)}<span class="n">${p.up} fit · ${p.down} ${p.down === 1 ? "doesn't" : "don't"}</span></span>
+        <span class="split"><i class="u" style="width:${p.up / tot(p) * 100}%"></i><i class="d" style="width:${p.down / tot(p) * 100}%"></i></span>
+        ${st.pillar === p.name ? `<span class="ms">${Object.entries(p.ms).sort((a, b) => (b[1][0] + b[1][1]) - (a[1][0] + a[1][1])).map(([m, [u, d]]) => `<span class="m${d ? " warn" : ""}"><span>${esc(m)}</span><b>${u} fit · ${d} ${d === 1 ? "doesn't" : "don't"}</b></span>`).join("")}</span>` : ""}
+      </button>`).join("")}</div>
+      <div class="row"><select id="tpil" aria-label="Pillar"><option value="">All pillars</option>${pils.map((p) => `<option ${st.pillar === p.name ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>
+        <select id="tsort" aria-label="Order"><option value="liked" ${st.sort === "liked" ? "selected" : ""}>Most liked first</option><option value="least" ${st.sort === "least" ? "selected" : ""}>Least liked first</option><option value="most" ${st.sort === "most" ? "selected" : ""}>Most rated first</option></select></div>
+      <div class="seg" role="group" aria-label="Show">${[["all", "All"], ["up", "Fits"], ["down", "Doesn't fit"]].map(([k, l]) => `<button type="button" data-s="${k}" aria-pressed="${st.show === k}">${l}</button>`).join("")}</div>
+      <div class="items">${shown.map((c) => `<div class="titem"><span>#${c.id} ${esc(c.text)}</span><span class="meta">${esc(c.pillar)} · ${esc(c.forWho.join(", "))} · ${esc(c.size)}</span>
+        <span class="votes">${c.up ? `<span class="v up" title="Fits">${TH}${c.up}</span>` : ""}${c.down ? `<span class="v dn" title="Doesn't fit">${TH}${c.down}</span>` : ""}
+        ${c.upBy.length ? `<span class="v who">fits: ${esc(c.upBy.join(", "))}</span>` : ""}${c.downBy.length ? `<span class="v who">doesn't fit: ${esc(c.downBy.join(", "))}</span>` : ""}</span></div>`).join("") || `<p class="sub">No cards here yet.</p>`}</div>
+      ${list.length > shown.length ? `<button type="button" id="tmore">Show all ${list.length}</button>` : ""}</div>`;
+    box.querySelectorAll(".pil").forEach((b) => (b.onclick = () => { st.pillar = st.pillar === b.dataset.p ? "" : b.dataset.p; st.more = false; draw(); }));
+    box.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => { st.show = b.dataset.s; st.more = false; draw(); }));
+    $("tpil").onchange = (e) => { st.pillar = e.target.value; st.more = false; draw(); };
+    $("tsort").onchange = (e) => { st.sort = e.target.value; draw(); };
+    if ($("tmore")) $("tmore").onclick = () => { st.more = true; draw(); };
+  };
+  draw();
+}
 </script>
 </body>
 </html>
