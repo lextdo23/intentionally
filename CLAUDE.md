@@ -23,6 +23,7 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - All data lives in `localStorage` under the key `intentionally` (see `js/store.js`). Bump `SCHEMA` and migrate when the shape changes.
 - `sw.js` caches the app for offline use. **Bump `VERSION` and update `FILES` whenever any file changes or is added.**
 - iOS 26 lays a home-screen app out one status bar short (a strip at the bottom) unless the page is taller than that; `html` gets a `min-height` for home-screen apps in `css/app.css`. Keep it.
+- v2 pages carry a Content-Security-Policy meta tag (safety net): only the app's own files and `intentionally-push.lextdo.workers.dev`. No inline `<script>` and no outside scripts; a new outside service must be added to `connect-src` in both `v2/index.html` and `v2/testers.html`. `node tests/csp.test.cjs` checks every screen.
 - Time always comes from `now()` in `js/clock.js`, never `Date.now()` directly in app logic, so test mode's time travel works. (The sky's orbit phase uses the real clock on purpose.)
 
 ## Design rules (agreed with alex; don't drift from these)

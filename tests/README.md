@@ -9,3 +9,4 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/sleep-data.test.cjs
     node tests/tester-page.test.cjs
     node tests/support.test.cjs
+    node tests/csp.test.cjs
