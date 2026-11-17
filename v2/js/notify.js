@@ -55,5 +55,20 @@ export async function sync() {
     if (res.ok) sent = sig;
   } catch { /* offline: tries again next time the app opens or something changes */ }
 }
+// Delete everything: tells the service to forget each of this phone's nudge plans (Daydeck's and the old
+// Intentionally app's, which share this site), then signs the phone out of notifications. If the phone is offline,
+// the sign-out still happens, and the service then deletes the plan itself the first time a ping is refused.
+export async function forget() {
+  sent = "";
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    for (const reg of await navigator.serviceWorker.getRegistrations()) {
+      const sub = reg.pushManager && await reg.pushManager.getSubscription();
+      if (!sub) continue;
+      await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "daydeck", endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: [] }) }).catch(() => {});
+      await sub.unsubscribe().catch(() => {});
+    }
+  } catch { /* nothing signed up */ }
+}
 const bytes = (b64u) => Uint8Array.from(atob(b64u.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { sent = ""; sync(); } });

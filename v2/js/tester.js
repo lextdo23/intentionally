@@ -47,6 +47,25 @@ export function join() {
 }
 
 // Stops sharing and asks the service to delete everything sent under this code.
+// forget(): used by Delete everything. Asks the service to delete, and if the phone is offline, keeps only the
+// code and key aside (not in the main data) and finishes the delete the next time the phone is online.
+// Returns true if it's all gone now, false if the delete will finish later.
+const PENDING = "daydeck-delete-later";
+export async function forget() {
+  const tt = store.get().tester;
+  if (!tt || !tt.code || !tt.key) return true;
+  if (await leave()) return true;
+  try { localStorage.setItem(PENDING, JSON.stringify({ code: tt.code, key: tt.key })); } catch { /* storage blocked */ }
+  return false;
+}
+async function finishForget() {
+  let p = null; try { p = JSON.parse(localStorage.getItem(PENDING)); } catch { /* none */ }
+  if (!p || !p.code || !p.key) return;
+  try {
+    const res = await fetch(`${SERVICE}/t/leave`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ code: p.code, key: p.key }) });
+    if (res.status < 500) localStorage.removeItem(PENDING); // done, or nothing left that this key can delete
+  } catch { /* still offline: try again next open */ }
+}
 export async function leave() {
   const s = store.get(), tt = s.tester;
   if (!tt) return true;
@@ -137,6 +156,7 @@ async function nudges() {
 
 // App opened, and whether a nudge opened it.
 export async function opened() {
+  finishForget();
   const fromNudge = new URLSearchParams(location.search).get("from") === "nudge";
   log("open", fromNudge ? "nudge" : undefined);
   await nudges();
@@ -144,3 +164,4 @@ export async function opened() {
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.nudge) log("open", "nudge"); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") opened(); else send(true); });
+addEventListener("online", finishForget);
