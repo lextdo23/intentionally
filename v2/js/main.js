@@ -3,7 +3,7 @@ import { h, MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LI
 import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
-import { openDraw, cardDue, homeCard } from "./draw.js";
+import { openDraw, cardDue, homeCard, askFelt } from "./draw.js";
 import { openDays } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
@@ -88,18 +88,34 @@ function render(moment) {
   else line = "Next, end your day tonight.";
 
   // Today's card sits where the sun is: face down until drawn, face up until done, then turned over with a tick.
+  // "I did it" asks "How did doing it feel?" straight away, on home (alex 2026-11-17). Not now: tonight asks instead.
   const markDid = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
-    log("card_did", c.id); notify.sync(); render("did");
+    log("card_did", c.id); notify.sync();
+    askFelt(card, c.id, { mid, hide: main,
+      onPick: (list) => {
+        const dd = store.day(k);
+        if (list.length) {
+          dd.card.felt = list; dd.card.how = deck.howFromFelt(list);
+          deck.howWent(c.id, dd.card.how); deck.feltWent(c.id, list);
+          log("card_how", { id: c.id, how: dd.card.how });
+          log("card_felt", { id: c.id, f: list.map((w) => deck.FELT.indexOf(w)), home: 1 }); // positions only, never words
+        } else log("card_felt_later", c.id);
+        store.save();
+        play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
+      },
+      onEnd: () => render() });
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
-    d.card.done = false; d.pil = (d.pil || []).filter((x) => x !== p); store.save();
+    if (d.card.how != null) deck.unWent(c.id, d.card.how);
+    d.card.done = false; delete d.card.how; delete d.card.felt; d.pil = (d.pil || []).filter((x) => x !== p); store.save();
     log("card_undo", c.id); notify.sync(); render();
   };
   let card = null;
-  if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip" } : did ? { state: "done", flip: moment === "did", onUndo: ended ? null : undo } : { state: "up", onDid: markDid });
+  const felt = c && c.felt || [];
+  if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt } : did ? { state: "done", flip: moment === "did", felt } : { state: "up", onDid: markDid });
   else if (!today.rest && !ended && deck.deck().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
 
   const mo = moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
@@ -108,28 +124,35 @@ function render(moment) {
   let taps = 0, tapT = 0;
   greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
   const words = h("div.col.greet-words", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
+  // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept
+  // while the card is still to do, so the card doesn't jump when it appears.
+  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : null);
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
-    h("div.home-mid", null, card),
+    mid,
     h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
   testBar();
 
-  clearTimeout(momentT);
-  if (mo) {
-    words.classList.add("moment"); card && card.classList.add("on");
+  // A moment: the greeting turns gold with what just happened, then softens back to "head" and "after".
+  function play(big, small, lift, after = line) {
+    clearTimeout(momentT);
+    greet.textContent = big; sub.textContent = small;
+    words.classList.add("moment"); if (lift && card) card.classList.add("on");
     if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
     momentT = setTimeout(() => {
       words.classList.remove("moment"); card && card.classList.remove("on");
-      if (greet.textContent !== head || sub.textContent !== line) {
-        const swap = () => { greet.textContent = head; sub.textContent = line; };
+      if (greet.textContent !== head || sub.textContent !== after) {
+        const swap = () => { greet.textContent = head; sub.textContent = after; };
         if (reduceMotion()) return swap();
         words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
       }
     }, 3600);
   }
+  clearTimeout(momentT);
+  if (mo) play(mo[0], mo[1] ? mo[1] : line, true);
 }
 
 function changeToday() {
@@ -178,7 +201,7 @@ tester.opened();
 if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !document.body.classList.contains("in-flow")) render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask"].some((x) => document.body.classList.contains(x))) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;

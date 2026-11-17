@@ -4,7 +4,7 @@
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
-import { roundBtn, openSheet, pillPicker } from "./ui.js";
+import { roundBtn, pillPicker } from "./ui.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 import { pickSteps } from "./pillars.js";
@@ -19,8 +19,8 @@ export function cardDue(k = dayKey()) {
 }
 
 // One card's two faces. big = the full card with why it helps.
-export function cardEl(id, { big = false, tag = "button" } = {}) {
-  const el = h(`${tag}.dcard${big ? ".big" : ""}`, { type: tag === "button" ? "button" : null });
+export function cardEl(id, { big = false, tag = "button", info = false } = {}) {
+  const el = h(`${tag}.dcard${big ? ".big" : ""}${info ? ".info" : ""}`, { type: tag === "button" ? "button" : null });
   el.append(h("div.in", null, h("div.face.back"), h("div.face.front")));
   if (id) fill(el, id, big);
   return el;
@@ -65,6 +65,8 @@ function fill(el, id, big) {
     big && times ? h("span.again", null, `Back again · done ${times === 1 ? "once" : times + " times"}`) : null,
     big ? h("span.why", null, c.why) : null,
     big && c.source ? h("span.src", null, c.source) : null,
+    // On home (alex 2026-11-17, B1): why it helps, with the study at the end, in one quiet line low on the card.
+    !big && el.classList.contains("info") ? h("span.why", null, c.why.replace(/\.\s*$/, "") + (c.source ? ". " : ""), c.source ? h("span.src", null, c.source) : null) : null,
     h("span.size", null, SIZE[c.size] || c.size),
     !big && testerOn() ? thumbs(id) : null].filter(Boolean));
   el.setAttribute("aria-label", el.classList.contains("up") || big ? `${c.pillar}: ${c.text}` : "Face-down card");
@@ -264,9 +266,13 @@ export function howStep(id, ans, back, done, label, { did = false } = {}) {
 // "skip" (the day ended without it: back in the deck, no guilt). flip = it was just done, so the tick fills in now.
 let timers = [], lastSpin = -1e9;
 const T0 = performance.now();
-export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo } = {}) {
+const tickEl = (c) => h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
+  h("svg", { width: "11", height: "11", viewBox: "0 0 24 24", fill: "none", stroke: "#1d1e22", "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round" }, h("path", { d: "M5 12.5l4.5 4.5L19 7.5" })));
+// What they said doing it felt like, in gold where the size was: the first one, then "+2" for more.
+const feltEl = (felt) => h("span.felt-word", null, felt[0] + (felt.length > 1 ? ` +${felt.length - 1}` : ""));
+export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid } = {}) {
   timers.forEach(clearTimeout); timers = [];
-  const el = cardEl(id || null, { tag: "div" }); el.classList.add("home-card");
+  const el = cardEl(id || null, { tag: "div", info: state === "up" || state === "done" }); el.classList.add("home-card");
   if (state === "up" || state === "done") el.classList.add("up");
   const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
   // Done (alex 2026-11-15, "fill the circle, step back"): the card stays face up, a small circle in its pillar's colour
@@ -275,8 +281,7 @@ export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo 
     el.classList.add("did"); if (flip) el.classList.add("fresh");
     const size = el.querySelector(".front .size"), foot = h("span.card-foot");
     size.replaceWith(foot);
-    foot.append(size, h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
-      h("svg", { width: "11", height: "11", viewBox: "0 0 24 24", fill: "none", stroke: "#1d1e22", "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round" }, h("path", { d: "M5 12.5l4.5 4.5L19 7.5" }))));
+    foot.append(felt && felt.length ? feltEl(felt) : size, tickEl(c));
   }
   if (state === "skip") { back.classList.add("marked"); back.append(h("span.dot", { "aria-hidden": "true" }), h("span.done-task", null, "Back in the deck for another day")); }
   if (state === "up") {
@@ -284,10 +289,12 @@ export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo 
     const size = el.querySelector(".front .size"), foot = h("span.card-foot");
     size.replaceWith(foot); foot.append(size, did);
   }
-  const label = { down: onTap ? "Today's card, face down. Tap to draw it." : "Today's card, face down.", up: c && `Today's card: ${c.text}. Tap to see why it helps.`,
-    done: c && `Done today: ${c.text}. Tap to see the card.`, skip: "Today's card went back in the deck for another day." }[state];
+  const why = c ? ` Why it helps: ${c.why.replace(/\.\s*$/, "")}.${c.source ? ` ${c.source}.` : ""}` : "";
+  const label = { down: onTap ? "Today's card, face down. Tap to draw it." : "Today's card, face down.", up: c && `Today's card: ${c.text}.${why}`,
+    done: c && `Done today: ${c.text}.${felt && felt.length ? ` It felt: ${felt.join(", ")}.` : ""}${why}`, skip: "Today's card went back in the deck for another day." }[state];
   el.setAttribute("aria-label", label);
-  const tap = state === "down" ? onTap : state === "skip" ? null : () => openCard(id, state === "done" ? onUndo : null);
+  // Everything is on the card's face now, so tapping a face-up card does nothing (alex 2026-11-17). Face down, it draws.
+  const tap = state === "down" ? onTap : null;
   if (tap) {
     el.setAttribute("role", "button"); el.tabIndex = 0;
     el.addEventListener("click", tap);
@@ -301,6 +308,11 @@ export function homeCard(id, { state = "up", flip = false, onTap, onDid, onUndo 
   // Until today's card is done, a soft gold edge breathes with the sun (alex 2026-11-16, option 3B).
   if (state === "up" || state === "down") el.classList.add("todo");
   if (state !== "skip") spinner(el, state === "down" ? 0 : 180);
+  // A long task or why line: the card grows taller to fit, so nothing is cut off.
+  if (state === "up" || state === "done") requestAnimationFrame(() => {
+    const f = el.querySelector(".front");
+    if (f.clientHeight && f.scrollHeight > f.clientHeight + 1) el.style.height = `${Math.ceil(210 * f.scrollHeight / f.clientHeight)}px`;
+  });
   return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
 }
 // Drag sideways and the card turns with your finger; let go and it carries on, slowing to rest face up again.
@@ -349,7 +361,7 @@ function spinner(el, rest) {
   // A drag is not a tap: after the card is turned by hand, the tap that follows is ignored.
   el.addEventListener("click", (e) => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
   const busy = () => document.hidden || held || raf || performance.now() - touched < 4000 || document.querySelector(".sheet-host")
-    || ["in-flow", "in-days", "in-settings"].some((c) => document.body.classList.contains(c));
+    || ["in-flow", "in-days", "in-settings", "in-ask"].some((c) => document.body.classList.contains(c));
   const auto = () => {
     if (!el.isConnected) return;
     if (!reduceMotion() && !busy()) {
@@ -361,11 +373,94 @@ function spinner(el, rest) {
   };
   timers.push(setTimeout(auto, Math.max(2000, 15000 - (performance.now() - lastSpin))));
 }
-function openCard(id, onUndo) {
-  log("card_open", id);
-  openSheet((panel, close) => {
-    const face = cardEl(id, { big: true, tag: "div" }); face.classList.add("up");
-    panel.append(h("div.big-holder", { style: { padding: "8px 0" } }, face));
-    if (onUndo) panel.append(h("div.helpers", null, h("button.btn-pill", { onclick: () => { close(); onUndo(); } }, "Not done yet")));
-  }, { label: "Today's card" });
+// ---------------- Home: "How did doing it feel?" right after "I did it" ----------------
+// alex 2026-11-17 ("the mix"): the tick fills, the card steps up and shrinks, and the question rises under it, all in one
+// move. "End your day" fades so Done is the only gold button. Done or "Not now", and the card glides home: good feelings
+// lift it a touch, heavy ones let it settle. Its glow builds on the way down, peaks as it lands, holds, then dies away
+// (cool and quieter for heavy feelings). What they picked takes the size's place in gold, then the card greys out.
+// onPick(list) gets the picks ([] for "Not now"), onEnd() runs once it's all still.
+const SOFT = "cubic-bezier(.4,0,.2,1)";
+const HEAVY = ["Hard", "Drained me", "Not for me"];
+export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
+  const c = deck.card(id), el = lifter.querySelector(".home-card"), front = el.querySelector(".front");
+  const rm = reduceMotion(), D = (ms) => (rm ? 0 : ms);
+  document.body.classList.add("in-ask");
+  lifter.style.pointerEvents = "none"; lifter.style.transformOrigin = "50% 0";
+  const did = el.querySelector(".did");
+  if (did) { const t = tickEl(c); t.classList.add("fresh-tick"); did.replaceWith(t); }
+
+  const felt = new Set(), main = deck.feltMain(c.pillar), more = deck.FELT.filter((w) => !main.includes(w));
+  const pp = pillPicker({ main, more, picked: felt, noAdd: true, onToggle: (w) => { felt.has(w) ? felt.delete(w) : felt.add(w); } });
+  pp.el.querySelectorAll(".pills").forEach((x) => (x.style.justifyContent = "center"));
+  pp.el.querySelectorAll(":scope > .pills > .pill").forEach((b, i) => b.style.setProperty("--i", i));
+  const ok = h("button.ok", { type: "button" }, "Done");
+  const later = h("button.btn-text.later", { type: "button" }, "Not now");
+  const ask = h("div.did-ask", { role: "group", "aria-label": "How did doing it feel?" }, h("p.did-q", null, "How did doing it feel?"), pp.el, ok, later);
+
+  // The card shrinks to half, its top 20px higher; the question sits 20px under it.
+  const m = mid.getBoundingClientRect(), l = lifter.getBoundingClientRect();
+  const top = l.top - m.top - 20 + l.height * 0.5 + 20;
+  ask.style.top = `${top}px`;
+  mid.append(ask);
+  const wrap = pp.el.querySelector(".more-wrap");
+  const h0 = ask.offsetHeight, extra = wrap ? wrap.firstChild.scrollHeight + 8 : 0;
+  // If the question (or the open "Show more") would reach past where "End your day" was, everything moves up together.
+  const shift = (open) => Math.max(0, Math.round(m.top + top + h0 + (open ? extra : 0) - hide.getBoundingClientRect().bottom));
+  const up = (s) => `translateY(${-20 - s}px) scale(.5)`;
+  let at = up(shift(false));
+  const move = (to, ms) => {
+    const from = getComputedStyle(lifter).transform;
+    lifter.getAnimations().forEach((a) => a.cancel());
+    lifter.animate([{ transform: from === "none" ? "none" : from }, { transform: to }], { duration: D(ms) || 1, easing: SOFT, fill: "forwards" });
+    at = to;
+  };
+  move(at, 800);
+  ask.style.transform = `translateY(${-shift(false)}px)`;
+  requestAnimationFrame(() => requestAnimationFrame(() => ask.classList.add("on")));
+  setTimeout(() => ask.classList.add("settled"), D(1300));
+  hide.classList.add("soft-gone");
+  const label = pp.el.querySelector(":scope > .btn-text");
+  if (label) label.addEventListener("click", () => {
+    const open = label.getAttribute("aria-expanded") === "true", s = shift(open);
+    move(up(s), 550); ask.style.transform = `translateY(${-s}px)`;
+  });
+
+  let gone = false;
+  const finish = (list) => {
+    if (gone) return; gone = true;
+    hide.classList.remove("soft-gone");
+    ask.classList.remove("on"); ask.classList.add("leaving");
+    setTimeout(() => ask.remove(), D(400));
+    onPick(list);
+    const any = list.length > 0, good = list.some((w) => !HEAVY.includes(w));
+    const MOVE = 2200, HOLD = 900, FADE = 1500, ALL = MOVE + HOLD + FADE, WAIT = 260;
+    // The glow: from wherever the breathing edge was, up to its peak as the card lands, hold, then gone.
+    const start = getComputedStyle(front).boxShadow;
+    el.classList.remove("todo");
+    const peak = any && good ? "0 0 0 1px rgb(227 196 134 / .6), 0 0 52px rgb(242 192 143 / .5), 0 14px 30px rgba(0, 0, 0, .5)"
+      : any ? "0 0 0 1px rgb(169 185 214 / .4), 0 0 26px rgb(169 185 214 / .22), 0 14px 30px rgba(0, 0, 0, .5)"
+      : "0 0 0 1px rgb(227 196 134 / .4), 0 0 24px rgb(242 192 143 / .22), 0 14px 30px rgba(0, 0, 0, .5)";
+    const end = "0 0 0 1px rgb(227 196 134 / .18), 0 0 0 rgb(242 192 143 / 0), 0 14px 30px rgba(0, 0, 0, .5)";
+    if (!rm) front.animate([
+      { boxShadow: start && start !== "none" ? start : end, offset: 0, easing: "ease-in" },
+      { boxShadow: peak, offset: MOVE / ALL },
+      { boxShadow: peak, offset: (MOVE + HOLD) / ALL, easing: "ease-out" },
+      { boxShadow: end, offset: 1 }], { duration: ALL, delay: WAIT, fill: "both" });
+    // Home again, all in one move.
+    const frames = !any ? [{ transform: at }, { transform: "none" }]
+      : [{ transform: at, offset: 0 }, { transform: good ? "translateY(-10px) scale(1.01)" : "translateY(6px) scale(.99)", offset: 0.6 }, { transform: "none", offset: 1 }];
+    frames[0].transform = getComputedStyle(lifter).transform;
+    lifter.getAnimations().forEach((a) => a.cancel());
+    lifter.animate(frames, { duration: D(MOVE) || 1, delay: D(WAIT), easing: SOFT, fill: "both" });
+    // The gold word takes the size's place while the card is still moving.
+    if (any) {
+      const size = el.querySelector(".card-foot .size"), w = feltEl(list);
+      if (size) { size.classList.add("out"); w.classList.add("enter"); setTimeout(() => { size.replaceWith(w); requestAnimationFrame(() => requestAnimationFrame(() => w.classList.remove("enter"))); }, D(600)); }
+    }
+    // Then it greys out to its done look, as the glow dies. The gold word stays gold.
+    setTimeout(() => el.classList.add("did"), D(WAIT + MOVE + HOLD));
+    setTimeout(() => { document.body.classList.remove("in-ask"); onEnd(); }, D(WAIT + ALL + 100));
+  };
+  ok.addEventListener("click", () => finish([...felt]));
+  later.addEventListener("click", () => finish([]));
 }

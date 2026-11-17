@@ -102,6 +102,12 @@ export function howWent(id, how) {
   if (how >= 1) m.done[id] = (m.done[id] || 0) + 1;
   if (how === 4) m.loved[id] = (m.loved[id] || 0) + 1;
 }
+// "Not done yet" after it was answered: take back what howWent counted.
+export function unWent(id, how) {
+  const m = mem();
+  if (how >= 1 && m.done[id]) m.done[id]--;
+  if (how === 4 && m.loved[id]) m.loved[id]--;
+}
 // "Back again": a card you've done before shows how many times.
 export const doneTimes = (id) => mem().done[id] || 0;
 export const today = (k = dayKey()) => { const d = store.get().days[k]; return d && d.card && d.card.id ? card(d.card.id) : null; };
