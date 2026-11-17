@@ -1,6 +1,7 @@
 // Your days: one scrolling page. Your moods, Mood and sleep, Mood and what you did, What seems to help you.
 // Slides in from the right like iPhone Settings; "‹ Today" or a swipe in from the left edge goes back.
 import { h, MOODS, MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE } from "./util.js";
+import { weeksSection } from "./wrapped.js";
 import * as store from "./store.js";
 import { moodSeries, mostlyWord, oldestBack, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
 import { RESTED } from "./words.js";
@@ -69,7 +70,7 @@ function render() {
   el.replaceChildren(h("div.bg"), h("div.scroll", null, h("div.page", null,
     h("div.page-head", null, roundBtn("back", "Back to today", () => closeDays()), h("button.btn-pill", { onclick: arrange }, "Edit")),
     h("h1.big-title", null, "Your days"),
-    h("div.sections", null, s.order.map((k) => ({ A: secMoods, B: secSleep, C: secPillars, D: secHelps }[k])(s))),
+    h("div.sections", null, s.order.map((k) => ({ A: secMoods, B: secSleep, C: secPillars, D: secHelps }[k])(s)), weeksSection()),
     LIFELINE())));
   const edge = h("div.edge", { "aria-hidden": "true" }); el.append(edge); edgeSwipe(edge);
 }

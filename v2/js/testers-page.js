@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup" };
+  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their weekly wrapped?": "checkins" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -315,6 +315,24 @@ function drawAll(D) {
         `<p class="note">Usually reached: level 2 on ${day(2)}, level 3 on ${day(3)}, level 5 on ${day(5)}, level 10 on ${day(10)}. Planned for a usual week: level 2 on day 1, level 3 by day 3, level 5 by day 8, level 10 by day 28.</p>`
       : `<p class="sub">No levels yet. They start counting once a tester opens the new version.</p>`,
       "if people are much slower than planned, packs feel far away and the points or the curve need easing; much faster and packs lose their meaning."); }
+
+  // Weekly wrapped (from 17 Nov): ready vs opened vs finished, where people stop, the guess, what they keep, sharing.
+  { const ready = who("wrap_ready"), opened = who("wrap_open"), fin = who("wrap_done");
+    const quits = {}; by("wrap_quit").forEach((e) => (quits[e.val || "?"] = (quits[e.val || "?"] || 0) + 1));
+    const SCR = { name: "1 Name of the week", best: "2 Guess your best day", find: "3 Something we noticed", works: "4 What works for you", next: "5 Shape next week", poster: "6 Your week on a card" };
+    const g = {}; by("wrap_guess").forEach((e) => (g[e.val] = (g[e.val] || 0) + 1));
+    const keep = {}; by("wrap_keep").forEach((e) => String(e.val || "").split(",").filter(Boolean).forEach((k) => (keep[k] = (keep[k] || 0) + 1)));
+    const KEEP = { nudge: "Wind-down nudge", more: "More cards from what worked", try: "Try a rarely drawn pillar", tiny: "Only tiny cards", rest: "A rest day midweek", same: "Keep it as it is" };
+    const stops = {}; by("wrap_stop").forEach((e) => (stops[e.val] = (stops[e.val] || 0) + 1));
+    const names = {}; by("wrap_name").forEach((e) => (names[e.val] = (names[e.val] || 0) + 1));
+    html += sec("Do people open their weekly wrapped?", "Testers whose wrapped was ready, who opened it and who reached the last card. Then where people closed it, how the best-day guess went, what they kept for next week, and sharing.",
+      ready || opened ? bars([["Wrapped was ready", ready], ["Opened it", opened], ["Reached the last card", fin]], Math.max(ready, opened)) +
+        `<p class="note">Closed early on: ${Object.entries(quits).map(([k, n]) => `${esc(SCR[k] || k)} ${n}`).join(", ") || "never"}.</p>` +
+        `<p class="note">Best-day guess: right ${g.right || 0}, close ${g.close || 0}, off ${g.off || 0}, no guess ${g.none || 0}.</p>` +
+        bars(Object.entries(KEEP).map(([k, l]) => [l, keep[k] || 0]).sort((a, b) => b[1] - a[1])) +
+        `<p class="note">"Not now" ${by("wrap_notnow").length}. Stopped early from home or Settings: ${Object.entries(stops).map(([k, n]) => `${esc(KEEP[k] || k)} ${n}`).join(", ") || "never"}. Shared ${by("wrap_share").length} (without moods ${by("wrap_share").filter((e) => e.val === "no_moods").length}). Week names given: ${Object.entries(names).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none yet"}.</p>`
+      : `<p class="sub">No wrapped yet. The first one is ready on a tester's day 7.</p>`,
+      "lots of closing on one screen means that screen is slow or unclear; ideas nobody keeps, or keep then stop, can be cut."); }
 
   // 12. Safety
   html += sec("Safety", "Counts only, never tied to anything a tester wrote. For the safety reviewer.",

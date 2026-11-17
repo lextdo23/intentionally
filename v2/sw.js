@@ -1,9 +1,9 @@
 // Keeps Daydeck working offline. Only looks after the v2 folder, never the old app.
 // Bump VERSION whenever any file below changes.
-const VERSION = "d36";
+const VERSION = "d37";
 const FILES = [
-  "./", "index.html", "manifest.webmanifest", "css/app.css",
-  "js/main.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js",
+  "./", "index.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css",
+  "js/main.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/wrapped.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
 ];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open("daydeck-" + VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
@@ -31,8 +31,8 @@ async function note(entry) {
   } catch { /* counting must never stop a nudge */ }
 }
 // Card reminders: the app keeps today's reminder times and the card's task here (on the phone only).
-async function cardPlan() {
-  try { const r = await (await caches.open("nudge-plan")).match("card"); return r ? await r.json() : null; } catch { return null; }
+async function cardPlan(key = "card") {
+  try { const r = await (await caches.open("nudge-plan")).match(key); return r ? await r.json() : null; } catch { return null; }
 }
 async function show() {
   const p = await cardPlan(), t = Date.now();
@@ -40,6 +40,12 @@ async function show() {
     if (p.done) return; // done since this was planned: stay quiet
     await self.registration.showNotification("Today's card", { body: p.task, icon: "icons/icon-192.png", tag: "daydeck-card" });
     return note([t, "sent", "card"]);
+  }
+  // The wind-down nudge kept from the weekly wrapped: 20 minutes before the usual lights out.
+  const w = await cardPlan("wind");
+  if (w && (w.at || []).some((x) => Math.abs(x - t) < 20 * 60e3)) {
+    await self.registration.showNotification("Time to wind down", { body: "Your usual lights out is in 20 minutes.", icon: "icons/icon-192.png", tag: "daydeck-wind" });
+    return note([t, "sent", "wind"]);
   }
   const morning = new Date().getHours() < 14, kind = morning ? "am" : "pm";
   // The phone adds "from Daydeck" itself, so the bold title is a greeting rather than the app's name (alex 2026-11-17).
@@ -52,7 +58,7 @@ async function show() {
 self.addEventListener("push", (e) => { e.waitUntil(show()); });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const kind = { "daydeck-am": "am", "daydeck-card": "card" }[e.notification.tag] || "pm";
+  const kind = { "daydeck-am": "am", "daydeck-card": "card", "daydeck-wind": "wind" }[e.notification.tag] || "pm";
   // Tells the app a nudge opened it, and which one (counted only for testers who joined tester mode).
   e.waitUntil(note([Date.now(), "tap", kind]).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1 }), open[0].focus()) : self.clients.openWindow("./?from=nudge"))));
 });

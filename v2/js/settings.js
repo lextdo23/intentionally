@@ -1,6 +1,7 @@
 // Settings: a full page that slides in from the right (like the iPhone's own Settings), opened by the round
 // gear on home. Grouped rows: Nudges, Your data, Support, About, then Delete everything at the bottom.
-import { h, dayKey, reduceMotion } from "./util.js";
+import { h, dayKey, keyDate, DAY_NAME, reduceMotion } from "./util.js";
+import * as deck from "./deck.js";
 import * as store from "./store.js";
 import * as notify from "./notify.js";
 import * as tester from "./tester.js";
@@ -104,7 +105,14 @@ function nudges() {
   cardShow();
   const cardRow = () => h("div.set-row.set-toggle", null, h("span.set-label", null, "Card reminders"), cardSw);
   say();
-  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()], msg);
+  // The wind-down nudge kept from the weekly wrapped shows here while it runs; switching it off stops it.
+  const wind = deck.planItems().find((x) => x.kind === "nudge");
+  const windRow = () => {
+    const sw = h("button.switch", { role: "switch", "aria-checked": "true", "aria-label": "Wind-down nudge" });
+    sw.addEventListener("click", () => { wind.off = true; store.save(); notify.sync(); tester.log("wrap_stop", "nudge"); sw.setAttribute("aria-checked", "false"); sw.disabled = true; });
+    return h("div.set-row.set-toggle", null, h("span.set-label", null, "Wind-down nudge"), h("span.time-pill", { style: { opacity: ".7" } }, `until ${DAY_NAME[keyDate(store.get().wrap.plan.end).getDay()]}`), sw);
+  };
+  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()].concat(wind ? [windRow()] : []), msg);
 }
 
 // A copy of everything, as a file the person keeps. Tester details stay out of it.

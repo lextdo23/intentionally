@@ -2,7 +2,7 @@
 // notification service (push/, shared with the old app) only those times. The service sends an empty ping and
 // the service worker here picks the words, so nothing the person noted ever leaves the phone.
 import * as store from "./store.js";
-import { dayKey, keyDate } from "./util.js";
+import { dayKey, keyDate, addDays } from "./util.js";
 import { card as cardOf } from "./deck.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
@@ -55,6 +55,22 @@ export function cardTimes(s = store.get(), at = Date.now(), evenIfDone = false) 
   return times.filter((t) => t > at && t <= eve - HOUR);
 }
 
+// Wind-down nudge (weekly wrapped, screen 5: "Keep your 11:20 nights"): once a night, 20 minutes before the usual
+// lights out, until the plan's Sunday, then it stops by itself. Skipped on a night you've already ended your day.
+// The service takes four one-off times at most, so it gets the next nights that fit after any card reminders.
+export function windTimes(s = store.get(), at = Date.now()) {
+  const p = s.wrap && s.wrap.plan, it = p && p.items.find((x) => x.kind === "nudge" && !x.off);
+  if (!it) return [];
+  const out = [];
+  for (let k = dayKey(at); k <= p.end && out.length < 4; k = addDays(k, 1)) {
+    if (k < p.start || (s.days[k] && s.days[k].mood != null)) continue;
+    const x = keyDate(k); x.setHours(Math.floor(it.at / 60), it.at % 60, 0, 0);
+    const t = x.getTime() + (it.at < 240 ? DAY : 0);
+    if (t > at) out.push(t);
+  }
+  return out;
+}
+
 // The service worker picks the words for each ping, so it keeps a copy of today's card reminder times and task.
 // Only on this phone: the service still gets times and nothing else.
 // It also knows when the card is done, so a ping that was already on its way when "I did it" was tapped stays quiet.
@@ -62,6 +78,7 @@ async function keepCardPlan(s) {
   try {
     const d = s.days[dayKey(Date.now())] || {}, c = d.card && d.card.id ? cardOf(d.card.id) : null, at = cardTimes(s, Date.now(), true);
     await (await caches.open("nudge-plan")).put("card", new Response(JSON.stringify({ at, task: at.length && c ? c.text : "", done: !!(d.card && d.card.done) })));
+    await (await caches.open("nudge-plan")).put("wind", new Response(JSON.stringify({ at: windTimes(s) })));
   } catch { /* no copy: a ping then gets the morning or evening words */ }
 }
 
@@ -74,7 +91,7 @@ export async function sync() {
   try {
     const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
     if (!sub) return;
-    const once = cardTimes();
+    const card = cardTimes(), once = card.concat(windTimes().slice(0, Math.max(0, 4 - card.length)));
     await keepCardPlan(store.get());
     const sig = sub.endpoint + times.join(",") + "|" + once.join(",");
     if (sig === sent) return;

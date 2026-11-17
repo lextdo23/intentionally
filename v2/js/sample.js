@@ -1,6 +1,8 @@
 // Test mode: two months of made-up days, so Your days has something to show.
 import { addDays, dayKey } from "./util.js";
 import { FEELINGS, band, SLEEP_TAGS, SLEEP_MORE } from "./words.js";
+import { BANK } from "./cards-data.js";
+import { feltMain, howFromFelt } from "./deck.js";
 
 export const SAMPLE_PILLARS = [["Friends", 1.1], ["Move", 0.7], ["Play and create", 0.5], ["Rest", 0.1], ["Work and study", -0.4]];
 
@@ -27,7 +29,16 @@ export function makeSample(n = 60) {
     const mood = Math.max(0, Math.min(6, Math.round(1.6 + rested * 0.6 + lift * 0.9 - (late ? 0.5 : 0) + (rnd() - 0.5) * 2)));
     const b = band(mood), pool = FEELINGS.filter((w) => Math.abs(w[1] - b) <= (rnd() < 0.3 ? 1 : 0));
     const feel = [...new Set([0, 1, 2].slice(0, 1 + Math.floor(rnd() * 3)).map(() => pool[Math.floor(rnd() * pool.length)][0]))];
-    days[k] = { sleep: { bed: bed % 1440, wake, rested, tags }, mood, feel, pil, rest, sample: 1 };   // sample: never counts towards levels
+    // A card from the day's pillar (and two it was drawn with), done on most days, so the weekly wrapped has cards to show.
+    let card;
+    if (!rest) {
+      const from = (pl) => BANK.filter((r) => r[1] === pl && r[3] === "Everyone"), own = from(pil[0]), any = from(SAMPLE_PILLARS[Math.floor(rnd() * 5)][0]);
+      const id = own[Math.floor(rnd() * own.length)][0], hand = [id, any[Math.floor(rnd() * any.length)][0], any[Math.floor(rnd() * any.length)][0]];
+      card = { id, hands: [hand] };
+      if (rnd() < 0.7) { const m = feltMain(pil[0]), felt = mood >= 4 ? [m[0], "Enjoyed it"].slice(0, 1 + Math.floor(rnd() * 2)) : mood >= 2 ? ["Glad it's done"] : ["Hard"];
+        Object.assign(card, { done: true, felt: [...new Set(felt)], how: howFromFelt([...new Set(felt)]) }); }
+    }
+    days[k] = { sleep: { bed: bed % 1440, wake, rested, tags }, mood, feel, pil, rest, card, sample: 1 };   // sample: never counts towards levels
   }
   return days;
 }
