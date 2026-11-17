@@ -93,7 +93,8 @@ function clean(d) {
   }
   if (Array.isArray(d.pil)) out.pil = d.pil.filter((p) => typeof p === "string" && p.length < 30);
   if (d.rest) out.rest = true;
-  if (d.card != null) out.card = d.card;
+  if (d.card != null) out.card = d.card && typeof d.card === "object" ? Object.assign({}, d.card, { id: typeof d.card.id === "string" ? 0 : d.card.id }) : d.card;   // an own card is sent as 0, never its words
+  if (Array.isArray(d.made)) out.made = d.made.length;
   return out;
 }
 

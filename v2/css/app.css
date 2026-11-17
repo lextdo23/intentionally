@@ -436,3 +436,15 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .soft-gone { opacity: 0; pointer-events: none; transition: opacity .35s ease; }
 .btn-main { transition: background .3s, color .3s, opacity .35s ease; }
 @media (prefers-reduced-motion: reduce) { .did-ask, .did-ask * { transition: none !important; } .undo-slot .undo, .home-card .fresh-tick { animation: none; } }
+
+/* Make your own card (alex 2026-11-17, look A): write straight onto a blank card; the pillar tints it, feelings land in gold. */
+.dcard .size.own, .home-card .size.own { color: var(--gold); }
+.home-card.own-make { animation: none; zoom: calc(var(--k, 1) * 1.2); align-self: center; }
+.own-make .own-text { flex-grow: 1; width: 100%; resize: none; border: 0; padding: 0; margin: 0; background: transparent; color: var(--ink); font: inherit; font-size: 17px; font-weight: 600; line-height: 1.25; outline: none; }
+.own-make .own-text::placeholder { color: #77746e; }
+.own-make .card-foot .size { font-size: 11px; line-height: 1.3; }
+.own-pil { display: inline-flex; align-items: center; gap: 8px; }
+.own-pil .sq { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.own-btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; color: var(--sun); background: rgb(242 192 143 / .14); }
+.own-btn span { font-size: 22px; line-height: 1; }
+.own-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; font-size: 17px; }

@@ -66,9 +66,9 @@ function fill(el, id, big) {
     big ? h("span.why", null, c.why) : null,
     big && c.source ? h("span.src", null, c.source) : null,
     // On home (alex 2026-11-17, B1): why it helps, with the study at the end, in one quiet line low on the card.
-    !big && el.classList.contains("info") ? h("span.why", null, c.why.replace(/\.\s*$/, "") + (c.source ? ". " : ""), c.source ? h("span.src", null, c.source) : null) : null,
-    h("span.size", null, SIZE[c.size] || c.size),
-    !big && testerOn() ? thumbs(id) : null].filter(Boolean));
+    !big && el.classList.contains("info") && c.why ? h("span.why", null, c.why.replace(/\.\s*$/, "") + (c.source ? ". " : ""), c.source ? h("span.src", null, c.source) : null) : null,
+    c.own ? h("span.size.own", null, "Made by you") : h("span.size", null, SIZE[c.size] || c.size),
+    !big && testerOn() && !c.own ? thumbs(id) : null].filter(Boolean));
   el.setAttribute("aria-label", el.classList.contains("up") || big ? `${c.pillar}: ${c.text}` : "Face-down card");
 }
 
@@ -87,7 +87,7 @@ export function drawSteps() {
   if (!d.card || !d.card.hands || !d.card.hands.length) {
     const ids = deck.draw3([], k);
     d.card = { hands: [ids] }; deck.shown(ids, k); store.save();
-    log("card_draw", ids);
+    log("card_draw", ids.map(deck.tid));
   }
   const st = { ids: d.card.hands[d.card.hands.length - 1].slice(), up: [false, false, false], pick: null, smaller: null };
   hand(st, true);
@@ -100,7 +100,7 @@ function hand(st, dealIn) {
   const keep = mainBtn("Keep this one", st.pick != null, () => {
     const id = st.ids[st.pick];
     deck.passed(st.ids.filter((x) => x !== id));
-    log("card_keep", { id, draw: d.card.hands.length });
+    log("card_keep", { id: deck.tid(id), draw: d.card.hands.length });
     big(st, id);
   });
   const lastLine = h("p.note", null, "That's your last draw for today. Pick the closest fit.");
@@ -143,7 +143,7 @@ function hand(st, dealIn) {
     const j = handEls.indexOf(e);
     if (busy || j < 0) return;
     e.style.zIndex = ++z;                                              // the one you tapped last sits on top, in its place
-    if (!e.classList.contains("up")) { e.classList.add("up"); st.up[j] = true; fill(e, st.ids[j]); log("card_turn", st.ids[j]); say(); return; }
+    if (!e.classList.contains("up")) { e.classList.add("up"); st.up[j] = true; fill(e, st.ids[j]); log("card_turn", deck.tid(st.ids[j])); say(); return; }
     if (!allUp()) { hint.textContent = "Turn the other cards over first"; return; }
     st.pick = j; handEls.forEach((x, i) => x.classList.toggle("sel", i === j)); apply();
     keep.setAttribute("aria-disabled", "false"); say();
@@ -156,7 +156,7 @@ function hand(st, dealIn) {
     deck.passed(st.ids);
     const ids = deck.draw3(d.card.hands.flat(), k);
     d.card.hands.push(ids); deck.shown(ids, k); store.save();
-    log("card_redraw", ids);
+    log("card_redraw", ids.map(deck.tid));
     again.replaceWith(lastLine);
     const at = (ms, fn) => setTimeout(fn, reduceMotion() ? 0 : ms);
     // 0s: turn face down and fold into exactly one card, keeping whatever was on top on top
@@ -203,7 +203,7 @@ function big(st, id) {
         swap();
       } }, "Make it smaller") : null,
       h("button.btn-pill", { onclick: () => {
-        deck.save(id); log("card_save", id);
+        deck.save(id); log("card_save", deck.tid(id));
         // A fresh card takes its place in the hand, face down.
         const nu = deck.draw3(d.card.hands.flat().concat(st.ids, deck.mem().saved), k).find((x) => !st.ids.includes(x));
         if (nu) { st.ids[st.pick] = nu; d.card.hands[d.card.hands.length - 1] = st.ids.slice(); deck.shown([nu], k); }
@@ -231,33 +231,29 @@ export function openDraw(onDone) { begin(onDone); log("card_open_draw"); drawSte
 // The evening card step. ans = { how, felt } from before (or {}). If the card wasn't ticked, it first asks
 // "Did you get to your card?" (Yes / Didn't get to it); then "How did doing it feel?" with pick-any answers (deck.FELT).
 // done(ans) gets { how, felt }: how 0 = didn't get to it, otherwise worked out from felt (deck.howFromFelt).
-export function howStep(id, ans, back, done, label, { did = false } = {}) {
+// "How did doing it feel?" in the evening (alex 2026-11-17): one screen. "Didn't get to it" is one of the answers and
+// clears the others. extra = anything to show under the answers ("+ Make my own card").
+export const NOT_DONE = "Didn't get to it";
+export function howStep(id, ans, back, done, label, { did = false, extra = null, onChange = null } = {}) {
   const c = deck.card(id), felt = new Set(ans.felt || []);
-  let yes = did || felt.size > 0, no = !did && ans.how === 0;
-  const holder = h("div.col", { style: { gap: "16px" } });
-  const go = mainBtn("Done", false, () => done(no ? { how: 0, felt: [] } : { how: deck.howFromFelt([...felt]), felt: [...felt] }));
-  const ready = () => go.setAttribute("aria-disabled", no || felt.size ? "false" : "true");
-  const draw = () => {
-    if (!yes) {
-      const pick = (v) => () => { if (v) { yes = true; no = false; } else no = true; draw(); };
-      holder.replaceChildren(h("h1.q", null, "Did you get to your card?"),
-        h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "Did you get to your card?" },
-          h("button.pill", { role: "radio", "aria-checked": "false", "aria-pressed": "false", onclick: pick(true) }, "Yes"),
-          h("button.pill", { role: "radio", "aria-checked": String(no), "aria-pressed": String(no), onclick: pick(false) }, "Didn't get to it")));
-    } else {
-      const main = deck.feltMain(c.pillar), more = deck.FELT.filter((w) => !main.includes(w));
-      felt.forEach((w) => { if (!main.includes(w)) { main.push(w); more.splice(more.indexOf(w), 1); } });
-      const pp = pillPicker({ main, more, picked: felt, noAdd: true, onToggle: (w) => { felt.has(w) ? felt.delete(w) : felt.add(w); ready(); } });
-      pp.el.querySelectorAll(".pills").forEach((x) => (x.style.justifyContent = "center"));
-      holder.replaceChildren(h("h1.q", null, "How did doing it feel?"), pp.el);
-    }
-    ready();
-  };
-  draw();
+  if (!did && ans.how === 0) felt.add(NOT_DONE);
+  const go = mainBtn("Done", false, () => done(felt.has(NOT_DONE) ? { how: 0, felt: [] } : { how: deck.howFromFelt([...felt]), felt: [...felt] }));
+  const ready = () => go.setAttribute("aria-disabled", felt.size ? "false" : "true");
+  const main = deck.feltMain(c.pillar), more = deck.FELT.filter((w) => !main.includes(w));
+  felt.forEach((w) => { if (w !== NOT_DONE && !main.includes(w)) { main.push(w); more.splice(more.indexOf(w), 1); } });
+  const pp = pillPicker({ main, more, picked: felt, noAdd: true, notSure: did ? null : NOT_DONE,
+    onToggle: (w) => {
+      if (felt.has(w)) felt.delete(w);
+      else if (w === NOT_DONE) { felt.clear(); felt.add(w); }
+      else { felt.delete(NOT_DONE); felt.add(w); }
+      ready(); if (onChange) onChange([...felt]);
+    } });
+  pp.el.querySelectorAll(".pills").forEach((x) => (x.style.justifyContent = "center"));
+  ready();
   return step(
-    [roundBtn("back", "Back", () => { if (yes && !did) { yes = false; draw(); } else back(); }), where(label), spacer()],
-    [h("div.mini.rise", null, h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[c.pillar] } }), c.pillar), h("span", null, c.text)),
-      h("div.rise", null, holder)],
+    [roundBtn("back", "Back", back), where(label), spacer()],
+    [h("div.mini.rise", null, h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } }), c.pillar), h("span", null, c.text)),
+      h("div.rise", null, h("div.col", { style: { gap: "16px" } }, h("h1.q", null, "How did doing it feel?"), pp.el)), extra ? h("div.rise", null, extra) : null].filter(Boolean),
     [go, LIFELINE()]);
 }
 

@@ -7,7 +7,7 @@ import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
 
-import { PILLAR_COL, card as cardOf, HOW } from "./deck.js";
+import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
 export { PILLAR_COL };
 const NAME = { A: "Your moods", B: "Mood and sleep", C: "Mood and what you did", D: "What seems to help you" };
 let view = "week", back = 0, origin = null, onClosed = null, helpsSeen = false;
@@ -246,6 +246,11 @@ function openDay(k) {
         h("span", null, c.text), d.card.how != null ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, d.card.felt && d.card.felt.length ? d.card.felt.join(", ") : HOW[d.card.how]) : null,
         d.pil && d.pil.length ? h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p))) : null)); }
       else if (d.pil && d.pil.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You gave time to"), h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p)))));
+      const made = (d.made || []).map((id) => ownCard(id)).filter(Boolean);   // cards made that evening (alex 2026-11-17)
+      if (made.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, made.length > 1 ? "Cards you made" : "A card you made"),
+        ...made.map((o) => h("div.col", { style: { gap: "4px" } }, h("span", null, o.text),
+          o.felt && o.felt.length ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, o.felt.join(", ")) : null,
+          h("span.chip", { style: { alignSelf: "flex-start" } }, h("span.sq", { style: { background: PILLAR_COL[o.pillar] || "#a9a59d" } }), o.pillar)))));
       if (d.sleep) parts.push(h("div.col", { style: { gap: "4px" } }, h("span.note", { style: { textAlign: "left" } }, "The night before"),
         h("span", null, `Slept ${hoursWords(sleepMins(d.sleep))}, ${clock12(d.sleep.bed)} to ${clock12(d.sleep.wake)}`),
         h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, REST_LINE[d.sleep.rested]),
