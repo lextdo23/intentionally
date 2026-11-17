@@ -15,6 +15,7 @@ export const CONSENT = 1;
 export const SHARED = [
   "Your check-in answers: sleep times, how rested you felt, your mood, and the feelings and tags you tap",
   "What you choose and do in the app, like pillars, cards, thumbs up or down, levels and which screens you use",
+  "How many times you tap the Lifeline link",
   "How long check-ins take, when nudges arrive and when you check in",
   "Your phone type and any errors the app runs into",
 ];
