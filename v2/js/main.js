@@ -41,27 +41,37 @@ function peek() {
 // Level (alex 2026-11-17): "Level 3" in gold and a gold bar under Your days. "Next pack at level 4" fades in once
 // the bar is nearly full. While the card is being rated the row fades out (body.in-ask), and fades back after.
 // The bar slides from where it was to where it is now; on a new level it fills, then starts again from empty.
+// Showing the gain (alex 2026-11-17): while it slides, only the end of the bar brightens a little (no circle), and a
+// small gold "+1" / "+2" (whatever the step gave) rises from the end of the bar and fades.
 let lvShown = null, lvBack = false;
 function levelRow() {
-  const L = levels.level(), was = lvShown;
-  lvShown = { level: L.level, frac: L.frac };
-  const fill = h("i"), bar = h("div.lv-bar", { "aria-hidden": "true" }, fill);
+  const L = levels.level(), pts = levels.total(), was = lvShown;
+  lvShown = { level: L.level, frac: L.frac, pts };
+  const fill = h("i"), bar = h("div.lv-bar", null, fill), track = h("div.lv-track", { "aria-hidden": "true" }, bar);
   const next = h("span.lv-next", null, `Next pack at level ${L.level + 1}`);
   const num = h("span.lv-num", null, `Level ${(was && was.level < L.level ? was.level : L.level)}`);
-  const row = h("div.lv-row", { role: "img", "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next pack at level ${L.level + 1}.` : ""}` }, num, bar, next);
+  const row = h("div.lv-row", { role: "img", "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next pack at level ${L.level + 1}.` : ""}` }, num, track, next);
   if (lvBack) { row.classList.add("lv-back"); lvBack = false; }
   const set = (f, near) => { fill.style.width = `${Math.round(f * 1000) / 10}%`; next.classList.toggle("on", near); };
-  if (!was || reduceMotion() || (was.level === L.level && was.frac === L.frac)) { set(L.frac, L.frac >= levels.NEAR); return row; }
+  const gain = was ? pts - was.pts : 0;
+  const plus = (at) => {   // "+2" over the end of the bar, rising and fading
+    if (gain <= 0) return;
+    const p = h("span.lv-plus", { style: { left: `${Math.round(at * 1000) / 10}%` } }, `+${gain}`);
+    track.append(p); setTimeout(() => p.remove(), 2600);
+  };
+  const glide = () => { fill.classList.add("moving"); clearTimeout(fill._t); fill._t = setTimeout(() => fill.classList.remove("moving"), 900); };
+  if (!was || (was.level === L.level && was.frac === L.frac)) { set(L.frac, L.frac >= levels.NEAR); return row; }
+  if (reduceMotion()) { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); return row; }
   // Start from where it was, then slide (after the row has faded back in, if it was hidden for the rating).
   fill.style.transition = "none"; set(was.frac, was.level === L.level && was.frac >= levels.NEAR);
   const wait = row.classList.contains("lv-back") ? 700 : 150;
   setTimeout(() => {
-    fill.style.transition = "";
+    fill.style.transition = ""; glide();
     if (was.level < L.level) {
-      set(1, false);
+      set(1, false); plus(1);
       setTimeout(() => { num.textContent = `Level ${L.level}`; fill.style.transition = "none"; set(0, false);
-        requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = ""; set(L.frac, L.frac >= levels.NEAR); })); }, 1100);
-    } else set(L.frac, L.frac >= levels.NEAR);
+        requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = ""; if (L.frac > 0) glide(); set(L.frac, L.frac >= levels.NEAR); })); }, 1100);
+    } else { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); }
   }, wait);
   return row;
 }
