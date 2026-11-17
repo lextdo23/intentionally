@@ -183,16 +183,19 @@ function admin(req, env) {
   let d = 0; for (let i = 0; i < want.length; i++) d |= want.charCodeAt(i) ^ got.charCodeAt(i);
   return d === 0;
 }
-// A limit on wrong passwords for the tester page: after TRIES wrong ones from the same internet address within
-// an hour, that address must wait until the hour has passed. Only a scrambled form of the address is kept, and
-// only for that hour. A right password clears it.
-const TRIES = 10, HOUR = 3600000;
+// A limit on wrong passwords for the tester page (alex, 2026-11-17): 3 wrong passwords from the same internet
+// address and that address is locked out for a week, even with the right password. Only a scrambled form of the
+// address is kept, and only for that week. A right password before the third try clears the count.
+// Way back in if alex is locked out: set a new TESTER_KEY on GitHub and run "Push service". Lockouts belong to
+// the password they were made under, so a new password starts everyone fresh.
+const TRIES = 3, LOCK = 7 * DAY;
 async function gate(req, env) {
   const who = await sha("ip:" + (req.headers.get("CF-Connecting-IP") || "unknown"));
+  const under = (await sha("key:" + (env.TESTER_KEY || ""))).slice(0, 16);
   const store = db(env);
-  if (await store.fails(who) >= TRIES) return reply({ error: "too many tries" }, 429);
-  if (!admin(req, env)) { await store.fail(who); return reply({ error: "wrong key" }, 403); }
-  await store.clearFails(who);
+  if (await store.fails(who, under) >= TRIES) return reply({ error: "locked" }, 429);
+  if (!admin(req, env)) { await store.fail(who, under); return reply({ error: "wrong key", left: Math.max(0, TRIES - await store.fails(who, under)) }, 403); }
+  await store.clearFails(who, under);
   return null;
 }
 async function sha(s) {
@@ -212,7 +215,8 @@ export class Testers extends DurableObject {
       CREATE TABLE IF NOT EXISTS events (code TEXT, t INTEGER, name TEXT, val TEXT);
       CREATE INDEX IF NOT EXISTS ev_code ON events (code);
       CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);
-      CREATE TABLE IF NOT EXISTS fails (who TEXT, t INTEGER);`);
+      CREATE TABLE IF NOT EXISTS fails2 (who TEXT, k TEXT, t INTEGER);
+      DROP TABLE IF EXISTS fails;`);
     REMOVED.forEach((c) => this.remove(c));
   }
   remove(code) {
@@ -244,12 +248,12 @@ export class Testers extends DurableObject {
     return { at: Date.now(), testers: q("SELECT code, joined, seen, phone, version, started, nudges FROM testers"),
       days: q("SELECT code, day, data FROM days"), events: q("SELECT code, t, name, val FROM events ORDER BY t") };
   }
-  // Wrong tester page passwords in the last hour, per scrambled internet address (see gate()).
-  fails(who) {
-    this.sql.exec("DELETE FROM fails WHERE t < ?", Date.now() - HOUR);
-    return this.sql.exec("SELECT COUNT(*) AS c FROM fails WHERE who = ?", who).one().c;
+  // Wrong tester page passwords in the last week, per scrambled internet address and password (see gate()).
+  fails(who, k) {
+    this.sql.exec("DELETE FROM fails2 WHERE t < ?", Date.now() - LOCK);
+    return this.sql.exec("SELECT COUNT(*) AS c FROM fails2 WHERE who = ? AND k = ?", who, k).one().c;
   }
-  fail(who) { this.sql.exec("INSERT INTO fails VALUES (?, ?)", who, Date.now()); }
-  clearFails(who) { this.sql.exec("DELETE FROM fails WHERE who = ?", who); }
+  fail(who, k) { this.sql.exec("INSERT INTO fails2 VALUES (?, ?, ?)", who, k, Date.now()); }
+  clearFails(who, k) { this.sql.exec("DELETE FROM fails2 WHERE who = ? AND k = ?", who, k); }
   wipe() { for (const t of ["testers", "days", "events"]) this.sql.exec(`DELETE FROM ${t}`); }
 }
