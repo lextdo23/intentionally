@@ -146,15 +146,38 @@ function howItWorks() {
   }, { label: "How Daydeck works" });
 }
 
-// Two taps, so it can't happen by accident. Testers' shared data is deleted too.
+// Two taps, so it can't happen by accident. Deletes everything, everywhere:
+// - this phone: Daydeck's entries, its saved notes (like when nudges arrived), and the old Intentionally app's
+//   data and files, which live on the same site;
+// - notifications: the service forgets this phone's nudge times, and the phone is signed out of notifications;
+// - tester mode: what was shared is deleted. If the phone is offline, that part finishes next time it's online.
 function deleteAll() {
   let armed = false;
+  const shared = !!(store.get().tester && store.get().tester.code);
   const b = h("button.set-row.set-danger", { onclick: async () => {
     if (!armed) { armed = true; b.textContent = "Tap again to delete everything"; return; }
     b.disabled = true; b.textContent = "Deleting…";
-    if (tester.on()) await tester.leave();
-    store.reset(); notify.sync(); closeSettings();
+    const allGone = await tester.forget();
+    await notify.forget();
+    await wipeOldApp();
+    try { const keys = await caches.keys(); await Promise.all(keys.filter((k) => !k.startsWith("daydeck-")).map((k) => caches.delete(k))); } catch { /* nothing saved */ }
+    store.reset();
+    closeSettings();
+    if (!allGone) setTimeout(() => openSheet((panel, close) => panel.append(
+      h("div.col", { style: { gap: "4px" } }, h("h2", null, "Deleted from this phone"),
+        h("p.sub", null, "What you shared while testing will be deleted the next time you're online.")),
+      h("button.btn-main", { onclick: () => close("done") }, "Okay")), { label: "Deleted" }), 450);
   } }, "Delete everything");
   return h("div.col", { style: { gap: "8px" } }, h("div.set-card", null, b),
-    h("p.set-foot", null, "Removes everything Daydeck has kept on this phone. This can't be undone."));
+    h("p.set-foot", null, shared
+      ? "Removes everything Daydeck has kept on this phone, and everything you shared while testing (gone from backups within 30 days). This can't be undone."
+      : "Removes everything Daydeck has kept on this phone. This can't be undone."));
+}
+
+// The old Intentionally app shares this site, so its data is removed too: its entries and its offline app.
+async function wipeOldApp() {
+  try { localStorage.removeItem("intentionally"); } catch { /* storage blocked */ }
+  try {
+    for (const reg of await navigator.serviceWorker.getRegistrations()) if (!new URL(reg.scope).pathname.includes("/v2/")) await reg.unregister();
+  } catch { /* none */ }
 }
