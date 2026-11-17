@@ -12,3 +12,4 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/csp.test.cjs
     node tests/workflow.test.cjs
     node tests/tester-cap.test.cjs
+    node tests/old-app-caches.test.cjs
