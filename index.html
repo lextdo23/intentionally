@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- Safety net: only the app's own files and its notification service may run or be reached (see tests/csp.test.cjs).
+       The old app shares its browser storage with Daydeck (/v2/), so no outside code may run here either. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://intentionally-push.lextdo.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0e0f11">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -9,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Intentionally">
   <title>Intentionally</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <script>if (navigator.standalone) document.documentElement.classList.add("standalone");</script>
+  <script src="js/standalone.js"></script>
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4" sizes="180x180">
   <link rel="stylesheet" href="css/app.css">
