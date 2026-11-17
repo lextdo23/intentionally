@@ -22,7 +22,7 @@ p{margin:0}
 .tile{background:rgba(255,255,255,.05);border-radius:16px;padding:16px}
 .tile b{display:block;font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
 .tile span{font-size:13px;color:var(--dim)}
-@media (max-width:520px){.tiles{grid-template-columns:1fr}}
+@media (max-width:520px){.tile{padding:12px}.tile b{font-size:22px}}  /* keep three across on a phone: less scrolling */
 section{display:flex;flex-direction:column;gap:16px}
 .ask{font-size:15px;color:var(--dim);margin-top:-8px}
 .means{background:rgba(242,192,143,.08);border-radius:12px;padding:12px 16px;font-size:15px}
@@ -70,6 +70,16 @@ table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:ta
 td,th{padding:6px 8px;text-align:left;border-bottom:1px solid var(--faint);white-space:nowrap}
 th{color:var(--dim);font-weight:500}
 .foot{border-top:1px solid var(--faint);padding-top:24px}
+/* Tabs: one group of sections at a time (alex 2026-11-17). The bar stays at the top while you scroll. */
+.ttabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:8px 20px;background:rgba(28,29,33,.94);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.ttabs::-webkit-scrollbar{display:none}
+.ttabs button{flex:0 0 auto;min-height:44px;border-radius:10px;padding:0 16px;color:var(--dim);background:rgba(255,255,255,.06)}
+.ttabs button[aria-selected="true"]{background:var(--ink);color:#1d1e22;font-weight:600}
+.needs{background:rgba(224,165,126,.10);border-radius:16px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.needs h2{font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--warn)}
+.needs button{min-height:44px;text-align:left;background:transparent;padding:0;font-size:15px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.needs button span:last-child{color:var(--dim);font-size:13px;white-space:nowrap}
+.needs p{font-size:15px;color:var(--dim)}
 /* Card thumbs: every rated card, by pillar, with filters */
 .pils{display:flex;flex-direction:column;gap:8px}
 .pil{background:rgba(255,255,255,.05);border-radius:16px;padding:12px 16px;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;min-height:44px;font-size:17px}
@@ -145,7 +155,11 @@ function bars(rows, max, unit = "") {
   max = max || Math.max(1, ...rows.map((r) => r[1]));
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
-const sec = (title, ask, body, means, later) => `<section class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
+const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
+  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup" };
+const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
+const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
 const notYet = (title, what) => sec(title, `Starts filling in once ${what} is built in the app.`, "", "", true);
 
@@ -163,7 +177,7 @@ function render(D) {
   const active = testers.filter((t) => Object.keys(days[t.code] || {}).some((k) => dayDiff(k, today) < 7)).length;
   const pmSecs = median(by("pm_done").map((e) => e.val && e.val.secs).filter(Number.isFinite));
   const errors = by("error").length;
-  let html = `<div class="tiles"><div class="tile"><b>${active} of ${T}</b><span>checked in this past week</span></div>
+  let html = `<div class="tiles" data-g="overview"><div class="tile"><b>${active} of ${T}</b><span>checked in this past week</span></div>
     <div class="tile"><b>${pmSecs == null ? "–" : pmSecs + " s"}</b><span>a usual evening check-in</span></div>
     <div class="tile"><b>${errors}</b><span>error${errors === 1 ? "" : "s"} so far</span></div></div>`;
 
@@ -341,15 +355,39 @@ function render(D) {
 
   // Testers table + actions
   const fmt = (t) => new Date(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
-  html += `<section><h2>Testers</h2><p class="ask">Everyone sharing with you.</p>${removedMsg ? `<p class="sub" aria-live="polite">${esc(removedMsg)}</p>` : ""}
+  html += `<section data-g="testers"><h2>Testers</h2><p class="ask">Everyone sharing with you.</p>${removedMsg ? `<p class="sub" aria-live="polite">${esc(removedMsg)}</p>` : ""}
     <div class="items">${testers.map((t) => `<div class="tcard" data-code="${esc(t.code)}"><div class="ttop"><div class="who"><b>${esc(t.code)}</b>
       <span>${esc(t.phone || "")} · app ${esc(t.version || "?")} · joined ${fmt(t.joined)} · last sent ${fmt(t.seen)} · ${Object.keys(days[t.code] || {}).length} days noted</span></div>
       <button class="rm">Remove</button></div></div>`).join("")}</div>
     <p class="note">Invite link for testers: https://lextdo23.github.io/intentionally/v2/?tester</p></section>`;
-  html += `<section class="foot"><h2>Your data</h2><p class="ask" style="margin:0">Download everything to keep a copy or to send to Claude. When testing ends, delete it all.</p>
+  html += `<section data-g="testers" class="foot"><h2>Your data</h2><p class="ask" style="margin:0">Download everything to keep a copy or to send to Claude. When testing ends, delete it all.</p>
     <div class="row"><button id="dl" class="main">Download all data</button><button id="wipe">Delete all tester data</button></div><p class="note" id="wipemsg" aria-live="polite"></p></section>`;
-  $("out").innerHTML = html;
+  // Needs a look: the few things worth seeing first, each one opens its tab.
+  const needs = [];
+  const tLast = {}; by("card_thumb").forEach((e) => { if (e.val && e.val.id) tLast[e.code + "|" + e.val.id] = e.val.v; });
+  const downCards = new Set(Object.entries(tLast).filter(([, v]) => v < 0).map(([k]) => k.split("|")[1])).size;
+  if (downCards) needs.push(["cards", `${downCards} card${downCards === 1 ? "" : "s"} marked "doesn't fit"`, "Cards"]);
+  if (errors) needs.push(["overview", `${errors} error${errors === 1 ? "" : "s"} from testers' phones`, "Errors and phones"]);
+  if (amS >= 5 && pct(amD, amS) < 70) needs.push(["overview", `Only ${pct(amD, amS)}% of mornings get finished`, "Where people give up"]);
+  if (pmS >= 5 && pct(pmD, pmS) < 70) needs.push(["overview", `Only ${pct(pmD, pmS)}% of evenings get finished`, "Where people give up"]);
+  if (pmSecs != null && pmSecs > 60) needs.push(["overview", `A usual evening takes ${pmSecs} seconds`, "Homework"]);
+  const quiet = testers.filter((t) => { const ks = Object.keys(days[t.code] || {}).sort(); const lastK = ks[ks.length - 1]; return t.joined < Date.now() - 3 * 864e5 && (!lastK || dayDiff(lastK, today) >= 3); }).length;
+  if (quiet) needs.push(["overview", `${quiet} tester${quiet === 1 ? " hasn't" : "s haven't"} checked in for 3 days or more`, "Coming back"]);
+  const needsBox = `<div class="needs" data-g="overview"><h2>NEEDS A LOOK</h2>${needs.length ? needs.map(([g, t, w], i) => `<button type="button" data-go="${g}"><span>${esc(t)}</span><span>${esc(w)} ›</span></button>`).join("") : `<p>Nothing stands out right now.</p>`}</div>`;
+  html = html.replace('<div class="tiles" data-g="overview">', needsBox + '<div class="tiles" data-g="overview">');
+  $("out").innerHTML = `<nav class="ttabs" role="tablist" aria-label="Sections">${TABS.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}">${l}</button>`).join("")}</nav>` + html;
   thumbsView(by("card_thumb"));
+  let tab = "overview"; try { tab = localStorage.getItem("daydeck-tester-tab") || tab; } catch {}
+  const show = (k, top) => {
+    if (!TABS.some(([x]) => x === k)) k = "overview";
+    document.querySelectorAll("#out [data-g]").forEach((el) => (el.hidden = el.dataset.g !== k));
+    document.querySelectorAll(".ttabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === k)));
+    try { localStorage.setItem("daydeck-tester-tab", k); } catch {}
+    if (top) document.querySelector(".ttabs").scrollIntoView({ block: "start" });
+  };
+  document.querySelectorAll(".ttabs button").forEach((b) => (b.onclick = () => show(b.dataset.tab, true)));
+  document.querySelectorAll(".needs [data-go]").forEach((b) => (b.onclick = () => show(b.dataset.go, true)));
+  show(tab, false);
 
   // Remove a tester: one tap asks, the second removes. Deletes what they shared and stops their phone sending.
   document.querySelectorAll(".tcard").forEach((card) => {
