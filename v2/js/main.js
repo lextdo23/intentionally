@@ -92,16 +92,16 @@ function render(moment) {
   const markDid = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
-    log("card_did", c.id); notify.sync();
+    log("card_did", deck.tid(c.id)); notify.sync();
     askFelt(card, c.id, { mid, hide: main,
       onPick: (list) => {
         const dd = store.day(k);
         if (list.length) {
           dd.card.felt = list; dd.card.how = deck.howFromFelt(list);
           deck.howWent(c.id, dd.card.how); deck.feltWent(c.id, list);
-          log("card_how", { id: c.id, how: dd.card.how });
-          log("card_felt", { id: c.id, f: list.map((w) => deck.FELT.indexOf(w)), home: 1 }); // positions only, never words
-        } else log("card_felt_later", c.id);
+          log("card_how", { id: deck.tid(c.id), how: dd.card.how });
+          log("card_felt", { id: deck.tid(c.id), f: list.map((w) => deck.FELT.indexOf(w)), home: 1 }); // positions only, never words
+        } else log("card_felt_later", deck.tid(c.id));
         store.save();
         play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
       },
@@ -110,8 +110,8 @@ function render(moment) {
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     if (d.card.how != null) deck.unWent(c.id, d.card.how);
-    d.card.done = false; delete d.card.how; delete d.card.felt; d.pil = (d.pil || []).filter((x) => x !== p); store.save();
-    log("card_undo", c.id); notify.sync(); render();
+    d.card.done = false; delete d.card.how; delete d.card.felt; d.pil = (d.pil || []).filter((x) => x !== p || deck.madePil(d).includes(x)); store.save();
+    log("card_undo", deck.tid(c.id)); notify.sync(); render();
   };
   let card = null;
   const felt = c && c.felt || [];

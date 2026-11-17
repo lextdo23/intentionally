@@ -8,7 +8,29 @@ export const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
 // Pillar tints: one per group (people, body, doing, purpose, rest and learning).
 export const PILLAR_COL = { Friends: "#d9b3a6", Family: "#d9b3a6", Love: "#d9b3a6", Community: "#d9b3a6", Move: "#a9c4b5", Outdoors: "#a9c4b5",
   Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9" };
-export const card = (id) => { const r = BANK[id - 1]; return r && { id: r[0], pillar: r[1], size: r[2], for: r[3], text: r[4], why: r[5], source: r[6] }; };
+export const card = (id) => {
+  if (isOwn(id)) { const o = ownCard(id); return o && { id, pillar: o.pillar, size: "Tiny", for: "Everyone", text: o.text, why: "", source: "", own: true }; }
+  const r = BANK[id - 1]; return r && { id: r[0], pillar: r[1], size: r[2], for: r[3], text: r[4], why: r[5], source: r[6] };
+};
+
+// Cards people make themselves in the evening (alex 2026-11-17): "o1", "o2"... Their words stay on this phone.
+// Tester data never carries an own card's number or words: it says 0 instead (tid).
+export const isOwn = (id) => typeof id === "string" && /^o\d+$/.test(id);
+export const tid = (id) => (isOwn(id) ? 0 : id);
+export const ownCards = () => (store.get().own = store.get().own || []);
+export const ownCard = (id) => ownCards().find((o) => o.id === id);
+export function addOwn(k, { pillar, text, felt, inDeck }) {
+  const list = ownCards(), n = list.reduce((m, o) => Math.max(m, +o.id.slice(1)), 0) + 1;
+  const o = { id: "o" + n, day: k, pillar, text, felt, deck: !!inDeck };
+  list.push(o);
+  const d = store.day(k);
+  d.made = (d.made || []).concat(o.id);
+  if (!(d.pil || []).includes(pillar)) d.pil = (d.pil || []).concat(pillar);
+  store.save();
+  return o;
+}
+// The pillars a day's own cards gave time to: these stay in "You gave time to" whatever happens to today's card.
+export const madePil = (d) => (d.made || []).map((id) => ownCard(id)).filter(Boolean).map((o) => o.pillar);
 
 // Until "Choose your pillars" is built (its own thread), the deck uses the everyday cards of five common pillars.
 // That thread saves answers as  pillars: [{ name: "Friends", mindsets: ["I feel lonely"] }]  and this picks them up.
@@ -19,7 +41,8 @@ export function myPillars() {
 }
 export function deck() {
   const ps = myPillars();
-  return BANK.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || r[3].some((m) => (p.mindsets || []).includes(m))))).map((r) => r[0]);
+  return BANK.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || r[3].some((m) => (p.mindsets || []).includes(m))))).map((r) => r[0])
+    .concat(ownCards().filter((o) => o.deck).map((o) => o.id));   // own cards you chose to add to your deck
 }
 
 export function mem() {

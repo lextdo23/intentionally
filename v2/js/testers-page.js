@@ -42,7 +42,7 @@ function bars(rows, max, unit = "") {
   max = max || Math.max(1, ...rows.map((r) => r[1]));
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
-const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Do card reminders help?": "cards",
+const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
   "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
@@ -63,6 +63,7 @@ const SHAPE = {
   card_felt: (v) => isObj(v) && isNum(v.id) && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)),
   card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
   card_smaller: (v) => isObj(v) && isNum(v.from),
+  own_card: (v) => isObj(v) && typeof v.p === "string" && v.p.length < 30 && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)) && isInt(v.deck, 0, 1),
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
 };
 const okEvent = (name, val) => typeof name === "string" && (!SHAPE[name] || SHAPE[name](val));
@@ -236,6 +237,7 @@ function drawAll(D) {
   by("card_save").forEach((e) => C(e.val).saved++);
   const draws = by("card_draw").length, howAll = [0, 0, 0, 0, 0]; by("card_how").forEach((e) => howAll[e.val.how]++);
   const feltAll = FELT.map(() => 0); by("card_felt").forEach((e) => e.val.f.forEach((i) => feltAll[i]++));
+  delete cs[0];   // 0 = a card someone made themselves: never named here
   const look = Object.entries(cs).map(([id, c]) => [+id, c, c.down * 3 + c.how[0] + c.how[1] + (c.drawn - c.kept > 3 && !c.kept ? 2 : 0)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
   const name = (id) => { const r = BANK[id - 1]; return r ? `#${id} ${r[4]}` : `#${id}`; };
   // Card reminders (alex 2026-11-17): sent, tapped, card done afterwards, switched off. "First" is the day's first
@@ -266,6 +268,15 @@ function drawAll(D) {
     : `<p class="sub">No cards drawn yet.</p>`,
     "thumbs ask testers whether a card fits their pillar and where they're at with it, not whether the card is good. A card that doesn't fit may belong under a different mindset. Cards with thumbs down, or often \"Didn't get to it\" or \"Drained\", are the first to rewrite or cut. Lots of \"Drew again\" means the first three often don't fit.");
   // Card thumbs: every rated card (not only the problem ones), by pillar then mindset, with filters (alex 2026-11-17)
+  // Cards people make themselves in the evening (from 17 Nov): pillar, feelings and the deck switch. Never their words.
+  { const made = by("own_card"), opened = by("own_open").length, byP = {}, felt = FELT.map(() => 0);
+    made.forEach((e) => { const p = e.val.p === "own" ? "A pillar of their own" : e.val.p; byP[p] = (byP[p] || 0) + 1; e.val.f.forEach((i) => felt[i]++); });
+    html += sec("Cards people make", "In the evening, people can make a card for something else they did that went well. Only the pillar and the feelings they tap are sent, never what they wrote.",
+      made.length || opened ? bars([["Started making a card", opened], ["Kept a card", made.length], ["Added it to their deck", made.filter((e) => e.val.deck).length]], Math.max(opened, made.length)) +
+        (made.length ? `<p class="note">Which pillar:</p>` + bars(Object.entries(byP).sort((a, b) => b[1] - a[1])) : "") +
+        (felt.some(Boolean) ? `<p class="note">How it felt:</p>` + bars(FELT.map((w, i) => [w, felt[i]]).filter((r) => r[1]).sort((a, b) => b[1] - a[1])) : "")
+      : `<p class="sub">No one has made a card yet.</p>`,
+      "If people make lots of cards for one pillar, the deck may be missing cards they'd like there."); }
   html += sec("Card thumbs", "Every card a tester has rated: does it fit their pillar and where they're at with it? Tap a pillar to see only its cards.", `<div id="thumbs"></div>`,
     "a thumbs down asks \"does this fit me\", not \"is this a good card\". A card that doesn't fit may belong under a different mindset.");
   // Setup: choosing pillars and where you're at

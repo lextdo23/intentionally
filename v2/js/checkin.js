@@ -6,7 +6,8 @@ import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecen
 import { openSheet, pillPicker, roundBtn } from "./ui.js";
 import { sync as syncNotify } from "./notify.js";
 import { log } from "./tester.js";
-import { howStep } from "./draw.js";
+import { howStep, NOT_DONE } from "./draw.js";
+import { makeCard, ownArea } from "./own.js";
 import { lastNote, markUsed } from "./sleep.js";
 import { now } from "./clock.js";
 import * as deck from "./deck.js";
@@ -157,9 +158,10 @@ export function evening(onDone) {
   track = { kind: "pm", t0: Date.now(), step: "mood" }; log("pm_start");
   const s = store.get(), k = dayKey(), had = s.days[k] || {};
   const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [], ans: had.card ? { how: had.card.how, felt: had.card.felt } : {} };
-  // With a card today, "How did doing it feel?" is a third step.
+  // Step 3 (alex 2026-11-17): with a card still to answer, "How did doing it feel?"; otherwise "Anything else go well
+  // today?". Both have "+ Make my own card" under them.
   const answered = !!(had.card && had.card.felt && had.card.felt.length && had.mood == null);   // said on home, after "I did it"
-  const cid = had.card && had.card.id && !had.rest && !answered ? had.card.id : null, N = cid ? 3 : 2;
+  const cid = had.card && had.card.id && !had.rest && !answered ? had.card.id : null, N = 3;
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
 
@@ -185,7 +187,7 @@ export function evening(onDone) {
     const main = ranked.slice(0, 6).sort((x, y) => order.indexOf(x) - order.indexOf(y));
     st.feel.forEach((w) => { if (w !== "Not sure" && !main.includes(w)) main.push(w); });
     const more = ranked.filter((x) => !main.includes(x));
-    const done = mainBtn(cid ? "Next" : "Done", st.feel.size > 0, cid ? three : save);
+    const done = mainBtn("Next", st.feel.size > 0, three);
     const pick = pillPicker({ main, more, picked: st.feel, notSure: "Not sure",
       onToggle: (w) => { st.feel.has(w) ? st.feel.delete(w) : st.feel.add(w); done.setAttribute("aria-disabled", st.feel.size ? "false" : "true"); },
       onAdd: (w) => { w = w.toLowerCase(); if (!s2.feel.own.includes(w) && !order.includes(w)) s2.feel.own.push(w); if (!main.includes(w)) main.push(w); const i = more.indexOf(w); if (i >= 0) more.splice(i, 1); st.feel.add(w); done.setAttribute("aria-disabled", "false"); store.save(); },
@@ -196,7 +198,20 @@ export function evening(onDone) {
       [done, LIFELINE()]));
   };
   const did = !!(cid && had.card.done);
-  const three = () => { at("card"); show(howStep(cid, st.ans, two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did })); };
+  const make = () => { at("own"); makeCard({ k, back: three, kept: three }); };
+  const three = () => {
+    if (cid) {
+      at("card");
+      show(howStep(cid, st.ans, two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did, extra: ownArea(k, make),
+        onChange: (f) => { st.ans = f.includes(NOT_DONE) ? { how: 0, felt: [] } : { how: deck.howFromFelt(f), felt: f }; } }));
+      return;
+    }
+    at("else");
+    show(step(
+      [roundBtn("back", "Back", two), where(`End your day · 3 of ${N}`), spacer()],
+      [h("h1.q.rise", null, "Anything else go well today?"), h("div.rise", null, ownArea(k, make))],
+      [mainBtn("Done", true, save), LIFELINE()]));
+  };
   const save = () => {
     const s2 = store.get(), d = store.day(k), m = toMood(st.v), b = band(m), n = dayNum(k);
     d.mood = m; d.feel = [...st.feel];
@@ -209,8 +224,9 @@ export function evening(onDone) {
       const p = deck.card(cid).pillar;
       d.pil = (d.pil || []).filter((x) => x !== p);
       if (a.how >= 1) d.pil.unshift(p);
-      log("card_how", { id: cid, how: a.how });
-      if (d.card.felt.length) log("card_felt", { id: cid, f: d.card.felt.map((w) => deck.FELT.indexOf(w)) }); // positions only, never words
+      deck.madePil(d).forEach((x) => { if (!d.pil.includes(x)) d.pil.push(x); });   // own cards always count
+      log("card_how", { id: deck.tid(cid), how: a.how });
+      if (d.card.felt.length) log("card_felt", { id: deck.tid(cid), f: d.card.felt.map((w) => deck.FELT.indexOf(w)) }); // positions only, never words
     }
     const L = (s2.feel.last[b] = s2.feel.last[b] || {});
     st.feel.forEach((w) => { if (w !== "Not sure") L[w] = n; });
