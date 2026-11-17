@@ -59,7 +59,10 @@ function render() {
     h("div.set-card", null, testerRow(() => openTester(render))),
     group("Support", [
       linkRow("Talk to someone", "Lifeline 13 11 14", { href: "tel:131114" }),
+      linkRow("Text someone", "0477 13 11 14", { href: "sms:0477131114" }),
+      linkRow("Chat online", "Lifeline", { href: "https://www.lifeline.org.au/crisis-chat/", target: "_blank", rel: "noopener" }),
       linkRow("Money worries", "Debt Helpline", { href: "tel:1800007007" }),
+      linkRow("In danger right now", "Call 000", { href: "tel:000" }),
     ], "Daydeck is here to help you look after yourself. It isn't therapy."),
     group("About", [linkRow("How Daydeck works", null, { onclick: howItWorks })]),
     deleteAll())));
