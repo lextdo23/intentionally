@@ -12,7 +12,9 @@ export function openTester(onDone) {
           h("p.sub", null, "While Daydeck is being tested, you can share how you use it with the person making it. It shows what's working and what isn't.")),
         h("div.col", { style: { gap: "8px" } }, h("span.tlabel", null, "What's shared"), list(tester.SHARED)),
         h("div.col", { style: { gap: "8px" } }, h("span.tlabel", null, "Never shared"), list(tester.NEVER)),
-        h("p.sub", null, "It's kept under a random tester code on Cloudflare's servers, which may be outside Australia. Only the person making Daydeck can see it, and it's deleted when testing ends. You can stop any time from Settings, and what's been shared is deleted."),
+        h("p.sub", null, "It's kept under a random tester code on Cloudflare's servers, which may be outside Australia. The person making Daydeck looks at it from time to time, sometimes with help from Claude, an AI assistant made by Anthropic."),
+        h("p.sub", null, "Nobody watches it as it comes in. If you need to talk to someone, call Lifeline on 13 11 14, or 000 in an emergency."),
+        h("p.sub", null, "It's kept for as long as Daydeck is being tested. You can stop any time from Settings. What you've shared is deleted straight away, and backup copies are gone within 30 days."),
         h("div.col", { style: { gap: "4px" } },
           h("button.btn-main", { onclick: () => { tester.join(); close("done"); setTimeout(() => openTester(onDone), 450); } }, "Share while testing"),
           h("button.btn-quiet", { onclick: () => close("no") }, "Not now")));
