@@ -53,7 +53,7 @@ h1, h2, p { margin: 0; }
 .greet-words { transition: opacity .4s ease; }
 .greet-words.moment .greet { color: var(--gold); transition-duration: .3s; }
 .greet-words.fading { opacity: 0; }
-.home-mid { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.home-mid { position: relative; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
 .home-note { font-size: 15px; color: var(--ink2); }
 .lifeline { font-size: 12px; color: #a29e96; text-align: center; text-decoration: none; padding: 4px 0; }
 
@@ -299,6 +299,19 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card.did .task { color: #8d8981; }
 .home-card.did .ctag, .home-card.did .size { color: #77746e; }
 .home-card.did .front { box-shadow: 0 0 0 1px rgb(227 196 134 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
+/* Why it helps, on the card's face (alex 2026-11-17, B1): the why line with the study at its end, one quiet pale grey
+   block low on the card, empty space above it. Always 11pt on the phone, whatever the card's zoom. */
+.home-card.info .task { font-size: 14px; }
+.home-card .why { margin-top: auto; font-size: calc(11px / (var(--k, 1) * 1.376)); line-height: 1.4; color: #b8b4ad; }
+.home-card .why .src { font-size: inherit; color: inherit; }
+.home-card .why + .card-foot { margin-top: 6px; }
+.home-card .task, .home-card .ctag, .home-card .size, .home-card .why { transition: color 1.4s ease, opacity .25s ease; }
+.home-card.did .why { color: #77746e; }
+.home-card .size.out { opacity: 0; }
+/* What doing it felt like, in gold where the size was. It stays gold once the card is done. */
+.home-card .felt-word { font-size: 9.5px; font-weight: 600; color: var(--gold); white-space: nowrap; transition: opacity .6s ease; }
+.home-card .felt-word.enter { opacity: 0; }
+.home-card .fresh-tick { animation: fill .5s var(--ease) both; }
 .home-card .tick-done { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .home-card.fresh .task { animation: settle 1.4s var(--ease) both; }
 .home-card.fresh .tick-done { animation: fill .5s var(--ease) both; }
@@ -393,3 +406,33 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .thumbs.locked .thumb[aria-pressed="false"] { opacity: .35; }
 .thumb:disabled { cursor: default; }
 .thumb:active { transform: none; }
+
+/* "Not done yet": a small quiet line under a done card. */
+.undo-slot { min-height: 44px; display: flex; justify-content: center; }
+.undo-slot .undo { font-size: 13px; color: var(--dim); animation: undo-in .6s ease both; }
+@keyframes undo-in { from { opacity: 0 } }
+/* "How did doing it feel?" right after "I did it", on home (draw.js askFelt). One soft move: the question and pills
+   rise in a little after the card starts shrinking, and leave together. */
+.did-ask { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
+  transition: transform .55s cubic-bezier(.4, 0, .2, 1); }
+.did-ask.on { pointer-events: auto; }
+.did-q { margin: 0; font-size: 17px; font-weight: 600; }
+.did-ask .did-q, .did-ask > .col > .pills > .pill, .did-ask > .col > .btn-text, .did-ask .ok, .did-ask .later {
+  opacity: 0; transform: translateY(12px) scale(.97); transition: opacity .5s ease, transform .7s cubic-bezier(.4, 0, .2, 1), background .2s, color .2s; }
+.did-ask.on .did-q, .did-ask.on > .col > .pills > .pill, .did-ask.on > .col > .btn-text, .did-ask.on .ok, .did-ask.on .later { opacity: 1; transform: none; }
+.did-ask.on .did-q { transition-delay: 420ms; }
+.did-ask.on > .col > .pills > .pill { transition-delay: calc(470ms + var(--i, 0) * 35ms); }
+.did-ask.on > .col > .btn-text { transition-delay: 620ms; }
+.did-ask.on .ok { transition-delay: 650ms; }
+.did-ask.on .later { transition-delay: 680ms; }
+.did-ask.settled * { transition-delay: 0s !important; }
+.did-ask.leaving *, .did-ask.leaving .more-wrap .pill { transition-delay: 0s !important; transition-duration: .3s !important; opacity: 0 !important; }
+.did-ask > .col { width: 100%; }
+.did-ask .more-wrap { margin-top: -8px; transition: grid-template-rows .55s cubic-bezier(.4, 0, .2, 1), margin-top .55s cubic-bezier(.4, 0, .2, 1); }
+.did-ask .more-wrap.open { margin-top: 0; }
+.did-ask > .col > .btn-text { margin-top: -4px; }
+.did-ask .ok { min-height: 44px; padding: 0 28px; border-radius: 22px; background: var(--sun); color: var(--on-sun); font-size: 15px; font-weight: 600; }
+.did-ask .later { margin-top: -8px; font-size: 15px; color: var(--ink2); }
+.soft-gone { opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+.btn-main { transition: background .3s, color .3s, opacity .35s ease; }
+@media (prefers-reduced-motion: reduce) { .did-ask, .did-ask * { transition: none !important; } .undo-slot .undo, .home-card .fresh-tick { animation: none; } }

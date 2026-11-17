@@ -158,7 +158,8 @@ export function evening(onDone) {
   const s = store.get(), k = dayKey(), had = s.days[k] || {};
   const st = { v: had.mood != null ? had.mood * 100 / 7 + 7 : 50, touched: had.mood != null, feel: new Set(had.feel || []), added: [], ans: had.card ? { how: had.card.how, felt: had.card.felt } : {} };
   // With a card today, "How did doing it feel?" is a third step.
-  const cid = had.card && had.card.id && !had.rest ? had.card.id : null, N = cid ? 3 : 2;
+  const answered = !!(had.card && had.card.felt && had.card.felt.length && had.mood == null);   // said on home, after "I did it"
+  const cid = had.card && had.card.id && !had.rest && !answered ? had.card.id : null, N = cid ? 3 : 2;
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
 
