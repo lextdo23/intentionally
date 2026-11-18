@@ -4,7 +4,8 @@
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
-import { roundBtn, pillPicker } from "./ui.js";
+import { roundBtn, pillPicker, openSheet } from "./ui.js";
+import * as boxes from "./boxes.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 import { pickSteps } from "./pillars.js";
@@ -105,11 +106,22 @@ function hand(st, dealIn) {
   });
   const lastLine = h("p.note", null, "That's your last draw for today. Pick the closest fit.");
   const again = h("button.btn-quiet", { onclick: () => redraw() }, "Draw again");
+  // Extras from boxes (js/boxes.js): one more draw, a rest day beyond this week's one, and Pick my own.
+  const allowed = () => 2 + (d.card.extra || 0);
+  const extraDraw = h("button.btn-quiet", { onclick: () => {
+    if (busy || !boxes.useExtra("draw")) return;
+    d.card.extra = (d.card.extra || 0) + 1; store.save(); extraDraw.replaceWith(again); redraw();
+  } }, "Use your extra draw");
+  const outOfDraws = () => (boxes.extras().draw > 0 ? extraDraw : lastLine);
   let armed = false;
-  const rest = deck.restLeft(k) ? h("button.btn-quiet", { onclick: () => {
-    if (!armed) { armed = true; rest.textContent = "Tap again for a rest day, no card"; setTimeout(() => { armed = false; rest.textContent = "Make today a rest day, no card"; }, 4000); return; }
-    const dd = store.day(k); dd.rest = true; deck.passed(st.ids); store.save(); log("card_rest"); close(true);
-  } }, "Make today a rest day, no card") : null;
+  const weekRest = deck.restLeft(k), boxRest = !weekRest && boxes.extras().rest > 0;
+  const restWords = boxRest ? "Use your extra rest day, no card" : "Make today a rest day, no card";
+  const rest = weekRest || boxRest ? h("button.btn-quiet", { onclick: () => {
+    if (!armed) { armed = true; rest.textContent = "Tap again for a rest day, no card"; setTimeout(() => { armed = false; rest.textContent = restWords; }, 4000); return; }
+    if (boxRest && !boxes.useExtra("rest")) return;
+    const dd = store.day(k); dd.rest = true; if (boxRest) dd.restExtra = true; deck.passed(st.ids); store.save(); log("card_rest", boxRest ? "extra" : null); close(true);
+  } }, restWords) : null;
+  const pickOwn = boxes.extras().pick > 0 ? h("button.btn-quiet", { onclick: () => pickMine((id) => big(st, id, { own: true })) }, "Pick my own") : null;
 
   let order = [], handEls = [], busy = false, z = 60;
   const els = Array.from({ length: N }, () => { const e = cardEl(null); e.classList.add("hc"); stage.append(e); return e; });
@@ -151,13 +163,13 @@ function hand(st, dealIn) {
 
   // Draw again, as one flowing move.
   const redraw = async () => {
-    if (busy || d.card.hands.length >= 2) return;
+    if (busy || d.card.hands.length >= allowed()) return;
     busy = true; keep.setAttribute("aria-disabled", "true"); hint.textContent = "Shuffling…";
     deck.passed(st.ids);
     const ids = deck.draw3(d.card.hands.flat(), k);
     d.card.hands.push(ids); deck.shown(ids, k); store.save();
     log("card_redraw", ids.map(deck.tid));
-    again.replaceWith(lastLine);
+    if (d.card.hands.length >= allowed()) again.replaceWith(outOfDraws());
     const at = (ms, fn) => setTimeout(fn, reduceMotion() ? 0 : ms);
     // 0s: turn face down and fold into exactly one card, keeping whatever was on top on top
     const byZ = handEls.slice().sort((a, b) => (+a.style.zIndex) - (+b.style.zIndex));
@@ -180,7 +192,7 @@ function hand(st, dealIn) {
     });
   };
 
-  const foot = [keep, d.card.hands.length >= 2 ? lastLine : again, rest, LIFELINE()];
+  const foot = [keep, d.card.hands.length >= allowed() ? outOfDraws() : again, pickOwn, rest, LIFELINE()];
   show(step(
     [roundBtn("close", "Not now", () => { log("card_later"); close(false); }), where("Today's card"), spacer()],
     [h("h1.q.rise", null, "Pick one for today"), h("div.rise", null, stage), h("div.rise", null, hint), testerOn() ? h("p.note.rise", null, "Testers: thumbs up if a card fits your pillar and where you're at with it. One go per card.") : null],
@@ -190,12 +202,29 @@ function hand(st, dealIn) {
 }
 
 // ---------------- The kept card ----------------
-function big(st, id) {
+// Pick my own (an extra from a box): any card in your deck, grouped by pillar. The extra is used once the card is kept.
+function pickMine(onPick) {
+  const k = dayKey(), ids = deck.deck().filter((id) => !deck.notYet(id, k));
+  openSheet((panel, close) => {
+    const list = h("div.pick-list");
+    deck.myPillars().concat([{ name: null }]).forEach((p) => {
+      const mine = ids.filter((id) => (p.name ? deck.card(id).pillar === p.name : !deck.myPillars().some((q) => q.name === deck.card(id).pillar)));
+      if (!mine.length) return;
+      const pil = p.name || "Your own";
+      list.append(h("h3", null, h("i", { style: { background: deck.PILLAR_COL[pil] || "#a9a59d" } }), pil),
+        ...mine.map((id) => h("button.pick-item", { onclick: () => { close("pick"); setTimeout(() => onPick(id), 250); } }, deck.card(id).text)));
+    });
+    panel.append(h("h2", null, "Pick my own"), h("p.note", null, "Choose any card from your deck for today."), list);
+  }, { label: "Pick my own" });
+}
+
+function big(st, id, { own = false } = {}) {
   const k = dayKey(), d = store.day(k);
   const face = cardEl(id, { big: true, tag: "div" }); face.classList.add("up");
   const holder = h("div.big-holder", null, face);
   const helpers = h("div.helpers");
   const draw = () => {
+    if (own) return;
     helpers.replaceChildren(...[
       deck.canShrink(id) ? h("button.btn-pill", { onclick: () => {
         const from = id, to = deck.smaller(id, st.ids); if (!to) return;
@@ -220,7 +249,10 @@ function big(st, id) {
   show(step(
     [roundBtn("back", "Back to the three", () => hand(st, false)), where("Today's card"), spacer()],
     [h("div.rise", null, holder), h("div.rise", null, helpers)],
-    [mainBtn("Done", true, () => { d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id); close(true); }), LIFELINE()]));
+    [mainBtn("Done", true, () => {
+      if (own) { if (!boxes.useExtra("pick")) return; d.card.own = true; deck.shown([id], k); log("card_keep", { id: deck.tid(id), draw: 0, own: 1 }); }
+      d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id); close(true);
+    }), LIFELINE()]));
 }
 
 // From home: draw today's card (when "Not now" was pressed after the sleep check-in).

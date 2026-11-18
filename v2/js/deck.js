@@ -41,9 +41,15 @@ export function myPillars() {
 }
 export function deck() {
   const ps = myPillars();
-  return BANK.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || r[3].some((m) => (p.mindsets || []).includes(m))))).map((r) => r[0])
-    .concat(ownCards().filter((o) => o.deck).map((o) => o.id));   // own cards you chose to add to your deck
+  return [...new Set(BANK.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || r[3].some((m) => (p.mindsets || []).includes(m))))).map((r) => r[0])
+    .concat(ownCards().filter((o) => o.deck).map((o) => o.id))   // own cards you chose to add to your deck
+    .concat(boxAdded().filter((id) => BANK[id - 1] && ps.some((p) => p.name === BANK[id - 1][1]))))];   // new cards from boxes (js/boxes.js)
 }
+// Boxes (js/boxes.js): cards a box brought from outside your deck, and when each new card joins your draws.
+const boxAdded = () => ((store.get().boxes || {}).added || []);
+const boxFrom = (id) => ((store.get().boxes || {}).boost || {})[id];
+// A box's new card waits until the day after the box was opened ("Joins your draws from tomorrow").
+export const notYet = (id, k = dayKey()) => { const f = boxFrom(id); return !!f && k < f; };
 
 export function mem() {
   const s = store.get();
@@ -71,6 +77,7 @@ function weight(id, k) {
   if (m.last[id] != null && n - m.last[id] < 3) w *= 0.15;    // not the same faces two mornings running
   if (c.size === "Bigger") w *= d <= 3 ? 0.3 : 0.8;           // first days: mostly tiny and small
   if (planItems(k).some((it) => (it.kind === "more" || it.kind === "try") && it.pillar === c.pillar)) w *= 2.5;   // "More Friends cards"
+  if (boxFrom(id) && !m.seen[id]) w *= 3;                    // a box's new card comes up soon after it joins
   return w;
 }
 const pick = (ids, ws) => { let t = ws.reduce((a, b) => a + b, 0), r = Math.random() * t; for (let i = 0; i < ids.length; i++) { r -= ws[i]; if (r <= 0) return ids[i]; } return ids[ids.length - 1]; };
@@ -78,7 +85,7 @@ const pick = (ids, ws) => { let t = ws.reduce((a, b) => a + b, 0), r = Math.rand
 // Three different cards. At most one bigger card, and never two from the same pillar if it can be helped.
 export function draw3(exclude = [], k = dayKey()) {
   const m = mem(), out = [];
-  let all = deck().filter((id) => !exclude.includes(id));
+  let all = deck().filter((id) => !exclude.includes(id) && !notYet(id, k));
   if (planItems(k).some((it) => it.kind === "tiny")) { const t = all.filter((id) => card(id).size === "Tiny"); if (t.length >= 3) all = t; }   // "Only tiny cards"
   const saved = m.saved.find((id) => all.includes(id));
   if (saved) out.push(saved);                                 // a card saved for later comes back first
@@ -93,7 +100,7 @@ export function draw3(exclude = [], k = dayKey()) {
 
 // A tiny card from the same pillar, for "Make it smaller".
 export function smaller(id, exclude = []) {
-  const c = card(id), opts = deck().filter((x) => x !== id && !exclude.includes(x) && card(x).pillar === c.pillar && card(x).size === "Tiny");
+  const c = card(id), opts = deck().filter((x) => x !== id && !exclude.includes(x) && !notYet(x) && card(x).pillar === c.pillar && card(x).size === "Tiny");
   if (!opts.length) return null;
   return pick(opts, opts.map((x) => weight(x, dayKey())));
 }

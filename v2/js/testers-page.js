@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their weekly wrapped?": "checkins" };
+  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -57,7 +57,9 @@ const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 const isNum = Number.isFinite, isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isArray(x);
 const SHAPE = {
-  level: (v) => isInt(v, 1, 9999), level_start: (v) => isInt(v, 1, 9999),
+  level: (v) => isInt(v, 1, 9999), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
+  box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
+  extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
   card_keep: (v) => isObj(v) && isNum(v.id),
   card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
@@ -305,16 +307,32 @@ function drawAll(D) {
     : `<p class="sub">Nobody has chosen pillars yet.</p>`,
     "pillars nobody picks can be cut or merged; lots of \"Something else\" on one pillar means its list is missing something.");
   // Levels (from 17 Nov): each level reached, and the level a tester started at (people from before levels start higher).
-  { const top = {}, reach = {};
-    by("level_start").concat(by("level")).forEach((e) => { if (Number.isInteger(e.val)) top[e.code] = Math.max(top[e.code] || 1, e.val); });
-    by("level").forEach((e) => { const t = testers.find((x) => x.code === e.code); if (t && t.joined && [2, 3, 5, 10].includes(e.val)) (reach[e.val] = reach[e.val] || []).push(Math.max(1, Math.round((e.t - t.joined) / 864e5) + 1)); });
+  // Everyone went back to level 1 on 18 Nov (level_reset): only levels after a tester's reset count.
+  { const top = {}, reach = {}, resetAt = {};
+    by("level_reset").forEach((e) => (resetAt[e.code] = Math.max(resetAt[e.code] || 0, e.t)));
+    by("level_reset").forEach((e) => (top[e.code] = top[e.code] || 1));
+    by("level_start").concat(by("level")).filter((e) => !resetAt[e.code] || e.t > resetAt[e.code]).forEach((e) => { if (Number.isInteger(e.val)) top[e.code] = Math.max(top[e.code] || 1, e.val); });
+    by("level").filter((e) => !resetAt[e.code] || e.t > resetAt[e.code]).forEach((e) => { const t = testers.find((x) => x.code === e.code), from = resetAt[e.code] || (t && t.joined); if (from && [2, 3, 5, 10].includes(e.val)) (reach[e.val] = reach[e.val] || []).push(Math.max(1, Math.round((e.t - from) / 864e5) + 1)); });
     const n = Object.keys(top).length, hist = {}; Object.values(top).forEach((l) => { const k = l >= 10 ? "Level 10 or more" : `Level ${l}`; hist[k] = (hist[k] || 0) + 1; });
     const day = (l) => { const m = median(reach[l] || []); return m == null ? "–" : `day ${m}`; };
-    html += sec("How fast do people level up?", "Each tester's level now, and on which day after joining people usually reach a level. Packs come with each level once they're built.",
+    html += sec("How fast do people level up?", "Each tester's level now, and on which day after joining people usually reach a level. Each level brings a box.",
       n ? bars(Object.entries(hist).sort((a, b) => (parseInt(a[0].replace(/\D/g, "")) || 0) - (parseInt(b[0].replace(/\D/g, "")) || 0)), n) +
         `<p class="note">Usually reached: level 2 on ${day(2)}, level 3 on ${day(3)}, level 5 on ${day(5)}, level 10 on ${day(10)}. Planned for a usual week: level 2 on day 1, level 3 by day 3, level 5 by day 8, level 10 by day 28.</p>`
       : `<p class="sub">No levels yet. They start counting once a tester opens the new version.</p>`,
-      "if people are much slower than planned, packs feel far away and the points or the curve need easing; much faster and packs lose their meaning."); }
+      "if people are much slower than planned, boxes feel far away and the points or the curve need easing; much faster and boxes lose their meaning."); }
+
+  // Boxes (from 18 Nov): earned, seen, opened, kept for later, finished; which extras came and which got used.
+  { const seen = who("box_seen"), opened = who("box_open"), fin = who("box_done"), later = by("box_later").length;
+    const XN = { draw: "One more draw", rest: "A rest day", pick: "Pick my own", send: "Send a card" };
+    const got = {}, used = {}; by("box_open").forEach((e) => e.val.x.forEach((x) => (got[x] = (got[x] || 0) + 1))); by("extra_use").forEach((e) => (used[e.val] = (used[e.val] || 0) + 1));
+    const looks = {}; by("box_open").forEach((e) => { if (e.val.s) looks[e.val.s] = Math.max(looks[e.val.s] || 0, e.val.p); });
+    html += sec("Do people open their boxes?", "Testers who saw a box, opened one and reached the end. Then which extras came out of boxes and how many got used.",
+      seen || opened ? bars([["Saw a box", seen], ["Opened one", opened], ["Reached the end", fin]], Math.max(seen, opened)) +
+        `<p class="note">Boxes opened: ${by("box_open").length}. Kept for later: ${later} times.</p>` +
+        bars(Object.keys(XN).filter((k) => got[k]).map((k) => [`${XN[k]} came`, got[k]]), 0) +
+        `<p class="note">Used: ${Object.keys(XN).filter((k) => used[k]).map((k) => `${XN[k]} ${used[k]}`).join(", ") || "none yet"}. Furthest into a look: ${Object.entries(looks).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none yet"}.</p>`
+      : `<p class="sub">No boxes yet. They come with each level from level 2.</p>`,
+      "lots of boxes kept for later, or opened but never finished, means opening isn't wanted (or takes too long); extras that come but never get used can be swapped out."); }
 
   // Weekly wrapped (from 17 Nov): ready vs opened vs finished, where people stop, the guess, what they keep, sharing.
   { const ready = who("wrap_ready"), opened = who("wrap_open"), fin = who("wrap_done");

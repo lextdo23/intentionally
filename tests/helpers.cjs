@@ -1,7 +1,7 @@
 // Shared bits for the tests: a tiny file server for the repo, and a pass/fail counter.
 const http = require("http"), fs = require("fs"), path = require("path");
 const root = path.join(__dirname, "..");
-const TYPES = { ".js": "text/javascript", ".html": "text/html", ".css": "text/css", ".json": "application/json", ".webmanifest": "application/json" };
+const TYPES = { ".js": "text/javascript", ".html": "text/html", ".css": "text/css", ".json": "application/json", ".webmanifest": "application/json", ".webp": "image/webp", ".png": "image/png" };
 
 // Serves the repo at /intentionally/, like GitHub Pages. Returns the base address.
 async function serve() {
