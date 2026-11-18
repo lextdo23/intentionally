@@ -10,6 +10,7 @@ import * as photos from "./photos.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 import { pickSteps } from "./pillars.js";
+import * as library from "./library.js";
 
 const SIZE = { Tiny: "Tiny", Small: "Small", Bigger: "Bigger" };
 const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms));
@@ -69,8 +70,8 @@ function fill(el, id, big) {
     big && c.source ? h("span.src", null, c.source) : null,
     // On home (alex 2026-11-17, B1): why it helps, with the study at the end, in one quiet line low on the card.
     !big && el.classList.contains("info") && c.why ? h("span.why", null, c.why.replace(/\.\s*$/, "") + (c.source ? ". " : ""), c.source ? h("span.src", null, c.source) : null) : null,
-    c.own ? h("span.size.own", null, "Made by you") : h("span.size", null, SIZE[c.size] || c.size),
-    !big && testerOn() && !c.own ? thumbs(id) : null].filter(Boolean));
+    c.own ? h("span.size.own", null, "Made by you") : c.lib ? h("span.size", null, c.by ? `Made by ${c.by}` : "Anonymous daydeck user") : h("span.size", null, SIZE[c.size] || c.size),
+    !big && testerOn() && !c.own && !c.lib ? thumbs(id) : null].filter(Boolean));
   el.setAttribute("aria-label", el.classList.contains("up") || big ? `${c.pillar}: ${c.text}` : "Face-down card");
 }
 
@@ -270,7 +271,11 @@ export const NOT_DONE = "Didn't get to it";
 export function howStep(id, ans, back, done, label, { did = false, extra = null, onChange = null } = {}) {
   const c = deck.card(id), felt = new Set(ans.felt || []);
   if (!did && ans.how === 0) felt.add(NOT_DONE);
-  const go = mainBtn("Done", false, () => done(felt.has(NOT_DONE) ? { how: 0, felt: [] } : { how: deck.howFromFelt([...felt]), felt: [...felt] }));
+  const upPill = library.thumbPill(id);   // a library card: "Thumbs up for Tom" (alex 2026-11-18)
+  const go = mainBtn("Done", false, () => {
+    if (upPill && upPill.getAttribute("aria-pressed") === "true" && !felt.has(NOT_DONE)) library.up(id);
+    done(felt.has(NOT_DONE) ? { how: 0, felt: [] } : { how: deck.howFromFelt([...felt]), felt: [...felt] });
+  });
   const ready = () => go.setAttribute("aria-disabled", felt.size ? "false" : "true");
   const main = deck.feltMain(c.pillar), more = deck.FELT.filter((w) => !main.includes(w));
   felt.forEach((w) => { if (w !== NOT_DONE && !main.includes(w)) { main.push(w); more.splice(more.indexOf(w), 1); } });
@@ -286,7 +291,7 @@ export function howStep(id, ans, back, done, label, { did = false, extra = null,
   return step(
     [roundBtn("back", "Back", back), where(label), spacer()],
     [h("div.mini.rise", null, h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } }), c.pillar), h("span", null, c.text)),
-      h("div.rise", null, h("div.col", { style: { gap: "16px" } }, h("h1.q", null, "How did doing it feel?"), pp.el)), extra ? h("div.rise", null, extra) : null].filter(Boolean),
+      h("div.rise", null, h("div.col", { style: { gap: "16px" } }, h("h1.q", null, "How did doing it feel?"), pp.el, upPill)), extra ? h("div.rise", null, extra) : null].filter(Boolean),
     [go, LIFELINE()]);
 }
 
@@ -428,7 +433,8 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   pp.el.querySelectorAll(":scope > .pills > .pill").forEach((b, i) => b.style.setProperty("--i", i));
   const ok = h("button.ok", { type: "button" }, "Done");
   const later = h("button.btn-text.later", { type: "button" }, "Not now");
-  const ask = h("div.did-ask", { role: "group", "aria-label": "How did doing it feel?" }, h("p.did-q", null, "How did doing it feel?"), pp.el, ok, later);
+  const upPill = library.thumbPill(id);   // a library card: "Thumbs up for Tom", one more answer (alex 2026-11-18)
+  const ask = h("div.did-ask", { role: "group", "aria-label": "How did doing it feel?" }, h("p.did-q", null, "How did doing it feel?"), pp.el, upPill, ok, later);
 
   // The card shrinks to half, its top 20px higher; the question sits 20px under it.
   const m = mid.getBoundingClientRect(), l = lifter.getBoundingClientRect();
@@ -494,6 +500,6 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
     setTimeout(() => el.classList.add("did"), D(WAIT + MOVE + HOLD));
     setTimeout(() => { document.body.classList.remove("in-ask"); onEnd(); }, D(WAIT + ALL + 100));
   };
-  ok.addEventListener("click", () => finish([...felt]));
+  ok.addEventListener("click", () => { if (upPill && upPill.getAttribute("aria-pressed") === "true") library.up(id); finish([...felt]); });
   later.addEventListener("click", () => finish([]));
 }

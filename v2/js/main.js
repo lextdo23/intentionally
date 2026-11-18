@@ -13,15 +13,19 @@ import * as notify from "./notify.js";
 import { openSettings } from "./settings.js";
 import * as tester from "./tester.js";
 import { log } from "./tester.js";
-import { openTester } from "./tester-sheet.js";
+import { openTester, askAgain } from "./tester-sheet.js";
 import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
 import * as levels from "./levels.js";
 import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
+<<<<<<< HEAD
 import { openLevels } from "./path.js";
 import * as tips from "./tips.js";
+=======
+import * as library from "./library.js";
+>>>>>>> origin/main
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -106,7 +110,11 @@ let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
   setTimeout(() => {
+<<<<<<< HEAD
     const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
+=======
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
+>>>>>>> origin/main
     if (busy && tries < 40) return noteWhenFree(tries + 1);
     if (!busy) photos.firstNote();
   }, tries ? 1500 : 3400);
@@ -206,6 +214,8 @@ function render(moment) {
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       words, h("div", { style: { display: "flex", gap: "8px" } },
+        // The card library opens at level 4 (thread "Finalise levels and what they unlock"); until levels.isOpen exists, always.
+        !levels.isOpen || levels.isOpen("library") ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : null,
         roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
         roundBtn("settings", "Settings", () => openSettings(() => render())))),
     levels.isOpen("days") ? peek() : "",   // Your days opens at level 2
@@ -282,10 +292,18 @@ function whatsNew() {
 render();
 notify.sync();
 tester.opened();
-if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
+// The card library: only phones that have used it check in (cards shared while offline, and how shared cards are going).
+if (store.get().lib) library.refresh();
+library.finishUnshare();
+if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
+else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels"].some((x) => document.body.classList.contains(x))) render(); });
+<<<<<<< HEAD
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards"].some((x) => document.body.classList.contains(x))) render(); });
+=======
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-cards"].some((x) => document.body.classList.contains(x))) render(); });
+>>>>>>> origin/main
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;

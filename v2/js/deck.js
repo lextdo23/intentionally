@@ -9,6 +9,7 @@ export const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
 export const PILLAR_COL = { Friends: "#d9b3a6", Family: "#d9b3a6", Love: "#d9b3a6", Community: "#d9b3a6", Move: "#a9c4b5", Outdoors: "#a9c4b5",
   Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9" };
 export const card = (id) => {
+  if (isLib(id)) { const l = libCard(id); return l && { id, pillar: l.pillar, size: "Tiny", for: "Everyone", text: l.text, why: "", source: "", lib: true, by: l.name || "", mine: !!l.mine }; }
   if (isOwn(id)) { const o = ownCard(id); return o && { id, pillar: o.pillar, size: "Tiny", for: "Everyone", text: o.text, why: "", source: "", own: true }; }
   const r = BANK[id - 1]; return r && { id: r[0], pillar: r[1], size: r[2], for: r[3], text: r[4], why: r[5], source: r[6] };
 };
@@ -16,7 +17,14 @@ export const card = (id) => {
 // Cards people make themselves in the evening (alex 2026-11-17): "o1", "o2"... Their words stay on this phone.
 // Tester data never carries an own card's number or words: it says 0 instead (tid).
 export const isOwn = (id) => typeof id === "string" && /^o\d+$/.test(id);
-export const tid = (id) => (isOwn(id) ? 0 : id);
+// Library cards ("l" + the service's id) are sent as 0 too: tester logs only ever carry the bank's own card numbers.
+export const tid = (id) => (typeof id === "string" ? 0 : id);
+// Cards from the card library (js/library.js) that you added: a copy is kept on the phone, so they work offline.
+export const isLib = (id) => typeof id === "string" && /^l[a-z0-9]{10}$/.test(id);
+const libState = () => store.get().lib || {};
+export const libCard = (id) => (libState().cards || {})[id.slice(1)];
+// Added library cards whose pillar is one of yours (a card for another pillar waits until you pick that pillar).
+export const libAdded = (ps = myPillars()) => (libState().added || []).filter((sid) => { const c = (libState().cards || {})[sid]; return c && ps.some((p) => p.name === c.pillar); }).map((sid) => "l" + sid);
 export const ownCards = () => (store.get().own = store.get().own || []);
 export const ownCard = (id) => ownCards().find((o) => o.id === id);
 export function addOwn(k, { pillar, text, felt, inDeck }) {
@@ -43,7 +51,8 @@ export function deck() {
   const ps = myPillars();
   return [...new Set(BANK.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || r[3].some((m) => (p.mindsets || []).includes(m))))).map((r) => r[0])
     .concat(ownCards().filter((o) => o.deck).map((o) => o.id))   // own cards you chose to add to your deck
-    .concat(boxAdded().filter((id) => BANK[id - 1] && ps.some((p) => p.name === BANK[id - 1][1]))))];   // new cards from boxes (js/boxes.js)
+    .concat(boxAdded().filter((id) => BANK[id - 1] && ps.some((p) => p.name === BANK[id - 1][1])))   // new cards from boxes (js/boxes.js)
+    .concat(libAdded(ps)))];   // cards you added from the card library (js/library.js)
 }
 // Boxes (js/boxes.js): cards a box brought from outside your deck, and when each new card joins your draws.
 const boxAdded = () => ((store.get().boxes || {}).added || []);

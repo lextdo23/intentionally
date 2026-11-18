@@ -20,7 +20,7 @@ for (let i = 0; i < 10; i++) FAKE[day(i)] = { sleep: { bed: 1380 + i, wake: 420 
   // A tester who joined before this change: has sent before, never had the one-time full resend.
   await p.goto(server.url + "v2/");
   await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "x" },
-    tester: { on: true, consent: 1, code: "T-TEST", key: "0123456789abcdef0123456789abcdef", queue: [], sent: 1, all: false } })), FAKE);
+    tester: { on: true, consent: 2, code: "T-TEST", key: "0123456789abcdef0123456789abcdef", queue: [], sent: 1, all: false } })), FAKE);
   await p.reload(); await p.waitForTimeout(1500);
 
   const first = sends[0], text = JSON.stringify(first || {});

@@ -3,8 +3,9 @@
 // joining your draws from tomorrow), one extra to keep for when you need it, and last, the highlight: one card of a
 // look (a set, front and back matching, never a repeat). Opening mockup: https://claude.ai/artifact/Y57V5Z2BzKqEhja9A4SbD8
 //
-// Extras and odds (alex): one more draw 45, send a card 30, a rest day 15, Pick my own 10. Send a card isn't built
-// yet, so for now the other three share its place in the same proportions. Pick my own always comes in the 2nd box.
+// Extras and odds (alex): one more draw 45, a rest day 15, Pick my own 10, out of 70. "Send a card" came out of the
+// boxes for good (alex 2026-11-18: sending is a task, not a reward), so its old 30 is shared by the other three in the
+// same proportions (about 64%, 21% and 14%). Pick my own always comes in the 2nd box.
 // No more than 2 unused rest days are kept. Using a look comes later (its own work); for now set cards are collected.
 // Which look's card comes: started looks lean in (no more than 3 on the go), and so does the look you use, but
 // every unfinished look can still come. Nobody is told how it leans beyond "Boxes lean towards looks you seem to like."
@@ -21,7 +22,7 @@ export const EXTRA = {
   rest: { name: "A rest day", text: "One more rest day, for a week that needs it. It waits until you need it." },
   pick: { name: "Pick my own", text: "For a morning you know what you need: choose any card from your deck. It waits until you need it." },
 };
-const ODDS = { draw: 45, rest: 15, pick: 10 };   // + send a card 30, once it's built
+const ODDS = { draw: 45, rest: 15, pick: 10 };
 const MAX_REST = 2;
 
 export function mem() {

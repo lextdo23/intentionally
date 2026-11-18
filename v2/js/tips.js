@@ -7,8 +7,8 @@ import * as store from "./store.js";
 import * as levels from "./levels.js";
 import { log } from "./tester.js";
 
-// Where each new thing lives on home. The card library's button carries data-unlock="library" (its own thread).
-const TARGET = { days: "button.peek", own: ".btn-main", library: '[data-unlock="library"]', months: "button.peek" };
+// Where each new thing lives on home (the card library is the round Cards button at the top).
+const TARGET = { days: "button.peek", own: ".btn-main", library: 'button[aria-label="Cards"]', months: "button.peek" };
 const TIP = {
   days: ["Your days", "See how your days have felt, and what seems to help. It's always here at the top."],
   own: ["Make your own card", "Tonight, when you end your day, you can add something else you did as a card of your own."],
@@ -36,7 +36,7 @@ let layer = null;
 // Show the next waiting tip if home is quiet and its thing is on screen. Returns true if one showed.
 export function next() {
   if (layer || document.querySelector(".sheet-host, .cam, .ph-viewer")) return false;
-  if (["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels", "in-days"].some((x) => document.body.classList.contains(x))) return false;
+  if (["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels", "in-days", "in-cards"].some((x) => document.body.classList.contains(x))) return false;
   const u = waiting().find((x) => document.querySelector(TARGET[x.id]) && (!READY[x.id] || READY[x.id]()));
   if (!u) return false;
   const el = document.querySelector(TARGET[u.id]), r = el.getBoundingClientRect();

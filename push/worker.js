@@ -18,7 +18,7 @@ const OLD_OFF = Date.parse("2026-11-17T00:00:00Z");
 const oldApp = (p) => p.app !== DAYDECK && (p.timerAt || p.eveningAt || (p.daily ?? []).length > 2 || Date.now() > OLD_OFF);
 
 const cors = { "Access-Control-Allow-Origin": APP, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
-const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const reply = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", ...extra } });
 
 export default {
   async fetch(req, env) {
@@ -39,6 +39,7 @@ export default {
       return reply({ ok: true });
     }
     if (pathname.startsWith("/t/")) return testers(req, env, pathname);
+    if (pathname.startsWith("/l/")) return library(req, env, pathname);
     return reply({ error: "not found" }, 404);
   },
 };
@@ -205,6 +206,45 @@ async function sha(s) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
+// ---------------- The card library (alex 2026-11-18) ----------------
+// Anyone using Daydeck can choose "Show it to everyone" on a card they made. The card's words, the name they
+// chose (or none) and its pillar come here and wait. alex reads each one on the tester page, can fix spelling,
+// then says Yes or No. Only Yes cards are ever shown to others. Thumbs up are counted once per phone, under a
+// random key the phone made, never anything about the person. Stored with the tester data (same store).
+const PILLARS = ["Friends", "Family", "Love", "Community", "Move", "Food", "Rest", "Outdoors", "Work and study", "Money", "Learn", "Play and create", "Give", "Meaning"];
+const SID = /^[a-z0-9]{10}$/;
+const words = (x, n) => (typeof x === "string" ? x.replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n) : "");
+const LIB_SHARE_A_DAY = 10, LIB_UPS_A_DAY = 300, LIB_WAITING = 500;
+async function library(req, env, path) {
+  const store = db(env);
+  if (req.method === "GET" && path === "/l/list") return reply(await store.libList(), 200, { "Cache-Control": "public, max-age=600" });
+  if (req.method === "GET" && path === "/l/queue") { const no = await gate(req, env); if (no) return no; return reply(await store.libQueue()); }
+  if (req.method !== "POST") return reply({ error: "not found" }, 404);
+  const text = await req.text();
+  if (text.length > 4000) return reply({ error: "too big" }, 413);
+  let b; try { b = JSON.parse(text); } catch { return reply({ error: "bad request" }, 400); }
+  if (!b || typeof b !== "object") return reply({ error: "bad request" }, 400);
+  if (path === "/l/review") {
+    const no = await gate(req, env); if (no) return no;
+    if (!SID.test(b.id) || typeof b.ok !== "boolean") return reply({ error: "bad request" }, 400);
+    const t = words(b.text, 90), name = words(b.name, 24);
+    if (b.ok && !t) return reply({ error: "bad request" }, 400);
+    return reply(await store.libReview(b.id, b.ok, t, name, PILLARS.includes(b.pillar) ? b.pillar : null));
+  }
+  if (!KEY.test(b.key)) return reply({ error: "bad request" }, 400);
+  const hash = await sha(b.key), who = await sha("ip:" + (req.headers.get("CF-Connecting-IP") || "unknown"));
+  if (path === "/l/share") {
+    const t = words(b.text, 90), name = words(b.name, 24);
+    const mind = (Array.isArray(b.mind) ? b.mind : []).slice(0, 4).map((m) => words(m, 60)).filter(Boolean);
+    if (!t || !PILLARS.includes(b.pillar)) return reply({ error: "bad request" }, 400);
+    return reply(await store.libShare(hash, who, t, name, b.pillar, mind));
+  }
+  if (path === "/l/status") return reply(await store.libStatus(hash, (Array.isArray(b.ids) ? b.ids : []).filter((x) => SID.test(x)).slice(0, 200)));
+  if (path === "/l/unshare") return reply(await store.libUnshare(hash, (Array.isArray(b.ids) ? b.ids : []).filter((x) => SID.test(x)).slice(0, 200)));
+  if (path === "/l/up") { if (!SID.test(b.id)) return reply({ error: "bad request" }, 400); return reply(await store.libUp(hash, who, b.id)); }
+  return reply({ error: "not found" }, 404);
+}
+
 // Testers alex removed by hand. Their data is deleted when the service starts, and their phones are told to stop.
 const REMOVED = ["T-ACAY"];
 const PLACES = 60; // the most testers at once; also shown on v2/testers.html
@@ -220,6 +260,8 @@ export class Testers extends DurableObject {
       CREATE INDEX IF NOT EXISTS ev_code ON events (code);
       CREATE TABLE IF NOT EXISTS removed (code TEXT PRIMARY KEY);
       CREATE TABLE IF NOT EXISTS fails2 (who TEXT, k TEXT, t INTEGER);
+      CREATE TABLE IF NOT EXISTS lib (id TEXT PRIMARY KEY, owner TEXT, who TEXT, t INTEGER, text TEXT, name TEXT, pillar TEXT, mind TEXT, state TEXT, seen INTEGER);
+      CREATE TABLE IF NOT EXISTS libups (id TEXT, owner TEXT, who TEXT, t INTEGER, PRIMARY KEY (id, owner));
       DROP TABLE IF EXISTS fails;`);
     REMOVED.forEach((c) => this.remove(c));
   }
@@ -262,5 +304,56 @@ export class Testers extends DurableObject {
   }
   fail(who, k) { this.sql.exec("INSERT INTO fails2 VALUES (?, ?, ?)", who, k, Date.now()); }
   clearFails(who, k) { this.sql.exec("DELETE FROM fails2 WHERE who = ? AND k = ?", who, k); }
-  wipe() { for (const t of ["testers", "days", "events"]) this.sql.exec(`DELETE FROM ${t}`); }
+  wipe() { for (const t of ["testers", "days", "events"]) this.sql.exec(`DELETE FROM ${t}`); }   // tester data only, never the library
+
+  // ---- The card library ----
+  // state: "wait" (not checked yet), "in" (alex said Yes: everyone sees it), "no" (alex said No: only its maker knows it exists).
+  libShare(owner, who, text, name, pillar, mind) {
+    const dayAgo = Date.now() - DAY;
+    if (this.sql.exec("SELECT COUNT(*) AS c FROM lib WHERE who = ? AND t > ?", who, dayAgo).one().c >= LIB_SHARE_A_DAY) return { error: "slow down" };
+    if (this.sql.exec("SELECT COUNT(*) AS c FROM lib WHERE state = 'wait'").one().c >= LIB_WAITING) return { error: "full" };
+    const id = [...crypto.getRandomValues(new Uint8Array(10))].map((x) => "abcdefghijkmnpqrstuvwxyz23456789"[x % 32]).join("");
+    this.sql.exec("INSERT INTO lib VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'wait', NULL)", id, owner, who, Date.now(), text, name, pillar, JSON.stringify(mind));
+    return { ok: true, id };
+  }
+  libList() {
+    const ups = {}; this.sql.exec("SELECT id, COUNT(*) AS c FROM libups GROUP BY id").toArray().forEach((r) => (ups[r.id] = r.c));
+    return { at: Date.now(), cards: this.sql.exec("SELECT id, seen, text, name, pillar, mind FROM lib WHERE state = 'in' ORDER BY seen DESC").toArray()
+      .map((r) => ({ id: r.id, t: r.seen, text: r.text, name: r.name, pillar: r.pillar, mind: JSON.parse(r.mind || "[]"), up: ups[r.id] || 0 })) };
+  }
+  libQueue() {
+    const q = (s) => this.sql.exec(s).toArray().map((r) => ({ ...r, mind: JSON.parse(r.mind || "[]") }));
+    return { wait: q("SELECT id, t, text, name, pillar, mind FROM lib WHERE state = 'wait' ORDER BY t"),
+      done: q("SELECT id, t, seen, text, name, pillar, mind, state FROM lib WHERE state != 'wait' ORDER BY seen DESC LIMIT 200"),
+      ups: this.sql.exec("SELECT COUNT(*) AS c FROM libups").one().c };
+  }
+  libReview(id, ok, text, name, pillar) {
+    const had = this.sql.exec("SELECT id FROM lib WHERE id = ?", id).toArray()[0];
+    if (!had) return { error: "gone" };
+    if (ok) this.sql.exec("UPDATE lib SET state = 'in', seen = ?, text = ?, name = ?, pillar = COALESCE(?, pillar) WHERE id = ?", Date.now(), text, name, pillar, id);
+    else this.sql.exec("UPDATE lib SET state = 'no', seen = ? WHERE id = ?", Date.now(), id);
+    return { ok: true };
+  }
+  // A maker's phone asks how its shared cards are going. Only that phone's key can see a card that got a No.
+  libStatus(owner, ids) {
+    const out = {};
+    for (const id of ids) { const r = this.sql.exec("SELECT state FROM lib WHERE id = ? AND owner = ?", id, owner).toArray()[0]; out[id] = r ? r.state : "gone"; }
+    return { ok: true, status: out };
+  }
+  // Takes a maker's cards back out (Delete everything, or turning sharing off). Their thumbs go too.
+  libUnshare(owner, ids) {
+    for (const id of ids) {
+      if (!this.sql.exec("SELECT id FROM lib WHERE id = ? AND owner = ?", id, owner).toArray().length) continue;
+      this.sql.exec("DELETE FROM lib WHERE id = ?", id); this.sql.exec("DELETE FROM libups WHERE id = ?", id);
+    }
+    return { ok: true };
+  }
+  libUp(owner, who, id) {
+    const c = this.sql.exec("SELECT owner FROM lib WHERE id = ? AND state = 'in'", id).toArray()[0];
+    if (!c) return { error: "gone" };
+    if (c.owner === owner) return { error: "own card" };   // no thumbs up for your own card
+    if (this.sql.exec("SELECT COUNT(*) AS c FROM libups WHERE who = ? AND t > ?", who, Date.now() - DAY).one().c >= LIB_UPS_A_DAY) return { error: "slow down" };
+    this.sql.exec("INSERT OR IGNORE INTO libups VALUES (?, ?, ?, ?)", id, owner, who, Date.now());
+    return { ok: true };
+  }
 }
