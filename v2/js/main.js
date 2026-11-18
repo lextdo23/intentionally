@@ -177,7 +177,7 @@ function render(moment) {
       words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
     levelRow(),
-    wrapped.homeLines(() => render()),
+    wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     mid,
     h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
