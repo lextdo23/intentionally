@@ -6,6 +6,7 @@ import * as store from "./store.js";
 import * as deck from "./deck.js";
 import { roundBtn, pillPicker, openSheet } from "./ui.js";
 import * as boxes from "./boxes.js";
+import * as photos from "./photos.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 import { pickSteps } from "./pillars.js";
@@ -297,8 +298,19 @@ const T0 = performance.now();
 const tickEl = (c) => h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
   h("svg", { width: "11", height: "11", viewBox: "0 0 24 24", fill: "none", stroke: "#1d1e22", "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round" }, h("path", { d: "M5 12.5l4.5 4.5L19 7.5" })));
 // What they said doing it felt like, in gold where the size was: the first one, then "+2" for more.
+// The small camera on today's card, while you're doing it. Shows the photo once there is one.
+const CAM = () => h("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.1", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
+  h("path", { d: "M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" }), h("circle", { cx: "12", cy: "12.5", r: "3.2" }));
+function camBtn(k, onCam) {
+  const has = k && photos.has(k);
+  const b = h("button.card-cam", { type: "button", "aria-label": has ? "Your photo for today. Change it." : "Take a photo" }, has ? photos.img(k, "thumb") : CAM());
+  const stop = (e) => e.stopPropagation();
+  b.addEventListener("pointerdown", stop); b.addEventListener("touchstart", stop, { passive: true });
+  b.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); onCam(); });
+  return b;
+}
 const feltEl = (felt) => h("span.felt-word", null, felt[0] + (felt.length > 1 ? ` +${felt.length - 1}` : ""));
-export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid } = {}) {
+export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid, photo, develop = false, turn = false, onCam } = {}) {
   timers.forEach(clearTimeout); timers = [];
   const el = cardEl(id || null, { tag: "div", info: state === "up" || state === "done" }); el.classList.add("home-card");
   if (state === "up" || state === "done") el.classList.add("up");
@@ -315,8 +327,11 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   if (state === "up") {
     const did = h("button.did", { type: "button", onclick: (e) => { e.stopPropagation(); onDid && onDid(); } }, "I did it");
     const size = el.querySelector(".front .size"), foot = h("span.card-foot");
-    size.replaceWith(foot); foot.append(size, did);
+    size.replaceWith(foot); foot.append(size, h("span.foot-right", null, onCam ? camBtn(photo, onCam) : null, did));
   }
+  // A done card with a photo turns over to show it (alex 2026-11-18): the photo is the back of the card.
+  const pic = state === "done" && photo && photos.has(photo);
+  if (pic) photos.fillBack(back, photo, { develop });
   const why = c ? ` Why it helps: ${c.why.replace(/\.\s*$/, "")}.${c.source ? ` ${c.source}.` : ""}` : "";
   const label = { down: onTap ? "Today's card, face down. Tap to draw it." : "Today's card, face down.", up: c && `Today's card: ${c.text}.${why}`,
     done: c && `Done today: ${c.text}.${felt && felt.length ? ` It felt: ${felt.join(", ")}.` : ""}${why}`, skip: "Today's card went back in the deck for another day." }[state];
@@ -335,7 +350,7 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   if (state === "down") el.classList.add("blank");
   // Until today's card is done, a soft gold edge breathes with the sun (alex 2026-11-16, option 3B).
   if (state === "up" || state === "down") el.classList.add("todo");
-  if (state !== "skip") spinner(el, state === "down" ? 0 : 180);
+  if (state !== "skip") spinner(el, state === "down" || pic ? 0 : 180, pic && (develop || turn) ? 180 : null);
   // A long task or why line: the card grows taller to fit, so nothing is cut off.
   if (state === "up" || state === "done") requestAnimationFrame(() => {
     const f = el.querySelector(".front");
@@ -346,7 +361,7 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
 // Drag sideways and the card turns with your finger; let go and it carries on, slowing to rest face up again.
 // It never turns on its own (alex 2026-11-18).
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-function spinner(el, rest) {
+function spinner(el, rest, from = null) {
   const inn = el.querySelector(".in");
   let a = rest, raf = 0, x0 = null, y0 = 0, a0 = 0, pts = [], moved = false, held = false, touched = -1e9, logged = false;
   const set = (v) => { a = v; inn.style.transform = `rotateY(${v.toFixed(2)}deg)`; };
@@ -360,6 +375,8 @@ function spinner(el, rest) {
     raf = requestAnimationFrame(go);
   };
   const restAt = (v) => rest + 360 * Math.round((v - rest) / 360);
+  // A new photo: the card starts face up and turns slowly over to it, then the photo develops.
+  if (from != null && !reduceMotion()) { set(from); setTimeout(() => glide(rest, 1400, (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)), 350); }
   el.style.touchAction = "pan-y";
   el.addEventListener("pointerdown", (e) => {
     if (e.button) return;
