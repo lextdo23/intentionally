@@ -8,6 +8,7 @@ import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
 import * as levels from "./levels.js";
+import * as tips from "./tips.js";
 
 import { img, openViewer } from "./photos.js";
 import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
@@ -84,7 +85,7 @@ function secMoods(s) {
   if (!months) view = "week";
   const ser = moodSeries(s.days, view, back), have = ser.pts.filter((p) => p.m != null);
   const seg = !months ? null : h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>
-    h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; back = 0; redraw(); log("days_view", v); } }, l)));
+    h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; back = 0; if (v !== "week") tips.used("months"); redraw(); log("days_view", v); } }, l, v !== "week" && tips.isNew("months") ? tips.newTag() : null)));
   // The real dates: "9 – 15 Nov", "November", "2026". Arrows step back to earlier ones and forward again.
   const max = oldestBack(s.days, view), step = (d) => { back = Math.max(0, Math.min(max, back + d)); redraw(); };
   const arrow = (d, t, on) => h("button.round", { "aria-label": d > 0 ? `Earlier ${view}` : `Later ${view}`, disabled: !on, style: { visibility: on ? "visible" : "hidden" }, onclick: () => step(d) }, t);
@@ -122,7 +123,7 @@ function secMoods(s) {
   if (view !== "year") ser.pts.forEach((p, i) => p.k && chart.append(h("button.hit", { "aria-label": `${dayTitle(p.k)}${p.m != null ? ", " + MOODS[p.m] : ""}`, style: { left: `${(X(i) - (R - L) / n / 2) / W * 100}%`, width: `${(R - L) / n / W * 100}%` }, onclick: () => openDay(p.k) })));
   const ticks = h("div", { style: { position: "relative", height: "16px", marginLeft: `${L / W * 100}%` } }, ser.ticks.map((t) =>
     h("span.lab", { style: { position: "absolute", top: "0", left: `${(t.i + 0.5) / n * 100}%`, transform: "translateX(-50%)", fontSize: "11px", color: "#a9a59d", whiteSpace: "nowrap" } }, t.l)));
-  out.append(h("div.chart-wide", null, chart, ticks), prevLine);
+  out.append(h("div.chart-wide", null, chart, ticks), prevLine || "");   // no last week: nothing (it used to print "null")
   return out;
 }
 

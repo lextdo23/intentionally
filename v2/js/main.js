@@ -21,6 +21,7 @@ import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
 import { openLevels } from "./path.js";
+import * as tips from "./tips.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -233,6 +234,7 @@ function render(moment) {
   }
   clearTimeout(momentT);
   if (mo) play(mo[0], mo[1] ? mo[1] : line, true);
+  tips.soon(mo ? 4200 : 1500);   // a new thing a level opened gets its tip once home is quiet (alex 2026-11-18)
 }
 
 function changeToday() {
