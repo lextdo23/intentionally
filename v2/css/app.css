@@ -302,7 +302,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .helpers { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .helpers .btn-pill[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); }
 .mini { align-self: center; display: flex; flex-direction: column; gap: 4px; max-width: 300px; padding: 12px 16px; border-radius: 16px; background: var(--fill2); font-size: 17px; text-align: left; }
-/* On home: the card floats where the sun is and sways; it turns with your finger, and on its own every 15 seconds. */
+/* On home: the card floats where the sun is and sways; it turns with your finger (never on its own). */
 .floater { animation: bob 7s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
 .home-card { width: 150px; height: 210px; animation: sway 11s ease-in-out infinite; }
@@ -351,13 +351,10 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 @keyframes rim { 0%, 100% { box-shadow: 0 0 0 1px rgb(227 196 134 / .35), 0 0 10px rgb(242 192 143 / .15), 0 14px 30px rgba(0, 0, 0, .5) }
   44% { box-shadow: 0 0 0 1px rgb(227 196 134 / .75), 0 0 18px rgb(242 192 143 / .5), 0 0 44px rgb(242 192 143 / .25), 0 14px 30px rgba(0, 0, 0, .5) } }
 @media (prefers-reduced-motion: reduce) { .home-card.todo.up .front, .home-card.todo:not(.up) .back, .home-card.todo.blank .front { animation: none; box-shadow: 0 0 0 1px rgb(227 196 134 / .6), 0 0 18px rgb(242 192 143 / .4), 0 14px 30px rgba(0, 0, 0, .5); } }
-/* The card turns with your finger, or on its own every 15 seconds (draw.js spinner); it hops a little as it turns. */
-.home-card .in.hop { animation: hop 3.2s linear; }
 /* Face down, both sides are the back, so turning it never shows a blank face. */
 .home-card.blank .front { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 9px, rgb(242 192 143 / .10) 9px 10px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
   box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 2px 4px rgba(0, 0, 0, .35); }
 .home-card.blank .front::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
-@keyframes hop { 0% { translate: 0 0; animation-timing-function: cubic-bezier(.3, 0, .4, 1) } 42% { translate: 0 -14px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 70% { translate: 0 4px; animation-timing-function: cubic-bezier(.45, 0, .55, 1) } 100% { translate: 0 0 } }
 @media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } .lifter.on { translate: none; } #sun { transition: none; } }
 
 /* ---------- Choosing pillars and where you're at ---------- */

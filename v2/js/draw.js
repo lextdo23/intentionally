@@ -260,7 +260,7 @@ export function howStep(id, ans, back, done, label, { did = false, extra = null,
 // ---------------- Home: today's card floats where the sun is ----------------
 // state: "down" (face down, waiting to be drawn), "up" (face up, with "I did it"), "done" (turned back over with a tick),
 // "skip" (the day ended without it: back in the deck, no guilt). flip = it was just done, so the tick fills in now.
-let timers = [], lastSpin = -1e9;
+let timers = [];
 const T0 = performance.now();
 const tickEl = (c) => h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
   h("svg", { width: "11", height: "11", viewBox: "0 0 24 24", fill: "none", stroke: "#1d1e22", "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round" }, h("path", { d: "M5 12.5l4.5 4.5L19 7.5" })));
@@ -299,7 +299,7 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   // Keep the float and sway going smoothly when home redraws (no jump back to the start).
   const t = performance.now() - T0;
   el.style.animationDelay = `${-(t % 11000)}ms`;
-  // It turns: follow your finger, or on its own every 15 seconds (alex 2026-11-15). A face-down card shows its back both ways.
+  // It turns with your finger (alex 2026-11-15); no spinning on its own (alex 2026-11-18). A face-down card shows its back both ways.
   if (state === "down") el.classList.add("blank");
   // Until today's card is done, a soft gold edge breathes with the sun (alex 2026-11-16, option 3B).
   if (state === "up" || state === "down") el.classList.add("todo");
@@ -312,8 +312,8 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
 }
 // Drag sideways and the card turns with your finger; let go and it carries on, slowing to rest face up again.
-// On its own it turns twice and hops a little every 15 seconds, only while home is on screen and nobody is touching it.
-const easeOut = (t) => 1 - Math.pow(1 - t, 3), easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// It never turns on its own (alex 2026-11-18).
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 function spinner(el, rest) {
   const inn = el.querySelector(".in");
   let a = rest, raf = 0, x0 = null, y0 = 0, a0 = 0, pts = [], moved = false, held = false, touched = -1e9, logged = false;
@@ -356,18 +356,6 @@ function spinner(el, rest) {
   el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
   // A drag is not a tap: after the card is turned by hand, the tap that follows is ignored.
   el.addEventListener("click", (e) => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
-  const busy = () => document.hidden || held || raf || performance.now() - touched < 4000 || document.querySelector(".sheet-host")
-    || ["in-flow", "in-days", "in-settings", "in-ask"].some((c) => document.body.classList.contains(c));
-  const auto = () => {
-    if (!el.isConnected) return;
-    if (!reduceMotion() && !busy()) {
-      lastSpin = performance.now();
-      glide(restAt(a) + 720, 1350, easeInOut);
-      inn.classList.remove("hop"); void inn.offsetWidth; inn.classList.add("hop");
-    }
-    timers.push(setTimeout(auto, 15000));
-  };
-  timers.push(setTimeout(auto, Math.max(2000, 15000 - (performance.now() - lastSpin))));
 }
 // ---------------- Home: "How did doing it feel?" right after "I did it" ----------------
 // alex 2026-11-17 ("the mix"): the tick fills, the card steps up and shrinks, and the question rises under it, all in one
