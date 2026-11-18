@@ -17,6 +17,7 @@ import { openTester } from "./tester-sheet.js";
 import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
 import * as levels from "./levels.js";
 import * as wrapped from "./wrapped.js";
+import { openBox, waiting as boxesWaiting } from "./boxes.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -49,9 +50,9 @@ function levelRow() {
   const L = levels.level(), pts = levels.total(), was = lvShown;
   lvShown = { level: L.level, frac: L.frac, pts };
   const fill = h("i"), bar = h("div.lv-bar", null, fill), track = h("div.lv-track", { "aria-hidden": "true" }, bar);
-  const next = h("span.lv-next", null, `Next pack at level ${L.level + 1}`);
+  const next = h("span.lv-next", null, `Next box at level ${L.level + 1}`);
   const num = h("span.lv-num", null, `Level ${(was && was.level < L.level ? was.level : L.level)}`);
-  const row = h("div.lv-row", { role: "img", "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next pack at level ${L.level + 1}.` : ""}` }, num, track, next);
+  const row = h("div.lv-row", { role: "img", "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next box at level ${L.level + 1}.` : ""}` }, num, track, next);
   if (lvBack) { row.classList.add("lv-back"); lvBack = false; }
   const set = (f, near) => { fill.style.width = `${Math.round(f * 1000) / 10}%`; next.classList.toggle("on", near); };
   const gain = was ? pts - was.pts : 0;
@@ -75,6 +76,13 @@ function levelRow() {
     } else { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); }
   }, wait);
   return row;
+}
+
+// A box earned and not opened yet (js/boxes.js): a quiet gold row under the level bar until it's opened.
+function boxRow() {
+  const n = boxesWaiting();
+  if (!n) return "";
+  return h("button.box-row", { onclick: () => openBox(() => render()) }, n > 1 ? `${n} new boxes are waiting` : "A new box is waiting", h("span.chev", { "aria-hidden": "true" }, "›"));
 }
 
 // After each step, home says so in place for a few seconds: the greeting turns gold with what's next, the card lifts
@@ -177,6 +185,7 @@ function render(moment) {
       words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
     peek(),
     levelRow(),
+    boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     mid,
     h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));

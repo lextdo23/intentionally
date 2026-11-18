@@ -1,7 +1,7 @@
 // Levels (alex 2026-11-17, thread "Design levels and points"). Points come from what people already did, read
 // straight from their days, so undoing "I did it" or ending the day again never counts twice, and people who used
 // the app before levels start at the level their past days earned. Nothing is ever taken away for a missed day.
-// Each level reached earns a pack. Packs are built later: until then they're only counted (packsWaiting()).
+// Each level reached earns a box (js/boxes.js, alex 2026-11-18). packsWaiting() = boxes earned and not opened yet.
 import * as store from "./store.js";
 
 // Points for each thing, once a day. A rest day counts as drawing and doing the card: resting was the plan.
@@ -10,7 +10,7 @@ export const POINTS = { setup: 1, morning: 1, draw: 1, card: 2, evening: 2, made
 // Curve B: 4, 7, 10, 13, 16, 19, then 20 for every level after that.
 export const need = (lv) => Math.min(4 + 3 * (lv - 1), 20);
 
-// "Next pack at level N" shows once the bar is this full (about one good day away).
+// "Next box at level N" shows once the bar is this full (about one good day away).
 export const NEAR = 0.8;
 
 export function dayPoints(d) {
@@ -41,7 +41,7 @@ export function level(pts = total()) {
 // What the app remembers: the highest level it has already told the person about, and packs opened (for later).
 function mem() { const s = store.get(); return (s.levels = s.levels || {}); }
 
-// Packs earned and not opened yet. The packs feature reads this when it's built.
+// Boxes earned and not opened yet (js/boxes.js counts them as opened).
 export const packsWaiting = () => Math.max(0, level().level - 1 - (mem().opened || 0));
 
 // A new level to tell the person about, or null. The first time ever (including people who used the app before
