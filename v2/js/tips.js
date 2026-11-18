@@ -61,7 +61,7 @@ export function next() {
   hole.addEventListener("click", () => close(true));
   ok.addEventListener("click", () => close(false));
   document.body.append(layer);
-  requestAnimationFrame(() => { layer && layer.classList.add("on"); ok.focus({ preventScroll: true }); });
+  requestAnimationFrame(() => { layer && layer.classList.add("on"); });
   return true;
 }
 

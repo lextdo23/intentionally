@@ -20,12 +20,9 @@ import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
-<<<<<<< HEAD
 import { openLevels } from "./path.js";
 import * as tips from "./tips.js";
-=======
 import * as library from "./library.js";
->>>>>>> origin/main
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -110,11 +107,7 @@ let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
   setTimeout(() => {
-<<<<<<< HEAD
-    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
-=======
-    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
->>>>>>> origin/main
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
     if (busy && tries < 40) return noteWhenFree(tries + 1);
     if (!busy) photos.firstNote();
   }, tries ? 1500 : 3400);
@@ -299,11 +292,7 @@ if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-<<<<<<< HEAD
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards"].some((x) => document.body.classList.contains(x))) render(); });
-=======
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-cards"].some((x) => document.body.classList.contains(x))) render(); });
->>>>>>> origin/main
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;
