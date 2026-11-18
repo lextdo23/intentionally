@@ -11,13 +11,14 @@ import { log } from "./tester.js";
 import { show, step, where, spacer, mainBtn } from "./checkin.js";
 import { cardEl } from "./draw.js";
 import { GROUPS } from "./pillars.js";
+import * as library from "./library.js";
 
 const ALL = GROUPS.flatMap((g) => g[1]);
 const feltLine = (list) => list.map((w, i) => (i ? w.charAt(0).toLowerCase() + w.slice(1) : w)).join(", ");
 
 // back(): leave without keeping. kept(card): it's saved.
 export function makeCard({ back, kept, k = dayKey() }) {
-  const st = { text: "", pillar: null, felt: new Set(), inDeck: false, more: false, flipped: false };
+  const st = { text: "", pillar: null, felt: new Set(), inDeck: false, pub: false, name: library.lib().name, more: false, flipped: false };
   log("own_open");
 
   // The card itself, shared by both screens.
@@ -71,15 +72,30 @@ export function makeCard({ back, kept, k = dayKey() }) {
     const sw = h("button.switch", { role: "switch", "aria-checked": String(st.inDeck), "aria-label": "Add it to my deck",
       onclick: () => { st.inDeck = !st.inDeck; sw.setAttribute("aria-checked", String(st.inDeck)); } });
     const row = h("label.own-row", null, h("span", null, "Add it to my deck"), sw);
+    // "Show it to everyone" (alex 2026-11-18): the card goes to the card library, after alex checks it. The name goes
+    // on the card itself ("Made by Sam"), written like the words; blank shows as "Anonymous daydeck user".
+    // Only for Daydeck's own pillars (a pillar you named yourself has no place in the library).
+    const nameIn = h("input", { type: "text", maxlength: "24", value: st.name, placeholder: "anonymous", "aria-label": "Name on the card", autocomplete: "off", enterkeyhint: "done" });
+    nameIn.addEventListener("input", () => { st.name = nameIn.value; });
+    nameIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nameIn.blur(); } });
+    const by = h("span.own-by", null, "Made by", nameIn);
+    const note = h("p.own-pub-note", null, "It's checked first, then anyone using Daydeck can see it.");
+    const pubSw = h("button.switch", { role: "switch", "aria-checked": String(st.pub), "aria-label": "Show it to everyone",
+      onclick: () => { st.pub = !st.pub; pubSw.setAttribute("aria-checked", String(st.pub)); showBy(); } });
+    const showBy = () => { if (st.pub) foot.before(by); else by.remove(); note.style.display = st.pub ? "" : "none"; };
+    const canPub = ALL.includes(st.pillar);
+    const pubRow = canPub ? h("div.col", { style: { gap: "4px" } }, h("label.own-row", null, h("span", null, "Show it to everyone"), pubSw), note) : null;
+    showBy();
     const keep = mainBtn("Keep it", true, () => {
       const felt = deck.FELT.filter((w) => st.felt.has(w));
       const o = deck.addOwn(k, { pillar: st.pillar, text: st.text.trim(), felt, inDeck: st.inDeck });
       log("own_card", { p: ALL.includes(st.pillar) ? st.pillar : "own", f: felt.map((w) => deck.FELT.indexOf(w)), deck: st.inDeck ? 1 : 0 }); // never the words
+      if (st.pub && canPub) library.share(o, st.name);
       kept(o);
     });
     show(step(
       [roundBtn("back", "Back", one), where("Your own card"), spacer()],
-      [h("div.rise", { style: { display: "flex", justifyContent: "center" } }, el), h("div.rise", null, pp.el), h("div.rise", null, row)],
+      [h("div.rise", { style: { display: "flex", justifyContent: "center" } }, el), h("div.rise", null, pp.el), h("div.rise.col", { style: { gap: "8px" } }, row, pubRow)],
       [keep, LIFELINE()]));
     flip();
   };

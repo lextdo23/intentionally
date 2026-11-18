@@ -44,8 +44,8 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards" };
-const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
+  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
+const TABS = [["overview", "Overview"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
 const notYet = (title, what) => sec(title, `Starts filling in once ${what} is built in the app.`, "", "", true);
@@ -280,6 +280,17 @@ function drawAll(D) {
         (felt.some(Boolean) ? `<p class="note">How it felt:</p>` + bars(FELT.map((w, i) => [w, felt[i]]).filter((r) => r[1]).sort((a, b) => b[1] - a[1])) : "")
       : `<p class="sub">No one has made a card yet.</p>`,
       "If people make lots of cards for one pillar, the deck may be missing cards they'd like there."); }
+  // The card library (alex 2026-11-18): cards people chose to show to everyone wait here for alex's Yes or No.
+  // The waiting list comes straight from the service (libraryView), not from tester data.
+  html += sec("Cards waiting for you", "Cards people chose to show to everyone. Fix the words if you need to, then say Yes or No. Only Yes cards are ever shown, and the maker only hears back on a Yes.",
+    `<details class="rules"><summary>Your rules for checking</summary><p class="note"><b>Say No if the card:</b> is rude, cruel, sexual, or mentions drugs or getting drunk · could hurt someone (risky stunts, extreme fasting, pushing past pain) · mentions calories, weight, or good and bad food · names a real person, phone number, address, @handle or website · is an ad or tells you to buy something · is a joke or nonsense, not something you could do · talks about self-harm or suicide (never public).</p><p class="note"><b>Fix and say Yes if:</b> it has spelling or grammar slips · it's too long (trim to one clear action). Things like a partner, a car or a coffee are fine; a trip overseas isn't.</p></details><div id="libq"><p class="sub">Loading…</p></div>`, "");
+  { const opens = by("lib_open").length, views = by("lib_view").length, adds = by("lib_add"), shares = by("lib_share"), ups = by("lib_up").length, removes = by("lib_remove").length;
+    const addP = {}; adds.forEach((e) => { const p = e.val && e.val.p; if (typeof p === "string" && p.length < 30) addP[p] = (addP[p] || 0) + 1; });
+    html += sec("How the card library is used", "From testers only: opening Cards, looking at a card, adding it, sharing their own, and thumbs up. Never what anyone wrote.",
+      opens ? bars([["Opened Cards", opens], ["Looked at a library card", views], ["Added one to their deck", adds.length], ["Took one back out", removes], ["Shared a card they made", shares.length], ["Gave a thumbs up", ups]], Math.max(opens, views)) +
+        (adds.length ? `<p class="note">Cards added, by pillar:</p>` + bars(Object.entries(addP).sort((a, b) => b[1] - a[1])) : "")
+      : `<p class="sub">No tester has opened Cards yet.</p>`,
+      "lots of looking but little adding means the library cards don't fit yet; shared cards show which pillars people feel the deck is missing."); }
   html += sec("Card thumbs", "Every card a tester has rated: does it fit their pillar and where they're at with it? Tap a pillar to see only its cards.", `<div id="thumbs"></div>`,
     "a thumbs down asks \"does this fit me\", not \"is this a good card\". A card that doesn't fit may belong under a different mindset.");
   // Setup: choosing pillars and where you're at
@@ -391,6 +402,7 @@ function drawAll(D) {
   html = html.replace('<div class="tiles" data-g="overview">', needsBox + '<div class="tiles" data-g="overview">');
   $("out").innerHTML = `<nav class="ttabs" role="tablist" aria-label="Sections">${TABS.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}">${l}</button>`).join("")}</nav>` + html;
   thumbsView(by("card_thumb"));
+  libraryView();
   let tab = "overview"; try { tab = localStorage.getItem("daydeck-tester-tab") || tab; } catch {}
   const show = (k, top) => {
     if (!TABS.some(([x]) => x === k)) k = "overview";
@@ -481,6 +493,61 @@ function thumbsView(events) {
     $("tpil").onchange = (e) => { st.pillar = e.target.value; st.more = false; draw(); };
     $("tsort").onchange = (e) => { st.sort = e.target.value; draw(); };
     if ($("tmore")) $("tmore").onclick = () => { st.more = true; draw(); };
+  };
+  draw();
+}
+
+// ---------------- The card library: cards waiting for alex ----------------
+// Everything here is typed by people, so it's only ever put on the page as text (esc / textContent), never as HTML.
+const ago = (t) => { const d = Math.round((Date.now() - t) / 864e5); return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`; };
+async function libraryView() {
+  const box = $("libq"); if (!box) return;
+  let q, list;
+  try {
+    const [a, b] = await Promise.all([fetch(`${SERVICE}/l/queue`, { headers: { Authorization: "Bearer " + pw } }), fetch(`${SERVICE}/l/list`)]);
+    if (!a.ok) throw new Error(a.status);
+    q = await a.json(); list = b.ok ? await b.json() : { cards: [] };
+  } catch { box.innerHTML = `<p class="sub">Couldn't load the waiting cards. Check you're online and reload.</p>`; return; }
+  const ups = {}; (list.cards || []).forEach((c) => (ups[c.id] = c.up || 0));
+  const PILS = Object.keys(PCOL);
+  const draw = () => {
+    const wait = q.wait || [], done = (q.done || []).slice(0, 30);
+    box.innerHTML = `<div class="items">${wait.length ? "" : `<p class="sub">Nothing waiting. New cards show here when someone shares one.</p>`}</div>
+      ${done.length ? `<p class="note" style="margin-top:16px">Checked lately:</p><div class="items done"></div>` : ""}`;
+    const items = box.querySelector(".items");
+    wait.forEach((c) => {
+      const el = document.createElement("div"); el.className = "lcard";
+      el.innerHTML = `<p class="meta"><i class="dot"></i><span class="m"></span></p>
+        <label class="note">Card<textarea rows="2" maxlength="90" class="lt"></textarea></label>
+        <div class="row"><label class="note" style="flex:1 1 160px">Name on card<input class="ln" maxlength="24" placeholder="Anonymous daydeck user"></label>
+          <label class="note" style="flex:1 1 140px">Pillar<select class="lp">${PILS.map((p) => `<option>${esc(p)}</option>`).join("")}</select></label></div>
+        <div class="row two"><button class="no">No</button><button class="main yes">Yes</button></div><p class="note msg" aria-live="polite"></p>`;
+      el.querySelector(".dot").style.background = PCOL[c.pillar] || "#a9a59d";
+      el.querySelector(".m").textContent = `${c.pillar}${c.mind && c.mind.length ? " · " + c.mind.join(", ") : ""} · ${ago(c.t)}`;
+      el.querySelector(".lt").value = c.text; el.querySelector(".ln").value = c.name || ""; el.querySelector(".lp").value = PILS.includes(c.pillar) ? c.pillar : "Friends";
+      const answer = async (ok) => {
+        const body = { id: c.id, ok, text: el.querySelector(".lt").value.trim(), name: el.querySelector(".ln").value.trim(), pillar: el.querySelector(".lp").value };
+        if (ok && !body.text) { el.querySelector(".msg").textContent = "The card needs some words."; return; }
+        el.querySelectorAll("button").forEach((b) => (b.disabled = true));
+        const res = await fetch(`${SERVICE}/l/review`, { method: "POST", headers: { Authorization: "Bearer " + pw, "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+        if (!res || !res.ok) { el.querySelector(".msg").textContent = "Couldn't save. Check you're online and try again."; el.querySelectorAll("button").forEach((b) => (b.disabled = false)); return; }
+        q.wait = q.wait.filter((x) => x.id !== c.id);
+        q.done = [Object.assign({}, c, ok ? { text: body.text, name: body.name, pillar: body.pillar } : {}, { state: ok ? "in" : "no", seen: Date.now() })].concat(q.done || []);
+        draw();
+      };
+      el.querySelector(".yes").onclick = () => answer(true);
+      el.querySelector(".no").onclick = () => answer(false);
+      items.append(el);
+    });
+    const dl = box.querySelector(".items.done");
+    if (dl) done.forEach((c) => {
+      const el = document.createElement("div"); el.className = "item";
+      el.innerHTML = `<span class="t"></span><span class="meta"></span><span class="chip"></span>`;
+      el.querySelector(".t").textContent = c.text;
+      el.querySelector(".meta").textContent = `${c.pillar} · ${c.name || "Anonymous daydeck user"} · ${ago(c.seen || c.t)}${c.state === "in" ? ` · ${ups[c.id] || 0} thumbs up` : ""}`;
+      const chip = el.querySelector(".chip"); chip.textContent = c.state === "in" ? "Yes" : "No"; chip.classList.add(c.state === "in" ? "ok" : "look");
+      dl.append(el);
+    });
   };
   draw();
 }

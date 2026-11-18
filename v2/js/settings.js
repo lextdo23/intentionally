@@ -9,6 +9,7 @@ import { openSheet, roundBtn } from "./ui.js";
 import { openTester, testerRow } from "./tester-sheet.js";
 import { pickPillars, pillarWords } from "./pillars.js";
 import * as photos from "./photos.js";
+import * as library from "./library.js";
 
 let onClosed = null, el = null;
 
@@ -58,7 +59,7 @@ function render() {
       linkRow("Save a copy", null, { onclick: saveCopy }),
       linkRow("Restore from a file", null, { onclick: restore }),
     ].concat(photos.keys().length ? [linkRow("Save my photos", `${photos.keys().length}`, { onclick: savePhotos })] : []),
-    photos.keys().length ? "Everything stays on this phone. A copy is a file you keep wherever you like. Photos aren't in it: Save my photos keeps them in your iPhone's Photos." : "Everything stays on this phone. A copy is a file you keep wherever you like."),
+    photos.keys().length ? "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like. Photos aren't in it: Save my photos keeps them in your iPhone's Photos." : "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like."),
     h("div.set-card", null, testerRow(() => openTester(render))),
     group("Support", [
       linkRow("Talk to someone", "Lifeline 13 11 14", { href: "tel:131114" }),
@@ -172,7 +173,7 @@ function howItWorks() {
       h("div.col", { style: { gap: "8px" } },
         h("p", null, "Start your day by noting how you slept. End it by noting how the day felt."),
         h("p", null, "Your days shows how your days have gone, and what seems to go with the good ones."),
-        h("p", null, "There's more to come, a little at a time. Everything stays on this phone.")),
+        h("p", null, "There's more to come, a little at a time. Everything stays on this phone, unless you choose to share it.")),
       h("button.btn-main", { onclick: () => close("done") }, "Done"));
   }, { label: "How Daydeck works" });
 }
@@ -182,13 +183,14 @@ function howItWorks() {
 //   data and files, which live on the same site;
 // - notifications: the service forgets this phone's nudge times, and the phone is signed out of notifications;
 // - tester mode: what was shared is deleted. If the phone is offline, that part finishes next time it's online.
+// - the card library: cards this phone showed to everyone are taken back out (also finishes later if offline).
 function deleteAll() {
   let armed = false;
-  const shared = !!(store.get().tester && store.get().tester.code);
+  const shared = !!(store.get().tester && store.get().tester.code), cards = !!(store.get().lib && Object.values(store.get().lib.shared || {}).some(Boolean));
   const b = h("button.set-row.set-danger", { onclick: async () => {
     if (!armed) { armed = true; b.textContent = "Tap again to delete everything"; return; }
     b.disabled = true; b.textContent = "Deleting…";
-    const allGone = await tester.forget();
+    const testerGone = await tester.forget(), cardsGone = await library.unshareAll(), allGone = testerGone && cardsGone;
     await notify.forget();
     await wipeOldApp();
     await photos.wipe();
@@ -197,13 +199,13 @@ function deleteAll() {
     closeSettings();
     if (!allGone) setTimeout(() => openSheet((panel, close) => panel.append(
       h("div.col", { style: { gap: "4px" } }, h("h2", null, "Deleted from this phone"),
-        h("p.sub", null, "What you shared while testing will be deleted the next time you're online.")),
+        h("p.sub", null, "What you shared will be deleted the next time you're online.")),
       h("button.btn-main", { onclick: () => close("done") }, "Okay")), { label: "Deleted" }), 450);
   } }, "Delete everything");
   return h("div.col", { style: { gap: "8px" } }, h("div.set-card", null, b),
     h("p.set-foot", null, shared
-      ? "Removes everything Daydeck has kept on this phone, and everything you shared while testing (gone from backups within 30 days). This can't be undone."
-      : "Removes everything Daydeck has kept on this phone. This can't be undone."));
+      ? `Removes everything Daydeck has kept on this phone, and everything you shared while testing (gone from backups within 30 days)${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.`
+      : `Removes everything Daydeck has kept on this phone${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.`));
 }
 
 // The old Intentionally app shares this site, so its data is removed too: its entries and its offline app.

@@ -10,8 +10,8 @@ import { now } from "./clock.js";
 import { dayKey } from "./util.js";
 import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./words.js";
 
-const SERVICE = "https://intentionally-push.lextdo.workers.dev";
-export const CONSENT = 1;
+export const SERVICE = "https://intentionally-push.lextdo.workers.dev";
+export const CONSENT = 2;   // 2: cards you show to everyone (the card library) do leave the phone (alex 2026-11-18)
 export const SHARED = [
   "Your check-in answers: your mood, and the feelings and sleep tags you tap",
   "What you choose and do in the app, like pillars, cards, thumbs up or down, levels and which screens you use",
@@ -19,12 +19,15 @@ export const SHARED = [
   "How long check-ins take, when nudges arrive and when you check in",
   "Your phone type and any errors the app runs into",
 ];
-export const NEVER = ["Anything you type in your own words", "Your photos", "Your name, email or where you are"];
+export const NEVER = ["Anything you type in your own words, unless you show a card you made to everyone", "Your photos", "Your name, email or where you are"];
 
 const MAX_QUEUE = 2000;
 const t = () => store.get().tester;
 export const on = () => !!(t() && t().on && t().consent >= CONSENT);
 export const code = () => t() && t().code;
+// A tester who agreed to an older consent screen: asked again before anything more is sent (js/tester-sheet.js askAgain).
+export const needsAsk = () => !!(t() && t().on && t().code && (t().consent || 0) < CONSENT);
+export function agreeAgain() { t().consent = CONSENT; store.save(); log("consent_again", CONSENT); send(true); }
 
 // Records one thing that happened. Does nothing unless tester mode is on.
 export function log(name, value) {
