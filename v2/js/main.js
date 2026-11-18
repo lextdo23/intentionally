@@ -20,6 +20,7 @@ import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
+import { openLevels } from "./path.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -27,6 +28,7 @@ fitCards(); addEventListener("resize", fitCards);
 
 const s = store.load();
 if (levels.startOver(s)) log("level_reset", levels.level().level);   // once: everyone back to level 1
+levels.keepOld(s);   // people who already used the app keep everything open
 setOffsetDays(s.test.offset || 0);
 let testOn = new URLSearchParams(location.search).has("test") || !!s.test.on;
 const home = document.getElementById("home");
@@ -55,7 +57,8 @@ function levelRow() {
   const fill = h("i"), bar = h("div.lv-bar", null, fill), track = h("div.lv-track", { "aria-hidden": "true" }, bar);
   const next = h("span.lv-next", null, `Next box at level ${L.level + 1}`);
   const num = h("span.lv-num", null, `Level ${(was && was.level < L.level ? was.level : L.level)}`);
-  const row = h("div.lv-row", { role: "img", "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next box at level ${L.level + 1}.` : ""}` }, num, track, next);
+  // Tapping the row opens Your levels, the path of what each level opens (alex 2026-11-18).
+  const row = h("button.lv-row.lv-tap", { "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next box at level ${L.level + 1}. ` : ""}Your levels`, onclick: () => openLevels(() => render()) }, num, track, next);
   if (lvBack) { row.classList.add("lv-back"); lvBack = false; }
   const set = (f, near) => { fill.style.width = `${Math.round(f * 1000) / 10}%`; next.classList.toggle("on", near); };
   const gain = was ? pts - was.pts : 0;
@@ -102,7 +105,7 @@ let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
   setTimeout(() => {
-    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
     if (busy && tries < 40) return noteWhenFree(tries + 1);
     if (!busy) photos.firstNote();
   }, tries ? 1500 : 3400);
@@ -186,7 +189,7 @@ function render(moment) {
   // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
   if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
-  if (lvNew) log("level", lvNew);
+  if (lvNew) { log("level", lvNew); const u = levels.opensAt(lvNew); if (u && !(store.get().levels || {}).keepAll) log("unlock", u.id); }
   const mo = lvNew ? [`Level ${lvNew}.`, null] : moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
   const greet = h("h1.greet", null, mo ? mo[0] : head);
   const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
@@ -204,7 +207,7 @@ function render(moment) {
       words, h("div", { style: { display: "flex", gap: "8px" } },
         roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
         roundBtn("settings", "Settings", () => openSettings(() => render())))),
-    peek(),
+    levels.isOpen("days") ? peek() : "",   // Your days opens at level 2
     levelRow(),
     boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
@@ -280,7 +283,7 @@ tester.opened();
 if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos"].some((x) => document.body.classList.contains(x))) render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels"].some((x) => document.body.classList.contains(x))) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;

@@ -68,3 +68,29 @@ export function newLevel() {
   if (lv > m.seen) { m.seen = lv; store.save(); return lv; }
   return null;
 }
+
+// ---------- What each level opens (alex 2026-11-18, thread "Finalise levels and what they unlock") ----------
+// Day one is the basics only, so nothing extra lands at once. Photos, Going to sleep, "What's been on your mind?",
+// support, rest days, pillars and settings are never levelled. The card library thread checks isOpen("library").
+export const BASICS = { name: "Your daily card", line: "Start your day, your card, a photo, End your day" };
+export const UNLOCKS = [
+  { level: 2, id: "days", name: "Your days", line: "See how your days have felt, and what seems to help." },
+  { level: 3, id: "own", name: "Make your own card", line: "At the end of your day, add something else you did." },
+  { level: 4, id: "library", name: "Card library", line: "Every card in Daydeck, to look through." },
+  { level: 5, id: "months", name: "Month and Year on Your days", line: "Look back over a whole month or year." },
+];
+// People who used the app before levels opened things keep everything they have (alex 2026-11-18): decided once,
+// the first time this runs, from whether any real day was already noted on this phone.
+export function keepOld(st = store.get()) {
+  const m = (st.levels = st.levels || {});
+  if (m.keepAll != null) return;
+  m.keepAll = Object.values(st.days || {}).some((d) => d && !d.sample && (d.sleep || d.mood != null || (d.card && d.card.id) || d.rest));
+  store.save();
+}
+export function isOpen(id) {
+  const u = UNLOCKS.find((x) => x.id === id);
+  if (!u || mem().keepAll) return true;
+  return level().level >= u.level;
+}
+// What opened at this level (for the level-up moment), or null.
+export const opensAt = (lv) => UNLOCKS.find((u) => u.level === lv) || null;

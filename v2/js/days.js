@@ -7,6 +7,7 @@ import { moodSeries, mostlyWord, oldestBack, sleepMood, pillarRows, helps, goodC
 import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
+import * as levels from "./levels.js";
 
 import { img, openViewer } from "./photos.js";
 import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
@@ -79,8 +80,10 @@ const redraw = () => { const sc = root().querySelector(".scroll"), y = sc ? sc.s
 
 // A: the mood line, Week / Month / Year
 function secMoods(s) {
+  const months = levels.isOpen("months");   // Month and Year open at level 5 (alex 2026-11-18); before that, weeks only
+  if (!months) view = "week";
   const ser = moodSeries(s.days, view, back), have = ser.pts.filter((p) => p.m != null);
-  const seg = h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>
+  const seg = !months ? null : h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>
     h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; back = 0; redraw(); log("days_view", v); } }, l)));
   // The real dates: "9 – 15 Nov", "November", "2026". Arrows step back to earlier ones and forward again.
   const max = oldestBack(s.days, view), step = (d) => { back = Math.max(0, Math.min(max, back + d)); redraw(); };
