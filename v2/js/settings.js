@@ -8,6 +8,7 @@ import * as tester from "./tester.js";
 import { openSheet, roundBtn } from "./ui.js";
 import { openTester, testerRow } from "./tester-sheet.js";
 import { pickPillars, pillarWords } from "./pillars.js";
+import * as photos from "./photos.js";
 
 let onClosed = null, el = null;
 
@@ -56,7 +57,8 @@ function render() {
     group("Your data", [
       linkRow("Save a copy", null, { onclick: saveCopy }),
       linkRow("Restore from a file", null, { onclick: restore }),
-    ], "Everything stays on this phone. A copy is a file you keep wherever you like."),
+    ].concat(photos.keys().length ? [linkRow("Save my photos", `${photos.keys().length}`, { onclick: savePhotos })] : []),
+    photos.keys().length ? "Everything stays on this phone. A copy is a file you keep wherever you like. Photos aren't in it: Save my photos keeps them in your iPhone's Photos." : "Everything stays on this phone. A copy is a file you keep wherever you like."),
     h("div.set-card", null, testerRow(() => openTester(render))),
     group("Support", [
       linkRow("Talk to someone", "Lifeline 13 11 14", { href: "tel:131114" }),
@@ -125,6 +127,17 @@ function saveCopy() {
   tester.log("save_copy");
 }
 
+// Every photo of a card, out to the phone's share sheet ("Save Images" puts them in Photos).
+async function savePhotos() {
+  const files = await photos.files();
+  if (!files.length) return;
+  tester.log("photos_save", files.length);
+  try {
+    if (navigator.canShare && navigator.canShare({ files })) await navigator.share({ files });
+    else for (const f of files) { const a = h("a", { href: URL.createObjectURL(f), download: f.name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+  } catch { /* closed the share sheet */ }
+}
+
 function restore() {
   const pick = h("input", { type: "file", accept: ".json,application/json", style: { display: "none" } });
   pick.addEventListener("change", async () => {
@@ -178,6 +191,7 @@ function deleteAll() {
     const allGone = await tester.forget();
     await notify.forget();
     await wipeOldApp();
+    await photos.wipe();
     try { const keys = await caches.keys(); await Promise.all(keys.filter((k) => !k.startsWith("daydeck-")).map((k) => caches.delete(k))); } catch { /* nothing saved */ }
     store.reset();
     closeSettings();

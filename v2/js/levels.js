@@ -5,7 +5,7 @@
 import * as store from "./store.js";
 
 // Points for each thing, once a day. A rest day counts as drawing and doing the card: resting was the plan.
-export const POINTS = { setup: 1, morning: 1, draw: 1, card: 2, evening: 2, made: 1 };
+export const POINTS = { setup: 1, morning: 1, draw: 1, card: 2, evening: 2, made: 1, photo: 1 };
 
 // Curve B: 4, 7, 10, 13, 16, 19, then 20 for every level after that.
 export const need = (lv) => Math.min(4 + 3 * (lv - 1), 20);
@@ -24,6 +24,7 @@ export function dayPoints(d) {
   }
   if (d.mood != null) p += POINTS.evening;
   if (d.made && d.made.length) p += POINTS.made;
+  if (d.ph) p += POINTS.photo;   // a photo of the card (alex 2026-11-18)
   return p;
 }
 

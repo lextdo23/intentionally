@@ -18,6 +18,8 @@ import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
 import * as levels from "./levels.js";
 import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
+import * as photos from "./photos.js";
+import { openCamera } from "./camera.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -94,8 +96,17 @@ const MOMENT = {
   rest: ["Rest day.", "No card today."],
   did: ["Card's done.", null],
   end: ["That's today.", null],
+  photo: ["Photo added.", "It's in Your photos."],
 };
-let momentT = 0;
+let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo on its back turns into view
+// The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
+function noteWhenFree(tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-settings"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
+    if (busy && tries < 40) return noteWhenFree(tries + 1);
+    if (!busy) photos.firstNote();
+  }, tries ? 1500 : 3400);
+}
 
 // The sun's glow travels across the sky through the day: low on the left in the morning, high at midday, low on the right at night.
 function placeSun(t, done) {
@@ -155,7 +166,7 @@ function render(moment) {
         store.save();
         play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
       },
-      onEnd: () => { lvBack = true; render(); } });
+      onEnd: () => { lvBack = true; turnPh = true; render(); } });
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
@@ -163,9 +174,13 @@ function render(moment) {
     d.card.done = false; delete d.card.how; delete d.card.felt; d.pil = (d.pil || []).filter((x) => x !== p || deck.madePil(d).includes(x)); store.save();
     log("card_undo", deck.tid(c.id)); notify.sync(); render();
   };
+  // A photo of the card (alex 2026-11-18): the camera on the card while doing it, "Add a photo" once it's done.
+  // The photo becomes the back of the card, and the card turns over to it.
+  const cam = () => openCamera(k, { onSaved: () => { const first = !(store.get().ph || {}).noted; render("photo"); if (first) noteWhenFree(); } });
   let card = null;
   const felt = c && c.felt || [];
-  if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt } : did ? { state: "done", flip: moment === "did", felt } : { state: "up", onDid: markDid });
+  const ph = { photo: k, develop: moment === "photo", turn: turnPh }; turnPh = false;
+  if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt, ...ph } : did ? { state: "done", flip: moment === "did", felt, ...ph } : { state: "up", onDid: markDid, onCam: cam, photo: k });
   else if (!today.rest && !ended && deck.deck().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
 
   // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
@@ -180,10 +195,15 @@ function render(moment) {
   const words = h("div.col.greet-words", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
   // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept
   // while the card is still to do, so the card doesn't jump when it appears.
-  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : null);
+  const offer = c && did && !ended && moment !== "did" && photos.offerOK(k);
+  if (offer) photos.offered(k);
+  const addPhoto = offer ? h("button.add-photo", { onclick: cam }, photos.camIcon(), "Add a photo") : null;
+  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : null);
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
-      words, roundBtn("settings", "Settings", () => openSettings(() => render()))),
+      words, h("div", { style: { display: "flex", gap: "8px" } },
+        roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
+        roundBtn("settings", "Settings", () => openSettings(() => render())))),
     peek(),
     levelRow(),
     boxRow(),
@@ -260,7 +280,7 @@ tester.opened();
 if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/v2/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap"].some((x) => document.body.classList.contains(x))) render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos"].some((x) => document.body.classList.contains(x))) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;

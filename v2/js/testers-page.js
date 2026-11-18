@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins" };
+  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -351,6 +351,17 @@ function drawAll(D) {
         `<p class="note">"Not now" ${by("wrap_notnow").length}. Stopped early from home or Settings: ${Object.entries(stops).map(([k, n]) => `${esc(KEEP[k] || k)} ${n}`).join(", ") || "never"}. Shared ${by("wrap_share").length} (without moods ${by("wrap_share").filter((e) => e.val === "no_moods").length}). Week names given: ${Object.entries(names).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none yet"}.</p>`
       : `<p class="sub">No wrapped yet. The first one is ready on a tester's day 7.</p>`,
       "lots of closing on one screen means that screen is slow or unclear; ideas nobody keeps, or keep then stop, can be cut."); }
+
+  // Photos of the daily card (from 18 Nov). Only that a photo was added, changed or removed, never the picture.
+  { const off = who("photo_offer"), add = who("photo_add"), cam = by("photo_add").filter((e) => e.val === "cam").length, lib = by("photo_add").filter((e) => e.val === "lib").length;
+    const views = {}; by("photos_view").forEach((e) => { const v = e.val && e.val.v; if (v) views[v] = (views[v] || 0) + 1; });
+    html += sec("Do people take photos?", "Testers offered \"Add a photo\" after doing their card, who added one, and how they took it. Then whether people look back at them. Only the fact that a photo was added is sent, never the photo.",
+      off || add ? bars([["Were offered a photo", off], ["Added one", add], ["Opened Your photos", who("photos_open")]], Math.max(off, add)) +
+        `<p class="note">Photos added: ${by("photo_add").length} (camera ${cam}, from their photos ${lib}). Offered ${by("photo_offer").length} times. Changed ${by("photo_change").length}, removed ${by("photo_remove").length}.</p>` +
+        `<p class="note">Your photos opened ${by("photos_open").length} times, a photo opened ${by("photo_open").length} times, its day slid up ${by("photo_info").length} times. Zoom picked: ${Object.entries(views).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "never"}.</p>` +
+        `<p class="note">Camera not allowed: ${by("photo_cam_denied").length}. Card words turned off: ${by("photo_words").filter((e) => e.val === "off").length}. Shared a photo ${by("photo_share").length}, saved all ${by("photos_save").length}. iPhone agreed to keep the photos: ${by("photo_keep").filter((e) => e.val === "yes").length} of ${by("photo_keep").length}.</p>`
+      : `<p class="sub">No photos yet. "Add a photo" shows after a tester does their card.</p>`,
+      "few photos after lots of offers means it isn't wanted or is too fiddly; lots of \"camera not allowed\" means the ask needs explaining first; photos added but never looked at means the record isn't the draw."); }
 
   // 12. Safety
   html += sec("Safety", "Counts only, never tied to anything a tester wrote. For the safety reviewer.",

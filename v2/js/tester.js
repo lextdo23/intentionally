@@ -19,7 +19,7 @@ export const SHARED = [
   "How long check-ins take, when nudges arrive and when you check in",
   "Your phone type and any errors the app runs into",
 ];
-export const NEVER = ["Anything you type in your own words", "Your name, email or where you are"];
+export const NEVER = ["Anything you type in your own words", "Your photos", "Your name, email or where you are"];
 
 const MAX_QUEUE = 2000;
 const t = () => store.get().tester;

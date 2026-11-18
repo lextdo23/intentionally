@@ -9,6 +9,7 @@ import * as deck from "./deck.js";
 import * as notify from "./notify.js";
 import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
+import * as photos from "./photos.js";
 
 // ---------------- small helpers ----------------
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
@@ -445,11 +446,14 @@ function scrBest(ctx, j) {
         if (bi >= 0) {
           e.classList.add(bi ? "hero2" : "hero");
           Object.assign(e.style, { left: 24 + bi * 10 + "px", top: 172 + bi * 8 + "px", width: "382px", height: "536px", zIndex: String(3 - bi), rotate: bi ? "2deg" : "0deg" });
+          // The day's photo, if it has one, at the top of the card (alex 2026-11-18); then two of the day's lines fit.
+          const phk = !bi && B.top.map((x) => x.k).find((x) => photos.has(x));
           if (!bi) e.querySelector(".hc").append(
-            h("div.hday.wr-aft", { style: `--d:.7s;font-size:${tie ? 34 : 52}px` }, bigText),
+            phk ? h("div.hphoto.wr-aft", { style: "--d:.6s" }, photos.img(phk, "full")) : "",
+            h("div.hday.wr-aft", { style: `--d:.7s;font-size:${tie ? 34 : phk ? 40 : 52}px` }, bigText),
             h("div.hmood.wr-aft", { style: "--d:.85s" }, tie ? `Both felt ${word(m)}.` : `felt ${word(m)}.`),
             h("div.hline.wr-aft", { style: "--d:1s" }), h("div.whyh2.wr-aft", { style: "--d:1.1s" }, "That day"),
-            ...B.rows.map(([ic, t, s], r) => h("div.hrow.wr-aft", { style: `--d:${1.2 + r * 0.25}s` }, h("div.ic", null, icon(ic)), h("div", null, h("b", null, t), h("span", null, s)))));
+            ...(phk ? B.rows.slice(0, 2) : B.rows).map(([ic, t, s], r) => h("div.hrow.wr-aft", { style: `--d:${1.2 + r * 0.25}s` }, h("div.ic", null, icon(ic)), h("div", null, h("b", null, t), h("span", null, s)))));
         } else { e.classList.add("mini"); Object.assign(e.style, { left: sx + k * (sw + sg) + "px", top: "736px", width: sw + "px", height: "56px" }); }
       });
     }, reduceMotion() ? 0 : flipAt + n * 90 + 700);
@@ -516,7 +520,7 @@ function fanEl(cards, { base = 1, onTap } = {}) {
     const c = cards[k], off = k - (n - 1) / 2;
     const el = h(`button.dc.wr-pop${c.top ? ".love" : ""}${W === 230 ? ".one" : ""}`, { type: "button", style: `width:${W}px;height:${H}px;left:calc(50% - ${W / 2}px + ${off * step}px);top:${Math.abs(off) * 14}px;rotate:${off * 6}deg;z-index:${zi + 1};--d:${base + k * 0.15}s`, "aria-label": c.title },
       h("div.bk.wr-out", { style: `--d:${base + 0.6 + k * 0.2}s` }),
-      h("div.fc.wr-in", { style: `--d:${base + 0.9 + k * 0.2}s` }, h("span.tg", null, h("i", { style: `background:${c.tint}` }), c.tag), h("span.tk", null, c.title), c.sub ? h("span.sub", null, c.sub) : null, c.foot ? h("span.ft", null, c.foot) : null));
+      h(`div.fc.wr-in${c.ph ? ".ph" : ""}`, { style: `--d:${base + 0.9 + k * 0.2}s` }, c.ph ? h("span.fph", null, photos.img(c.ph, "thumb")) : null, h("span.tg", null, h("i", { style: `background:${c.tint}` }), c.tag), h("span.tk", null, c.title), c.sub ? h("span.sub", null, c.sub) : null, c.foot ? h("span.ft", null, c.foot) : null));
     el.dataset.k = k;
     el.addEventListener("click", (e) => { e.stopPropagation(); el.style.zIndex = String(++z + 20); el.classList.remove("lift"); void el.offsetWidth; el.classList.add("lift"); onTap && onTap(el, k); });
     f.append(el);
@@ -525,7 +529,7 @@ function fanEl(cards, { base = 1, onTap } = {}) {
 }
 function scrWorks(ctx, j) {
   const Wk = ctx.D.works;
-  const cards = Wk.cards.map((x) => ({ tint: tint(x.c.pillar), tag: x.c.pillar, title: x.c.text, foot: (x.d.card.felt || []).join(" · "), top: x === Wk.loved, id: x.c.id }));
+  const cards = Wk.cards.map((x) => ({ tint: tint(x.c.pillar), tag: x.c.pillar, title: x.c.text, foot: (x.d.card.felt || []).join(" · "), top: x === Wk.loved, id: x.c.id, ph: photos.has(x.k) ? x.k : null }));
   const fan = fanEl(cards, { base: Wk.kind === "one" ? 0.8 : 1, onTap: (el) => { [...el.parentElement.children].forEach((x) => x.classList.toggle("love", x === el)); log("wrap_works_tap"); } });
   const el = frame(ctx, j, { c: Wk.c, lab: Wk.lab, tease: 3.6 }, Wk.big ? bigEl(Wk.big) : null, lineEl(Wk.line, Wk.big ? 0.6 : 0.4, Wk.big ? "" : "margin-top:0"), h("div.wr-pic", null, fan));
   log("wrap_works", Wk.kind);
@@ -600,7 +604,7 @@ const NOTICED = { pattern: (F) => `${F.big} have been a good day three weeks run
   rhythm: (F) => `${F.big} is your usual lights out`, deck: (F) => `${F.big} new cards met this week` };
 export function posterData(D) {
   const c = D.loved ? D.loved.c : null, b = D.light[0];
-  return { w: D.w, dates: D.dates, name: D.name.name, line: D.name.line, ms: D.ms, hard: D.hard,
+  return { w: D.w, days: [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(D.w, i)), dates: D.dates, name: D.name.name, line: D.name.line, ms: D.ms, hard: D.hard,
     best: b ? { day: dn(b.k), m: b.m } : null, pil: D.pil, card: c && !c.own ? c.text : null,
     noticed: D.find && NOTICED[D.find.kind] ? NOTICED[D.find.kind](D.find) : null };
 }
@@ -620,7 +624,8 @@ function wrap(g, text, max) {
   text.split(" ").forEach((wd) => { const t = cur ? cur + " " + wd : wd; if (g.measureText(t).width > max && cur) { out.push(cur); cur = wd; } else cur = t; });
   if (cur) out.push(cur); return out;
 }
-export function posterCanvas(P, moods = true, px = 1080) {
+// pics: the week's photos (7 pictures or nulls), only when "Show photos when sharing" is on. Off by default.
+export function posterCanvas(P, moods = true, px = 1080, pics = null) {
   const S = px / PW, c = h("canvas", { width: String(px), height: String(Math.round(PH * S)) }), g = c.getContext("2d");
   g.scale(S, S); g.textBaseline = "top";
   const F = (wt, size) => `${wt} ${size}px ${SYS}`, X = 28, CW = PW - 56;
@@ -694,7 +699,14 @@ export function posterCanvas(P, moods = true, px = 1080) {
     g.save(); g.translate(cx, cy); g.rotate(off * 6 * Math.PI / 180);
     g.shadowColor = "rgba(0,0,0,.3)"; g.shadowBlur = 22; g.shadowOffsetY = 10;
     rr(-cw / 2, -ch / 2, cw, ch, 11);
-    if (m == null) {
+    const pic = pics && pics[i];
+    if (pic) {
+      g.fillStyle = "#17181b"; g.fill(); g.shadowColor = "transparent";
+      g.save(); g.clip(); g.drawImage(pic, -cw / 2, -ch / 2, cw, ch);
+      const sh = g.createLinearGradient(0, -ch / 2, 0, -ch / 2 + 34); sh.addColorStop(0, "rgba(0,0,0,.45)"); sh.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = sh; g.fillRect(-cw / 2, -ch / 2, cw, 34);
+      g.restore();
+      g.fillStyle = "#fff"; g.font = F(800, 15); g.fillText("MTWTFSS"[i], -cw / 2 + 8, -ch / 2 + 8);
+    } else if (m == null) {
       const fd = g.createLinearGradient(-cw / 2, -ch / 2, cw / 2, ch / 2); fd.addColorStop(0, "#2c2e34"); fd.addColorStop(1, "#17181b"); g.fillStyle = fd; g.fill();
       g.shadowColor = "transparent"; g.save(); g.clip(); g.strokeStyle = "rgba(242,192,143,.16)"; g.lineWidth = 1;
       for (let r = 6; r < 80; r += 6) { g.beginPath(); g.arc(0, 0, r, 0, 7); g.stroke(); } g.restore();
@@ -710,8 +722,8 @@ export function posterCanvas(P, moods = true, px = 1080) {
   });
   return c;
 }
-function posterView(P, moods) {
-  const v = posterCanvas(P, moods, 900);
+function posterView(P, moods, pics) {
+  const v = posterCanvas(P, moods, 900, pics);
   v.className = "wr-pic6"; v.setAttribute("role", "img"); v.setAttribute("aria-label", `${P.name}, ${P.dates}`);
   return v;
 }
@@ -724,23 +736,45 @@ function scrPoster(ctx, j) {
   store.save();
   log("wrap_name", D.name.key);
   const el = h("section.wr-scr");
-  let moods = true;
-  const box = ab(".wr-pic6box.wr-flipin", "--d:.2s", posterView(P, true));
+  let moods = true, withPics = false, pics = null;
+  // Photos on the shared card only if the person turns it on (alex 2026-11-18): they're private by default.
+  const hasPics = (P.days || []).some((k) => photos.has(k));
+  const box = ab(`.wr-pic6box.wr-flipin${hasPics ? ".two" : ""}`, "--d:.2s", posterView(P, true));
+  const redraw = () => box.replaceChildren(posterView(P, moods, withPics ? pics : null));
   const sw = h("button.switch", { role: "switch", "aria-checked": "true", "aria-label": "Show moods when sharing" });
-  const row = h("div.wr-ab.wr-sw.wr-rise", { style: "--d:1.2s" }, h("span", null, "Show moods when sharing"), sw);
-  row.addEventListener("click", (e) => { e.stopPropagation(); moods = !moods; sw.setAttribute("aria-checked", String(moods)); box.replaceChildren(posterView(P, moods)); log("wrap_moods", moods ? "on" : "off"); });
-  const share = h("button.btn-main.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:736px;--d:1.4s", onclick: (e) => { e.stopPropagation(); sharePoster(P, moods); } }, "Share");
+  const row = h(`div.wr-ab.wr-sw.wr-rise${hasPics ? ".two" : ""}`, { style: "--d:1.2s" }, h("span", null, "Show moods when sharing"), sw);
+  row.addEventListener("click", (e) => { e.stopPropagation(); moods = !moods; sw.setAttribute("aria-checked", String(moods)); redraw(); log("wrap_moods", moods ? "on" : "off"); });
+  let row2 = null;
+  if (hasPics) {
+    const sw2 = h("button.switch", { role: "switch", "aria-checked": "false", "aria-label": "Show photos when sharing" });
+    row2 = h("div.wr-ab.wr-sw.wr-sw2.wr-rise", { style: "--d:1.3s" }, h("span", null, "Show photos when sharing"), sw2);
+    row2.addEventListener("click", async (e) => {
+      e.stopPropagation(); withPics = !withPics; sw2.setAttribute("aria-checked", String(withPics));
+      if (withPics && !pics) pics = await weekPics(P.days);
+      redraw(); log("wrap_photos", withPics ? "on" : "off");
+    });
+  }
+  const share = h("button.btn-main.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:736px;--d:1.4s", onclick: (e) => { e.stopPropagation(); sharePoster(P, moods, withPics ? pics : null); } }, "Share");
   const done = h("button.btn-text.wr-ab.wr-rise", { style: "left:0;right:0;top:796px;--d:1.6s", onclick: (e) => { e.stopPropagation(); ctx.close(); } }, "Done");
-  el.append(...chrome(ctx, j, 0), box, row, share, done);
+  el.append(...chrome(ctx, j, 0), box, row, row2 || "", share, done);
   return { el, canNext: () => false };
 }
 
 // The shared picture, drawn fresh at 1080 by 1920, then handed to the phone's share sheet.
 // Nothing leaves the phone unless the person sends it.
-export async function sharePoster(P, moods = true) {
+// The week's photos as pictures ready to draw (null for a day without one).
+async function weekPics(days) {
+  return Promise.all(days.map(async (k) => {
+    const u = await photos.url(k, "thumb");
+    if (!u) return null;
+    return new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = u; });
+  }));
+}
+export async function sharePoster(P, moods = true, pics = null) {
   log("wrap_share", moods ? "moods" : "no_moods");
+  if (pics) log("wrap_share_photos");
   try {
-    const blob = await new Promise((res, rej) => posterCanvas(P, moods).toBlob((b) => (b ? res(b) : rej(new Error("no picture"))), "image/png"));
+    const blob = await new Promise((res, rej) => posterCanvas(P, moods, 1080, pics).toBlob((b) => (b ? res(b) : rej(new Error("no picture"))), "image/png"));
     const file = new File([blob], `Daydeck ${P.dates}.png`, { type: "image/png" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
     const a = h("a", { href: URL.createObjectURL(blob), download: file.name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
