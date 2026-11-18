@@ -57,7 +57,7 @@ const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 const isNum = Number.isFinite, isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isArray(x);
 const SHAPE = {
-  level: (v) => isInt(v, 1, 9999), level_start: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
+  level: (v) => isInt(v, 1, 9999), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
@@ -307,9 +307,12 @@ function drawAll(D) {
     : `<p class="sub">Nobody has chosen pillars yet.</p>`,
     "pillars nobody picks can be cut or merged; lots of \"Something else\" on one pillar means its list is missing something.");
   // Levels (from 17 Nov): each level reached, and the level a tester started at (people from before levels start higher).
-  { const top = {}, reach = {};
-    by("level_start").concat(by("level")).forEach((e) => { if (Number.isInteger(e.val)) top[e.code] = Math.max(top[e.code] || 1, e.val); });
-    by("level").forEach((e) => { const t = testers.find((x) => x.code === e.code); if (t && t.joined && [2, 3, 5, 10].includes(e.val)) (reach[e.val] = reach[e.val] || []).push(Math.max(1, Math.round((e.t - t.joined) / 864e5) + 1)); });
+  // Everyone went back to level 1 on 18 Nov (level_reset): only levels after a tester's reset count.
+  { const top = {}, reach = {}, resetAt = {};
+    by("level_reset").forEach((e) => (resetAt[e.code] = Math.max(resetAt[e.code] || 0, e.t)));
+    by("level_reset").forEach((e) => (top[e.code] = top[e.code] || 1));
+    by("level_start").concat(by("level")).filter((e) => !resetAt[e.code] || e.t > resetAt[e.code]).forEach((e) => { if (Number.isInteger(e.val)) top[e.code] = Math.max(top[e.code] || 1, e.val); });
+    by("level").filter((e) => !resetAt[e.code] || e.t > resetAt[e.code]).forEach((e) => { const t = testers.find((x) => x.code === e.code), from = resetAt[e.code] || (t && t.joined); if (from && [2, 3, 5, 10].includes(e.val)) (reach[e.val] = reach[e.val] || []).push(Math.max(1, Math.round((e.t - from) / 864e5) + 1)); });
     const n = Object.keys(top).length, hist = {}; Object.values(top).forEach((l) => { const k = l >= 10 ? "Level 10 or more" : `Level ${l}`; hist[k] = (hist[k] || 0) + 1; });
     const day = (l) => { const m = median(reach[l] || []); return m == null ? "–" : `day ${m}`; };
     html += sec("How fast do people level up?", "Each tester's level now, and on which day after joining people usually reach a level. Each level brings a box.",

@@ -1,4 +1,4 @@
-// Boxes: a level earns a box, home shows it, opening it plays through all four cards, and what was inside is kept:
+// Boxes: everyone first goes back to level 1 once; then a level earns a box, home shows it, opening it plays through all four cards, and what was inside is kept:
 // two new cards (joining draws from tomorrow, two different pillars), an extra, and a card of a look (never a repeat).
 // The 2nd box always holds Pick my own, and Pick my own then works on the draw screen. Uses made-up days only.
 // SHOTS=folder saves pictures of each moment.
@@ -20,6 +20,13 @@ const SHOTS = process.env.SHOTS;
     localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", seen: { note: "sleep" }, levels: { seen: 3 },
       pillars: [{ name: "Rest", mindsets: [] }, { name: "Outdoors", mindsets: [] }, { name: "Friends", mindsets: [] }], days }));
   }, k);
+  await p.reload(); await p.waitForTimeout(900);
+  // Everyone starts again at level 1 (alex 2026-11-18): old points are set aside once, and no boxes are owed for them.
+  check(/Level 1/.test(await p.locator(".lv-num").innerText()) && await p.locator(".box-row").count() === 0, "an existing user starts again at level 1, with no boxes owed");
+  await p.reload(); await p.waitForTimeout(700);
+  check(/Level 1/.test(await p.locator(".lv-num").innerText()), "the reset happens only once and stays");
+  // From here, pretend the points were earned after the reset, to get two boxes.
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("daydeck")); s.levels.base = 0; s.levels.seen = 3; localStorage.setItem("daydeck", JSON.stringify(s)); });
   await p.reload(); await p.waitForTimeout(900);
   const shot = (n) => SHOTS && p.screenshot({ path: `${SHOTS}/${n}.png` });
 

@@ -27,8 +27,23 @@ export function dayPoints(d) {
   return p;
 }
 
-export function total(st = store.get()) {
+// Points ever earned, from setup and every day kept on this phone.
+export function earned(st = store.get()) {
   return (Array.isArray(st.pillars) ? POINTS.setup : 0) + Object.values(st.days || {}).reduce((s, d) => s + dayPoints(d), 0);
+}
+// Everyone starts again at level 1 (alex 2026-11-18, before boxes arrived): once, on this phone, the points earned
+// so far are set aside as the starting line, so only points from now on count. Nothing else is touched; it happens
+// quietly with no moment, and no boxes are owed for the old levels.
+const RESET = 1;
+export function startOver(st = store.get()) {
+  const m = (st.levels = st.levels || {});
+  if ((m.reset || 0) >= RESET) return false;
+  m.reset = RESET; m.base = earned(st); m.opened = 0; m.seen = 1;
+  store.save();
+  return true;
+}
+export function total(st = store.get()) {
+  return Math.max(0, earned(st) - ((st.levels || {}).base || 0));
 }
 
 // { level, into: points into this level, need: points this level takes, frac: 0 to 1 }
