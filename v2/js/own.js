@@ -5,6 +5,7 @@
 // tester data gets the pillar (or "own" for a pillar you made up), feeling positions and the deck switch.
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
+import * as tips from "./tips.js";
 import * as deck from "./deck.js";
 import { roundBtn, pillPicker } from "./ui.js";
 import { log } from "./tester.js";
@@ -109,5 +110,5 @@ export function ownArea(k, open) {
   return h("div.col", { style: { gap: "8px", alignItems: "center" } },
     ...made.map((id) => deck.ownCard(id)).filter(Boolean).map((o) => h("div.mini", null,
       h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[o.pillar] || "#a9a59d" } }), `${o.pillar} · Made by you`), h("span", null, o.text))),
-    h("button.pill.own-btn", { onclick: open }, h("span", { "aria-hidden": "true" }, "+"), made.length ? "Make another" : "Make my own card"));
+    h("button.pill.own-btn", { onclick: () => { tips.used("own"); open(); } }, h("span", { "aria-hidden": "true" }, "+"), made.length ? "Make another" : "Make my own card", tips.isNew("own") ? tips.newTag() : null));
 }

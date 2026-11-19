@@ -11,6 +11,7 @@ import { makeCard, ownArea } from "./own.js";
 import { lastNote, markUsed } from "./sleep.js";
 import { now } from "./clock.js";
 import * as deck from "./deck.js";
+import * as levels from "./levels.js";
 
 // Starts a flow from somewhere else (the card draw from home): the sun stays, home steps back.
 export function begin(onDone) { finish = onDone; track = null; document.body.classList.add("in-flow"); }
@@ -161,7 +162,9 @@ export function evening(onDone) {
   // Step 3 (alex 2026-11-17): with a card still to answer, "How did doing it feel?"; otherwise "Anything else go well
   // today?". Both have "+ Make my own card" under them.
   const answered = !!(had.card && had.card.felt && had.card.felt.length && had.mood == null);   // said on home, after "I did it"
-  const cid = had.card && had.card.id && !had.rest && !answered ? had.card.id : null, N = 3;
+  const cid = had.card && had.card.id && !had.rest && !answered ? had.card.id : null;
+  // Making your own card opens at level 3 (alex 2026-11-18). Before that, a day with no card to answer ends at step 2.
+  const own = levels.isOpen("own"), N = cid || own ? 3 : 2;
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
 
@@ -187,7 +190,7 @@ export function evening(onDone) {
     const main = ranked.slice(0, 6).sort((x, y) => order.indexOf(x) - order.indexOf(y));
     st.feel.forEach((w) => { if (w !== "Not sure" && !main.includes(w)) main.push(w); });
     const more = ranked.filter((x) => !main.includes(x));
-    const done = mainBtn("Next", st.feel.size > 0, three);
+    const done = N === 3 ? mainBtn("Next", st.feel.size > 0, three) : mainBtn("Done", st.feel.size > 0, () => save());
     const pick = pillPicker({ main, more, picked: st.feel, notSure: "Not sure",
       onToggle: (w) => { st.feel.has(w) ? st.feel.delete(w) : st.feel.add(w); done.setAttribute("aria-disabled", st.feel.size ? "false" : "true"); },
       onAdd: (w) => { w = w.toLowerCase(); if (!s2.feel.own.includes(w) && !order.includes(w)) s2.feel.own.push(w); if (!main.includes(w)) main.push(w); const i = more.indexOf(w); if (i >= 0) more.splice(i, 1); st.feel.add(w); done.setAttribute("aria-disabled", "false"); store.save(); },
@@ -202,7 +205,7 @@ export function evening(onDone) {
   const three = () => {
     if (cid) {
       at("card");
-      show(howStep(cid, st.ans, two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did, extra: ownArea(k, make),
+      show(howStep(cid, st.ans, two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did, extra: own ? ownArea(k, make) : null,
         onChange: (f) => { st.ans = f.includes(NOT_DONE) ? { how: 0, felt: [] } : { how: deck.howFromFelt(f), felt: f }; } }));
       return;
     }

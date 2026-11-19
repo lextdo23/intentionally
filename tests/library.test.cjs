@@ -29,7 +29,7 @@ const LIST = { at: Date.now(), cards: [
   const seed = (today, extra = {}) => p.evaluate(([k, today, extra]) => {
     const day = (id) => ({ sleep: { bed: 1380, wake: 420, rested: 2, tags: [] }, card: { hands: [[id, id + 1, id + 2]], id, done: true, how: 3 }, mood: 4, feel: [], pil: [] });
     const days = { "2026-11-14": day(1), "2026-11-15": day(10) }; days[k] = today;
-    localStorage.setItem("daydeck", JSON.stringify(Object.assign({ v: 1, started: "2026-11-14", seen: { note: "sleep" }, levels: { seen: 3, base: 0 },
+    localStorage.setItem("daydeck", JSON.stringify(Object.assign({ v: 1, started: "2026-11-14", seen: { note: "sleep" }, levels: { seen: 3, base: 0, reset: 2, keepAll: true },
       pillars: [{ name: "Friends", mindsets: ["See them more"] }, { name: "Rest", mindsets: [] }, { name: "Outdoors", mindsets: [] }], days }, extra)));
   }, [k, today, extra]);
   await seed({ sleep: { bed: 1380, wake: 420, rested: 2, tags: [] }, card: { hands: [[2, 3, 4]], id: 2 } });

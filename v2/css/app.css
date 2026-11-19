@@ -465,3 +465,55 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .own-btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; color: var(--sun); background: rgb(242 192 143 / .14); }
 .own-btn span { font-size: 22px; line-height: 1; }
 .own-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; font-size: 17px; }
+
+/* ---------- Your levels: a path down the page (alex 2026-11-18). Opens from the level row on home. ---------- */
+.lv-row.lv-tap { border-radius: 10px; min-height: 44px; margin: -8px 0; padding: 0; text-align: left; }
+.lv-row.lv-tap:active { opacity: .7; }
+#levels { position: fixed; inset: 0; z-index: 6; background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 30%, var(--sky3) 100%);
+  transform: translateX(100%); transition: transform .42s var(--ease); box-shadow: -12px 0 32px rgba(0, 0, 0, .35); }
+.in-levels #levels { transform: none; }
+.in-levels #home { transform: translateX(-24%); opacity: .4; pointer-events: none; }
+.in-levels #sun { opacity: .3; }
+.lp-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.lp-page { max-width: 520px; margin: 0 auto; padding: var(--top) var(--edge) calc(var(--bot) + 24px); display: flex; flex-direction: column; gap: 24px; }
+.lp-head { display: flex; flex-direction: column; gap: 8px; }
+.lp-line { display: flex; align-items: center; gap: 12px; }
+.lp-num { font-size: 22px; font-weight: 600; color: var(--gold); white-space: nowrap; }
+.lp-bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .1); overflow: hidden; }
+.lp-bar i { display: block; height: 100%; border-radius: 3px; background: var(--gold); box-shadow: 0 0 10px rgb(227 196 134 / .45); }
+.lp-sub { font-size: 15px; color: var(--dim); }
+.lp-path { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lp-step { position: relative; display: flex; gap: 16px; padding-bottom: 24px; }
+.lp-step:last-child { padding-bottom: 0; }
+.lp-rail { position: relative; flex: 0 0 20px; display: flex; justify-content: center; }
+.lp-rail::after { content: ""; position: absolute; top: 22px; bottom: -26px; width: 2px; background: rgba(239, 237, 233, .12); }
+.lp-step.lit .lp-rail::after { background: rgb(227 196 134 / .7); }
+.lp-step:last-child .lp-rail::after { display: none; }
+.lp-dot { position: relative; z-index: 1; margin-top: 4px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(239, 237, 233, .3); background: var(--sky2); }
+.lp-step.lit .lp-dot { background: var(--gold); border-color: var(--gold); }
+.lp-step.here .lp-dot { width: 20px; height: 20px; margin-top: 2px; background: var(--sun); border-color: var(--sun); box-shadow: 0 0 0 6px rgb(242 192 143 / .15), 0 0 24px rgb(242 192 143 / .6); }
+.lp-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lp-n { font-size: 13px; color: var(--dim); }
+.lp-step.here .lp-n { color: var(--gold); font-weight: 600; }
+.lp-t { font-size: 17px; font-weight: 600; }
+.lp-d { font-size: 15px; color: var(--ink2); }
+.lp-step.soon .lp-t { color: var(--ink2); font-weight: 500; }
+.lp-step.hide .lp-t { color: var(--faint); font-weight: 500; }
+.lp-foot { font-size: 13px; color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { #levels { transition: opacity .15s ease; } .in-levels #home { transform: none; } }
+
+/* ---------- A new thing's tip (alex 2026-11-18, "A"): home dims, the thing stays lit, a short tip beside it ---------- */
+.tip-layer { position: fixed; inset: 0; z-index: 30; opacity: 0; transition: opacity .35s ease; }
+.tip-layer.on { opacity: 1; }
+.tip-layer.out { opacity: 0; pointer-events: none; }
+.tip-hole { position: absolute; padding: 0; background: none; box-shadow: 0 0 0 2000px rgba(8, 9, 10, .66), 0 0 0 2px var(--gold), 0 0 28px rgb(242 192 143 / .55); }
+.tip-box { position: absolute; left: var(--edge); right: var(--edge); max-width: 480px; padding: 16px; border-radius: 16px; background: #1f2024; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); display: flex; flex-direction: column; gap: 8px; }
+.tip-box::before { content: ""; position: absolute; left: var(--ax, 60px); width: 16px; height: 16px; background: #1f2024; transform: rotate(45deg); }
+.tip-box.below::before { top: -7px; }
+.tip-box.above::before { bottom: -7px; }
+.tip-k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+.tip-t { font-size: 17px; font-weight: 600; }
+.tip-d { font-size: 15px; color: var(--ink2); }
+.tip-ok { align-self: flex-end; min-height: 44px; padding: 0 20px; border-radius: 14px; background: var(--fill); font-size: 17px; font-weight: 500; }
+.new-tag { margin-left: 6px; padding: 2px 8px; border-radius: 10px; background: var(--gold); color: var(--on-sun); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; vertical-align: 2px; }
+@media (prefers-reduced-motion: reduce) { .tip-layer { transition: none; } }
