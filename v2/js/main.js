@@ -30,7 +30,6 @@ fitCards(); addEventListener("resize", fitCards);
 
 const s = store.load();
 if (levels.startOver(s)) log("level_reset", levels.level().level);   // once: everyone back to level 1
-levels.keepOld(s);   // people who already used the app keep everything open
 setOffsetDays(s.test.offset || 0);
 let testOn = new URLSearchParams(location.search).has("test") || !!s.test.on;
 const home = document.getElementById("home");

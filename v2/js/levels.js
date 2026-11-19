@@ -35,11 +35,15 @@ export function earned(st = store.get()) {
 // Everyone starts again at level 1 (alex 2026-11-18, before boxes arrived): once, on this phone, the points earned
 // so far are set aside as the starting line, so only points from now on count. Nothing else is touched; it happens
 // quietly with no moment, and no boxes are owed for the old levels.
-const RESET = 1;
+// A second time (alex 2026-11-19, just before levels started opening things): everyone back to level 1 again, and
+// this time nothing is kept open, so Your days, own cards, the card library and Month and Year open level by level,
+// each with its tip. Nothing is deleted: past days, photos, cards made and box cards all stay, only hidden until then.
+const RESET = 2;
 export function startOver(st = store.get()) {
   const m = (st.levels = st.levels || {});
   if ((m.reset || 0) >= RESET) return false;
   m.reset = RESET; m.base = earned(st); m.opened = 0; m.seen = 1;
+  m.keepAll = false; m.tips = {}; m.used = {};
   store.save();
   return true;
 }
@@ -79,14 +83,7 @@ export const UNLOCKS = [
   { level: 4, id: "library", name: "Card library", line: "Every card in Daydeck, to look through." },
   { level: 5, id: "months", name: "Month and Year on Your days", line: "Look back over a whole month or year." },
 ];
-// People who used the app before levels opened things keep everything they have (alex 2026-11-18): decided once,
-// the first time this runs, from whether any real day was already noted on this phone.
-export function keepOld(st = store.get()) {
-  const m = (st.levels = st.levels || {});
-  if (m.keepAll != null) return;
-  m.keepAll = Object.values(st.days || {}).some((d) => d && !d.sample && (d.sleep || d.mood != null || (d.card && d.card.id) || d.rest));
-  store.save();
-}
+// (Keeping things open for people from before was dropped: everyone starts again, alex 2026-11-19. keepAll stays false.)
 export function isOpen(id) {
   const u = UNLOCKS.find((x) => x.id === id);
   if (!u || mem().keepAll) return true;
