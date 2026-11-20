@@ -1,8 +1,11 @@
 // Photos of your daily card (alex 2026-11-18, thread "Add photos of your daily card").
 // One photo a day, kept only on this phone. The pictures themselves are too big for the app's normal storage, so they
 // live in the phone's bigger storage for websites (IndexedDB), next to it; the day only notes that it has one
-// (d.ph = { at, w: card words on, src: "cam" | "lib" }). Pictures are re-drawn before saving, which shrinks them to
-// card size and drops anything hidden inside the file (like where it was taken). They never go to the tester service:
+// (d.ph = { w: card words on }). Nothing about the photo itself is kept (alex 2026-11-20): no place, time, phone or
+// camera details, and no note of when it was taken or whether it came from the camera or the library. Pictures are
+// re-drawn before saving (which shrinks them to card size), then clean() takes out every extra part of the file, so
+// only the picture is left. Photos coming back from Restore, and every photo leaving the app, are cleaned the same
+// way, and tidy() cleans photos saved before this. They never go to the tester service:
 // tester mode only hears "a photo was added / removed", never the picture. Save a copy carries them in the file the
 // person keeps, and Restore from a file puts them back (alex 2026-11-20).
 import { h, dayKey, keyDate, addDays, DAY_NAME, MONTH, MOODS, MOOD_COL, reduceMotion, hoursWords, sleepMins } from "./util.js";
@@ -11,7 +14,6 @@ import * as deck from "./deck.js";
 import { log } from "./tester.js";
 import { openSheet, roundBtn } from "./ui.js";
 import { HOW } from "./deck.js";
-import { now } from "./clock.js";
 
 const DB = "daydeck-photos", OS = "p";
 export const W = 1080, H = 1512, TW = 300, TH = 420;        // the card's shape, 5 by 7
@@ -64,17 +66,43 @@ export function toCard(src, sw, sh, { mirror = false, w = W, hh = H } = {}) {
   g.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, w, hh);
   return c;
 }
-const blob = (c, q) => new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("no picture"))), "image/jpeg", q));
+const blob = (c, q) => new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("no picture"))), "image/jpeg", q)).then(clean).then((b) => b || Promise.reject(new Error("no picture")));
+
+// A JPEG file is the picture plus optional extra parts: location, date, phone and camera details, comments, previews.
+// clean() rebuilds the file from the picture parts alone and drops every extra one (APP0 to APP15 and comments).
+// Returns null if it isn't a JPEG picture at all.
+export async function clean(b) {
+  try {
+    const a = new Uint8Array(await b.arrayBuffer());
+    if (a.length < 4 || a[0] !== 0xff || a[1] !== 0xd8) return null;
+    const out = [a.subarray(0, 2)];
+    let i = 2;
+    while (i + 4 <= a.length) {
+      if (a[i] !== 0xff) return null;
+      const m = a[i + 1];
+      if (m === 0xff) { i++; continue; }                                    // padding
+      if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
+      if (m === 0xd9) break;
+      const len = (a[i + 2] << 8) | a[i + 3];
+      if (len < 2 || i + 2 + len > a.length) return null;
+      const extra = (m >= 0xe0 && m <= 0xef) || m === 0xfe;
+      if (m === 0xda) { out.push(a.subarray(i)); return new Blob(out, { type: "image/jpeg" }); }   // the picture itself, to the end
+      if (!extra) out.push(a.subarray(i, i + 2 + len));
+      i += 2 + len;
+    }
+    return null;
+  } catch { return null; }
+}
 
 // Save the day's photo. canvas = the full picture (W by H). Asks the phone to keep Daydeck's storage, the first time.
 export async function save(k, canvas, { src = "cam", words = true } = {}) {
   const full = await blob(canvas, 0.82);
   const small = document.createElement("canvas"); small.width = TW; small.height = TH; small.getContext("2d").drawImage(canvas, 0, 0, TW, TH);
   const thumb = await blob(small, 0.78);
-  await tx("readwrite", (s) => s.put({ full, thumb, at: now() }, k));
+  await tx("readwrite", (s) => s.put({ full, thumb }, k));
   forget(k);
   const d = store.day(k), had = !!d.ph;
-  d.ph = { at: now(), w: words ? 1 : 0, src };
+  d.ph = { w: words ? 1 : 0 };
   store.save();
   log(had ? "photo_change" : "photo_add", src);
   keep();
@@ -94,6 +122,22 @@ export async function wipe() {
   dbp = null;
   await new Promise((res) => { try { const r = indexedDB.deleteDatabase(DB); r.onsuccess = r.onerror = r.onblocked = () => res(); } catch { res(); } });
 }
+// Once: clean photos saved before clean() existed, and drop the old notes about them (when, camera or library).
+export async function tidy() {
+  const st = store.get(); st.ph = st.ph || {};
+  if (st.ph.clean) return;
+  Object.values(st.days).forEach((d) => { if (d.ph && ("at" in d.ph || "src" in d.ph)) { d.ph = { w: d.ph.w ? 1 : 0 }; } });
+  try {
+    for (const k of keys()) {
+      const rec = await tx("readonly", (s) => s.get(k));
+      if (!rec || !rec.full) continue;
+      const full = await clean(rec.full), thumb = rec.thumb ? await clean(rec.thumb) : null;
+      if (full) await tx("readwrite", (s) => s.put({ full, thumb: thumb || full }, k));
+    }
+  } catch { return; }   // try again next time
+  st.ph.clean = 1; store.save();
+  [...urls.keys()].forEach(forget);
+}
 // iPhone may clear a website's storage when space runs low; this asks it to keep Daydeck's (once is enough).
 function keep() {
   const st = store.get(); st.ph = st.ph || {};
@@ -104,16 +148,19 @@ function keep() {
 export async function files() {
   const out = [];
   for (const k of keys()) {
-    try { const rec = await tx("readonly", (s) => s.get(k)); if (rec && rec.full) out.push(new File([rec.full], `Daydeck ${k}.jpg`, { type: "image/jpeg" })); } catch { /* skip */ }
+    try { const rec = await tx("readonly", (s) => s.get(k)); const pic = rec && rec.full && await clean(rec.full); if (pic) out.push(new File([pic], `Daydeck ${k}.jpg`, { type: "image/jpeg" })); } catch { /* skip */ }
   }
   return out;
 }
-// Every photo, written out as text, for "Save a copy" (alex 2026-11-20): day -> { full, thumb, at }.
+// Every photo, written out as text, for "Save a copy" (alex 2026-11-20): day -> { full, thumb }.
 const toText = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
 export async function dump() {
   const out = {};
   for (const k of keys()) {
-    try { const rec = await tx("readonly", (s) => s.get(k)); if (rec && rec.full) out[k] = { full: await toText(rec.full), thumb: await toText(rec.thumb || rec.full), at: rec.at || 0 }; } catch { /* skip */ }
+    try {
+      const rec = await tx("readonly", (s) => s.get(k)), full = rec && rec.full && await clean(rec.full);
+      if (full) out[k] = { full: await toText(full), thumb: await toText((rec.thumb && await clean(rec.thumb)) || full) };
+    } catch { /* skip */ }
   }
   return out;
 }
@@ -125,8 +172,10 @@ export async function load(all) {
   for (const [k, rec] of Object.entries(all && typeof all === "object" ? all : {})) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !rec || typeof rec.full !== "string" || !rec.full.startsWith(JPEG)) continue;
     try {
-      const full = fromText(rec.full), thumb = typeof rec.thumb === "string" && rec.thumb.startsWith(JPEG) ? fromText(rec.thumb) : full;
-      await tx("readwrite", (s) => s.put({ full, thumb, at: Number(rec.at) || 0 }, k)); n++;
+      const full = await clean(fromText(rec.full));
+      if (!full) continue;
+      const thumb = (typeof rec.thumb === "string" && rec.thumb.startsWith(JPEG) && await clean(fromText(rec.thumb))) || full;
+      await tx("readwrite", (s) => s.put({ full, thumb }, k)); n++;
     } catch { /* skip a broken one */ }
   }
   if (n) keep();
@@ -135,7 +184,7 @@ export async function load(all) {
 
 async function shareOne(k) {
   try {
-    const rec = await tx("readonly", (s) => s.get(k)), f = new File([rec.full], `Daydeck ${k}.jpg`, { type: "image/jpeg" });
+    const rec = await tx("readonly", (s) => s.get(k)), f = new File([await clean(rec.full)], `Daydeck ${k}.jpg`, { type: "image/jpeg" });
     log("photo_share");
     if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f] });
     else { const a = h("a", { href: URL.createObjectURL(f), download: f.name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }

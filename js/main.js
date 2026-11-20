@@ -102,6 +102,9 @@ const MOMENT = {
   end: ["That's today.", null],
   photo: ["Photo added.", "It's in Your photos."],
 };
+// Once, quietly: take every extra part out of photos saved before they were cleaned (alex 2026-11-20).
+setTimeout(() => photos.tidy(), 4000);
+
 let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo on its back turns into view
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
