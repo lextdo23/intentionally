@@ -47,15 +47,14 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const btn = (text) => p.locator("#acct .acct-screen:last-child button", { hasText: text }).first();
   const msg = () => p.locator("#acct .acct-screen:last-child .acct-msg").first().textContent();
 
-  // ---- Not in test mode: nothing changes ----
+  // ---- On for everyone: the sign-up shows first, without test mode ----
   await p.goto(server.url);
   await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: null, days: {}, seen: { note: "sleep" } })));
   await p.reload(); await p.waitForTimeout(1200);
-  check(!(await p.$("#acct")), "outside test mode, nobody sees the sign-up screens yet");
-
-  // ---- Test mode: the sign-up shows first ----
-  await p.goto(server.url + "?test"); await p.waitForTimeout(1200);
-  check(!!(await p.$("#acct")), "in test mode, the sign-up shows when the app opens");
+  check(!!(await p.$("#acct")), "the sign-up shows when the app opens, for everyone (not just test mode)");
+  await p.goto(server.url + "?tester"); await p.waitForTimeout(1200);
+  check(!(await p.$("#acct")), "a tester invite link goes first; the sign-up waits for the next open");
+  await p.goto(server.url); await p.waitForTimeout(1200);
   check(/Keep your days safe/.test(await p.textContent("#acct")) && /Lifeline 13 11 14/.test(await p.textContent("#acct")), "it says Keep your days safe, and Lifeline is still there");
   check(await btn("Continue").getAttribute("aria-disabled") === "true", "Continue waits for an email");
   await shot("1-email");

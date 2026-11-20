@@ -295,8 +295,9 @@ if (store.get().lib) library.refresh();
 library.finishUnshare();
 account.refresh();
 sync.start(() => render());   // backup and sync: changes go up quietly, and come in from the account's other phones
-// Accounts (alex 2026-11-20): while new, the sign-up screens show in test mode only. A tester invite link waits.
-const askAccount = testOn && account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
+// Accounts (alex 2026-11-20): new people see the sign-up first; people already using the app see it once.
+// A tester invite link goes first; the sign-up waits for the next open.
+const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
 if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
 else if (askAccount) setTimeout(() => account.openSignup(() => render()), 400);
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);

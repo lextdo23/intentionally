@@ -9,6 +9,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 (async () => {
   const server = await serve(), { check, done } = checker();
   const b = await chromium.launch(), ctx = await b.newContext({ acceptDownloads: true }), p = await ctx.newPage();
+  // Accounts are on for everyone (alex 2026-11-20): this test is about something else, so it acts as someone who chose
+  // "Use without an account".
+  await ctx.addInitScript(() => { if (!localStorage.getItem("daydeck-account")) localStorage.setItem("daydeck-account", '{"skip":1}'); });
   const errors = []; p.on("pageerror", (e) => errors.push(e.message));
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } }));
   const days = { [day(1)]: { mood: 3, feel: ["calm"] }, [day(0)]: { mood: 2 } };

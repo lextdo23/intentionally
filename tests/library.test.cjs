@@ -15,6 +15,9 @@ const LIST = { at: Date.now(), cards: [
 (async () => {
   const server = await serve(), { check, done } = checker();
   const b = await chromium.launch(), ctx = await b.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: SHOTS ? 2 : 1 }), p = await ctx.newPage(), errors = [];
+  // Accounts are on for everyone (alex 2026-11-20): this test is about something else, so it acts as someone who chose
+  // "Use without an account".
+  await ctx.addInitScript(() => { if (!localStorage.getItem("daydeck-account")) localStorage.setItem("daydeck-account", '{"skip":1}'); });
   p.on("pageerror", (e) => errors.push(e.message));
   const calls = [];
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", async (r) => {
