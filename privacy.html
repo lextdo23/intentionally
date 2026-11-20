@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24262b">
+<title>Daydeck privacy</title>
+<link rel="icon" href="icons/icon-192.png">
+<style>
+/* Daydeck's privacy policy (alex 2026-11-20). Plain words first; one calm column in the app's colours. */
+:root{--sky:#24262b;--sky2:#141518;--sky3:#08090a;--ink:#efede9;--ink2:#cfcac1;--dim:#a9a59d;--sun:#f2c08f;--gold:#e3c486;--fill:rgba(239,237,233,.06);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--sky),var(--sky2) 40%,var(--sky3)) fixed;background-color:var(--sky2);color:var(--ink);
+  font:17px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:680px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 16px) 20px calc(env(safe-area-inset-bottom,0px) + 40px);display:flex;flex-direction:column;gap:40px}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;color:var(--ink2);text-decoration:none;font-size:17px}
+h1{font-size:34px;line-height:1.15;margin:8px 0 0;font-weight:700}
+h2{font-size:22px;line-height:1.25;margin:0;font-weight:600}
+h3{font-size:17px;margin:0;font-weight:600}
+p,ul{margin:0}
+ul{padding-left:20px;display:flex;flex-direction:column;gap:8px}
+section{display:flex;flex-direction:column;gap:16px}
+.sub{color:var(--dim);font-size:15px}
+.short{background:var(--fill);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.short li::marker{color:var(--gold)}
+.card{background:var(--fill);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
+.card p,.card li{color:var(--ink2)}
+a{color:var(--sun)}
+.foot{font-size:15px;color:var(--dim)}
+</style>
+</head>
+<body>
+<main>
+<div>
+  <a class="back" href="./">‹ Daydeck</a>
+  <h1>Your privacy</h1>
+  <p class="sub">Last updated 20 November 2026</p>
+</div>
+
+<section>
+  <h2>The short version</h2>
+  <ul class="short">
+    <li>Daydeck works without an account. Then everything stays on your phone.</li>
+    <li>With an account, your days are backed up so a lost or new phone doesn't lose them. We keep only what that needs.</li>
+    <li>We never sell your information, never show you ads, and never use it to train AI.</li>
+    <li>Your photos stay on your phone. Daydeck never gets your photo library, only the one photo you choose.</li>
+    <li>No passwords. Face ID never leaves your phone.</li>
+    <li>You can take a copy of everything, or delete your account and backup, any time, in Settings.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Who we are</h2>
+  <p>Daydeck is made by Alex, in Australia. In this policy, "we" means Daydeck. If you have a question or a worry about your privacy, email <a href="mailto:hello@daydeck.day">hello@daydeck.day</a>.</p>
+  <p>Daydeck is made for adults. It's a calm place to look after your days. It isn't therapy or medical care, and it doesn't diagnose anything.</p>
+</section>
+
+<section>
+  <h2>Without an account</h2>
+  <p>Everything you put into Daydeck, like your check-ins, sleep, feelings, cards, pillars, notes and photos, is kept on your phone only. We can't see it. If you lose your phone or delete Daydeck, it's gone, unless you've used Save a copy in Settings.</p>
+  <p>A few things leave your phone only if you turn them on:</p>
+  <ul>
+    <li><b>Reminders.</b> To nudge you, our service keeps your phone's notification address and the times you chose. Never any words from the app, and a thought never goes on your lock screen.</li>
+    <li><b>Showing a card to everyone.</b> If you choose to share a card you made, its words, its pillar and the name you choose (or none) are sent to us so others can see it after we've checked it. You can take it back any time.</li>
+    <li><b>Tester mode</b> (only if you join the beta). See "If you're a tester" below.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>With an account</h2>
+  <p>An account keeps your days safe and lets them follow you to a new phone. Here's everything we keep, and why.</p>
+  <div class="card">
+    <h3>Your email</h3>
+    <p>To send your sign-in code, and to let you back in if you lose your phone. We don't send marketing.</p>
+  </div>
+  <div class="card">
+    <h3>Your username</h3>
+    <p>So your account has a name. Nobody else can see it yet. When friends come to Daydeck, it's how they'll find you.</p>
+  </div>
+  <div class="card">
+    <h3>Your Face ID key</h3>
+    <p>Signing in uses a passkey. Your face (or fingerprint, or passcode) never leaves your phone. Your phone keeps the private half of the key; we keep only the public half, which can check it's you but can't be used to sign in.</p>
+  </div>
+  <div class="card">
+    <h3>Your backed-up days</h3>
+    <p>Your check-ins, moods, sleep, feelings, notes, cards, pillars and levels, including any words you've typed. This is what keeps your days safe. It goes up quietly whenever you're online and comes back on a new phone.</p>
+  </div>
+  <div class="card">
+    <h3>Staying signed in</h3>
+    <p>A sign-in key for each phone, so you don't have to sign in every time. We keep only a scrambled version of it. It stops working if you sign out, delete your account, or don't open Daydeck for 6 months.</p>
+  </div>
+  <p>What we don't keep on our side: your photos, your profile picture, your notification settings, or your tester details. Those stay on your phone.</p>
+  <p>Some of what you track, like mood, sleep and how you're feeling, can be sensitive. It's used only to show it back to you and keep it safe. We never use it to judge you, advertise to you, or make decisions about you.</p>
+</section>
+
+<section>
+  <h2>Photos</h2>
+  <p>Daydeck never asks for your photo library. When you add a photo, your phone shows its own picker and hands Daydeck only the one photo you choose.</p>
+  <p>Before a photo is saved, Daydeck redraws it and removes everything else inside the file: where it was taken, when, and which phone or camera took it. Only the picture is kept.</p>
+  <p>Photos, including your profile photo, stay on your phone. They leave it only when you choose to: in Save a copy, Save my photos, or sharing one yourself. If we ever offer to back up photos, we'll say so first and update this page.</p>
+</section>
+
+<section>
+  <h2>If you're a tester</h2>
+  <p>If you join the beta, the app sends us what you tap, so we can learn what to keep, fix and cut. Under a random tester code, never your name or email:</p>
+  <ul>
+    <li>your check-in answers: your mood, and the feelings and sleep tags you tap</li>
+    <li>what you choose and do in the app, like pillars, cards, thumbs up or down, levels and which screens you use</li>
+    <li>how many times you tap the Lifeline link</li>
+    <li>how long check-ins take, when nudges arrive and when you check in</li>
+    <li>your phone type and any errors the app runs into</li>
+  </ul>
+  <p>Never anything you type in your own words (unless you share a card with everyone), never your photos, and never where you are. You can stop being a tester any time, and everything you shared is deleted.</p>
+</section>
+
+<section>
+  <h2>What we never do</h2>
+  <ul>
+    <li>Sell, rent or trade your information.</li>
+    <li>Show ads, or share your information with advertisers.</li>
+    <li>Use your information to train AI, or give it to anyone who does.</li>
+    <li>Use trackers or analytics companies to follow what you do.</li>
+    <li>Read your days. We don't look at anyone's backup, unless you ask us to help with a problem or the law requires it.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Who helps us run Daydeck</h2>
+  <p>A few services make Daydeck work. They handle your information only to do that job, under their own privacy promises:</p>
+  <ul>
+    <li><b>Cloudflare</b> runs our service and stores account details and backups. Their servers are around the world, so your information may be stored or handled outside Australia.</li>
+    <li><b>Resend</b> sends your sign-in code emails, from Japan. They see your email address and keep a record of emails sent for a short time.</li>
+    <li><b>GitHub</b> (in the United States) hosts the Daydeck app itself. Like any website, it can see your internet address when the app loads.</li>
+  </ul>
+  <p>Your information may go to the United States, Japan, and wherever Cloudflare's servers are. We choose services that protect it, and we keep what they get to the minimum.</p>
+</section>
+
+<section>
+  <h2>How we keep it safe</h2>
+  <ul>
+    <li>Everything travels encrypted between your phone and our service.</li>
+    <li>No passwords to steal. Sign-in codes are kept scrambled, stop working after 10 minutes, and lock after 5 wrong tries.</li>
+    <li>Each person's backup is kept in its own private store, readable only when signed in as them.</li>
+    <li>To stop misuse, we keep a scrambled version of internet addresses: for a day when someone asks for sign-in codes, and alongside a card shared with everyone or a thumbs up, so nobody can flood the library.</li>
+  </ul>
+  <p>No system is perfect. If something ever went wrong that could cause you serious harm, we'd tell you, and the Office of the Australian Information Commissioner, as quickly as we can.</p>
+</section>
+
+<section>
+  <h2>Seeing, changing and deleting your information</h2>
+  <ul>
+    <li><b>See it:</b> Settings → Save a copy gives you a file with everything on your phone. Or email us and we'll send you what we keep.</li>
+    <li><b>Change it:</b> change your days in the app; change your username in Settings → Your account.</li>
+    <li><b>Delete it:</b> Settings → Your account → Delete account erases your account and backup straight away. Your phone keeps its own days until you delete those too (Settings → Delete everything).</li>
+  </ul>
+  <p>After you delete your account, your username is held back for 30 days so nobody can pretend to be you, then released. Email records at Resend expire on their own soon after.</p>
+</section>
+
+<section>
+  <h2>Questions or complaints</h2>
+  <p>Email <a href="mailto:hello@daydeck.day">hello@daydeck.day</a>. We'll reply within 30 days, usually much sooner. If you're not happy with our answer, you can contact the <a href="https://www.oaic.gov.au/privacy/privacy-complaints" target="_blank" rel="noopener">Office of the Australian Information Commissioner</a>.</p>
+</section>
+
+<section>
+  <h2>Changes to this policy</h2>
+  <p>If we change how we look after your information, we'll update this page and the date at the top. If it's a big change, like backing up photos, we'll tell you in the app first.</p>
+</section>
+
+<section class="card">
+  <h3>Need to talk to someone now?</h3>
+  <p>Lifeline: <a href="tel:131114">13 11 14</a> (call), <a href="sms:0477131114">0477 13 11 14</a> (text), or <a href="https://www.lifeline.org.au/crisis-chat/" target="_blank" rel="noopener">chat online</a>. In danger right now, call <a href="tel:000">000</a>.</p>
+</section>
+
+<p class="foot"><a href="./">Back to Daydeck</a></p>
+</main>
+</body>
+</html>
