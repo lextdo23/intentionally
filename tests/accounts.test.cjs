@@ -148,6 +148,13 @@ async function phone() {
   check(r.conflict && r.data.days["2026-11-19"], "a phone with an older backup doesn't overwrite a newer one; it gets the newer one back to merge");
   check((await call("GET", "/a/backup")).status === 401, "a backup can't be read without signing in");
 
+  // ---- Staying signed in: using the app pushes the end back (alex 2026-11-20) ----
+  { const book = made["Accountsbook"], DAYMS = 864e5;
+    book.sql.exec("UPDATE sessions SET exp = ?", Date.now() + 3 * DAYMS);   // pretend this sign-in has 3 days left
+    check((await call("GET", "/a/me", null, { token: s1 })).ok, "a sign-in near its end still works");
+    const left = Math.max(...book.sql.exec("SELECT exp FROM sessions").toArray().map((x) => x.exp)) - Date.now();
+    check(left > 179 * DAYMS, "and using the app renews it for another 180 days, so nobody has to sign in again"); }
+
   // ---- Username changes ----
   r = await call("POST", "/a/username", { username: "mia.k" }, { token: s1 });
   check(r.ok && r.user.username === "mia.k", "changing only the capitals is always fine");

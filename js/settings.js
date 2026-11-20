@@ -9,6 +9,7 @@ import { openSheet, roundBtn } from "./ui.js";
 import { openTester, testerRow } from "./tester-sheet.js";
 import { pickPillars, pillarWords } from "./pillars.js";
 import * as photos from "./photos.js";
+import * as account from "./account.js";
 import * as library from "./library.js";
 
 let onClosed = null, el = null;
@@ -58,6 +59,7 @@ function render() {
   const top = el.querySelector(".set-scroll")?.scrollTop || 0;
   el.replaceChildren(h("div.set-scroll", null, h("div.set-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeSettings), h("h1.big-title", null, "Settings")),
+    account.settingsSection(group, linkRow, render),   // "Your account": test mode, or anyone signed in
     group("What matters to you", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars })]),
     nudges(),
     group("Your data", [

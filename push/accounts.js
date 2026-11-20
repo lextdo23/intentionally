@@ -279,8 +279,13 @@ export class Accounts extends DurableObject {
   async ticketRow(ticket) { const r = ticket && this.one("SELECT * FROM tickets WHERE hash = ? AND exp > ?", await hash(ticket), Date.now()); return r || null; }
   async sessionUser(token) {
     if (!token) return null;
-    const s = this.one("SELECT user FROM sessions WHERE hash = ? AND exp > ?", await hash(token), Date.now());
-    return s ? this.one("SELECT * FROM users WHERE id = ?", s.user) : null;
+    const key = await hash(token), t = Date.now();
+    const s = this.one("SELECT user, exp FROM sessions WHERE hash = ? AND exp > ?", key, t);
+    if (!s) return null;
+    // Staying signed in (alex 2026-11-20): every use pushes the end back to 180 days away (at most once a day),
+    // so someone who opens Daydeck now and then never has to sign in again.
+    if (s.exp < t + SESSION_LIFE - DAY) this.sql.exec("UPDATE sessions SET exp = ? WHERE hash = ?", t + SESSION_LIFE, key);
+    return this.one("SELECT * FROM users WHERE id = ?", s.user);
   }
 
   // The options Face ID needs to save a new passkey: from a ticket (signing up, or back in after a code) or a session.

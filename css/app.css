@@ -517,3 +517,61 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .tip-ok { align-self: flex-end; min-height: 44px; padding: 0 20px; border-radius: 14px; background: var(--fill); font-size: 17px; font-weight: 500; }
 .new-tag { margin-left: 6px; padding: 2px 8px; border-radius: 10px; background: var(--gold); color: var(--on-sun); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; vertical-align: 2px; }
 @media (prefers-reduced-motion: reduce) { .tip-layer { transition: none; } }
+
+/* Accounts (js/account.js, alex 2026-11-20): the sign-up screens, the picture picker and "Your account" in Settings. */
+#acct { position: fixed; inset: 0; z-index: 8; background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, var(--sky3) 100%); transition: opacity .35s ease; }
+#acct.gone { opacity: 0; pointer-events: none; }
+.acct-screen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: var(--top) var(--edge) var(--bot); overflow-y: auto; transition: opacity .3s ease, transform .3s var(--spring); }
+.acct-screen.in { opacity: 0; transform: translateX(24px); }
+.acct-screen.out { opacity: 0; transform: translateX(-24px); pointer-events: none; }
+.acct-back { position: absolute; top: var(--top); left: var(--edge); z-index: 1; }
+.acct-top { flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 56px 0 24px; text-align: center; }
+.acct-bottom { display: flex; flex-direction: column; gap: 8px; }
+.acct-title { margin: 0; font-size: 28px; font-weight: 500; line-height: 1.2; }
+.acct-text { margin: 0; font-size: 17px; color: var(--ink2); max-width: 340px; }
+.acct-text b { display: block; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.acct-note { margin: 0; font-size: 13px; color: var(--dim); text-align: center; }
+.acct-msg { margin: 0; min-height: 20px; font-size: 15px; color: var(--sun); text-align: center; }
+.acct-msg:empty { min-height: 0; }
+.acct-msg.ok { color: #a9c4b5; }
+.acct-sun { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 8px; background: radial-gradient(circle, rgb(var(--glow)) 0 22%, rgb(var(--glow) / .35) 36%, rgb(var(--glow) / .08) 58%, transparent 70%); animation: acct-breathe 9s ease-in-out infinite; }
+@keyframes acct-breathe { 0%, 100% { transform: scale(1); } 44% { transform: scale(1.08); } }
+.acct-field { width: 100%; min-height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--fill); font-size: 17px; color: var(--ink); }
+.acct-field::placeholder { color: var(--faint); }
+.acct-at { display: flex; align-items: center; width: 100%; min-height: 52px; padding-left: 16px; border-radius: 12px; background: var(--fill); font-size: 17px; }
+.acct-at > span { color: var(--dim); }
+.acct-at .acct-field { background: none; padding-left: 2px; min-height: 52px; }
+.acct-at:focus-within { outline: 2px solid var(--gold); outline-offset: 3px; }
+.acct-at .acct-field:focus-visible { outline: 0; }
+.acct-code { position: relative; display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.acct-box { width: 48px; height: 60px; border-radius: 12px; background: var(--fill); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.acct-box.on { box-shadow: inset 0 0 0 2px var(--gold); }
+.acct-code-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; font-size: 16px; color: transparent; caret-color: transparent; background: none; }
+.acct-life { margin: 0; font-size: 15px; color: var(--dim); }
+.acct-left { color: var(--ink2); font-variant-numeric: tabular-nums; }
+.acct-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.acct-chips:empty { display: none; }
+.acct-chip { min-height: 44px; padding: 0 14px; border-radius: 10px; background: var(--fill); font-size: 15px; }
+.acct-pic { position: relative; width: 104px; height: 104px; border-radius: 50%; }
+.acct-cam { position: absolute; right: -2px; bottom: -2px; width: 36px; height: 36px; border-radius: 50%; background: var(--sun); color: var(--on-sun); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px var(--sky2); }
+.acct-face { color: var(--ink); }
+.acct-point { display: flex; gap: 12px; align-items: flex-start; text-align: left; }
+.acct-point p { margin: 0; font-size: 17px; color: var(--ink2); }
+.acct-point-ico { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--fill); display: flex; align-items: center; justify-content: center; color: var(--gold); }
+.btn-main.busy, .btn-quiet.busy { opacity: .6; pointer-events: none; }
+.pic { display: inline-block; flex-shrink: 0; border-radius: 50%; overflow: hidden; }
+.pic svg, .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pic-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 8px; justify-items: center; }
+.pic-pick { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.pic-pick[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--gold); }
+.pic-or { margin: 8px 0 0; font-size: 15px; color: var(--dim); }
+.crop { position: relative; align-self: center; border-radius: 50%; overflow: hidden; background: var(--fill2); touch-action: none; cursor: grab; }
+.crop img { user-select: none; -webkit-user-select: none; pointer-events: none; }
+.crop-zoom { margin-top: 8px; }
+.crop-zoom::-webkit-slider-runnable-track { background: var(--fill) !important; }
+.crop-zoom::-moz-range-track { background: var(--fill) !important; }
+.acct-head { gap: 12px; min-height: 76px; }
+.acct-handle { font-size: 17px; font-weight: 600; }
+.acct-email { font-size: 15px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .acct-sun { animation: none; } .acct-screen { transition: opacity .15s; transform: none !important; } }
+.in-acct .testbar { display: none; }

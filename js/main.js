@@ -23,6 +23,7 @@ import { openCamera } from "./camera.js";
 import { openLevels } from "./path.js";
 import * as tips from "./tips.js";
 import * as library from "./library.js";
+import * as account from "./account.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -109,7 +110,7 @@ let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
   setTimeout(() => {
-    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
     if (busy && tries < 40) return noteWhenFree(tries + 1);
     if (!busy) photos.firstNote();
   }, tries ? 1500 : 3400);
@@ -263,6 +264,7 @@ function testBar() {
     h("button", { onclick: () => { if (!wrapped.testOpen(() => render())) alertLine(); } }, "Wrapped"),
     h("button", { onclick: () => { st.test.offset = (st.test.offset || 0) + 1; setOffsetDays(st.test.offset); store.save(); render(); } }, "+1 day"),
     clear,
+    h("button", { onclick: () => account.openSignup(() => render(), { from: "test" }) }, "Sign up"),
     h("button", { onclick: () => { testOn = false; st.test.on = false; store.save(); render(); } }, "Hide")));
 }
 
@@ -290,11 +292,15 @@ tester.opened();
 // The card library: only phones that have used it check in (cards shared while offline, and how shared cards are going).
 if (store.get().lib) library.refresh();
 library.finishUnshare();
+account.refresh();
+// Accounts (alex 2026-11-20): while new, the sign-up screens show in test mode only. A tester invite link waits.
+const askAccount = testOn && account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
 if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
+else if (askAccount) setTimeout(() => account.openSignup(() => render()), 400);
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards"].some((x) => document.body.classList.contains(x))) render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct"].some((x) => document.body.classList.contains(x))) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;
