@@ -15,6 +15,9 @@ export function load() {
   return state;
 }
 export function get() { return state || load(); }
-export function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage full or blocked */ } }
+const listeners = [];
+// Backup (js/sync.js) listens, so changes go up a few seconds after they're made.
+export function onSave(fn) { listeners.push(fn); }
+export function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage full or blocked */ } listeners.forEach((fn) => { try { fn(); } catch { /* never break saving */ } }); }
 export function reset() { state = fresh(); save(); return state; }
 export function day(k) { const s = get(); return (s.days[k] = s.days[k] || {}); }

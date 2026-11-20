@@ -15,7 +15,7 @@ const ORIGINS = ["https://daydeck.day", "https://www.daydeck.day"];
 const CODE_LIFE = 10 * MIN, CODE_TRIES = 5, TICKET_LIFE = 20 * MIN, CHALLENGE_LIFE = 5 * MIN, SESSION_LIFE = 180 * DAY;
 const SENDS = { gap: MIN, perEmailDay: 5, perPlaceHour: 8, allDay: 90 };   // Resend's free plan allows 100 a day
 const RENAME_EVERY = 30 * DAY, NAME_HELD = 30 * DAY;
-const BACKUP_MAX = 1500000;                        // about 1.5 MB of days; photos stay on the phone
+const BACKUP_MAX = 1500000;                        // about 1.5 MB of days; photos stay on the phone (later: their own store, see CLAUDE.md)
 
 // ---------------- Small helpers ----------------
 const enc = new TextEncoder(), dec = new TextDecoder();
@@ -433,7 +433,8 @@ export class Vault extends DurableObject {
   // the newer backup back to merge first.
   write(text, base) {
     const cur = this.sql.exec("SELECT v, at FROM b WHERE k = 'days'").toArray()[0];
-    if (cur && base && cur.at !== base) return { ok: false, conflict: true, data: JSON.parse(cur.v), at: cur.at };
+    // Even a phone that has never synced (base 0) can't overwrite a backup that exists: it gets it back to merge.
+    if (cur && cur.at !== base) return { ok: false, conflict: true, data: JSON.parse(cur.v), at: cur.at };
     const at = Math.max(Date.now(), (cur ? cur.at : 0) + 1);
     this.sql.exec("INSERT OR REPLACE INTO b (k, v, at) VALUES ('days', ?, ?)", text, at);
     return { ok: true, at };

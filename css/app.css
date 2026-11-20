@@ -586,3 +586,5 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 @media (prefers-reduced-motion: reduce) { .acct-sun { animation: none; } .acct-screen { transition: opacity .15s; transform: none !important; } }
 .in-acct .testbar { display: none; }
 .acct-code-input:focus, .acct-code-input:focus-visible { outline: 0; }
+.acct-backup { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--dim); }
+.acct-backup i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }

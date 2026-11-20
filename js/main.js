@@ -24,6 +24,7 @@ import { openLevels } from "./path.js";
 import * as tips from "./tips.js";
 import * as library from "./library.js";
 import * as account from "./account.js";
+import * as sync from "./sync.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -293,6 +294,7 @@ tester.opened();
 if (store.get().lib) library.refresh();
 library.finishUnshare();
 account.refresh();
+sync.start(() => render());   // backup and sync: changes go up quietly, and come in from the account's other phones
 // Accounts (alex 2026-11-20): while new, the sign-up screens show in test mode only. A tester invite link waits.
 const askAccount = testOn && account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
 if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);

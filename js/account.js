@@ -37,7 +37,15 @@ async function api(path, body) {
     return j && typeof j === "object" ? j : {};
   } catch { return { error: "offline" }; }
 }
-function forgetSignIn() { delete me.token; delete me.user; keep(); }
+function forgetSignIn() { const was = !!me.token; delete me.token; delete me.user; keep(); if (was) tell("out"); }
+// Backup (js/sync.js) listens: "in" after signing up or in, "out" after signing out or deleting.
+const hooks = [];
+export function onAccount(fn) { hooks.push(fn); }
+function tell(what) { hooks.forEach((fn) => { try { fn(what); } catch { /* keep going */ } }); }
+// For js/sync.js: talk to the service as this account.
+export const call = (path, body) => api(path, body);
+// This phone was emptied (Start again, Delete everything): sign out here only; the account and its backup stay.
+export function forgetHere() { forgetSignIn(); }
 
 // Once when the app opens: is the sign-in still good? (Using it also keeps it going for another 180 days.)
 export async function refresh() {
@@ -389,6 +397,7 @@ function finished(r) {
   me.token = r.session; me.user = r.user; delete me.skip; keep();
   log("signup_done", r.created ? "new" : "back_in");
   closeSignup("done");
+  tell("in");
 }
 
 // "Use without an account": one calm sheet saying what they give up.
@@ -415,7 +424,7 @@ export async function signIn() {
   let cred;
   try { cred = await usePasskey(o.options); } catch { log("signin", "stopped"); return { error: "stopped" }; }
   const r = await api("/a/signin", { credential: cred });
-  if (r.ok) { me.token = r.session; me.user = r.user; delete me.skip; keep(); log("signin", "ok"); }
+  if (r.ok) { me.token = r.session; me.user = r.user; delete me.skip; keep(); log("signin", "ok"); tell("in"); }
   else log("signin", r.error || "failed");
   return r;
 }
@@ -431,7 +440,18 @@ export async function deleteAccount() {
 
 // ---------------- Settings: "Your account" ----------------
 // group and linkRow come from settings.js so the rows look like every other row there.
-export function settingsSection(group, linkRow, redraw) {
+// "Backed up 5 minutes ago" (js/sync.js status()).
+function backedUp(st) {
+  if (!st) return null;
+  if (st.state === "full") return ["Backup is full. Save a copy to keep everything.", "#d9b3a6"];
+  if (!st.last) return st.state === "offline" ? ["Backs up when you're online", "#a9a59d"] : ["Backing up…", "#a9a59d"];
+  if (st.state === "offline") return ["Backs up when you're online", "#a9a59d"];
+  if (st.state === "trouble") return ["Couldn't back up just now. Trying again soon.", "#a9a59d"];
+  const m = Math.floor((Date.now() - st.last) / 60000), hr = Math.floor(m / 60), d = Math.floor(hr / 24);
+  const when = m < 1 ? "just now" : m < 60 ? `${m} minute${m === 1 ? "" : "s"} ago` : hr < 24 ? `${hr} hour${hr === 1 ? "" : "s"} ago` : d === 1 ? "yesterday" : `${d} days ago`;
+  return ["Backed up " + when, "#a9c4b5"];
+}
+export function settingsSection(group, linkRow, redraw, syncStatus) {
   if (!available()) return null;
   if (!signedIn()) {
     const msg = h("p.set-foot", { role: "status", "aria-live": "polite" }, "Keeps your days safe if you lose or change phones. Already have one? Sign in with Face ID, or make an account with the same email.");
@@ -445,7 +465,8 @@ export function settingsSection(group, linkRow, redraw) {
   }
   const u = user() || {};
   const head = h("button.set-row.acct-head", { "aria-label": "Change your picture", onclick: () => choosePicture(redraw) },
-    picture(56), h("div.col", { style: { gap: "2px", minWidth: "0" } }, h("span.acct-handle", null, "@" + (u.username || "")), h("span.acct-email", null, u.email || "")));
+    picture(56), h("div.col", { style: { gap: "2px", minWidth: "0" } }, h("span.acct-handle", null, "@" + (u.username || "")), h("span.acct-email", null, u.email || ""),
+      (() => { const b = backedUp(syncStatus && syncStatus()); return b ? h("span.acct-backup", null, h("i", { style: { background: b[1] }, "aria-hidden": "true" }), b[0]) : null; })()));
   let armed = false;
   const del = h("button.set-row", { onclick: async () => {
     if (!armed) { armed = true; del.firstChild.textContent = "Tap again to delete your account"; return; }
@@ -455,7 +476,7 @@ export function settingsSection(group, linkRow, redraw) {
   return group("Your account", [head,
     linkRow("Username", u.username || "", { onclick: () => rename(redraw) }),
     h("button.set-row", { onclick: async () => { await signOut(); redraw(); } }, h("span.set-label", null, "Sign out")),
-    del], "Either way, this phone keeps its days. Deleting your account erases everything Daydeck keeps for it.");
+    del], "Your days back up whenever you're online. Photos stay on this phone, and travel in Save a copy. Signing out keeps this phone's days; deleting your account erases your backup.");
 }
 function rename(redraw) {
   openSheet((panel, close) => {
