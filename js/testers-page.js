@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -305,6 +305,22 @@ function drawAll(D) {
       `<p class="note">A usual setup took ${pSecs == null ? "–" : pSecs + " seconds"}. Stopped part way: ${Object.entries(pQuit).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "nobody"}. Changed pillars later in Settings: ${by("pick_done").filter((e) => e.val && !e.val.first).length} times.</p>`
     : `<p class="sub">Nobody has started yet.</p>`,
     "if lots of people stop on the pillar screen, there may be too many to choose from. Over two minutes means it feels like homework.");
+
+  // Accounts (alex 2026-11-20): the sign-up screens. Only steps and choices; never an email, username or code.
+  { const people = (n, f = () => true) => new Set(by(n).filter(f).map((e) => e.code)).size;
+    const opened = people("signup_open");
+    const steps = [["Saw Keep your days safe", opened], ["Got a code", people("signup_step", (e) => e.val === "code")],
+      ["Picked a username", people("signup_step", (e) => e.val === "faceid")], ["Made an account", people("signup_done", (e) => e.val === "new")]];
+    const face = {}; by("signup_faceid").forEach((e) => (face[e.val] = (face[e.val] || 0) + 1));
+    const errs = {}; by("signup_error").forEach((e) => { if (typeof e.val === "string" && e.val.length < 30) errs[e.val] = (errs[e.val] || 0) + 1; });
+    const pics = {}; by("avatar").forEach((e) => { if (typeof e.val === "string" && e.val.length < 20) pics[e.val] = (pics[e.val] || 0) + 1; });
+    html += sec("How does signing up go?", "The sign-up screens (test mode only for now): email, code, username, Face ID. How far people get, who carries on without an account, and which pictures they pick. Never anyone's email, username or code.",
+      opened ? bars(steps, opened) +
+        `<p class="note">Carried on without an account: ${people("signup_without", (e) => e.val === "yes")}. Got back into an account they already had: ${people("signup_done", (e) => e.val === "back_in")}. Face ID: added ${face.yes || 0}, not now ${face.not_now || 0}, stopped part way ${face.stopped || 0}. Signed in with Face ID later: ${by("signin").filter((e) => e.val === "ok").length}. Signed out: ${by("signout").length}. Deleted their account: ${by("account_delete").length}.</p>` +
+        `<p class="note">Things that went wrong: ${Object.entries(errs).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "nothing"}.</p>` +
+        (Object.keys(pics).length ? `<p class="note">Pictures picked:</p>` + bars(Object.entries(pics).sort((a, b) => b[1] - a[1])) : "")
+      : `<p class="sub">Nobody has seen the sign-up yet.</p>`,
+      "lots stopping at the code means emails are slow or landing in junk; lots choosing \"without an account\" means the first screen doesn't explain why it helps."); }
 
   // Which pillars and mindsets
   const lastPick = {}; by("pick_pillars").forEach((e) => (lastPick[e.code] = e.val || []));

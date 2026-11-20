@@ -14,6 +14,7 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/tester-cap.test.cjs
     node tests/photo-copy.test.cjs    (Save a copy carries the photos; Restore puts them back)
     node tests/photo-clean.test.cjs   (nothing but the picture is kept: no location, time or phone details)
+    node tests/signup.test.cjs        (the sign-up screens and Your account in Settings, with a pretend service and Face ID)
     node tests/accounts.test.cjs      (sign up, Face ID sign in, backup, rename, delete: the whole account journey)
     node tests/origins.test.cjs       (the notifications service answers daydeck.day, and nobody else)
     node tests/library-service.test.cjs
