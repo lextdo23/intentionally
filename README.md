@@ -5,8 +5,8 @@ draw one small, research-backed card to do each day, and see how your days reall
 
 Live at **https://daydeck.day**.
 
-Right now everything stays on your phone, and nothing typed is ever sent anywhere. Deleting the app deletes everything.
-(Optional accounts for backup are planned; this line changes when they arrive.)
+Right now everything stays on your phone. Accounts are on the way: sign up with your email, a username and Face ID,
+and your days are backed up so a lost phone doesn't lose them. You'll always be able to use Daydeck without an account.
 
 ## Trying it
 
