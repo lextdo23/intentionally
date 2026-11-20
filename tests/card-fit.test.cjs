@@ -1,5 +1,5 @@
 // Every live card fits the card in every place it shows, at alex's phone size (430 x 932), with nothing cut off, stretched
-// or scrolling (alex 2026-11-20): the three in the hand (5 lines of step), the kept card (with "Back again" too), and the
+// or scrolling (alex 2026-11-20): the three in the hand (step at 13), the kept card (with "Back again" too), and the
 // card on home (face up, with "I did it", and done). Inter stands in for the iPhone's font; it's a touch wider, so this errs safe.
 const { chromium } = require("playwright");
 const { serve, checker } = require("./helpers.cjs");
