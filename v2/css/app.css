@@ -272,6 +272,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .ctag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--ink2); }
 .ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .dcard .task { font-size: 15px; font-weight: 600; line-height: 1.25; }
+.dcard:not(.big):not(.home-card) .task { font-size: 13px; }   /* the hand: smaller so steps keep their words (alex 2026-11-20) */
 /* Pillar names stay on one line so the task always has five lines in the hand. */
 .dcard .ctag { white-space: nowrap; }
 .dcard:not(.big):not(.home-card) .ctag { gap: 4px; letter-spacing: -.01em; }
@@ -287,13 +288,13 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .stage .hc { position: absolute; left: 50%; top: 56%; margin: -80px 0 0 -54px; transition: transform .45s var(--card-ease); }
 /* The kept card: the task leads, why it helps sits quietly at the bottom. */
 .big-holder { display: flex; justify-content: center; }
-.dcard.big { width: 250px; height: 370px; }   /* every card fits without scrolling, "Back again" too (alex 2026-11-20); was 220 x 310 */
+.dcard.big { width: 250px; height: 375px; }   /* every card fits without scrolling, "Back again" too (alex 2026-11-20); was 220 x 310 */
 .dcard.big .face { border-radius: 16px; }
 .dcard.big .front { padding: 20px; gap: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }   /* long cards scroll inside (alex 2026-11-17) */
 .dcard.big .front::-webkit-scrollbar { display: none; }
 .dcard.big .front > * { flex-shrink: 0; }
 .dcard.big .ctag { font-size: 12px; }
-.dcard.big .task { font-size: 24px; }
+.dcard.big .task { font-size: 22px; }   /* Apple title size; steps kept their words (alex 2026-11-20); was 24 */
 .dcard.big .again { font-size: 12px; color: var(--gold); }
 .dcard.big .why { margin-top: auto; font-size: 11px; line-height: 1.4; color: #7a766f; max-width: 88%; }
 .dcard.big .src { font-size: 11px; color: #615e59; margin-top: -8px; }
