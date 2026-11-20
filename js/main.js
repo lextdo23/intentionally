@@ -27,6 +27,7 @@ import * as account from "./account.js";
 import * as sync from "./sync.js";
 import * as pill from "./pill.js";
 import * as friends from "./friends.js";
+import * as moments from "./moments.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -209,7 +210,12 @@ function render(moment) {
   const offer = c && did && !ended && moment !== "did" && photos.offerOK(k);
   if (offer) photos.offered(k);
   const addPhoto = offer ? h("button.add-photo", { onclick: cam }, photos.camIcon(), "Add a photo") : null;
-  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : null);
+  // "Share with friends" (social step 3): quiet, under a done card or a rest day, once there's a friend to share with.
+  // Never a pop-up; the photo offer goes first when both could show.
+  const shareOK = (testOn || levels.isOpen("friends")) && friends.canShare() && (did || today.rest) && moments.canShareDay(k) && !addPhoto;
+  const shareLink = shareOK ? h("button.add-photo.share-link", { onclick: () => moments.openShare({ day: k, item: today.rest ? "rest" : "card", from: "home" }) },
+    friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
+  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
   // The glass pill (social stage 1): once Friends opens at level 4 (or in test mode), the main action moves into it,
   // and Settings moves to the You tab. Until then Daydeck looks as it always has.
   const usePill = testOn || levels.isOpen("friends");

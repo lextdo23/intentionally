@@ -10,9 +10,10 @@ import { log } from "./tester.js";
 import * as account from "./account.js";
 import { openSettings } from "./settings.js";
 import * as friends from "./friends.js";
+import * as moments from "./moments.js";
 
 const TABS = ["today", "friends", "you"];
-let nav = null, bubble = null, slot = null, tab = "today", screens = {}, onToday = null;
+let nav = null, bubble = null, slot = null, tab = "today", screens = {}, onToday = null, todayAct = null, shareAct = null;
 
 const svg = (w, paths, extra = {}) => h("svg", { width: w, height: w, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.9", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", ...extra }, paths.map(([t, a]) => h(t, a)));
 const ICON = {
@@ -40,8 +41,9 @@ export function start(today) {
   screens.friends = h("section", { id: "friends", class: "tab-screen", "aria-label": "Friends" });
   screens.you = h("section", { id: "you", class: "tab-screen", "aria-label": "You" });
   document.body.append(screens.friends, screens.you);
-  friends.connect({ dot: (on) => nav && nav.querySelector('[data-tab="friends"]').classList.toggle("dot", !!on), you: () => { if (!nav) return; if (tab === "you") drawYou(); mark(); } });
-  friends.load();   // quietly, so the small dot shows if a request is waiting
+  friends.connect({ go: (t) => go(t), dot: (on) => nav && nav.querySelector('[data-tab="friends"]').classList.toggle("dot", !!on), you: () => { if (!nav) return; if (tab === "you") drawYou(); mark(); } });
+  // Quietly, so the small dot shows if a request is waiting, and Today can offer "Share with friends".
+  friends.load().then((r) => { if (r && nav && tab === "today" && onToday && friends.canShare()) onToday(); });
   mark();
 }
 // Press and slide along the tabs: the highlight follows your finger, and letting go opens the nearest tab
@@ -78,17 +80,27 @@ export function stop() {
   if (!nav) return;
   friends.closeAll();
   [nav, screens.friends, screens.you].forEach((e) => e && e.remove());
-  nav = null; screens = {}; tab = "today";
+  nav = null; screens = {}; tab = "today"; shareAct = null; todayAct = null;
   document.body.classList.remove("has-pill"); delete document.body.dataset.tab;
 }
 
-// The screen's main action sits in the pill (main.js hands over its "End your day" button and the like).
-// The action stays in the pill on every tab, so the pill never changes shape (alex 2026-11-20: switching felt
-// jumpy). On Friends and You it turns off-white (no orange on the social screens) until "Share a moment" (step 3).
+// The screen's main action sits in the pill: Today's (main.js hands over "End your day" and the like), and
+// "Share a moment" on Friends and You (alex 2026-11-21: it stays "Share a moment"). Both fill the same space, so the
+// pill never changes shape when switching (alex 2026-11-20). Off-white on the social screens, never orange.
 export function setAction(btn) {
   if (!slot) return;
-  slot.replaceChildren(...(btn ? [btn] : []));
-  nav.classList.toggle("no-act", !btn);
+  todayAct = btn || null;
+  showAct();
+}
+function share() {
+  if (!moments.openShare({ from: "pill" })) go("friends");   // not ready to share yet (no account, or the 18+ tick): Friends explains
+}
+function showAct() {
+  if (!shareAct) shareAct = h("button.btn-main.pill-share", { type: "button", onclick: share },
+    svg(18, [["path", { d: "M12 5v14M5 12h14" }]], { "stroke-width": "2.2" }), h("span", null, "Share a moment"));
+  const b = tab === "today" ? todayAct : shareAct;
+  if (slot.firstChild !== b) slot.replaceChildren(...(b ? [b] : []));
+  nav.classList.toggle("no-act", !b);
 }
 
 export function go(t, quiet) {
@@ -105,6 +117,7 @@ export function go(t, quiet) {
 function mark() {
   const i = TABS.indexOf(tab);
   document.body.dataset.tab = tab;
+  showAct();
   nav.style.setProperty("--i", i);
   nav.querySelectorAll(".pill-tab").forEach((b) => {
     const here = b.dataset.tab === tab;
@@ -117,7 +130,7 @@ function mark() {
 }
 
 // ---------------- Friends (js/friends.js) ----------------
-function drawFriends() { friends.drawFriends(screens.friends); }
+function drawFriends() { friends.drawFriends(screens.friends, true); }
 
 // ---------------- You: your picture, name and Settings ----------------
 function drawYou() {

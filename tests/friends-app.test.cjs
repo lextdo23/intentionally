@@ -99,13 +99,13 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Friend requests/.test(await text("#friends")) && /Josh/.test(await text("#friends")), "Josh's request shows at the top of Friends");
   await shot("4-request");
   await p.click('#friends .fr-btn.main'); await p.waitForTimeout(900);
-  check(/Your friends/.test(await text("#friends")) && /Getting through exams gently/.test(await text("#friends")), "accepted: Josh is in Your friends, with his This season line");
+  check(/Josh/.test(await text("#friends .fr-faces-row")) && /Nothing shared yet/.test(await text("#friends")), "accepted: Josh is in the row of friends' faces, and the feed waits for a moment");
   check(!(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot"))), "the dot goes once nothing is waiting");
   check((await josh.get("/a/f")).friends.some((f) => f.username === "mia.k"), "and they're friends on the service, both ways");
   await shot("5-friends");
 
   // ---- Josh's profile ----
-  await p.click("#friends .fr-open"); await p.waitForTimeout(900);
+  await p.click("#friends .fr-face"); await p.waitForTimeout(900);
   const prof = await text(".fr-page:last-child");
   check(/Josh/.test(prof) && /@josh_r/.test(prof) && /1 friend(?!s)/.test(prof) && /This season/.test(prof) && /Josh's moments/.test(prof), "Josh's profile: name, @username, friends count, This season and his moments");
   check(await p.$eval("#pill", (e) => getComputedStyle(e).opacity) === "0", "the pill steps aside on a full page");
@@ -153,10 +153,106 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Sleeping more and seeing friends/.test(await text("#you")) && /Mia/.test(await text("#you .fr-prof-name")), "and You shows them");
   await shot("11-you");
 
+  // ---- Sharing a moment (step 3) ----
+  await sam.post("/a/f/answer", { username: "mia.k", yes: true });
+  // Today's card is done, and the day has a mood: there's something to share.
+  await p.evaluate(([k]) => { const s = JSON.parse(localStorage.getItem("daydeck")); s.days[k] = { sleep: { q: 3 }, card: { id: 5, done: true }, mood: 4, feel: ["Calm", "Hopeful"] }; localStorage.setItem("daydeck", JSON.stringify(s)); }, [day(0)]);
+  await p.reload(); await p.waitForTimeout(1800); await quiet();
+  const link = await p.$("#home .share-link");
+  check(!!link, "a quiet Share with friends sits under a done card (no pop-up)");
+  await shot("13-home-share");
+  await tab("friends");
+  check(/Share a moment/.test(await text("#pill .pill-act")), "on Friends the pill's button is Share a moment");
+  const wFr = await p.$eval("#pill", (e) => Math.round(e.getBoundingClientRect().width));
+  await p.click("#pill .pill-share"); await p.waitForTimeout(800);
+  const sh = ".fr-page:last-child";
+  const dayW = () => p.$eval(`${sh} .mo-day`, (e) => Math.round(e.getBoundingClientRect().width));
+  const bigW = await dayW();
+  check(/Which day/.test(await text(sh)) && await p.$eval(`${sh} .mo-days`, (e) => e.classList.contains("big")) && bigW > 200, `Share a moment opens with the days big, to pick by photo (${bigW}px wide)`);
+  check(!(await p.$(`${sh} .fr-main`)) && /Pick a day/.test(await text(sh)), "nothing can be shared until a day is picked");
+  await shot("14a-share-big");
+  await p.click(`${sh} .mo-day[data-day="${day(0)}"]`); await p.waitForTimeout(700);
+  const smallW = await dayW();
+  check(smallW < 90 && /Your card/.test(await text(sh)), `picking a day shrinks the row (${smallW}px) and shows what to share (your card, no photo today)`);
+  await p.click(`${sh} .mo-day[data-day="${day(0)}"]`); await p.waitForTimeout(700);
+  check(await dayW() > 200, "tapping the row makes it big again");
+  await p.click(`${sh} .mo-day[data-day="${day(0)}"]`); await p.waitForTimeout(700);
+  check(await p.getAttribute(`${sh} button[aria-label="Add how the day felt"]`, "aria-checked") === "false", "how the day felt is off unless they choose it");
+  check(/Good · Calm, Hopeful/.test(await text(sh)), "and it says, in words, what would be shared");
+  await p.click(`${sh} button[aria-label="Add how the day felt"]`);
+  await p.fill(`${sh} textarea`, "Walked to work instead of the bus");
+  await shot("14-share");
+  await p.click(`${sh} .fr-main`); await p.waitForTimeout(1600);
+  let samFeed = (await sam.get("/a/f/feed")).moments;
+  check(samFeed.length === 1 && samFeed[0].cap === "Walked to work instead of the bus" && samFeed[0].mood === "good" && samFeed[0].kind === "card", "Sam gets it: her card, her words, and Felt good");
+  check(await p.$eval("body", (b) => b.dataset.tab) === "friends" && /Walked to work/.test(await text("#friends")) && /You're all caught up/.test(await text("#friends")), "Mia lands on Friends, with her moment in the feed and You're all caught up at the end");
+  check(wFr === await p.$eval("#pill", (e) => Math.round(e.getBoundingClientRect().width)), "the pill stays the same size");
+  // Sam shares too, and says I see you
+  await sam.post("/a/f/share", { day: day(1), item: "rest", kind: "rest", text: "", status: "Rested", cap: "Slept in, no guilt" });
+  await sam.post("/a/f/see", { id: samFeed[0].id });
+  await tab("you"); await tab("friends"); await p.waitForTimeout(1200);
+  const fr = await text("#friends");
+  check(/Slept in, no guilt/.test(fr) && /Rested/.test(fr) && fr.indexOf("Slept in") < fr.indexOf("Walked to work"), "Sam's moment shows too, newest first");
+  check(/Sam said I see you|Sam/.test(await p.getAttribute("#friends .mo-seers", "aria-label")), "Mia sees that Sam said I see you, by name");
+  check(!/\b1\b/.test(await text("#friends .mo-acts")), "with no number anywhere");
+  check(!/\bnull\b|undefined/.test(await text("#friends")), "no stray null or undefined on screen");
+  await shot("15-feed");
+  const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
+  await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
+  check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");
+  // Photos first: yesterday has a photo, so it's offered before the card
+  await p.evaluate(async (k) => { const ph = await import("./js/photos.js"); const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; const x = c.getContext("2d"); x.fillStyle = "#6b7f72"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#e3c486"; x.beginPath(); x.arc(700, 500, 160, 0, 7); x.fill(); await ph.save(k, c, { src: "lib" }); }, day(1));
+  await p.waitForTimeout(500);
+  await p.click("#pill .pill-share"); await p.waitForTimeout(900);
+  check(!!(await p.$(`${sh} .mo-day[data-day="${day(1)}"] img`)), "a day with a photo shows its photo in the day row");
+  await shot("17-share-photo-big");
+  await p.click(`${sh} .mo-day[data-day="${day(1)}"]`); await p.waitForTimeout(800);
+  const firstPick = await p.$eval(`${sh} .mo-pick`, (e) => e.textContent);
+  check(/Your photo/.test(firstPick) && await p.getAttribute(`${sh} .mo-pick`, "aria-checked") === "true", "the photo comes first, already picked; the card is there if they'd rather");
+  await shot("18-share-photo");
+  await p.click(`${sh} .fr-main`); await p.waitForTimeout(2200);
+  const ph = (await sam.get("/a/f/feed")).moments.find((m) => m.kind === "photo");
+  const got = ph && await sam.get("/a/f/photo?id=" + ph.id);
+  check(ph && ph.ph && got.data && got.data.startsWith("data:image/jpeg;base64,") && got.data.length < 440000, "the photo reaches Sam, shrunk");
+  const bytes = got && Buffer.from(got.data.slice(23), "base64");
+  check(bytes && !bytes.includes(Buffer.from("Exif")) && !bytes.includes(Buffer.from("http://ns.adobe.com")), "with nothing but the picture (no Exif or other details)");
+  await p.waitForTimeout(800);
+  check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
+  await shot("19-feed-photo");
+
+  // Your friends, A to Z, with search: from the friends count on You
+  await tab("you"); await p.waitForTimeout(900);
+  await p.click("#you .fr-count"); await p.waitForTimeout(800);
+  const fl = ".fr-page:last-child";
+  check(/Your friends/.test(await text(fl)) && /Only you see this list/.test(await text(fl)), "tapping the friends count opens Your friends (only you see it)");
+  const namesInList = await p.$$eval(`${fl} .fr-name`, (els) => els.map((e) => e.textContent));
+  check(namesInList.join() === "Josh,Sam", `A to Z: ${namesInList.join(", ")}`);
+  await shot("20-friends-list");
+  await p.fill(`${fl} .fr-search-box`, "sa"); await p.waitForTimeout(300);
+  check((await p.$$eval(`${fl} .fr-name`, (els) => els.map((e) => e.textContent))).join() === "Sam", "typing narrows it to matching friends");
+  await p.fill(`${fl} .fr-search-box`, "@josh"); await p.waitForTimeout(300);
+  check((await p.$$eval(`${fl} .fr-name`, (els) => els.map((e) => e.textContent))).join() === "Josh", "@usernames work too");
+  await shot("21-friends-search");
+  await p.fill(`${fl} .fr-search-box`, "zz"); await p.waitForTimeout(300);
+  check(/No friends called/.test(await text(fl)), "and it says so kindly when nobody matches");
+  await p.fill(`${fl} .fr-search-box`, "sam"); await p.click(`${fl} .fr-open`); await p.waitForTimeout(1000);
+  check(/@sam\.w/.test(await text(".fr-page:last-child")) && /moments/.test(await text(".fr-page:last-child")), "tapping a friend opens their profile");
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(500);
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
+
+  // Her grid, and tapping a tile
+  await tab("you"); await p.waitForTimeout(1200);
+  check(!!(await p.$("#you .mo-grid .mo-cell")), "What you've shared is a grid");
+  await shot("16-you-grid");
+  await p.click("#you .mo-cell"); await p.waitForTimeout(900);
+  check(/Your moments/.test(await text(".fr-page:last-child")) && !!(await p.$(".fr-page:last-child .mo-post")), "tapping a tile opens your moments as a feed");
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
+
   // ---- Privacy (Settings → Privacy) ----
   await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700);
   await p.click('#settings button:has-text("Privacy")'); await p.waitForTimeout(700);
   check(/Only your friends can see you/.test(await text(".fr-page:last-child")), "Privacy says only friends can see you");
+  check(await p.getAttribute('.fr-page:last-child button[aria-label="Share my mood"]', "aria-checked") === "false", "Share my mood is in Privacy, off by default");
   await p.click('.fr-page:last-child button[aria-label="Show your friends count"]'); await p.waitForTimeout(700);
   check((await mia.get("/a/f")).me.hide === true, "hiding your friends count is saved");
   const swBg = await p.$eval('.fr-page:last-child button[aria-label="Friend requests"]', (e) => getComputedStyle(e).backgroundColor);
@@ -167,7 +263,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- Block ----
   await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(500);
   await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(600);
-  await tab("friends"); await p.click("#friends .fr-open"); await p.waitForTimeout(900);
+  await tab("friends"); await p.click("#friends .fr-face"); await p.waitForTimeout(900);
   await p.click('.fr-page:last-child button[aria-label="More"]'); await p.waitForTimeout(600);
   await p.click('.sheet-host button:has-text("Block")'); await p.waitForTimeout(700);
   await p.click('.sheet-host:last-child .fr-main'); await p.waitForTimeout(1100);

@@ -135,6 +135,63 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   await mia.post("/a/f/block", { username: "lurker", undo: true });
   check((await stranger.get("/a/f/find?u=mia.k")).found === true, "and can unblock");
 
+  // ---- Moments: sharing, the feed, "I see you", hiding, removing ----
+  const today = "2026-11-21";
+  r = await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "Text an old friend", pillar: "Friends", col: "#d9b3a6", status: "Done", cap: "  Felt <b>nice</b>\u200b  ", mood: "good", feel: ["hopeful", "grateful"] });
+  check(r.ok && r.moment.text === "Text an old friend" && r.moment.cap === "Felt <b>nice</b>" && r.moment.mood === "good" && r.moment.feel.join() === "hopeful,grateful", "Mia shares her card with a caption and how the day felt (words kept as plain text)");
+  const m1 = r.moment.id;
+  check((await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "x", mood: 4 })).moment.mood === null, "a mood is only ever a word, never a number");
+  r = await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "Text an old friend", pillar: "Friends", col: "#ff0000", status: "Done", cap: "Felt nice" });
+  check(r.again && r.moment.id === m1 && r.moment.col === null && r.moment.mood === null, "sharing the same card again updates it (no mood this time), and only Daydeck's tints are kept");
+  check((await mia.post("/a/f/share", { day: "yesterday", item: "12", kind: "card", text: "x" })).error === "bad_moment" && (await mia.post("/a/f/share", { day: today, item: "12", kind: "spam", text: "x" })).error === "bad_moment", "anything that isn't a real day and card is refused");
+  r = await sam.get("/a/f/feed");
+  check(r.ok && r.moments.length === 1 && r.moments[0].by.username === "mia.k" && r.moments[0].cap === "Felt nice", "Sam, her friend, sees it in his feed");
+  check((await stranger.get("/a/f/feed")).moments.length === 0 && (await stranger.get("/a/f/moments?u=mia.k")).moments.length === 0, "someone who isn't her friend sees nothing");
+  check((await mia.get("/a/f/feed")).moments[0].mine === true, "Mia sees her own moment in her feed");
+  r = await sam.post("/a/f/see", { id: m1 });
+  check(r.ok && r.moment.seen === true, "Sam says I see you");
+  await josh.post("/a/f/see", { id: m1 });
+  r = await mia.get("/a/f/feed");
+  check(r.moments[0].seers.map((x) => x.username).sort().join() === "josh_r,sam", "Mia sees who said it, as names (no number anywhere)");
+  check(!("count" in r.moments[0]) && !JSON.stringify(r).match(/"(likes|count|total)"/), "and there's no count");
+  r = await sam.get("/a/f/feed");
+  check(r.moments[0].seers.map((x) => x.username).join() === "sam", "Sam (not Josh's friend) sees only himself, not Josh");
+  await sam.post("/a/f/see", { id: m1, undo: true });
+  check((await mia.get("/a/f/feed")).moments[0].seers.length === 1, "I see you can be taken back");
+  check((await stranger.post("/a/f/see", { id: m1 })).status === 404, "someone who isn't a friend can't react");
+  r = await sam.get("/a/f/moments?u=mia.k");
+  check(r.moments.length === 1, "her moments show on her profile for friends");
+  // Hide their moments
+  await sam.post("/a/f/hide", { username: "mia.k" });
+  check((await sam.get("/a/f/feed")).moments.length === 0 && (await sam.get("/a/f/person?u=mia.k")).person.hidden === true, "hiding Mia's moments takes them out of Sam's feed (still friends)");
+  check((await sam.get("/a/f/moments?u=mia.k")).moments.length === 1, "her profile still shows them if he goes looking");
+  await sam.post("/a/f/hide", { username: "mia.k", undo: true });
+  check((await sam.get("/a/f/feed")).moments.length === 1, "and they can come back");
+  // Remove friend: no more moments, and their reactions go
+  await josh.post("/a/f/remove", { username: "mia.k" });
+  check((await josh.get("/a/f/feed")).moments.length === 0 && (await mia.get("/a/f/feed")).moments[0].seers.length === 0, "once removed, Josh can't see her moments and his I see you is gone");
+  await josh.post("/a/f/ask", { username: "mia.k" }); await mia.post("/a/f/answer", { username: "josh_r", yes: true });
+  // Photos: photos first. Only a clean JPEG is taken; only friends can fetch it.
+  const jpeg = (extra) => "data:image/jpeg;base64," + Buffer.from([0xff, 0xd8, ...(extra || []), 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xda, 0, 2, ...new Array(120).fill(7), 0xff, 0xd9]).toString("base64");
+  const exif = [0xff, 0xe1, 0, 12, 69, 120, 105, 102, 0, 0, 1, 2, 3, 4];
+  check((await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(exif) })).error === "bad_moment", "a photo still carrying details (location, time, camera) is refused");
+  check((await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: "data:image/png;base64,iVBORw0KGgo=" })).error === "bad_moment", "only JPEG pictures are taken");
+  check((await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg().padEnd(460000, "A") })).error === "bad_moment", "and only small ones (shrunk on the phone first)");
+  r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", pillar: "Friends", col: "#d9b3a6", cap: "Coffee with Sam" });
+  check(r.error === "bad_moment", "a photo moment needs its photo");
+  r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), pillar: "Friends", col: "#d9b3a6", cap: "Coffee with Sam" });
+  check(r.ok && r.moment.ph === true && !("photo" in r.moment), "a clean photo is shared (the feed carries a note, not the picture)");
+  const pm = r.moment.id;
+  check((await sam.get("/a/f/photo?id=" + pm)).data === jpeg(), "a friend can fetch the photo");
+  check((await stranger.get("/a/f/photo?id=" + pm)).status === 404, "someone who isn't a friend can't");
+  await mia.post("/a/f/unshare", { id: pm });
+  check((await sam.get("/a/f/photo?id=" + pm)).status === 404 && made.Accountsbook.sql.exec("SELECT COUNT(*) AS n FROM mphotos").toArray()[0].n === 0, "removing the moment removes the photo from the service");
+  // A share limit
+  for (let i = 0; i < 9; i++) await mia.post("/a/f/share", { day: today, item: "o" + (i + 1), kind: "own", text: "Made " + i });
+  check((await mia.post("/a/f/share", { day: today, item: "o99", kind: "own", text: "one too many" })).error === "too_many_shares", "at most 10 shares a day");
+  r = await mia.post("/a/f/unshare", { id: m1 });
+  check(r.ok && !(await sam.get("/a/f/feed")).moments.some((x) => x.id === m1), "Mia can remove a moment, and it's gone for friends");
+
   // ---- Lookups are limited ----
   let last;
   for (let i = 0; i < 61; i++) last = await sam.get("/a/f/find?u=nobody" + i);
@@ -144,14 +201,18 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   await josh.post("/a/f/profile", { hide: false });
   check((await mia.get("/a/f/person?u=josh_r")).person.friends >= 1, "Josh has friends before deleting");
   await josh.post("/a/f/invite", {});
+  const jm = await josh.post("/a/f/share", { day: "2026-11-21", item: "rest", kind: "rest", text: "", status: "Rested" });
+  await josh.post("/a/f/share", { day: "2026-11-21", item: "photo", kind: "photo", photo: jpeg() });
+  await mia.post("/a/f/see", { id: jm.moment.id });
+  await josh.post("/a/f/see", { id: (await mia.get("/a/f/feed")).moments.find((x) => x.mine).id });
   await josh.post("/a/delete", {});
   const sql = made.Accountsbook.sql;
-  const orphans = ["SELECT COUNT(*) AS n FROM prof WHERE user NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM pals WHERE a NOT IN (SELECT id FROM users) OR b NOT IN (SELECT id FROM users)",
+  const orphans = ["SELECT COUNT(*) AS n FROM moments WHERE owner NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM sees WHERE who NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM mphotos WHERE moment NOT IN (SELECT id FROM moments)", "SELECT COUNT(*) AS n FROM prof WHERE user NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM pals WHERE a NOT IN (SELECT id FROM users) OR b NOT IN (SELECT id FROM users)",
     "SELECT COUNT(*) AS n FROM asks WHERE f NOT IN (SELECT id FROM users) OR t NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM invites WHERE user NOT IN (SELECT id FROM users)"];
   const left = orphans.map((q) => sql.exec(q).toArray()[0].n);
   r = await mia.get("/a/f");
   check(r.friends.every((f) => f.username !== "josh_r") && (await mia.get("/a/f/find?u=josh_r")).found === false, "deleting an account removes them from every friend's list");
-  check(sql.exec("SELECT COUNT(*) AS n FROM prof WHERE name = ?", "José Ríos 🌿").toArray()[0].n === 0 && left.every((n) => n === 0), "and their profile, friendships, requests and invites are gone from the service");
+  check(sql.exec("SELECT COUNT(*) AS n FROM prof WHERE name = ?", "José Ríos 🌿").toArray()[0].n === 0 && left.every((n) => n === 0), "and their profile, friendships, requests, invites, moments and I see yous are gone from the service");
 
   globalThis.fetch = realFetch;
   done();

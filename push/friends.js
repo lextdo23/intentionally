@@ -6,11 +6,37 @@
 // Lives in the same book as accounts (accounts.js), keyed by account id, so changing a username never breaks a
 // friendship. Kept: a small profile (name, "This season" line, which little picture), who is friends with whom,
 // waiting requests, blocks, and invite links (only ever stored scrambled). Deleting an account removes all of it.
-// Moments (step 3) and photos (step 4) come later.
+// Moments (step 3, 2026-11-21): a day's card (or a card they made, or a rest day) shared with friends, with their own
+// words and, only if they choose, how the day felt in words. "I see you" is the one reaction, never counted: the
+// person who shared sees who said it; others see only their own friends among them.
+// Photos (2026-11-21): a shared moment can be the day's photo (photos first, alex). The phone shrinks and cleans it
+// (nothing but the picture) before it's sent; it's kept here with the moment, and only the owner and their friends
+// can fetch it. It goes when the moment is removed, or with the account. (Backing up every photo is separate.)
 
 const DAY = 86400000;
-export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60 };
+export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, feedMax: 100, profileMax: 120, text: 200, caption: 280, photo: 450000 };
 const PICS = ["flower", "smile", "frog", "cat", "bunny", "bear", "chick", "sprout"];
+const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
+const MOOD_WORDS = ["awful", "rough", "low", "okay", "good", "really good", "great"];   // the app's own mood words, in words only
+
+// A shared photo must be a small JPEG with nothing but the picture: no location, time, phone or camera details
+// (the app cleans it first; this checks again). Returns the data address to keep, or null.
+export function photoOK(s) {
+  if (typeof s !== "string" || s.length > LIMITS.photo || !s.startsWith("data:image/jpeg;base64,")) return null;
+  let a;
+  try { const t = atob(s.slice(23)); a = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) a[i] = t.charCodeAt(i); } catch { return null; }
+  if (a.length < 100 || a[0] !== 0xff || a[1] !== 0xd8) return null;
+  let i = 2;
+  while (i + 4 <= a.length) {
+    if (a[i] !== 0xff) return null;
+    const m = a[i + 1];
+    if (m === 0xda) return s;                              // the picture itself starts: the details before it were clean
+    if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7) || m === 0xff) { i += m === 0xff ? 1 : 2; continue; }
+    if ((m >= 0xe1 && m <= 0xef) || m === 0xfe) return null;   // EXIF, XMP, comments and other extras: refused
+    i += 2 + ((a[i + 2] << 8) | a[i + 3]);
+  }
+  return null;
+}
 
 export function friendTables(sql) {
   sql.exec(`
@@ -18,7 +44,11 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS pals (a TEXT, b TEXT, at INTEGER, PRIMARY KEY (a, b));
     CREATE TABLE IF NOT EXISTS asks (f TEXT, t TEXT, at INTEGER, PRIMARY KEY (f, t));
     CREATE TABLE IF NOT EXISTS blocks (owner TEXT, who TEXT, at INTEGER, PRIMARY KEY (owner, who));
-    CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, user TEXT, exp INTEGER);`);
+    CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, user TEXT, exp INTEGER);
+    CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, owner TEXT, day TEXT, item TEXT, data TEXT, at INTEGER, UNIQUE (owner, day, item));
+    CREATE TABLE IF NOT EXISTS sees (moment TEXT, who TEXT, at INTEGER, PRIMARY KEY (moment, who));
+    CREATE TABLE IF NOT EXISTS hides (owner TEXT, who TEXT, PRIMARY KEY (owner, who));
+    CREATE TABLE IF NOT EXISTS mphotos (moment TEXT PRIMARY KEY, data TEXT);`);
 }
 
 // Words typed for a name or "This season": plain text only, with invisible characters and line breaks taken out.
@@ -43,6 +73,13 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/block": return out(b.fBlock(token, String(body.username || ""), body.undo === true));
     case "POST /a/f/invite": return out(b.fInvite(token));
     case "POST /a/f/join": return out(b.fJoin(token, String(body.t || "")));
+    case "POST /a/f/share": return out(b.mShare(token, body));
+    case "POST /a/f/unshare": return out(b.mUnshare(token, String(body.id || "")));
+    case "GET /a/f/feed": return out(b.mFeed(token));
+    case "GET /a/f/moments": return out(b.mOf(token, q.get("u") || ""));
+    case "POST /a/f/see": return out(b.mSee(token, String(body.id || ""), body.undo === true));
+    case "GET /a/f/photo": return out(b.mPhoto(token, q.get("id") || ""));
+    case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
   }
   return null;
 }
@@ -72,7 +109,11 @@ export const friendMethods = {
     this.sql.exec("INSERT OR IGNORE INTO pals (a, b, at) VALUES (?, ?, ?)", b, a, t);
     this.sql.exec("DELETE FROM asks WHERE (f = ? AND t = ?) OR (f = ? AND t = ?)", a, b, b, a);
   },
-  fUnfriend(a, b) { this.sql.exec("DELETE FROM pals WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)", a, b, b, a); },
+  fUnfriend(a, b) {
+    this.sql.exec("DELETE FROM pals WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)", a, b, b, a);
+    // Their "I see you"s on each other's moments go too.
+    this.sql.exec("DELETE FROM sees WHERE (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?)) OR (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?))", a, b, b, a);
+  },
 
   // Signed in and ticked "I'm 18 or over"? Most things need both.
   async fGate(token, needAdult = true) {
@@ -149,7 +190,8 @@ export const friendMethods = {
     const state = this.fState(me.id, them.id), p = this.fProf(them.id);
     if (state !== "friends" && state !== "you") return { ok: true, person: this.fCard(them, { state }) };
     const pal = this.one("SELECT at FROM pals WHERE a = ? AND b = ?", me.id, them.id);
-    return { ok: true, person: this.fCard(them, { state, season: p.season || "", friends: p.hide ? null : this.fCount(them.id), since: pal ? pal.at : null }) };
+    const hidden = !!this.one("SELECT 1 AS x FROM hides WHERE owner = ? AND who = ?", me.id, them.id);
+    return { ok: true, person: this.fCard(them, { state, season: p.season || "", friends: p.hide ? null : this.fCount(them.id), since: pal ? pal.at : null, hidden }) };
   },
 
   async fAsk(token, name) {
@@ -228,6 +270,93 @@ export const friendMethods = {
     return { ok: true, state: "asks_you", person: this.fCard(them) };
   },
 
+  // ---------------- Moments ----------------
+  // What a moment may hold. Anything else is dropped; words are tidied like names.
+  mClean(body) {
+    const day = String(body.day || ""), item = String(body.item || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^(card|rest|photo|o\d{1,5}|l[a-z0-9]{10}|\d{1,5})$/.test(item)) return null;
+    const kind = ["card", "own", "rest", "photo"].includes(body.kind) ? body.kind : null;
+    if (!kind || (kind === "photo") !== (item === "photo")) return null;
+    const text = tidyText(body.text, LIMITS.text), pillar = tidyText(body.pillar, 30), cap = tidyText(body.cap, LIMITS.caption);
+    if ((kind === "card" || kind === "own") && !text) return null;
+    const col = TINTS.includes(body.col) ? body.col : null;
+    const status = ["Done", "Rested", ""].includes(body.status) ? body.status : "";
+    const mood = MOOD_WORDS.includes(body.mood) ? body.mood : null;
+    const feel = mood && Array.isArray(body.feel) ? body.feel.map((f) => tidyText(f, 24)).filter(Boolean).slice(0, 6) : [];
+    let photo = null;
+    if (kind === "photo") { photo = photoOK(body.photo); if (!photo) return null; }
+    return { day, item, photo, data: { kind, text, pillar, col, status, cap, mood, feel, ph: !!photo } };
+  },
+  mOut(row, meId, owner, extra = {}) {
+    // Who said "I see you": the person who shared sees everyone; others see only themselves and their own friends.
+    const all = this.rows("SELECT s.who AS id, s.at FROM sees s WHERE s.moment = ? ORDER BY s.at", row.id);
+    const seers = all.filter((x) => x.id === meId || meId === row.owner || this.fIsPal(meId, x.id))
+      .map((x) => this.one("SELECT * FROM users WHERE id = ?", x.id)).filter(Boolean).map((u) => this.fCard(u));
+    return { id: row.id, day: row.day, item: row.item, at: row.at, ...JSON.parse(row.data), by: this.fCard(owner), mine: row.owner === meId, seen: all.some((x) => x.id === meId), seers, ...extra };
+  },
+  async mShare(token, body) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, m = this.mClean(body || {});
+    if (!m) return { error: "bad_moment" };
+    const t = Date.now(), had = this.one("SELECT id FROM moments WHERE owner = ? AND day = ? AND item = ?", me.id, m.day, m.item);
+    if (!had && this.one("SELECT COUNT(*) AS n FROM moments WHERE owner = ? AND at > ?", me.id, t - DAY).n >= LIMITS.perDay) return { error: "too_many_shares" };
+    const id = had ? had.id : this.newToken().slice(0, 16);
+    // Sharing the same thing again updates it (and brings it back to the top), keeping its "I see you"s.
+    this.sql.exec("INSERT OR REPLACE INTO moments (id, owner, day, item, data, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, m.day, m.item, JSON.stringify(m.data), t);
+    if (m.photo) this.sql.exec("INSERT OR REPLACE INTO mphotos (moment, data) VALUES (?, ?)", id, m.photo);
+    return { ok: true, moment: this.mOut(this.one("SELECT * FROM moments WHERE id = ?", id), me.id, me), again: !!had };
+  },
+  async mUnshare(token, id) {
+    const g = await this.fGate(token, false); if (g.error) return g;
+    const row = this.one("SELECT * FROM moments WHERE id = ? AND owner = ?", id, g.u.id);
+    if (row) { this.sql.exec("DELETE FROM sees WHERE moment = ?", id); this.sql.exec("DELETE FROM mphotos WHERE moment = ?", id); this.sql.exec("DELETE FROM moments WHERE id = ?", id); }
+    return { ok: true };
+  },
+  // Friends' moments (and your own) from the last two weeks, newest first. Friends whose moments you hid are left out.
+  async mFeed(token) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, since = Date.now() - LIMITS.feedDays * DAY;
+    const rows = this.rows(`SELECT * FROM moments WHERE at > ? AND (owner = ? OR (owner IN (SELECT b FROM pals WHERE a = ?) AND owner NOT IN (SELECT who FROM hides WHERE owner = ?))) ORDER BY at DESC LIMIT ?`,
+      since, me.id, me.id, me.id, LIMITS.feedMax);
+    const users = {};
+    const who = (id) => (users[id] ||= this.one("SELECT * FROM users WHERE id = ?", id));
+    return { ok: true, moments: rows.filter((r) => who(r.owner)).map((r) => this.mOut(r, me.id, who(r.owner))) };
+  },
+  // One person's moments, for their profile grid: yours, or a friend's.
+  async mOf(token, name) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, them = this.fTarget(me, name);
+    if (!them) return { error: "not_found", status: 404 };
+    if (them.id !== me.id && !this.fIsPal(me.id, them.id)) return { ok: true, moments: [] };
+    const rows = this.rows("SELECT * FROM moments WHERE owner = ? ORDER BY at DESC LIMIT ?", them.id, LIMITS.profileMax);
+    return { ok: true, moments: rows.map((r) => this.mOut(r, me.id, them)) };
+  },
+  // A shared photo: only for its owner and their friends.
+  async mPhoto(token, id) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, row = this.one("SELECT owner FROM moments WHERE id = ?", id);
+    if (!row || (row.owner !== me.id && !this.fIsPal(me.id, row.owner))) return { error: "not_found", status: 404 };
+    const ph = this.one("SELECT data FROM mphotos WHERE moment = ?", id);
+    return ph ? { ok: true, data: ph.data } : { error: "not_found", status: 404 };
+  },
+  async mSee(token, id, undo) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, row = this.one("SELECT * FROM moments WHERE id = ?", id);
+    if (!row || (row.owner !== me.id && !this.fIsPal(me.id, row.owner))) return { error: "not_found", status: 404 };
+    if (undo) this.sql.exec("DELETE FROM sees WHERE moment = ? AND who = ?", id, me.id);
+    else this.sql.exec("INSERT OR IGNORE INTO sees (moment, who, at) VALUES (?, ?, ?)", id, me.id, Date.now());
+    return { ok: true, moment: this.mOut(row, me.id, this.one("SELECT * FROM users WHERE id = ?", row.owner)) };
+  },
+  // Hide a friend's moments from your feed (they aren't told, and you stay friends).
+  async mHide(token, name, undo) {
+    const g = await this.fGate(token, false); if (g.error) return g;
+    const them = this.fByName(name);
+    if (!them || them.id === g.u.id) return { error: "not_found", status: 404 };
+    if (undo) this.sql.exec("DELETE FROM hides WHERE owner = ? AND who = ?", g.u.id, them.id);
+    else this.sql.exec("INSERT OR IGNORE INTO hides (owner, who) VALUES (?, ?)", g.u.id, them.id);
+    return { ok: true };
+  },
+
   // Deleting an account: every friendship, request, block, invite and the profile go too.
   fForget(id) {
     this.sql.exec("DELETE FROM prof WHERE user = ?", id);
@@ -235,5 +364,9 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM asks WHERE f = ? OR t = ?", id, id);
     this.sql.exec("DELETE FROM blocks WHERE owner = ? OR who = ?", id, id);
     this.sql.exec("DELETE FROM invites WHERE user = ?", id);
+    this.sql.exec("DELETE FROM sees WHERE who = ? OR moment IN (SELECT id FROM moments WHERE owner = ?)", id, id);
+    this.sql.exec("DELETE FROM mphotos WHERE moment IN (SELECT id FROM moments WHERE owner = ?)", id);
+    this.sql.exec("DELETE FROM moments WHERE owner = ?", id);
+    this.sql.exec("DELETE FROM hides WHERE owner = ? OR who = ?", id, id);
   },
 };
