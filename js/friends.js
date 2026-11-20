@@ -14,17 +14,22 @@ import { h, LIFELINE, reduceMotion } from "./util.js";
 import { openSheet, roundBtn } from "./ui.js";
 import { log } from "./tester.js";
 import * as account from "./account.js";
+import * as moments from "./moments.js";
 
 const KEY = "daydeck-friends";
 let local = read();
 function read() { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === "object" ? v : {}; } catch { return {}; } }
 function keep() { try { localStorage.setItem(KEY, JSON.stringify(local)); } catch { /* storage full or blocked */ } }
 
-let data = null, loading = null, problem = null, dotFn = () => {}, redrawYou = () => {};
+let data = null, loading = null, problem = null, dotFn = () => {}, redrawYou = () => {}, goTab = () => {}, mine = null;
 let fScreen = null;
 export const loaded = () => data;
 // The pill hands over: how to show the small dot on Friends (no counts, alex 2026-11-20) and how to redraw You.
-export function connect({ dot, you }) { if (dot) dotFn = dot; if (you) redrawYou = you; }
+export function connect({ dot, you, go }) { if (dot) dotFn = dot; if (you) redrawYou = you; if (go) goTab = go; }
+// Ready to share: signed in, ticked 18+, and at least one friend to share with.
+export const canShare = () => !!(account.signedIn() && data && data.me.adult && data.friends.length);
+// After sharing or removing a moment: fresh feed and grids, and show Friends.
+export async function afterShare() { mine = null; moments.resetFeed(); goTab("friends"); await moments.loadFeed(); again(); }
 
 // Everything the Friends screen needs, from the service. Quietly does nothing without an account.
 export async function load() {
@@ -44,7 +49,7 @@ export async function load() {
   })();
   return loading;
 }
-const again = async () => { await load(); if (fScreen && fScreen.isConnected) drawFriends(fScreen); redrawYou(); pages.forEach((p) => p.refresh && p.refresh()); };
+const again = async () => { await load(); if (data && data.me.adult) { await moments.loadFeed(); if (account.user()) mine = await moments.loadOf(account.user().username); } if (fScreen && fScreen.isConnected) drawFriends(fScreen); redrawYou(); pages.forEach((p) => p.refresh && p.refresh()); };
 
 // An invite link someone opened (…/?add=…): kept until there's an account to use it with.
 export function noteInvite(t) { if (/^[A-Za-z0-9_-]{20,64}$/.test(t)) { local.join = t; keep(); } }
@@ -57,7 +62,7 @@ export async function useInvite() {
 }
 
 // ---------------- Bits ----------------
-const svg = (w, paths, extra = {}) => h("svg", { width: w, height: w, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.9", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", ...extra }, paths.map(([t, a]) => h(t, a)));
+export const svg = (w, paths, extra = {}) => h("svg", { width: w, height: w, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.9", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", ...extra }, paths.map(([t, a]) => h(t, a)));
 const ICON = {
   add: () => svg(22, [["circle", { cx: "10", cy: "8.5", r: "3.4" }], ["path", { d: "M3.5 19.5c.8-3.3 3.4-5.2 6.5-5.2s5.7 1.9 6.5 5.2" }], ["path", { d: "M18.5 7.5v6M15.5 10.5h6" }]]),
   more: () => svg(22, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }),
@@ -66,17 +71,17 @@ const ICON = {
   tick: () => svg(18, [["path", { d: "M5 12.5l4.5 4.5L19 7.5" }]], { "stroke-width": "2.4" }),
 };
 const iconBtn = (icon, label, onclick) => h("button.round", { type: "button", "aria-label": label, onclick }, icon());
-const shown = (p) => p.name || p.username;
-const pic = (p, size) => account.littleOne(p.pic || "smile", size);
+export const shown = (p) => p.name || p.username;
+export const pic = (p, size) => account.littleOne(p.pic || "smile", size);
 // A person in a list: picture, name and @username, with whatever goes on the right.
 function row(p, right, open) {
   const who = h("div.fr-who", null, h("span.fr-name", null, shown(p)), h("span.fr-handle", null, "@" + p.username + (p.season ? " · " + p.season : "")));
   const main = open ? h("button.fr-open", { type: "button", "aria-label": `${shown(p)}, @${p.username}`, onclick: open }, pic(p, 48), who) : h("div.fr-open", null, pic(p, 48), who);
   return h("div.fr-row", null, main, right ? h("div.fr-right", null, right) : null);
 }
-const small = (text, onclick, kind = "soft") => h(`button.fr-btn.${kind}`, { type: "button", onclick }, text);
+export const small = (text, onclick, kind = "soft") => h(`button.fr-btn.${kind}`, { type: "button", onclick }, text);
 // While the service answers, the button shows it's working and can't be tapped twice.
-async function busy(btn, job) {
+export async function busy(btn, job) {
   if (btn.getAttribute("aria-busy") === "true") return;
   btn.setAttribute("aria-busy", "true");
   try { return await job(); } finally { btn.removeAttribute("aria-busy"); }
@@ -87,20 +92,24 @@ const SAY = {
   full: "That's 150 friends, the most Daydeck keeps. Remove someone to add someone new.",
   too_many_waiting: "You have lots of requests waiting already. Give them a little time.",
   too_many: "That's a lot of looking for now. Try again in a while.",
+  too_many_shares: "That's lots of sharing for one day. Try again tomorrow.",
+  bad_moment: "That couldn't be shared. Try again.",
   not_found: "No one by that name. Check the spelling with your friend.",
   name_words: "That name can't be used. Try another.",
   adult: "Friends on Daydeck are for people 18 and over.",
 };
-const say = (r) => SAY[r && r.error] || SAY.offline;
+export const say = (r) => SAY[r && r.error] || SAY.offline;
 
 // ---------------- The Friends tab ----------------
-export function drawFriends(screen) {
+// fresh: opened from the pill, so check for new moments and requests once it's drawn.
+export function drawFriends(screen, fresh) {
   fScreen = screen;
   const ready = account.signedIn() && data && data.me.adult;
   screen.replaceChildren(
     h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "Friends"), ready ? iconBtn(ICON.add, "Add friends", openAdd) : null),
     body(), h("div.fr-life", null, LIFELINE()));
   if (account.signedIn() && !data && !loading && !problem) again();
+  else if (fresh && data && data.me.adult) again();
 }
 function faces(ids = ["frog", "smile", "cat"]) { return h("div.friends-faces", { "aria-hidden": "true" }, ids.map((id) => account.littleOne(id, 64))); }
 function body() {
@@ -118,8 +127,13 @@ function body() {
   const parts = [];
   if (data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
   if (data.friends.length) {
-    parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Your friends"), data.friends.map((p) => row(p, null, () => openPerson(p.username)))));
-    parts.push(h("p.fr-note", null, "When friends share a moment, it'll show here. Sharing is coming soon."));
+    // Your friends as a row of faces (tap one for their profile), then their moments, newest first.
+    parts.push(h("div.fr-faces-row", { role: "list", "aria-label": "Your friends" }, data.friends.map((p) =>
+      h("button.fr-face", { type: "button", role: "listitem", onclick: () => openPerson(p.username) }, pic(p, 56), h("span", null, (p.name || p.username).split(" ")[0])))));
+    const list = moments.cachedFeed();
+    if (!list) { parts.push(h("div.tab-empty.small", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" }))); moments.loadFeed().then(() => fScreen && fScreen.isConnected && drawFriends(fScreen)); }
+    else if (!list.length) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing shared yet"), h("p", null, "When friends share a moment, it'll show here. Tap Share a moment to share one of yours.")));
+    else parts.push(moments.feedList(list, { onPerson: openPerson, onChange: (m, gone) => { if (gone) again(); } }));
   } else {
     parts.push(h("div.tab-empty.fr-start", null, faces(["sprout", "bunny", "bear"]),
       h("h2", null, "Add a few friends"),
@@ -196,7 +210,7 @@ async function invite(btn) {
 
 // ---------------- Full-screen pages (Add friends, a profile, Edit, Privacy, Blocked) ----------------
 const pages = [];
-function page(title, build, { right, label } = {}) {
+export function page(title, build, { right, label, x } = {}) {
   const el = h("div.fr-page", { role: "dialog", "aria-modal": "true", "aria-label": label || title });
   const close = () => {
     const i = pages.indexOf(p); if (i < 0) return;
@@ -209,7 +223,7 @@ function page(title, build, { right, label } = {}) {
   const draw = () => {
     const top = scroll.scrollTop;
     scroll.replaceChildren(h("div.fr-page-in", null,
-      h("div.fr-page-head", null, roundBtn("back", "Back", close), h("h1.fr-page-title", { tabindex: "-1" }, title), right ? right() : h("span.fr-head-gap")),
+      h("div.fr-page-head", null, x ? roundBtn("close", "Close", close) : roundBtn("back", "Back", close), h("h1.fr-page-title", { tabindex: "-1" }, title), right ? right() : h("span.fr-head-gap")),
       build(draw, close)));
     scroll.scrollTop = top;
   };
@@ -305,19 +319,21 @@ function switchRow(label, sub, on, change) {
 
 // ---------------- A friend's profile ----------------
 export function openPerson(username) {
-  let person = null, err = "";
+  let person = null, err = "", list = null;
   const pg = page("", (redraw, close) => {
     if (err) return h("p.fr-msg", null, err);
     if (!person) return h("div.tab-empty", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" }));
-    return profileBody(person, false, close);
+    return profileBody(person, false, close, person.state === "friends" ? list : []);
   }, { label: "Profile", right: () => person && person.state === "friends" ? iconBtn(ICON.more, "More", () => more(person, pg)) : h("span.fr-head-gap") });
   account.call("/a/f/person?u=" + encodeURIComponent(username)).then((r) => {
     if (r.ok) { person = r.person; log("friend_profile", person.state === "friends" ? 1 : 0); } else err = r.error === "not_found" ? "This person isn't on Daydeck any more." : say(r);
     pg.refresh();
+    if (r.ok && person.state === "friends") moments.loadOf(username).then((m) => { list = m || []; pg.refresh(); });
   });
 }
 // The top of a profile, yours (You tab) or a friend's: picture, name, @username · friends, This season, moments.
-function profileBody(p, mine, close) {
+function profileBody(p, isMe, close, list) {
+  const mine = isMe;
   const count = p.friends != null;
   const kids = [
     h("div.fr-prof-top", null, mine ? h("button.you-pic", { type: "button", "aria-label": "Change your picture", onclick: () => account.choosePicture(again) }, account.picture(88)) : pic(p, 88),
@@ -329,14 +345,24 @@ function profileBody(p, mine, close) {
     return h("div.fr-prof", null, kids);
   }
   const first = (p.name || "").split(" ")[0] || "@" + p.username;
-  kids.push(h("h2.fr-sec-head.big", null, mine ? "What you've shared" : `${first}'s moments`),
-    h("p.fr-note.left", null, mine ? "Moments you share with friends will show here. Sharing is coming soon." : "Nothing shared yet. When they share a moment, it'll show here."));
+  kids.push(h("h2.fr-sec-head.big", null, mine ? "What you've shared" : `${first}'s moments`));
+  const g = list && moments.grid(list, { ...p, mine });
+  if (g) kids.push(g);
+  else if (list) kids.push(h("p.fr-note.left", null, mine ? "Moments you share with friends will show here." : "Nothing shared yet. When they share a moment, it'll show here."));
+  else kids.push(h("div.tab-empty.small", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" })));
   return h("div.fr-prof", null, kids);
 }
-// The ••• menu: remove friend, block (both quiet). Hide their moments and report come with moments (steps 3 and 5).
+// The ••• menu: hide their moments, remove friend, block (all quiet). Report comes in step 5.
 function more(p, pg) {
   openSheet((panel, close) => {
     panel.append(h("h2", null, shown(p)),
+      h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: async () => {
+        close("pick");
+        const r = await account.call("/a/f/hide", { username: p.username, undo: !!p.hidden });
+        if (!r.ok) return note(say(r));
+        log(p.hidden ? "unhide" : "hide", 1); p.hidden = !p.hidden; moments.resetFeed(); again();
+        note(p.hidden ? `You won't see ${shown(p)}'s moments in your feed. They aren't told.` : `${shown(p)}'s moments are back in your feed.`);
+      } }, p.hidden ? "Show their moments" : "Hide their moments"),
       h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "remove", pg), 300); } }, "Remove friend"),
       h("button.btn-soft.fr-sheet-btn.danger", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "block", pg), 300); } }, `Block @${p.username}`),
       h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
@@ -367,7 +393,8 @@ export function youTop(friendsOpen) {
   const me = data ? data.me : { username: u.username, name: "", season: "", friends: null };
   // Your own friends count always shows to you; "Show your friends count" only hides it from others.
   const p = { ...me, username: u.username, friends: friendsOpen && data ? me.friends : null };
-  const top = profileBody({ ...p, state: "you" }, true, () => {});
+  if (data && data.me.adult && mine == null) moments.loadOf(u.username).then((m) => { if (m) { mine = m; redrawYou(); } });
+  const top = profileBody({ ...p, state: "you" }, true, () => {}, data && data.me.adult ? mine : []);
   const btns = h("div.fr-prof-btns", null,
     h("button.btn-main.soft", { type: "button", onclick: openEdit }, "Edit"),
     friendsOpen && data && data.me.adult ? h("button.btn-main.soft", { type: "button", onclick: openAdd }, ICON.add(), "Add friends") : null);
@@ -415,6 +442,7 @@ export function openPrivacy() {
     return h("div.fr-stack", null,
       h("div.fr-lock", null, ICON.lock(), h("span", null, "Only your friends can see you on Daydeck, and only the moments you choose to share.")),
       h("div.fr-group", null,
+        switchRow("Share my mood", "Start each share with how the day felt. You can still turn it off each time.", moments.moodOn(), async (on) => { moments.setMood(on); log("friend_set", { mood: on ? 1 : 0 }); return true; }),
         switchRow("Show your friends count", "Shown on your profile.", !data.me.hide, async (on) => {
           const r = await account.call("/a/f/profile", { hide: !on }); if (!r.ok) { note(say(r)); return false; }
           data.me.hide = !on; log("friend_set", { count: on ? 1 : 0 }); redrawYou(); return true;

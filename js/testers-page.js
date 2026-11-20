@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -64,7 +64,9 @@ const SHAPE = {
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, friend_profile: (v) => v === 0 || v === 1,
-  friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
+  share: (v) => isObj(v) && ["card", "own", "rest"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home"].includes(v.from),
+  share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1,
+  friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
   card_keep: (v) => isObj(v) && isNum(v.id),
@@ -344,6 +346,16 @@ function drawAll(D) {
         `<p class="note">${adults} ticked "I'm 18 or over"; ${askers} have reached out to someone. Profiles edited: ${P.length} (${P.filter((v) => v.name).length} with a name, ${P.filter((v) => v.season).length} with a This season line). Turned requests off: ${quiet.requests || 0}. Hid their friends count: ${quiet.count || 0}.</p>`
         : `<p class="sub">Nobody has opened Friends yet.</p>`,
       "lots of ticks but few requests means adding friends is too hard, or people aren't sure who to add. Blocks are worth a look if they climb."); }
+  // Moments (social step 3): what kind of thing, and whether words or a mood came with it. Never the words.
+  { const sh = by("share"), opens = by("share_open"), n = sh.length;
+    const k = {}; sh.forEach((e) => (k[e.val.kind] = (k[e.val.kind] || 0) + 1));
+    const pct = (f) => (n ? Math.round(100 * sh.filter(f).length / n) + "%" : "–");
+    const sees = by("see").filter((e) => e.val === 1).length, from = (w) => opens.filter((e) => e.val === w).length;
+    html += sec("Do people share moments?", "Shares from Share a moment (in the pill) and Share with friends (under a done card). Only what kind of thing was shared, never the words.",
+      opens.length ? bars([["Their card", k.card || 0], ["A card they made", k.own || 0], ["A rest day", k.rest || 0]], n || 1) +
+        `<p class="note">Opened ${opens.length} times (${from("pill")} from the pill, ${from("home")} from under the card); shared ${n} (${opens.length ? Math.round(100 * n / opens.length) : 0}% of opens). With a caption: ${pct((e) => e.val.cap)}. With how the day felt: ${pct((e) => e.val.mood)}. From an earlier day: ${pct((e) => e.val.ago > 0)}. "I see you" said ${sees} times. Moments removed: ${by("unshare").length}. Friends' moments hidden: ${by("hide").length}. Grids opened: ${by("grid_open").length}.</p>`
+        : `<p class="sub">Nobody has shared a moment yet.</p>`,
+      "many opens but few shares means the share screen asks too much; lots of hides means feeds feel noisy."); }
 
   // Which pillars and mindsets
   const lastPick = {}; by("pick_pillars").forEach((e) => (lastPick[e.code] = e.val || []));

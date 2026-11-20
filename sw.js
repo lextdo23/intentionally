@@ -1,9 +1,9 @@
 // Keeps Daydeck working offline. Daydeck is the whole site (the old Intentionally app is retired).
 // Bump VERSION whenever any file below changes.
-const VERSION = "d60";
+const VERSION = "d61";
 const FILES = [
   "./", "index.html", "privacy.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css", "css/box.css", "css/photos.css", "css/library.css",
-  "js/main.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/sync.js", "js/pill.js", "js/friends.js",
+  "js/main.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "img/chrome/heart.webp", "img/chrome/moon.webp", "img/chrome/sparkle.webp", "img/chrome/spiky.webp", "img/chrome/sun.webp",
 ];
