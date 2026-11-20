@@ -2,7 +2,7 @@
 // Runs the real push/worker.js in Node with a stand-in for Cloudflare's storage. Made-up data only.
 const fs = require("fs"), path = require("path"), os = require("os");
 const { DatabaseSync } = require("node:sqlite");
-const { checker } = require("./helpers.cjs");
+const { checker, loadWorker } = require("./helpers.cjs");
 
 // Cloudflare's SQL storage, played by Node's built-in SQLite.
 function fakeSql() {
@@ -17,11 +17,7 @@ function fakeSql() {
 (async () => {
   const { check, done } = checker();
   // Load the real worker, with Cloudflare's base class swapped for a tiny stand-in.
-  const src = fs.readFileSync(path.join(__dirname, "..", "push", "worker.js"), "utf8")
-    .replace(/^import \{ DurableObject \} from "cloudflare:workers";/m, "class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }");
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "worker-")), "worker.mjs");
-  fs.writeFileSync(file, src);
-  const mod = await import(file);
+  const mod = await loadWorker();
   const store = new mod.Testers({ storage: { sql: fakeSql() } }, {});
   const env = { TESTERS: { idFromName: () => "all", get: () => store }, TESTER_KEY: "made-up-password-for-tests" };
   const hex = (n) => n.toString(16).padStart(32, "0");

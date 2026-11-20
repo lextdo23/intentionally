@@ -2,6 +2,9 @@
 // It never sees a thought, a name or a pillar. Each phone tells it only *when* to send a ping, and the phone
 // itself decides what the ping says. Runs on Cloudflare Workers; setup is in README.md.
 import { DurableObject } from "cloudflare:workers";
+import { accounts } from "./accounts.js";
+// Accounts live in accounts.js; Cloudflare needs their storage classes shared from here too.
+export { Accounts, Vault } from "./accounts.js";
 
 const DAY = 86400000;
 // The addresses the app is served from. The old GitHub address stays allowed while people move to daydeck.day.
@@ -54,6 +57,7 @@ async function route(req, env) {
     }
     if (pathname.startsWith("/t/")) return testers(req, env, pathname);
     if (pathname.startsWith("/l/")) return library(req, env, pathname);
+    if (pathname.startsWith("/a/")) return accounts(req, env, pathname, reply);
     return reply({ error: "not found" }, 404);
   }
 }

@@ -32,3 +32,22 @@ The same service stores what beta testers choose to share (see `js/tester.js`). 
 4. Open https://daydeck.day/testers.html and enter the password.
 
 Testers join from https://daydeck.day/?tester, or from Notifications → "Help test Daydeck".
+
+## Accounts (accounts.js)
+
+Sign up with an email code, a username and a passkey (Face ID); sign in with the passkey; back up days. No
+passwords. Everything is under `/a/`:
+
+| Step | Address |
+| --- | --- |
+| Email a 6-digit code | `POST /a/code` `{ email }` |
+| Check the code, get a ticket | `POST /a/verify` `{ email, code }` |
+| Is a username free? | `GET /a/name?u=...` |
+| Options for saving a passkey | `POST /a/passkey/options` `{ ticket, username }` |
+| Finish (account made or found, passkey saved, signed in) | `POST /a/finish` `{ ticket, username, credential }` |
+| Sign in with a passkey | `POST /a/signin/options`, then `POST /a/signin` `{ credential }` |
+| Signed in (send `Authorization: Bearer <session>`) | `GET /a/me`, `POST /a/username`, `POST /a/signout`, `POST /a/delete`, `GET` / `POST /a/backup` |
+
+It needs one more repository secret, **RESEND_API_KEY** (Resend, sending access only, for daydeck.day). Without it
+the service still runs, but codes aren't sent. Limits keep email inside Resend's free plan: one code a minute per
+email, 5 a day per email, 8 an hour per network, and 90 a day in all.
