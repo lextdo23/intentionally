@@ -235,7 +235,7 @@ function stepEmail() {
     h("div.acct-sun", { "aria-hidden": "true" }),
     h("h1.acct-title", null, "Keep your days safe"),
     h("p.acct-text", null, "Make an account so a lost or new phone never loses your days."),
-    h("div.col", { style: { gap: "8px", width: "100%" } }, input, h("p.acct-note", null, "No passwords. We'll email you a 6-digit code."), msg),
+    h("div.col", { style: { gap: "8px", width: "100%" } }, input, h("p.acct-note", null, "No passwords. We'll email you a 6-digit code. ", h("a.acct-link", { href: "privacy.html" }, "Your privacy")), msg),
   ], [go, h("button.btn-quiet", { onclick: withoutAccount }, "Use without an account"), LIFELINE()],
   { lead: flow.from !== "start" ? (() => { const x = roundBtn("close", "Close", () => closeSignup("closed")); x.classList.add("acct-back"); return x; })() : null });
 }
