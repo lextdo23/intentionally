@@ -119,7 +119,7 @@ function body() {
   if (data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
   if (data.friends.length) {
     parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Your friends"), data.friends.map((p) => row(p, null, () => openPerson(p.username)))));
-    parts.push(h("p.fr-note", null, "When friends share a moment, it'll show here. Sharing is coming soon."));
+    parts.push(h("p.fr-note", null, "When friends share their day, it'll show here. Sharing is coming soon."));
   } else {
     parts.push(h("div.tab-empty.fr-start", null, faces(["sprout", "bunny", "bear"]),
       h("h2", null, "Add a few friends"),
@@ -330,7 +330,7 @@ function profileBody(p, mine, close) {
   }
   const first = (p.name || "").split(" ")[0] || "@" + p.username;
   kids.push(h("h2.fr-sec-head.big", null, mine ? "What you've shared" : `${first}'s moments`),
-    h("p.fr-note.left", null, mine ? "Moments you share with friends will show here. Sharing is coming soon." : "Nothing shared yet. When they share a moment, it'll show here."));
+    h("p.fr-note.left", null, mine ? "Days you share with friends will show here. Sharing is coming soon." : "Nothing shared yet. When they share their day, it'll show here."));
   return h("div.fr-prof", null, kids);
 }
 // The ••• menu: remove friend, block (both quiet). Hide their moments and report come with moments (steps 3 and 5).

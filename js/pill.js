@@ -84,7 +84,7 @@ export function stop() {
 
 // The screen's main action sits in the pill (main.js hands over its "End your day" button and the like).
 // The action stays in the pill on every tab, so the pill never changes shape (alex 2026-11-20: switching felt
-// jumpy). On Friends and You it turns off-white (no orange on the social screens) until "Share a moment" (step 3).
+// jumpy). On Friends and You it turns off-white (no orange on the social screens) until "Share your day" (step 3; alex 2026-11-21, was "Share a moment").
 export function setAction(btn) {
   if (!slot) return;
   slot.replaceChildren(...(btn ? [btn] : []));
