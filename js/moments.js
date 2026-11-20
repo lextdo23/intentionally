@@ -4,7 +4,10 @@
 // like, and how the day felt only if you choose (a mood word and feelings, never numbers; Privacy → "Share my mood"
 // only starts that switch on). Friends see moments in their feed, newest first, ending "You're all caught up.",
 // and on your profile as a 3-across grid; tapping a tile opens the moments as a feed from that one.
-// "I see you" is the one reaction, never counted: faces and names only. Photos join in step 4.
+// "I see you" is the one reaction, never counted: faces and names only.
+// Photos first (alex 2026-11-21): a day's photo is offered first, and the card's words when there's no photo. The
+// day row starts big (pick a day by its photo), shrinks once one is picked or the page scrolls, and grows again
+// when tapped. A shared photo is shrunk and cleaned on the phone (nothing but the picture) before it's sent.
 //
 // The words and card go to the service only when shared (push/friends.js). Tester mode hears only what kind of thing
 // was shared and whether words or a mood came with it, never the words.
@@ -16,6 +19,7 @@ import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
 import * as account from "./account.js";
 import * as friends from "./friends.js";
+import * as photos from "./photos.js";
 
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
 const LKEY = "daydeck-friends";
@@ -29,6 +33,8 @@ export const setMood = (on) => setLocal("mood", !!on);
 const moodWord = (m) => (m == null ? null : MOODS[m].toLowerCase());
 export function dayItems(k) {
   const d = (store.get().days || {})[k] || {}, out = [];
+  const dc = d.card && d.card.id != null ? deck.card(d.card.id) : null;
+  if (photos.has(k)) out.push({ item: "photo", kind: "photo", text: "", pillar: dc ? dc.pillar : "", status: "", label: "Your photo", photoDay: k });
   if (d.rest) out.push({ item: "rest", kind: "rest", text: "", pillar: "", status: "Rested", label: "Your rest day" });
   else if (d.card && d.card.id != null && (d.card.done || d.card.how >= 1)) {
     const c = deck.card(d.card.id);
@@ -44,7 +50,37 @@ export const canShareDay = (k = dayKey(now())) => dayItems(k).items.length > 0;
 
 // ---------------- A moment's picture: the card, or the rest day (photos come in step 4) ----------------
 const moon = () => friends.svg(30, [["path", { d: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" }]], { fill: "currentColor", stroke: "none" });
+// A shared photo, fetched once (only friends can), kept for this visit.
+const pics = new Map();
+function photoFor(id) {
+  if (!pics.has(id)) pics.set(id, account.call("/a/f/photo?id=" + encodeURIComponent(id)).then((r) => (r.ok ? r.data : null)));
+  return pics.get(id);
+}
+function photoImg(m, size) {
+  if (m.photoDay) return photos.img(m.photoDay, size);
+  const el = h("img", { alt: "", decoding: "async", draggable: "false" });
+  photoFor(m.id).then((u) => { if (u) el.src = u; });
+  return el;
+}
+// The day's photo, made small and clean to share: 720 by 1008, nothing but the picture.
+async function photoData(k) {
+  const src = await photos.url(k, "full");
+  if (!src) return null;
+  const im = new Image(); im.src = src;
+  try { await im.decode(); } catch { return null; }
+  for (const [w, q] of [[720, 0.8], [600, 0.72], [480, 0.66]]) {
+    const c = document.createElement("canvas"); c.width = w; c.height = Math.round(w * 7 / 5);
+    c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+    const b = await new Promise((res) => c.toBlob(res, "image/jpeg", q));
+    const clean = b && await photos.clean(b);
+    if (!clean) continue;
+    const url = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(clean); });
+    if (url && url.length < 440000) return url;
+  }
+  return null;
+}
 export function tile(m, { big = false } = {}) {
+  if (m.kind === "photo") return h(`div.mo-tile.photo${big ? ".big" : ""}`, null, photoImg(m, big ? "full" : "thumb"));
   const dot = m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null;
   if (m.kind === "rest") return h(`div.mo-tile.rest${big ? ".big" : ""}`, null, h("span.mo-moon", null, moon()), h("span.mo-text", null, "Rested"));
   return h(`div.mo-tile${big ? ".big" : ""}`, null, dot, h("span.mo-text", null, m.text), big && m.status ? h("span.mo-status", null, m.status) : null);
@@ -56,22 +92,37 @@ export function openShare({ day, item, from = "pill" } = {}) {
   const d0 = friends.loaded();
   if (!account.signedIn() || !d0 || !d0.me.adult) return false;
   const t = dayKey(now()), days = [0, 1, 2, 3, 4].map((i) => addDays(t, -i));
-  let k = day && days.includes(day) ? day : days.find(canShareDay) || t;
-  let pick = item || null, cap = "", mood = moodOn(), done = false;
+  let k = day && days.includes(day) && canShareDay(day) ? day : null;
+  let pick = k ? item || null : null, cap = "", mood = moodOn(), done = false, big = !k;
   log("share_open", from);
-  const pg = friends.page("Share a moment", (redraw, close) => {
+  let strip = null, below = null, scroller = null;
+  const setBig = (on, focus) => {
+    if (big === on || !strip) return;
+    big = on; strip.classList.toggle("big", on);
+    if (on && focus) setTimeout(() => focus.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" }), 360);
+  };
+  const choose = (dk) => {
+    k = dk; pick = null;
+    strip.querySelectorAll(".mo-day").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.day === k)));
+    drawBelow(); setBig(false);
+  };
+  const dayTile = (dk) => {
+    const info = dayItems(dk), it = info.items[0];
+    const b = h("button.mo-day", { type: "button", role: "radio", "data-day": dk, "aria-checked": String(dk === k), "aria-label": `${dayName(dk)}${it ? (it.kind === "photo" ? ", your photo" : "") : ", nothing yet"}`, disabled: !it ? true : null },
+      h("span.mo-day-pic", null, !it ? h("span.mo-none", null, "Nothing yet") : it.kind === "photo" ? photos.img(dk, "thumb") : it.kind === "rest" ? h("span.mo-moon.small", null, moon()) : h("span.mo-mini", null, it.col ? h("span.mo-dot", { style: { background: it.col } }) : null, h("span", null, it.text))),
+      h("span.mo-day-name", null, dayName(dk)));
+    // Big: tap a day to pick it. Small: tap to see them big again.
+    b.addEventListener("click", () => (big ? choose(dk) : setBig(true, b)));
+    return b;
+  };
+  const drawBelow = () => {
+    if (!k) { below.replaceChildren(h("p.fr-note.left", null, "Pick a day to share from.")); return; }
     const info = dayItems(k);
-    if (!info.items.some((x) => x.item === pick)) pick = info.items[0] ? info.items[0].item : null;
+    if (!info.items.some((x) => x.item === pick)) pick = info.items[0] ? info.items[0].item : null;   // photos first
     const chosen = info.items.find((x) => x.item === pick);
-    const dayTiles = h("div.mo-days", { role: "radiogroup", "aria-label": "Which day" }, days.map((dk) => {
-      const it = dayItems(dk).items[0];
-      return h("button.mo-day", { type: "button", role: "radio", "aria-checked": String(dk === k), "aria-label": `${dayName(dk)}${it ? "" : ", nothing yet"}`, disabled: !it ? true : null, onclick: () => { k = dk; pick = null; redraw(); } },
-        h("span.mo-day-pic", null, it ? (it.kind === "rest" ? h("span.mo-moon.small", null, moon()) : h("span.mo-mini", null, it.col ? h("span.mo-dot", { style: { background: it.col } }) : null, h("span", null, it.text))) : h("span.mo-none", null, "Nothing yet")),
-        h("span.mo-day-name", null, dayName(dk)));
-    }));
-    const choices = info.items.length ? h("div.mo-picks", { role: "radiogroup", "aria-label": "What to share" }, info.items.map((x) =>
-      h("button.mo-pick", { type: "button", role: "radio", "aria-checked": String(x.item === pick), onclick: () => { pick = x.item; redraw(); } },
-        tile(x), h("span.mo-pick-label", null, x.label), h("span.mo-pick-sub", null, x.status)))) : h("p.fr-note.left", null, "Nothing from this day to share yet. Do your card, or end your day, and it'll be here.");
+    const choices = h("div.mo-picks", { role: "radiogroup", "aria-label": "What to share" }, info.items.map((x) =>
+      h("button.mo-pick", { type: "button", role: "radio", "aria-checked": String(x.item === pick), onclick: () => { pick = x.item; drawBelow(); } },
+        tile(x), h("span.mo-pick-label", null, x.label), h("span.mo-pick-sub", null, x.kind === "photo" ? longDay(k) : x.status))));
     const feltLine = info.mood ? [info.mood[0].toUpperCase() + info.mood.slice(1)].concat(info.feel.length ? [info.feel.join(", ")] : []).join(" · ") : null;
     const sw = h("button.switch", { type: "button", role: "switch", "aria-checked": String(mood), "aria-label": "Add how the day felt", onclick: () => { mood = !mood; sw.setAttribute("aria-checked", String(mood)); } });
     const moodRow = info.mood ? h("div.fr-group", null, h("div.fr-switch", null, h("div.fr-who", null, h("span.fr-label", null, "Add how the day felt"), h("span.fr-handle", null, feltLine)), sw)) : null;
@@ -82,22 +133,32 @@ export function openShare({ day, item, from = "pill" } = {}) {
       if (!chosen || done) return;
       friends.busy(go, async () => {
         const body = { day: k, item: chosen.item, kind: chosen.kind, text: chosen.text, pillar: chosen.pillar, col: chosen.col, status: chosen.status, cap: text.value };
+        if (chosen.kind === "photo") { body.photo = await photoData(k); if (!body.photo) return friends.note("That photo couldn't be shared. Try another day, or your card."); }
         if (mood && info.mood) { body.mood = info.mood; body.feel = info.feel; }
         const r = await account.call("/a/f/share", body);
         if (!r.ok) return friends.note(friends.say(r));
         done = true;
         log("share", { kind: chosen.kind, ago: days.indexOf(k), mood: body.mood ? 1 : 0, cap: text.value.trim() ? 1 : 0, again: r.again ? 1 : 0, from });
-        close(); friends.note("Shared with your friends.");
+        pg.close(); friends.note("Shared with your friends.");
         feed = null; friends.afterShare();
       });
     });
-    return h("div.fr-stack", null,
-      h("h2.mo-label", null, "Which day"), dayTiles,
-      h("h2.mo-label", null, info.items.length ? `From ${dayName(k) === "Today" ? "today" : dayName(k) === "Yesterday" ? "yesterday" : longDay(k)}, pick what to share` : longDay(k)), choices,
+    const from_ = dayName(k) === "Today" ? "today" : dayName(k) === "Yesterday" ? "yesterday" : longDay(k);
+    below.replaceChildren(...[
+      h("h2.mo-label", null, info.items.length > 1 ? `From ${from_}, pick what to share` : `From ${from_}`), choices,
       moodRow, chosen ? text : null,
       h("p.fr-foot.mo-only", null, friends.svg(13, [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]), " Only your friends will see it."),
-      go);
+      go].filter(Boolean));
+  };
+  const pg = friends.page("Share a moment", () => {
+    strip = h(`div.mo-days${big ? ".big" : ""}`, { role: "radiogroup", "aria-label": "Which day" }, days.map(dayTile));
+    below = h("div.fr-stack");
+    drawBelow();
+    return h("div.fr-stack", null, h("h2.mo-label", null, "Which day"), strip, below);
   }, { label: "Share a moment", x: true });
+  // Scrolling down tucks the days away small.
+  scroller = pg.el.querySelector(".fr-scroll");
+  scroller.addEventListener("scroll", () => { if (big && k && scroller.scrollTop > 24) setBig(false); }, { passive: true });
   return pg;
 }
 

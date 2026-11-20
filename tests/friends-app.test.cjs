@@ -166,7 +166,17 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const wFr = await p.$eval("#pill", (e) => Math.round(e.getBoundingClientRect().width));
   await p.click("#pill .pill-share"); await p.waitForTimeout(800);
   const sh = ".fr-page:last-child";
-  check(/Which day/.test(await text(sh)) && /Today/.test(await text(sh)) && /Your card/.test(await text(sh)), "Share a moment: which day, then what to share (your card)");
+  const dayW = () => p.$eval(`${sh} .mo-day`, (e) => Math.round(e.getBoundingClientRect().width));
+  const bigW = await dayW();
+  check(/Which day/.test(await text(sh)) && await p.$eval(`${sh} .mo-days`, (e) => e.classList.contains("big")) && bigW > 200, `Share a moment opens with the days big, to pick by photo (${bigW}px wide)`);
+  check(!(await p.$(`${sh} .fr-main`)) && /Pick a day/.test(await text(sh)), "nothing can be shared until a day is picked");
+  await shot("14a-share-big");
+  await p.click(`${sh} .mo-day[data-day="${day(0)}"]`); await p.waitForTimeout(700);
+  const smallW = await dayW();
+  check(smallW < 90 && /Your card/.test(await text(sh)), `picking a day shrinks the row (${smallW}px) and shows what to share (your card, no photo today)`);
+  await p.click(`${sh} .mo-day[data-day="${day(0)}"]`); await p.waitForTimeout(700);
+  check(await dayW() > 200, "tapping the row makes it big again");
+  await p.click(`${sh} .mo-day[data-day="${day(0)}"]`); await p.waitForTimeout(700);
   check(await p.getAttribute(`${sh} button[aria-label="Add how the day felt"]`, "aria-checked") === "false", "how the day felt is off unless they choose it");
   check(/Good · Calm, Hopeful/.test(await text(sh)), "and it says, in words, what would be shared");
   await p.click(`${sh} button[aria-label="Add how the day felt"]`);
@@ -190,6 +200,26 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
   await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
   check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");
+  // Photos first: yesterday has a photo, so it's offered before the card
+  await p.evaluate(async (k) => { const ph = await import("./js/photos.js"); const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; const x = c.getContext("2d"); x.fillStyle = "#6b7f72"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#e3c486"; x.beginPath(); x.arc(700, 500, 160, 0, 7); x.fill(); await ph.save(k, c, { src: "lib" }); }, day(1));
+  await p.waitForTimeout(500);
+  await p.click("#pill .pill-share"); await p.waitForTimeout(900);
+  check(!!(await p.$(`${sh} .mo-day[data-day="${day(1)}"] img`)), "a day with a photo shows its photo in the day row");
+  await shot("17-share-photo-big");
+  await p.click(`${sh} .mo-day[data-day="${day(1)}"]`); await p.waitForTimeout(800);
+  const firstPick = await p.$eval(`${sh} .mo-pick`, (e) => e.textContent);
+  check(/Your photo/.test(firstPick) && await p.getAttribute(`${sh} .mo-pick`, "aria-checked") === "true", "the photo comes first, already picked; the card is there if they'd rather");
+  await shot("18-share-photo");
+  await p.click(`${sh} .fr-main`); await p.waitForTimeout(2200);
+  const ph = (await sam.get("/a/f/feed")).moments.find((m) => m.kind === "photo");
+  const got = ph && await sam.get("/a/f/photo?id=" + ph.id);
+  check(ph && ph.ph && got.data && got.data.startsWith("data:image/jpeg;base64,") && got.data.length < 440000, "the photo reaches Sam, shrunk");
+  const bytes = got && Buffer.from(got.data.slice(23), "base64");
+  check(bytes && !bytes.includes(Buffer.from("Exif")) && !bytes.includes(Buffer.from("http://ns.adobe.com")), "with nothing but the picture (no Exif or other details)");
+  await p.waitForTimeout(800);
+  check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
+  await shot("19-feed-photo");
+
   // Her grid, and tapping a tile
   await tab("you"); await p.waitForTimeout(1200);
   check(!!(await p.$("#you .mo-grid .mo-cell")), "What you've shared is a grid");

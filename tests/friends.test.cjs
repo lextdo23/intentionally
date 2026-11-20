@@ -171,6 +171,21 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   await josh.post("/a/f/remove", { username: "mia.k" });
   check((await josh.get("/a/f/feed")).moments.length === 0 && (await mia.get("/a/f/feed")).moments[0].seers.length === 0, "once removed, Josh can't see her moments and his I see you is gone");
   await josh.post("/a/f/ask", { username: "mia.k" }); await mia.post("/a/f/answer", { username: "josh_r", yes: true });
+  // Photos: photos first. Only a clean JPEG is taken; only friends can fetch it.
+  const jpeg = (extra) => "data:image/jpeg;base64," + Buffer.from([0xff, 0xd8, ...(extra || []), 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xda, 0, 2, ...new Array(120).fill(7), 0xff, 0xd9]).toString("base64");
+  const exif = [0xff, 0xe1, 0, 12, 69, 120, 105, 102, 0, 0, 1, 2, 3, 4];
+  check((await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(exif) })).error === "bad_moment", "a photo still carrying details (location, time, camera) is refused");
+  check((await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: "data:image/png;base64,iVBORw0KGgo=" })).error === "bad_moment", "only JPEG pictures are taken");
+  check((await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg().padEnd(460000, "A") })).error === "bad_moment", "and only small ones (shrunk on the phone first)");
+  r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", pillar: "Friends", col: "#d9b3a6", cap: "Coffee with Sam" });
+  check(r.error === "bad_moment", "a photo moment needs its photo");
+  r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), pillar: "Friends", col: "#d9b3a6", cap: "Coffee with Sam" });
+  check(r.ok && r.moment.ph === true && !("photo" in r.moment), "a clean photo is shared (the feed carries a note, not the picture)");
+  const pm = r.moment.id;
+  check((await sam.get("/a/f/photo?id=" + pm)).data === jpeg(), "a friend can fetch the photo");
+  check((await stranger.get("/a/f/photo?id=" + pm)).status === 404, "someone who isn't a friend can't");
+  await mia.post("/a/f/unshare", { id: pm });
+  check((await sam.get("/a/f/photo?id=" + pm)).status === 404 && made.Accountsbook.sql.exec("SELECT COUNT(*) AS n FROM mphotos").toArray()[0].n === 0, "removing the moment removes the photo from the service");
   // A share limit
   for (let i = 0; i < 9; i++) await mia.post("/a/f/share", { day: today, item: "o" + (i + 1), kind: "own", text: "Made " + i });
   check((await mia.post("/a/f/share", { day: today, item: "o99", kind: "own", text: "one too many" })).error === "too_many_shares", "at most 10 shares a day");
@@ -187,11 +202,12 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   check((await mia.get("/a/f/person?u=josh_r")).person.friends >= 1, "Josh has friends before deleting");
   await josh.post("/a/f/invite", {});
   const jm = await josh.post("/a/f/share", { day: "2026-11-21", item: "rest", kind: "rest", text: "", status: "Rested" });
+  await josh.post("/a/f/share", { day: "2026-11-21", item: "photo", kind: "photo", photo: jpeg() });
   await mia.post("/a/f/see", { id: jm.moment.id });
   await josh.post("/a/f/see", { id: (await mia.get("/a/f/feed")).moments.find((x) => x.mine).id });
   await josh.post("/a/delete", {});
   const sql = made.Accountsbook.sql;
-  const orphans = ["SELECT COUNT(*) AS n FROM moments WHERE owner NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM sees WHERE who NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM prof WHERE user NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM pals WHERE a NOT IN (SELECT id FROM users) OR b NOT IN (SELECT id FROM users)",
+  const orphans = ["SELECT COUNT(*) AS n FROM moments WHERE owner NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM sees WHERE who NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM mphotos WHERE moment NOT IN (SELECT id FROM moments)", "SELECT COUNT(*) AS n FROM prof WHERE user NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM pals WHERE a NOT IN (SELECT id FROM users) OR b NOT IN (SELECT id FROM users)",
     "SELECT COUNT(*) AS n FROM asks WHERE f NOT IN (SELECT id FROM users) OR t NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM invites WHERE user NOT IN (SELECT id FROM users)"];
   const left = orphans.map((q) => sql.exec(q).toArray()[0].n);
   r = await mia.get("/a/f");
