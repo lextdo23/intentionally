@@ -8,15 +8,15 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   const mod = await loadWorker(), worker = mod.default;
   const made = {};
   const ns = (Cls, env) => ({ idFromName: (n) => n, get: (n) => made[Cls.name + n] ||= (() => { const sql = fakeSql(); return new Cls({ storage: { sql, deleteAll: async () => { sql.exec("DELETE FROM b"); } } }, env); })() });
-  const env = { RESEND_API_KEY: "re_made_up_for_testing" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env);
+  const env = { RESEND_API_KEY: "re_made_up_for_testing", TESTER_KEY: "made-up-tester-key-123" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env); env.TESTERS = ns(mod.Testers, env);
   const mail = [], realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     if (String(url).startsWith("https://api.resend.com/")) { mail.push(JSON.parse(init.body)); return new Response("{}", { status: 200 }); }
     return realFetch(url, init);
   };
   let ipN = 1;
-  const call = async (method, path, body, token) => {
-    const headers = { Origin: "https://daydeck.day", "CF-Connecting-IP": "203.0.113." + ipN };
+  const call = async (method, path, body, token, ip) => {
+    const headers = { Origin: "https://daydeck.day", "CF-Connecting-IP": ip || "203.0.113." + ipN };
     if (body) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = "Bearer " + token;
     const res = await worker.fetch(new Request("https://service.example" + path, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
@@ -192,6 +192,50 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   r = await mia.post("/a/f/unshare", { id: m1 });
   check(r.ok && !(await sam.get("/a/f/feed")).moments.some((x) => x.id === m1), "Mia can remove a moment, and it's gone for friends");
 
+  // ---- Reports (step 5) ----
+  const before = mail.length;
+  r = await sam.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), cap: "Something mean" });
+  const bad = r.moment.id;
+  check((await mia.post("/a/f/report", { moment: bad, why: "nonsense" })).error === "bad_report", "a report needs one of the reasons");
+  check((await stranger.post("/a/f/report", { moment: bad, why: "hurtful" })).status === 404, "only friends can report a moment (others can't see it)");
+  check((await sam.post("/a/f/report", { moment: bad, why: "hurtful" })).status === 404, "you can't report yourself");
+  r = await mia.post("/a/f/report", { moment: bad, why: "hurtful", note: "  This was aimed at me\u200b " });
+  check(r.ok && !("notify" in r), "Mia reports Sam's moment (the answer says nothing more)");
+  const email = mail.slice(before).find((m) => m.subject === "A report is waiting on Daydeck");
+  check(email && email.to[0] === "hello@daydeck.day" && !/mean|mia|sam|hurtful/i.test(email.text), "alex gets an email that a report is waiting, with nothing about what or who");
+  const fourth = await person("fourth.p"); await fourth.post("/a/f/profile", { adult: true }); await fourth.post("/a/f/ask", { username: "sam" }); await sam.post("/a/f/answer", { username: "fourth.p", yes: true });
+  await fourth.post("/a/f/report", { moment: bad, why: "sexual" });
+  check(mail.slice(before).filter((m) => m.subject === "A report is waiting on Daydeck").length === 1, "at most one email an hour, however many reports");
+  check((await mia.get("/a/f/feed")).moments.some((m) => m.id === bad), "two reports: the moment still shows while alex looks");
+  const third = await person("third.p"); await third.post("/a/f/profile", { adult: true }); await third.post("/a/f/ask", { username: "sam" }); await sam.post("/a/f/answer", { username: "third.p", yes: true });
+  await third.post("/a/f/report", { moment: bad, why: "hurtful" });
+  check(!(await mia.get("/a/f/feed")).moments.some((m) => m.id === bad) && (await sam.get("/a/f/feed")).moments.some((m) => m.id === bad), "three different people: it's held back from friends' feeds (Sam still sees his own)");
+  await mia.post("/a/f/report", { username: "sam", why: "spam" });
+  // alex's review page
+  const T = (method, path, body, key = "made-up-tester-key-123") => call(method, path, body, key, "198.51.100.77");
+  check((await T("GET", "/t/reports", null, "wrong-key-wrong-key")).status === 403, "the Reports page needs the tester page password");
+  let rl = await T("GET", "/t/reports");
+  const rep = rl.open.find((x) => x.moment === bad && x.by === "mia.k");
+  check(rl.open.length === 4 && rep.why === "hurtful" && rep.note === "This was aimed at me" && rep.who === "sam" && rep.snap.cap === "Something mean" && rep.photo === jpeg() && rep.held, "alex sees each report: why, their words, who, and a copy of the moment and its photo");
+  check(rl.open.some((x) => !x.moment && x.why === "spam" && x.who === "sam") && rep.about === 4, "a report about a person shows too, with how many reports there are about them");
+  await sam.post("/a/f/unshare", { id: bad });
+  rl = await T("GET", "/t/reports");
+  check(rl.open.find((x) => x.id === rep.id).snap.cap === "Something mean" && !rl.open.find((x) => x.id === rep.id).still, "the copy stays for alex even after Sam removes the moment");
+  r = await sam.post("/a/f/share", { day: today, item: "o5", kind: "own", text: "Second try" });
+  const m2 = r.moment.id;
+  await mia.post("/a/f/report", { moment: m2, why: "else" });
+  rl = await T("GET", "/t/reports");
+  await T("POST", "/t/report", { id: rl.open.find((x) => x.moment === m2).id, act: "remove" });
+  check(!(await mia.get("/a/f/feed")).moments.some((m) => m.id === m2), "Remove the moment: it's gone for everyone");
+  await T("POST", "/t/report", { id: rl.open.find((x) => x.moment === bad && x.by === "mia.k").id, act: "keep" });
+  rl = await T("GET", "/t/reports");
+  check(!rl.open.some((x) => x.moment === bad) && rl.done.some((x) => x.moment === bad && x.state === "kept" && !x.photo), "Keep it answers every report on that moment together, and the photo copy is let go");
+  await T("POST", "/t/report", { id: rl.open.find((x) => !x.moment).id, act: "pause" });
+  check((await sam.post("/a/f/share", { day: today, item: "o6", kind: "own", text: "x" })).error === "paused", "Pause their sharing: they can't share");
+  check((await mia.get("/a/f/feed")).moments.every((m) => m.by.username !== "sam") && (await mia.get("/a/f/moments?u=sam")).moments.length === 0, "and their moments are hidden from friends");
+  await T("POST", "/t/report", { id: rl.open.find((x) => !x.moment).id, act: "unpause" });
+  check((await sam.post("/a/f/share", { day: today, item: "o6", kind: "own", text: "Back" })).ok, "and alex can let them share again");
+
   // ---- Lookups are limited ----
   let last;
   for (let i = 0; i < 61; i++) last = await sam.get("/a/f/find?u=nobody" + i);
@@ -205,9 +249,10 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   await josh.post("/a/f/share", { day: "2026-11-21", item: "photo", kind: "photo", photo: jpeg() });
   await mia.post("/a/f/see", { id: jm.moment.id });
   await josh.post("/a/f/see", { id: (await mia.get("/a/f/feed")).moments.find((x) => x.mine).id });
+  await mia.post("/a/f/report", { username: "josh_r", why: "spam" });
   await josh.post("/a/delete", {});
   const sql = made.Accountsbook.sql;
-  const orphans = ["SELECT COUNT(*) AS n FROM moments WHERE owner NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM sees WHERE who NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM mphotos WHERE moment NOT IN (SELECT id FROM moments)", "SELECT COUNT(*) AS n FROM prof WHERE user NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM pals WHERE a NOT IN (SELECT id FROM users) OR b NOT IN (SELECT id FROM users)",
+  const orphans = ["SELECT COUNT(*) AS n FROM moments WHERE owner NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM sees WHERE who NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM mphotos WHERE moment NOT IN (SELECT id FROM moments)", "SELECT COUNT(*) AS n FROM reports WHERE reporter NOT IN (SELECT id FROM users) OR who NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM prof WHERE user NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM pals WHERE a NOT IN (SELECT id FROM users) OR b NOT IN (SELECT id FROM users)",
     "SELECT COUNT(*) AS n FROM asks WHERE f NOT IN (SELECT id FROM users) OR t NOT IN (SELECT id FROM users)", "SELECT COUNT(*) AS n FROM invites WHERE user NOT IN (SELECT id FROM users)"];
   const left = orphans.map((q) => sql.exec(q).toArray()[0].n);
   r = await mia.get("/a/f");

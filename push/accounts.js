@@ -155,6 +155,15 @@ async function sendCode(env, email, code) {
   return !!(res && res.ok);
 }
 
+async function tellAlex(env) {
+  if (!env.RESEND_API_KEY) return;
+  const text = "Someone reported something on Daydeck. Open the tester page, then the Reports tab, to look at it.\n\nhttps://daydeck.day/testers.html";
+  await fetch("https://api.resend.com/emails", {
+    method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: "Daydeck <hello@daydeck.day>", to: ["hello@daydeck.day"], subject: "A report is waiting on Daydeck", text }),
+  });
+}
+
 // ---------------- The routes: /a/... ----------------
 const book = (env) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName("book"));
 const vault = (env, user) => env.VAULTS.get(env.VAULTS.idFromName(user));
@@ -169,6 +178,12 @@ export async function accounts(req, env, path, reply) {
   const b = book(env);
   const out = async (p) => { const r = await p; return reply(r, r && r.error ? (r.status || 400) : 200); };
 
+  // A report: alex gets a short email (never what was reported) so it isn't missed, at most once an hour.
+  if (req.method === "POST" && path === "/a/f/report") {
+    const r = await b.rReport(bearer(req), body || {});
+    if (r.ok && r.notify) await tellAlex(env).catch(() => {});
+    return reply(r.ok ? { ok: true } : r, r.ok ? 200 : r.status || 400);
+  }
   if (path === "/a/f" || path.startsWith("/a/f/")) {
     const r = await friendRoutes(req, path, body || {}, b, bearer(req), reply);
     return r || reply({ error: "not_found" }, 404);
