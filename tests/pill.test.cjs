@@ -43,7 +43,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click('#pill [data-tab="friends"]'); await p.waitForTimeout(600);
   check(await p.$eval("body", (b) => b.dataset.tab) === "friends", "tapping Friends goes to Friends");
   check(await p.$eval('#pill [data-tab="friends"]', (e) => e.getAttribute("aria-current")) === "page", "the Friends tab is marked as the current one");
-  check(/Coming soon/.test(await p.textContent("#friends")), "Friends says it's coming soon, up front");
+  check(/Friends/.test(await p.textContent("#friends")) && /Lifeline/.test(await p.textContent("#friends")), "Friends shows, with Lifeline one tap away");
   const bub = await p.$eval(".pill-bubble", (e) => e.getBoundingClientRect().left);
   check(bub > 60, "the highlight has glided across to Friends");
   check(await p.$eval("#home", (e) => getComputedStyle(e).pointerEvents) === "none", "Today steps aside");

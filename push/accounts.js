@@ -8,6 +8,7 @@
 // tickets, sessions and network addresses are only ever stored scrambled (hashed), never as they are.
 // Emails are sent by Resend from daydeck.day; the key is the Cloudflare secret RESEND_API_KEY.
 import { DurableObject } from "cloudflare:workers";
+import { friendTables, friendRoutes, friendMethods } from "./friends.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 export const RP_ID = "daydeck.day";                 // passkeys are tied to this address forever
@@ -47,6 +48,11 @@ const BLOCKED_PARTS = ["fuck", "shit", "cunt", "bitch", "whore", "slut", "nazi",
 // Numbers standing in for letters ("adm1n", "dayd3ck") are read as the letters they stand for.
 const LEET = { 0: "o", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", 9: "g" };
 const readings = (n) => { const base = n.replace(/[0345789]/g, (d) => LEET[d]); return [n.replace(/[._0-9]/g, ""), base.replace(/1/g, "i").replace(/[._0-9]/g, ""), base.replace(/1/g, "l").replace(/[._0-9]/g, "")]; };
+// For display names (friends.js): already folded to plain a to z. Same reserved and blocked words as usernames.
+export function wordsProblem(plain) {
+  const r = readings(plain);
+  return r.some((x) => RESERVED_ANYWHERE.some((w) => x.includes(w)) || BLOCKED_PARTS.some((w) => x.includes(w)));
+}
 export function nameProblem(raw) {
   const n = String(raw || "").trim().toLowerCase();
   if (n.length < 3) return "short";
@@ -163,6 +169,10 @@ export async function accounts(req, env, path, reply) {
   const b = book(env);
   const out = async (p) => { const r = await p; return reply(r, r && r.error ? (r.status || 400) : 200); };
 
+  if (path === "/a/f" || path.startsWith("/a/f/")) {
+    const r = await friendRoutes(req, path, body || {}, b, bearer(req), reply);
+    return r || reply({ error: "not_found" }, 404);
+  }
   switch (`${req.method} ${path}`) {
     // 1. Email in, code out.
     case "POST /a/code": {
@@ -225,7 +235,12 @@ export class Accounts extends DurableObject {
       CREATE TABLE IF NOT EXISTS chal (c TEXT PRIMARY KEY, kind TEXT, ticket TEXT, exp INTEGER);
       CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user TEXT, exp INTEGER, made INTEGER);
       CREATE TABLE IF NOT EXISTS held (name_l TEXT PRIMARY KEY, until INTEGER);`);
+    friendTables(this.sql);
   }
+  // For friends.js.
+  nameProblemWords(plain) { return wordsProblem(plain); }
+  newToken() { return b64u(rand(24)); }
+  scramble(s) { return hash(s); }
   rows(q, ...a) { return this.sql.exec(q, ...a).toArray(); }
   one(q, ...a) { return this.rows(q, ...a)[0] || null; }
   tidy() {
@@ -420,10 +435,13 @@ export class Accounts extends DurableObject {
     const u = await this.sessionUser(token);
     if (!u) return { error: "signed_out", status: 401 };
     this.sql.exec("INSERT OR REPLACE INTO held (name_l, until) VALUES (?, ?)", u.name_l, Date.now() + NAME_HELD);
+    this.fForget(u.id);
     for (const q of ["DELETE FROM creds WHERE user = ?", "DELETE FROM sessions WHERE user = ?", "DELETE FROM tickets WHERE user = ?", "DELETE FROM users WHERE id = ?"]) this.sql.exec(q, u.id);
     return { ok: true, user: u.id };
   }
 }
+
+Object.assign(Accounts.prototype, friendMethods);
 
 // ---------------- A person's vault: their backed-up days ----------------
 export class Vault extends DurableObject {

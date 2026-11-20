@@ -80,14 +80,18 @@ export const BASICS = { name: "Your daily card", line: "Start your day, your car
 export const UNLOCKS = [
   { level: 2, id: "days", name: "Your days", line: "See how your days have felt, and what seems to help." },
   { level: 3, id: "own", name: "Make your own card", line: "At the end of your day, add something else you did." },
-  { level: 4, id: "library", name: "Card library", line: "Every card in Daydeck, to look through." },
-  { level: 5, id: "months", name: "Month and Year on Your days", line: "Look back over a whole month or year." },
+  // Friends opens within about 4 days of use (alex 2026-11-20), so the card library moved to 5 and Month and Year to 6.
+  { level: 4, id: "friends", name: "Friends", line: "Add a few friends and cheer each other on." },
+  { level: 5, id: "library", name: "Card library", line: "Every card in Daydeck, to look through." },
+  { level: 6, id: "months", name: "Month and Year on Your days", line: "Look back over a whole month or year." },
 ];
+// Anything already opened for someone stays open when its level moves (nothing is ever taken away): its tip
+// showed, so they've had it.
 // (Keeping things open for people from before was dropped: everyone starts again, alex 2026-11-19. keepAll stays false.)
 export function isOpen(id) {
   const u = UNLOCKS.find((x) => x.id === id);
   if (!u || mem().keepAll) return true;
-  return level().level >= u.level;
+  return level().level >= u.level || !!(mem().tips || {})[id];
 }
 // What opened at this level (for the level-up moment), or null.
 export const opensAt = (lv) => UNLOCKS.find((u) => u.level === lv) || null;

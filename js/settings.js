@@ -12,6 +12,7 @@ import * as photos from "./photos.js";
 import * as account from "./account.js";
 import * as sync from "./sync.js";
 import * as library from "./library.js";
+import * as friends from "./friends.js";
 
 let onClosed = null, el = null;
 
@@ -61,6 +62,8 @@ function render() {
   el.replaceChildren(h("div.set-scroll", null, h("div.set-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeSettings), h("h1.big-title", null, "Settings")),
     account.settingsSection(group, linkRow, render, sync.status),   // "Your account": test mode, or anyone signed in
+    // Friends' privacy, once Friends is open (the pill shows) and there's an account.
+    account.signedIn() && document.body.classList.contains("has-pill") ? group("Friends", [linkRow("Privacy", "Who can see you", { onclick: friends.openPrivacy })]) : null,
     group("What matters to you", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars })]),
     nudges(),
     group("Your data", [

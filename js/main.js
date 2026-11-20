@@ -26,6 +26,7 @@ import * as library from "./library.js";
 import * as account from "./account.js";
 import * as sync from "./sync.js";
 import * as pill from "./pill.js";
+import * as friends from "./friends.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -209,14 +210,14 @@ function render(moment) {
   if (offer) photos.offered(k);
   const addPhoto = offer ? h("button.add-photo", { onclick: cam }, photos.camIcon(), "Add a photo") : null;
   const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : null);
-  // The glass pill (social stage 1; test mode only while the friends side is built): the main action moves into it,
-  // and Settings moves to the You tab.
-  const usePill = testOn;
+  // The glass pill (social stage 1): once Friends opens at level 4 (or in test mode), the main action moves into it,
+  // and Settings moves to the You tab. Until then Daydeck looks as it always has.
+  const usePill = testOn || levels.isOpen("friends");
   if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       words, h("div", { style: { display: "flex", gap: "8px" } },
-        // The card library opens at level 4 (thread "Finalise levels and what they unlock"); until levels.isOpen exists, always.
+        // The card library opens at level 5 (thread "Finalise levels and what they unlock"; moved from 4 for Friends).
         !levels.isOpen || levels.isOpen("library") ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : null,
         roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
         usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render())))),
@@ -306,9 +307,13 @@ const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).
 if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
 else if (askAccount) setTimeout(() => account.openSignup(() => render()), 400);
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
+// A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
+{ const add = new URLSearchParams(location.search).get("add");
+  if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
+  friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct"].some((x) => document.body.classList.contains(x))) render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render(); });
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const had = !!navigator.serviceWorker.controller;

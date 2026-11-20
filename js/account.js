@@ -99,6 +99,9 @@ export function picture(size = 56) {
   }
   return littleOne(p.id || "smile", size);
 }
+// Which little one this person's picture is, for friends to see. A photo stays on this phone until photos are
+// backed up (social step 4), so friends see the smile until then.
+export const picId = () => { const p = me.pic || {}; return p.kind === "photo" ? "smile" : (LITTLE[p.id] ? p.id : "smile"); };
 const camIcon = () => h("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
   h("path", { d: "M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" }), h("circle", { cx: "12", cy: "12.5", r: "3.2" }));
 

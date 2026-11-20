@@ -3,12 +3,13 @@
 // tab glides the highlight across and slides that screen in. Daydeck always opens on Today. The pill hides during
 // check-ins, cards, sheets and Settings.
 //
-// While the friends side is being built it shows in test mode only (main.js decides). Friends is a calm "coming
-// soon" until step 2; You holds your picture, name and Settings.
+// It shows once Friends opens at level 4 (js/levels.js), or in test mode (main.js decides). Until then Daydeck looks
+// as it always has. Friends and your profile on You live in js/friends.js; You also holds Settings.
 import { h, reduceMotion } from "./util.js";
 import { log } from "./tester.js";
 import * as account from "./account.js";
 import { openSettings } from "./settings.js";
+import * as friends from "./friends.js";
 
 const TABS = ["today", "friends", "you"];
 let nav = null, bubble = null, slot = null, tab = "today", screens = {}, onToday = null;
@@ -39,6 +40,8 @@ export function start(today) {
   screens.friends = h("section", { id: "friends", class: "tab-screen", "aria-label": "Friends" });
   screens.you = h("section", { id: "you", class: "tab-screen", "aria-label": "You" });
   document.body.append(screens.friends, screens.you);
+  friends.connect({ dot: (on) => nav && nav.querySelector('[data-tab="friends"]').classList.toggle("dot", !!on), you: () => { if (!nav) return; if (tab === "you") drawYou(); mark(); } });
+  friends.load();   // quietly, so the small dot shows if a request is waiting
   mark();
 }
 // Press and slide along the tabs: the highlight follows your finger, and letting go opens the nearest tab
@@ -73,6 +76,7 @@ function follow() {
 
 export function stop() {
   if (!nav) return;
+  friends.closeAll();
   [nav, screens.friends, screens.you].forEach((e) => e && e.remove());
   nav = null; screens = {}; tab = "today";
   document.body.classList.remove("has-pill"); delete document.body.dataset.tab;
@@ -112,30 +116,16 @@ function mark() {
   if (you) you.replaceChildren(ICON.you());
 }
 
-// ---------------- Friends: coming soon (step 2 builds it) ----------------
-function drawFriends() {
-  const faces = h("div.friends-faces", { "aria-hidden": "true" }, ["frog", "smile", "cat"].map((id) => account.littleOne(id, 64)));
-  screens.friends.replaceChildren(
-    h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "Friends")),
-    h("div.tab-empty", null, faces,
-      h("h2", null, "Days are better shared"),
-      h("p", null, "Soon you'll be able to add a few friends, see how their days go, and cheer each other on."),
-      h("p.tab-note", null, "Coming soon. Only friends will ever see what you choose to share.")));
-}
+// ---------------- Friends (js/friends.js) ----------------
+function drawFriends() { friends.drawFriends(screens.friends); }
 
 // ---------------- You: your picture, name and Settings ----------------
 function drawYou() {
   const u = account.user();
   const gear = h("button.round", { type: "button", "aria-label": "Settings", onclick: () => openSettings(() => { drawYou(); mark(); }) },
     svg(22, [["circle", { cx: "12", cy: "12", r: "3" }], ["path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" }]], { "stroke-width": "1.8" }));
-  const pic = h("button.you-pic", { type: "button", "aria-label": "Change your picture", onclick: () => account.choosePicture(() => { drawYou(); mark(); }) }, account.picture(88));
-  const who = u
-    ? h("div.you-who", null, h("span.you-name", null, u.username), h("span.you-handle", null, "@" + u.username))
-    : h("div.you-who", null, h("span.you-name", null, "You"), h("button.btn-text", { type: "button", onclick: () => account.openSignup(() => { drawYou(); mark(); }, { from: "settings" }) }, "Make an account"));
-  screens.you.replaceChildren(
-    h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "You"), gear),
-    h("div.you-top", null, pic, who),
-    h("div.tab-empty.small", null,
-      h("h2", null, "What you've shared"),
-      h("p", null, "Moments you share with friends will show here, once friends arrive.")));
+  const top = u ? friends.youTop(true) : h("div.you-top", null,
+    h("button.you-pic", { type: "button", "aria-label": "Change your picture", onclick: () => account.choosePicture(() => { drawYou(); mark(); }) }, account.picture(88)),
+    h("div.you-who", null, h("span.you-name", null, "You"), h("button.btn-text", { type: "button", onclick: () => account.openSignup(() => { drawYou(); mark(); }, { from: "settings" }) }, "Make an account")));
+  screens.you.replaceChildren(h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "You"), gear), top);
 }
