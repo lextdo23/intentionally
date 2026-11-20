@@ -31,7 +31,7 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
     const key = req.method() + " " + url.pathname, auth = req.headers().authorization || "";
     seen.push({ key, body, auth });
     const send = (o, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(o), headers: { "access-control-allow-origin": "*" } });
-    if (key === "POST /a/code") return send(body.email === "slow@example.com" ? { error: "slow_down", wait: 42 } : { ok: true });
+    if (key === "POST /a/code") { if (body.email === "mia@example.com") await new Promise((r) => setTimeout(r, 700)); return send(body.email === "slow@example.com" ? { error: "slow_down", wait: 42 } : { ok: true }); }
     if (key === "POST /a/verify") return send(body.code === "123456" ? (users[body.email] ? { ok: true, ticket: "T", existing: true, username: users[body.email] } : { ok: true, ticket: "T", existing: false }) : { error: "bad_code", left: 3 });
     if (key === "GET /a/name") { const u = url.searchParams.get("u"); return send(u === "mia" ? { ok: false, why: "taken", try: ["mia_", "mia.42"] } : u === "admin" ? { ok: false, why: "reserved" } : { ok: true }); }
     if (key === "POST /a/passkey/options") return send({ ok: true, options: { rp: { id: "daydeck.day", name: "Daydeck" }, user: { id: "aGFuZGxl", name: "@x", displayName: "@x" }, challenge: "Y2hhbGxlbmdl", pubKeyCredParams: [{ type: "public-key", alg: -7 }], excludeCredentials: [] } });
@@ -62,7 +62,10 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
   await p.fill("#acct input[type=email]", "slow@example.com"); await btn("Continue").click(); await p.waitForTimeout(300);
   check(/new code in 42 seconds/.test(await msg()), "if codes are coming too fast, it says how long to wait");
-  await p.fill("#acct input[type=email]", "Mia@Example.com "); await btn("Continue").click(); await p.waitForTimeout(500);
+  await p.fill("#acct input[type=email]", "Mia@Example.com "); await btn("Continue").click(); await p.waitForTimeout(200);
+  check(await p.evaluate(() => { const b = [...document.querySelectorAll("#acct .btn-main")].pop(); return b.classList.contains("busy") && getComputedStyle(b, "::after").borderTopStyle === "solid"; }), "while waiting, the button shows a small turning ring");
+  await shot("1b-waiting");
+  await p.waitForTimeout(900);
   check(seen.find((x) => x.key === "POST /a/code" && x.body.email === "mia@example.com"), "the email is sent tidied (no capitals or spaces)");
 
   // ---- The code ----
@@ -74,7 +77,10 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   await shot("2-code");
   await p.fill("#acct .acct-code-input", "999999"); await p.waitForTimeout(400);
   check(/isn't right\. 3 tries left/.test(await msg()), "a wrong code says how many tries are left");
-  await p.fill("#acct .acct-code-input", "123456"); await p.waitForTimeout(600);
+  // Pasting: a whole line from the email, or "123 456", keeps just the code.
+  await p.evaluate(() => { const i = document.querySelector("#acct .acct-code-input"), dt = new DataTransfer(); dt.setData("text/plain", "Your Daydeck code is 123 456. It works for 10 minutes."); i.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true })); });
+  check(await p.$eval("#acct .acct-code-input", (i) => i.value) === "123456", "pasting a code works, even with spaces or words around it");
+  await p.waitForTimeout(800);
 
   // ---- Username and picture ----
   const nameText = await p.textContent("#acct .acct-screen:last-child");
@@ -86,6 +92,10 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   await shot("3-username-taken");
   await p.fill("#acct .acct-name", "admin"); await p.waitForTimeout(800);
   check(/kept for Daydeck/.test(await msg()), "names posing as Daydeck are refused");
+  await p.fill("#acct .acct-name", "mia."); await p.waitForTimeout(300);
+  check(/start or end with a full stop/.test(await msg()), "a full stop at the end is explained straight away");
+  await p.fill("#acct .acct-name", "<b>hi</b>"); await p.waitForTimeout(300);
+  check(/Only letters, numbers/.test(await msg()) && (await btn("Continue").getAttribute("aria-disabled")) === "true", "anything that looks like code is refused on the phone too");
   await p.fill("#acct .acct-name", "mi"); await p.waitForTimeout(500);
   check(await btn("Continue").getAttribute("aria-disabled") === "true", "too short can't go on");
   await p.click("#acct .acct-chip >> nth=0").catch(() => {});

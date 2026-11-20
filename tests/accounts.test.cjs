@@ -94,7 +94,13 @@ async function phone() {
   // ---- Usernames ----
   const name = async (u) => call("GET", "/a/name?u=" + encodeURIComponent(u));
   check((await name("ab")).why === "short" && (await name("a".repeat(21))).why === "long", "too short and too long are refused");
-  check((await name("mia k")).why === "shape" && (await name(".mia")).why === "shape" && (await name("mia..k")).why === "shape", "spaces, a leading full stop and double full stops are refused");
+  check((await name("mia k")).why === "shape" && (await name(".mia")).why === "dot_ends" && (await name("mia.")).why === "dot_ends" && (await name("mia..k")).why === "dots", "spaces, a full stop at either end and double full stops are refused");
+  check((await name("12345678")).why === "no_letter", "a name needs at least one letter (so it can't look like a code or phone number)");
+  const sneaky = ["<script>", "mia'--", "a\"b", "mia;drop", "ｍｉａ", "\u0430dmin", "mia\u200bk", "mia/../k", "%3cb%3e", "mia@x", "mia-k", "😀mia"];
+  const outs = await Promise.all(sneaky.map(name));
+  check(outs.every((o) => o.ok === false && o.why === "shape"), "code, quote marks, lookalike letters from other alphabets, invisible characters and emoji are all refused");
+  check((await name("adm1n_mia")).why === "reserved" && (await name("dayd3ck")).why === "reserved" && (await name("he1p")).why === "reserved" && (await name("sh1t.x")).why === "blocked", "numbers standing in for letters can't sneak past (adm1n, dayd3ck, he1p)");
+  check((await name("api")).why === "reserved" && (await name("everyone")).why === "reserved", "words the app may need later (api, everyone) are kept");
   check((await name("Daydeck_HQ")).why === "reserved" && (await name("support")).why === "reserved" && (await name("the.official")).why === "reserved" && (await name("lifeline")).why === "reserved", "names posing as Daydeck, staff or a crisis line are refused");
   check((await name("shit_happens")).why === "blocked", "offensive words are refused");
   check((await name("Mia.K")).ok, "a good name is free");
