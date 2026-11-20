@@ -25,6 +25,7 @@ import * as tips from "./tips.js";
 import * as library from "./library.js";
 import * as account from "./account.js";
 import * as sync from "./sync.js";
+import * as pill from "./pill.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -208,19 +209,23 @@ function render(moment) {
   if (offer) photos.offered(k);
   const addPhoto = offer ? h("button.add-photo", { onclick: cam }, photos.camIcon(), "Add a photo") : null;
   const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : null);
+  // The glass pill (social stage 1; test mode only while the friends side is built): the main action moves into it,
+  // and Settings moves to the You tab.
+  const usePill = testOn;
+  if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
   home.replaceChildren(
     h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
       words, h("div", { style: { display: "flex", gap: "8px" } },
         // The card library opens at level 4 (thread "Finalise levels and what they unlock"); until levels.isOpen exists, always.
         !levels.isOpen || levels.isOpen("library") ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : null,
         roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
-        roundBtn("settings", "Settings", () => openSettings(() => render())))),
+        usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render())))),
     levels.isOpen("days") ? peek() : "",   // Your days opens at level 2
     levelRow(),
     boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     mid,
-    h("div.col", { style: { gap: "4px" } }, main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
+    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
   testBar();
 
