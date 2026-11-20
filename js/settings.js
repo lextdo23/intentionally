@@ -10,6 +10,7 @@ import { openTester, testerRow } from "./tester-sheet.js";
 import { pickPillars, pillarWords } from "./pillars.js";
 import * as photos from "./photos.js";
 import * as account from "./account.js";
+import * as sync from "./sync.js";
 import * as library from "./library.js";
 
 let onClosed = null, el = null;
@@ -59,7 +60,7 @@ function render() {
   const top = el.querySelector(".set-scroll")?.scrollTop || 0;
   el.replaceChildren(h("div.set-scroll", null, h("div.set-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeSettings), h("h1.big-title", null, "Settings")),
-    account.settingsSection(group, linkRow, render),   // "Your account": test mode, or anyone signed in
+    account.settingsSection(group, linkRow, render, sync.status),   // "Your account": test mode, or anyone signed in
     group("What matters to you", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars })]),
     nudges(),
     group("Your data", [
@@ -209,6 +210,7 @@ function deleteAll() {
     await notify.forget();
     await wipeOldApp();
     await photos.wipe();
+    account.forgetHere();   // signed in: sign out on this phone only; the account and its backup are kept
     try { const keys = await caches.keys(); await Promise.all(keys.filter((k) => !k.startsWith("daydeck-")).map((k) => caches.delete(k))); } catch { /* nothing saved */ }
     store.reset();
     closeSettings();
@@ -219,8 +221,8 @@ function deleteAll() {
   } }, "Delete everything");
   return h("div.col", { style: { gap: "8px" } }, h("div.set-card", null, b),
     h("p.set-foot", null, shared
-      ? `Removes everything Daydeck has kept on this phone, and everything you shared while testing (gone from backups within 30 days)${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.`
-      : `Removes everything Daydeck has kept on this phone${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.`));
+      ? `Removes everything Daydeck has kept on this phone, and everything you shared while testing (gone from backups within 30 days)${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.${account.signedIn() ? " Your account's backup stays; delete your account to erase it." : ""}`
+      : `Removes everything Daydeck has kept on this phone${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.${account.signedIn() ? " Your account's backup stays; delete your account to erase it." : ""}`));
 }
 
 // The retired Intentionally app (and Daydeck's old /v2/ home) may have left data on this site: remove it too.
