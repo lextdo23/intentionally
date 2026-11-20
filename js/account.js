@@ -1,6 +1,6 @@
 // Accounts (decided with alex 2026-11-20; CLAUDE.md "Accounts"). Sign up with an email code, a username and
-// Face ID (a passkey), or carry on without an account. While this is new it only shows in test mode (?test, or tap
-// the greeting 5 times); Settings shows it to anyone already signed in.
+// Face ID (a passkey), or carry on without an account. On for everyone since 2026-11-20: new people see it first,
+// and people already using the app see it once.
 //
 // What's kept on this phone, under "daydeck-account" (apart from "daydeck", so Save a copy never carries it):
 // the sign-in key the service gave (token), the username and email, and the profile picture (one of the little
@@ -10,7 +10,6 @@
 // Tester mode hears only the steps and choices (never the email, username, code or picture).
 import { h, LIFELINE } from "./util.js";
 import { openSheet, roundBtn } from "./ui.js";
-import * as store from "./store.js";
 import { log, SERVICE } from "./tester.js";
 import { clean } from "./photos.js";
 
@@ -23,8 +22,8 @@ export const signedIn = () => !!me.token;
 export const user = () => me.user || null;
 // Shown to new people (and once to people already using the app), unless they chose to carry on without one.
 export const shouldAsk = () => !me.token && !me.skip;
-// While it's new: test mode only, or anyone already signed in.
-export const available = () => signedIn() || new URLSearchParams(location.search).has("test") || !!store.get().test.on;
+// Accounts are on for everyone (alex 2026-11-20).
+export const available = () => true;
 
 // ---------------- Talking to the Daydeck service ----------------
 async function api(path, body) {
