@@ -1,26 +1,31 @@
-# Intentionally
+# Daydeck
 
-A calm self-care app. Your sky holds a planet for each part of life you want to look after, and a star for each thought on your mind. You catch thoughts, sort them, and at the weekly reflection you settle them by writing down what helped.
+A calm iPhone web app for people aged 18 to 30 who are burnt out or low. Start and end your day with a small check-in,
+draw one small, research-backed card to do each day, and see how your days really feel.
 
-Everything stays on your phone. There are no accounts and nothing is sent anywhere. Deleting the app deletes everything.
+Live at **https://daydeck.day**.
+
+Right now everything stays on your phone, and nothing typed is ever sent anywhere. Deleting the app deletes everything.
+(Optional accounts for backup are planned; this line changes when they arrive.)
 
 ## Trying it
 
-Open the app's link in Safari on your iPhone, tap Share, then **Add to Home Screen**. It then opens full screen like a normal app and works offline.
+Open https://daydeck.day in Safari on your iPhone, tap Share, then **Add to Home Screen**. It then opens full screen
+like a normal app and works offline.
 
 ## Test mode
 
-Add `?test` to the end of the link, or tap the greeting at the top of the home screen five times. A small panel appears where you can:
+Add `?test` to the end of the link, or tap the greeting at the top of the home screen five times. A small panel
+appears where you can fill in made-up days, move a day forward, or start again.
 
-- **Example sky**: fill the sky with sample pillars, time and thoughts
-- **+1 day / +1 week**: pretend time has passed, to check weekly and season features
-- **Today**: go back to the real date
-- **Reset all**: wipe everything and start from the welcome screen
+## Beta testers
 
-## What's built so far
+Testers join from https://daydeck.day/?tester, or from Settings. They share only choices and numbers, never typed
+words. The tester dashboard is at https://daydeck.day/testers.html (see `push/README.md`).
 
-1. Groundwork: welcome and pillar picking, the home sky, one-tap timers, test mode, installable and offline.
-2. Timers: tap a planet in the sky for its card (start a timer, ideas to start from, add time you forgot to track), and a calm running-timer view with a Stop button. Timers under a minute aren't kept.
-3. New thought: tap the gold star, type a thought (its kind is guessed from the words, one tap to change), and it floats up into the sky as a star. A thought much like one already caught offers to join that star, which grows. Tap a star to read it, or remove it.
+## What's in here
 
-The full plan lives in the "Intentionally: what we're building" doc.
+- The app itself: `index.html`, `css/`, `js/`, `icons/`, `img/`, `sounds/`, `sw.js` (offline copy).
+- `push/`: the small Cloudflare service for notifications, tester data and the card library.
+- `tests/`: checks run before changes go in (made-up data only).
+- `v2/`: only forwards old links to the front page.

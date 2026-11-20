@@ -209,10 +209,10 @@ function deleteAll() {
       : `Removes everything Daydeck has kept on this phone${cards ? ", and takes your cards out of the library" : ""}. This can't be undone.`));
 }
 
-// The old Intentionally app shares this site, so its data is removed too: its entries and its offline app.
+// The retired Intentionally app (and Daydeck's old /v2/ home) may have left data on this site: remove it too.
 async function wipeOldApp() {
   try { localStorage.removeItem("intentionally"); } catch { /* storage blocked */ }
   try {
-    for (const reg of await navigator.serviceWorker.getRegistrations()) if (!new URL(reg.scope).pathname.includes("/v2/")) await reg.unregister();
+    for (const reg of await navigator.serviceWorker.getRegistrations()) if (reg.scope !== new URL("./", location.href).href) await reg.unregister();
   } catch { /* none */ }
 }

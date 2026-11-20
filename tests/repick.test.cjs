@@ -11,7 +11,7 @@ const OLD = [{ name: "Friends", mindsets: ["I feel lonely"] }, { name: "Outdoors
   const b = await chromium.launch(), ctx = await b.newContext({ viewport: { width: 430, height: 932 } }), p = await ctx.newPage(), errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.abort());
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   const start = async (pillars) => {
     await p.evaluate((pillars) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", days: {}, seen: { note: "x" }, pillars })), pillars);
     await p.reload(); await p.waitForTimeout(1200);

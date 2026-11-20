@@ -23,7 +23,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: push
           wranglerVersion: "3.114.17"
-      # The password for the tester page (v2/testers.html). Set it as the repository secret TESTER_KEY.
+      # The password for the tester page (testers.html). Set it as the repository secret TESTER_KEY.
       - if: env.READY == 'true' && env.HAS_TESTER_KEY == 'true'
         working-directory: push
         env:

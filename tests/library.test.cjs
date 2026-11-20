@@ -24,7 +24,7 @@ const LIST = { at: Date.now(), cards: [
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(json), headers: { "access-control-allow-origin": "*" } });
   });
   const shot = (n) => SHOTS && p.screenshot({ path: `${SHOTS}/${n}.png` });
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   const k = await p.evaluate(async () => (await import("./js/util.js")).dayKey());
   const seed = (today, extra = {}) => p.evaluate(([k, today, extra]) => {
     const day = (id) => ({ sleep: { bed: 1380, wake: 420, rested: 2, tags: [] }, card: { hands: [[id, id + 1, id + 2]], id, done: true, how: 3 }, mood: 4, feel: [], pil: [] });

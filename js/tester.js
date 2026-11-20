@@ -1,6 +1,6 @@
 // Tester mode (beta only). Off unless the person joins. When on, the app sends the choices and numbers they
 // tap (never anything typed) to the small Daydeck service, under a random tester code, so the beta can show
-// what to keep, fix and cut. Stopping deletes everything already sent. Dashboard: v2/testers.html.
+// what to keep, fix and cut. Stopping deletes everything already sent. Dashboard: testers.html.
 //
 // RULE FOR NEW FEATURES: report what people do with log("name", value). Values are numbers or words from
 // the app's own lists, never anything the person typed. If a feature needs a new KIND of data that the

@@ -19,11 +19,12 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - **Psychology and research behind each tool:** https://claude.ai/artifact/GAFbZeaMZDpUMQQeLJUr3M
 
 ## Tech
+- The app is Daydeck, served at **https://daydeck.day** (alex, 2026-11-20): GitHub Pages with a custom domain (DNS on Cloudflare). Daydeck lives at the front of the repo; the old Intentionally app is retired and removed. `v2/` only forwards old links and icons on to the front page, keeping `?tester`.
 - Plain HTML, CSS and JavaScript modules. No build step, no frameworks, no dependencies. Open `index.html` through any static server.
-- All data lives in `localStorage` under the key `intentionally` (see `js/store.js`). Bump `SCHEMA` and migrate when the shape changes.
+- All data lives on the phone: `localStorage` under the key `daydeck` (see `js/store.js`), photos in IndexedDB (`js/photos.js`). Bump `SCHEMA` and migrate when the shape changes.
 - `sw.js` caches the app for offline use. **Bump `VERSION` and update `FILES` whenever any file changes or is added.**
 - iOS 26 lays a home-screen app out one status bar short (a strip at the bottom) unless the page is taller than that; `html` gets a `min-height` for home-screen apps in `css/app.css`. Keep it.
-- Every page (v2 pages and the old app's root `index.html`, which shares browser storage with v2) carries a Content-Security-Policy meta tag (safety net): only the app's own files and `intentionally-push.lextdo.workers.dev`. No inline `<script>` and no outside scripts; a new outside service must be added to `connect-src` in `v2/index.html`, `v2/testers.html` and `index.html`. `node tests/csp.test.cjs` checks every screen.
+- Every page (`index.html`, `testers.html` and the `v2/` forwarding page) carries a Content-Security-Policy meta tag (safety net): only the app's own files and `intentionally-push.lextdo.workers.dev`. No inline `<script>` and no outside scripts; a new outside service must be added to `connect-src` in `index.html` and `testers.html`. `node tests/csp.test.cjs` checks every screen.
 - Time always comes from `now()` in `js/clock.js`, never `Date.now()` directly in app logic, so test mode's time travel works. (The sky's orbit phase uses the real clock on purpose.)
 
 ## Design rules (agreed with alex; don't drift from these)
@@ -45,5 +46,6 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - Voice: comforting at hard moments (worries, reflection, repeats), brief and steady everywhere else.
 - Features are revealed slowly and we say so up front.
 - Not therapy: crisis support (Australian lines) must always be reachable.
-- Tester mode (`v2/js/tester.js`, dashboard `v2/testers.html`, storage in `push/worker.js`): beta testers opt in and the app sends only choices and numbers, never typed words. **Every new v2 feature must report what people do with `log("name", value)`** (cards drawn/passed/done/thumbs, setup steps, pillars and mindsets, levels and packs), and add its section to `v2/testers.html` (cards, setup, pillars and levels already have "not built yet" placeholders). A new KIND of data needs a line in `SHARED` and a `CONSENT` bump so testers are asked again.
+- Tester mode (`js/tester.js`, dashboard `testers.html`, storage in `push/worker.js`): beta testers opt in and the app sends only choices and numbers, never typed words. **Every new feature must report what people do with `log("name", value)`** (cards drawn/passed/done/thumbs, setup steps, pillars and mindsets, levels and packs), and add its section to `testers.html` (cards, setup, pillars and levels already have "not built yet" placeholders). A new KIND of data needs a line in `SHARED` and a `CONSENT` bump so testers are asked again.
+- The notifications service (`push/worker.js`) only answers the app's own addresses (`APPS`: daydeck.day, plus the old GitHub address during the move).
 - Notifications (`js/notify.js`, `push/`) are a FIRST VERSION, NOT FINAL: built as first drafted at alex's request; words and design get revisited. The service only knows times, never words; a thought never goes on the lock screen.
