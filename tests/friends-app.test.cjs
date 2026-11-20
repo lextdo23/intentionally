@@ -1,0 +1,190 @@
+// Friends in the app (js/friends.js, social step 2; alex 2026-11-20). Runs the real Daydeck service (push/) inside
+// the test, with a pretend iPhone 15 Pro Max as Mia and made-up friends (Josh, Sam). Checks: Friends opens at level 4
+// (with its tip), the 18+ tick, requests and the small dot, adding by @username, a friend's profile, remove and
+// block, invite links, Edit profile, Privacy, and no orange on the friends screens. SHOTS=1 saves pictures.
+const { chromium } = require("playwright");
+const fs = require("fs"), path = require("path");
+const { serve, checker, loadWorker, fakeSql } = require("./helpers.cjs");
+const SHOTS = process.env.SHOTS ? path.join(__dirname, "..", "..", "friends-shots") : null;
+if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
+const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+(async () => {
+  const { check, done } = checker();
+  // ---- The real service, in Node ----
+  const mod = await loadWorker(), worker = mod.default, made = {};
+  const ns = (Cls, env) => ({ idFromName: (n) => n, get: (n) => made[Cls.name + n] ||= (() => { const sql = fakeSql(); return new Cls({ storage: { sql, deleteAll: async () => {} } }, env); })() });
+  const env = { RESEND_API_KEY: "re_made_up" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env);
+  const mail = [], realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => String(url).startsWith("https://api.resend.com/") ? (mail.push(JSON.parse(init.body)), new Response("{}")) : realFetch(url, init);
+  let ip = 1;
+  const call = async (method, p, body, token) => {
+    const headers = { Origin: "https://daydeck.day", "CF-Connecting-IP": "198.51.100." + (ip++ % 200) };
+    if (body) headers["Content-Type"] = "application/json";
+    if (token) headers.Authorization = "Bearer " + token;
+    const res = await worker.fetch(new Request("https://svc.example" + p, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
+    return res.json();
+  };
+  const person = async (username) => {
+    const email = username.replace(/\W/g, "") + "@example.com";
+    await call("POST", "/a/code", { email });
+    const code = /(\d{6})/.exec(mail.filter((m) => m.to[0] === email).pop().subject)[1];
+    const v = await call("POST", "/a/verify", { email, code });
+    const f = await call("POST", "/a/finish", { ticket: v.ticket, username });
+    return { tok: f.session, user: f.user, post: (p, b) => call("POST", p, b, f.session), get: (p) => call("GET", p, null, f.session) };
+  };
+  const mia = await person("mia.k"), josh = await person("josh_r"), sam = await person("sam.w");
+  await josh.post("/a/f/profile", { adult: true, name: "Josh", season: "Getting through exams gently", pic: "frog" });
+  await sam.post("/a/f/profile", { adult: true, name: "Sam", pic: "bear" });
+
+  // ---- The app, on a pretend iPhone, talking to that service ----
+  const server = await serve(), b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 2, hasTouch: true });
+  await ctx.route("https://intentionally-push.lextdo.workers.dev/**", async (route) => {
+    const req = route.request(), u = new URL(req.url());
+    if (!u.pathname.startsWith("/a/")) return route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } });
+    const headers = { Origin: "https://daydeck.day", "CF-Connecting-IP": "192.0.2.9" };
+    const auth = req.headers().authorization; if (auth) headers.Authorization = auth;
+    if (req.postData()) headers["Content-Type"] = "application/json";
+    const res = await worker.fetch(new Request("https://svc.example" + u.pathname + u.search, { method: req.method(), headers, body: req.postData() || undefined }), env);
+    route.fulfill({ status: res.status, contentType: "application/json", body: await res.text(), headers: { "access-control-allow-origin": "*" } });
+  });
+  const p = await ctx.newPage(); const errors = []; p.on("pageerror", (e) => errors.push(e.message));
+  const shot = async (n) => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, n + ".png") }); };
+  const signIn = (tok, user) => p.evaluate(([tok, user]) => localStorage.setItem("daydeck-account", JSON.stringify({ token: tok, user, pic: { kind: "little", id: "smile" } })), [tok, user]);
+  // Full days: start your day, the card done, end your day (about 6 points each).
+  const daysFull = (n) => { const d = {}; for (let i = 1; i <= n; i++) d[day(i)] = { sleep: { q: 3 }, card: { id: i, done: true }, mood: 4 }; return d; };
+  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep" }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
+  const quiet = () => p.evaluate(() => document.querySelectorAll(".tip-layer, .sheet-host").forEach((e) => e.remove()));
+  const tab = async (t) => { await p.click(`#pill [data-tab="${t}"]`); await p.waitForTimeout(700); };
+  const text = (sel) => p.textContent(sel);
+
+  // ---- Before level 4: Daydeck as it always was ----
+  await p.goto(server.url);
+  await signIn(mia.tok, mia.user); await setDays(2); await p.reload(); await p.waitForTimeout(1500);
+  check(!(await p.$("#pill")) && !!(await p.$('#home button[aria-label="Settings"]')), "before level 4: no pill, Settings on home, as now");
+
+  // ---- Level 4 (about day 4 of full days): Friends opens, with its moment and tip ----
+  await setDays(4); await p.reload(); await p.waitForTimeout(1500);
+  check(/Level 4/.test(await text(".greet")), "four full days reach level 4");
+  check(!!(await p.$("#pill")), "at level 4 the glass pill appears");
+  check(!(await p.$('#home button[aria-label="Cards"]')), "the card library has moved to level 5, so it isn't open yet");
+  await p.waitForTimeout(4600);
+  const tip = await p.$(".tip-box");
+  check(tip && /Friends/.test(await tip.textContent()), "a tip points at Friends, once");
+  await shot("1-tip");
+  await quiet();
+
+  // Someone who already had the card library open keeps it (nothing is ever taken away).
+  await setDays(4, { tips: { days: 1, own: 1, library: 1 } }); await p.reload(); await p.waitForTimeout(1500); await quiet();
+  check(!!(await p.$('#home button[aria-label="Cards"]')), "someone who already had the card library keeps it after the move to level 5");
+
+  // ---- The 18+ tick ----
+  await tab("friends");
+  check(/18 and over/.test(await text("#friends")), "Friends asks, the first time, if you're 18 or over");
+  check(await p.getAttribute("#friends .fr-main", "aria-disabled") === "true", "Continue waits for the tick");
+  await shot("2-adult");
+  await p.click("#friends .fr-tick"); await p.click("#friends .fr-main"); await p.waitForTimeout(800);
+  check((await mia.get("/a/f")).me.adult === true, "ticking it is kept with the account");
+  check(/Add a few friends/.test(await text("#friends")), "then a calm start: Add a few friends");
+  const bg = await p.$eval("#friends .fr-main", (e) => getComputedStyle(e).backgroundColor);
+  check(bg === "rgb(239, 237, 233)", "the main button is off-white, never orange");
+  await shot("3-empty");
+
+  // ---- A request waiting: the small dot, then Accept ----
+  await josh.post("/a/f/ask", { username: "mia.k" });
+  await p.reload(); await p.waitForTimeout(1500); await quiet();
+  check(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot")), "a waiting request shows as a small dot on Friends (no number)");
+  await tab("friends");
+  check(/Friend requests/.test(await text("#friends")) && /Josh/.test(await text("#friends")), "Josh's request shows at the top of Friends");
+  await shot("4-request");
+  await p.click('#friends .fr-btn.main'); await p.waitForTimeout(900);
+  check(/Your friends/.test(await text("#friends")) && /Getting through exams gently/.test(await text("#friends")), "accepted: Josh is in Your friends, with his This season line");
+  check(!(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot"))), "the dot goes once nothing is waiting");
+  check((await josh.get("/a/f")).friends.some((f) => f.username === "mia.k"), "and they're friends on the service, both ways");
+  await shot("5-friends");
+
+  // ---- Josh's profile ----
+  await p.click("#friends .fr-open"); await p.waitForTimeout(900);
+  const prof = await text(".fr-page:last-child");
+  check(/Josh/.test(prof) && /@josh_r/.test(prof) && /1 friend(?!s)/.test(prof) && /This season/.test(prof) && /Josh's moments/.test(prof), "Josh's profile: name, @username, friends count, This season and his moments");
+  check(await p.$eval("#pill", (e) => getComputedStyle(e).opacity) === "0", "the pill steps aside on a full page");
+  await shot("6-profile");
+  await p.click('.fr-page:last-child button[aria-label="More"]'); await p.waitForTimeout(600);
+  check(/Remove friend/.test(await text(".sheet-host")) && /Block @josh_r/.test(await text(".sheet-host")), "••• has Remove friend and Block");
+  await shot("7-more");
+  await p.click('.sheet-host button:has-text("Remove friend")'); await p.waitForTimeout(700);
+  check(/They won't be told/.test(await text(".sheet-host:last-child")), "removing says they won't be told");
+  await p.click('.sheet-host:last-child .fr-main'); await p.waitForTimeout(1100);
+  check((await mia.get("/a/f")).friends.length === 0 && !(await p.$(".fr-page.open")), "removed on the service, and back to Friends");
+
+  // ---- Add friends by @username ----
+  await p.click('#friends button[aria-label="Add friends"]'); await p.waitForTimeout(700);
+  await p.fill(".fr-page:last-child .fr-field", "sam"); await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(700);
+  check(/No one by that name/.test(await text(".fr-page:last-child")), "part of a name finds nobody");
+  await p.fill(".fr-page:last-child .fr-field", "@Sam.W"); await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(700);
+  check(/Sam/.test(await text(".fr-page:last-child .fr-found")), "their exact @username finds them (capitals and @ don't matter)");
+  await shot("8-add");
+  await p.click(".fr-page:last-child .fr-found .fr-btn.main"); await p.waitForTimeout(900);
+  check(/Asked/.test(await text(".fr-page:last-child .fr-found")) && /Waiting for them/.test(await text(".fr-page:last-child")), "Add sends a request, shown as Asked and under Waiting for them");
+  check((await sam.get("/a/f")).asksYou.some((x) => x.username === "mia.k"), "Sam sees Mia's request");
+  await shot("9-asked");
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
+
+  // ---- An invite link ----
+  const inv = await josh.post("/a/f/invite", {});
+  await p.goto(server.url + "/?add=" + inv.t); await p.waitForTimeout(2600);
+  check(!/add=/.test(p.url()), "the invite link is tidied from the address");
+  check((await mia.get("/a/f")).asksYou.some((x) => x.username === "josh_r"), "opening Josh's invite leaves his request waiting for Mia");
+  check(await p.$eval("body", (b) => b.dataset.tab) === "friends" && /Josh/.test(await text("#friends")), "and Daydeck shows it in Friends");
+  await p.click('#friends .fr-btn.main'); await p.waitForTimeout(900);
+  check((await mia.get("/a/f")).friends.some((f) => f.username === "josh_r"), "Mia accepts: friends again");
+
+  // ---- You: Edit profile ----
+  await quiet(); await tab("you");
+  check(/mia\.k/.test(await text("#you")) && /1 friend/.test(await text("#you")) && /What you've shared/.test(await text("#you")), "You shows your @username, friends count and what you've shared");
+  await p.click('#you button:has-text("Edit")'); await p.waitForTimeout(700);
+  const fields = await p.$$(".fr-page:last-child .fr-field");
+  await fields[0].fill("Mia"); await fields[1].fill("Sleeping more and seeing friends");
+  await shot("10-edit");
+  await p.click(".fr-page:last-child .fr-main"); await p.waitForTimeout(1000);
+  const me = (await mia.get("/a/f")).me;
+  check(me.name === "Mia" && me.season === "Sleeping more and seeing friends", "Edit saves your name and This season");
+  check(/Sleeping more and seeing friends/.test(await text("#you")) && /Mia/.test(await text("#you .fr-prof-name")), "and You shows them");
+  await shot("11-you");
+
+  // ---- Privacy (Settings → Privacy) ----
+  await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700);
+  await p.click('#settings button:has-text("Privacy")'); await p.waitForTimeout(700);
+  check(/Only your friends can see you/.test(await text(".fr-page:last-child")), "Privacy says only friends can see you");
+  await p.click('.fr-page:last-child button[aria-label="Show your friends count"]'); await p.waitForTimeout(700);
+  check((await mia.get("/a/f")).me.hide === true, "hiding your friends count is saved");
+  const swBg = await p.$eval('.fr-page:last-child button[aria-label="Friend requests"]', (e) => getComputedStyle(e).backgroundColor);
+  check(swBg === "rgb(169, 196, 181)", "switches that are on are sage, not orange");
+  await shot("12-privacy");
+  check((await josh.get("/a/f/person?u=mia.k")).person.friends === null, "Josh no longer sees Mia's friends count");
+
+  // ---- Block ----
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(500);
+  await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(600);
+  await tab("friends"); await p.click("#friends .fr-open"); await p.waitForTimeout(900);
+  await p.click('.fr-page:last-child button[aria-label="More"]'); await p.waitForTimeout(600);
+  await p.click('.sheet-host button:has-text("Block")'); await p.waitForTimeout(700);
+  await p.click('.sheet-host:last-child .fr-main'); await p.waitForTimeout(1100);
+  check((await josh.get("/a/f/find?u=mia.k")).found === false, "after blocking, Josh can't find Mia");
+
+  // ---- Without an account ----
+  await p.evaluate(() => localStorage.setItem("daydeck-account", JSON.stringify({ skip: 1 })));
+  await p.reload(); await p.waitForTimeout(1500); await quiet(); await tab("friends");
+  check(/Friends need an account/.test(await text("#friends")), "without an account, Friends says it needs one");
+  check(/Lifeline/.test(await text("#friends")), "Lifeline is one tap away on Friends");
+
+  // ---- What testers hear: only what people do, never names or words ----
+  const src = fs.readFileSync(path.join(__dirname, "..", "js", "friends.js"), "utf8");
+  const logs = [...src.matchAll(/log\(([^;]*?)\);/g)].map((m) => m[1]);
+  check(logs.length >= 8 && logs.every((l) => !/username|\.name\b|season\.value\)|name\.value\)|shown\(/.test(l)), "tester logs from Friends carry actions only, never names or typed words");
+
+  check(errors.length === 0, "no errors" + (errors.length ? ": " + errors.join(" | ") : ""));
+  await b.close(); server.close(); globalThis.fetch = realFetch;
+  done();
+})();

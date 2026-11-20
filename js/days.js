@@ -81,7 +81,7 @@ const redraw = () => { const sc = root().querySelector(".scroll"), y = sc ? sc.s
 
 // A: the mood line, Week / Month / Year
 function secMoods(s) {
-  const months = levels.isOpen("months");   // Month and Year open at level 5 (alex 2026-11-18); before that, weeks only
+  const months = levels.isOpen("months");   // Month and Year open at level 6 (alex 2026-11-18; moved from 5 for Friends, 2026-11-20); before that, weeks only
   if (!months) view = "week";
   const ser = moodSeries(s.days, view, back), have = ser.pts.filter((p) => p.m != null);
   const seg = !months ? null : h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>

@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -57,11 +57,15 @@ const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 const isNum = Number.isFinite, isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isArray(x);
 // What each level opens (same ids as UNLOCKS in levels.js).
-const UNLOCK_NAMES = [["days", "Your days"], ["own", "Own card"], ["library", "Card library"], ["months", "Month and Year"]];
+const UNLOCK_NAMES = [["days", "Your days"], ["own", "Own card"], ["friends", "Friends"], ["library", "Card library"], ["months", "Month and Year"]];
 const SHAPE = {
   level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
+  friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
+  friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, friend_profile: (v) => v === 0 || v === 1,
+  friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
+  profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
   card_keep: (v) => isObj(v) && isNum(v.id),
   card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
@@ -328,7 +332,18 @@ function drawAll(D) {
     const n = Object.values(t).reduce((a, b) => a + b, 0);
     html += sec("How do people get around?", "Taps on the glass pill's tabs: Today, Friends and You (test mode only while friends are being built).",
       n ? bars([["Today", t.today || 0], ["Friends", t.friends || 0], ["You", t.you || 0]], n) : `<p class="sub">Nobody has used the pill yet.</p>`,
-      "lots of Friends taps before it's built means people want it; very few means it can wait."); }
+      "lots of Friends taps means people want it; very few means it can wait."); }
+  // Friends (social step 2): what people do, never who or what they typed.
+  { const f = {}; by("friend").forEach((e) => (f[e.val] = (f[e.val] || 0) + 1));
+    const who = (n) => new Set(by(n).map((e) => e.code)).size;
+    const adults = who("friends_adult"), askers = new Set(by("friend").filter((e) => ["ask", "invite", "accept"].includes(e.val)).map((e) => e.code)).size;
+    const prof = {}; by("profile").forEach((e) => (prof[e.code] = e.val)); const P = Object.values(prof);
+    const quiet = {}; by("friend_set").forEach((e) => { for (const [k, v] of Object.entries(e.val || {})) if (v === 0) quiet[k] = (quiet[k] || 0) + 1; });
+    html += sec("Do people add friends?", "Friends opens at level 4. Only what people do is counted: never names, usernames or what they type.",
+      adults ? bars([["Requests sent", f.ask || 0], ["Accepted", f.accept || 0], ["Not now", f.decline || 0], ["Invite links shared", f.invite || 0], ["Invite links opened", f.join || 0], ["Removed a friend", f.remove || 0], ["Blocked someone", f.block || 0]]) +
+        `<p class="note">${adults} ticked "I'm 18 or over"; ${askers} have reached out to someone. Profiles edited: ${P.length} (${P.filter((v) => v.name).length} with a name, ${P.filter((v) => v.season).length} with a This season line). Turned requests off: ${quiet.requests || 0}. Hid their friends count: ${quiet.count || 0}.</p>`
+        : `<p class="sub">Nobody has opened Friends yet.</p>`,
+      "lots of ticks but few requests means adding friends is too hard, or people aren't sure who to add. Blocks are worth a look if they climb."); }
 
   // Which pillars and mindsets
   const lastPick = {}; by("pick_pillars").forEach((e) => (lastPick[e.code] = e.val || []));

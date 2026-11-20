@@ -27,9 +27,9 @@ function checker() {
 async function loadWorker() {
   const os = require("os"), dir = fs.mkdtempSync(path.join(os.tmpdir(), "worker-"));
   const stand = "class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }";
-  for (const f of ["worker.js", "accounts.js"]) {
+  for (const f of ["worker.js", "accounts.js", "friends.js"]) {
     const src = fs.readFileSync(path.join(root, "push", f), "utf8").replace(/^import \{ DurableObject \} from "cloudflare:workers";/m, stand);
-    fs.writeFileSync(path.join(dir, f.replace(/\.js$/, ".mjs")), src.replace(/from "\.\/accounts\.js"/g, 'from "./accounts.mjs"'));
+    fs.writeFileSync(path.join(dir, f.replace(/\.js$/, ".mjs")), src.replace(/from "\.\/(accounts|friends)\.js"/g, 'from "./$1.mjs"'));
   }
   return import(path.join(dir, "worker.mjs"));
 }

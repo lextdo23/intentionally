@@ -43,7 +43,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click('#pill [data-tab="friends"]'); await p.waitForTimeout(600);
   check(await p.$eval("body", (b) => b.dataset.tab) === "friends", "tapping Friends goes to Friends");
   check(await p.$eval('#pill [data-tab="friends"]', (e) => e.getAttribute("aria-current")) === "page", "the Friends tab is marked as the current one");
-  check(/Coming soon/.test(await p.textContent("#friends")), "Friends says it's coming soon, up front");
+  check(/Friends/.test(await p.textContent("#friends")) && /Lifeline/.test(await p.textContent("#friends")), "Friends shows, with Lifeline one tap away");
   const bub = await p.$eval(".pill-bubble", (e) => e.getBoundingClientRect().left);
   check(bub > 60, "the highlight has glided across to Friends");
   check(await p.$eval("#home", (e) => getComputedStyle(e).pointerEvents) === "none", "Today steps aside");
@@ -60,9 +60,26 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(700);
   check(await p.$eval("#pill", (e) => getComputedStyle(e).opacity) === "1", "and comes back after");
 
+  // ---- The pill keeps its shape on every tab (no jump), and the action turns off-white off Today ----
+  const w = await p.$eval("#pill", (e) => Math.round(e.getBoundingClientRect().width));
+  const bg = await p.$eval("#pill .pill-act > button", (e) => getComputedStyle(e).backgroundColor);
+  check(/239, 237, 233/.test(bg), "on the social tabs the action is off-white, never orange");
+
+  // ---- Press and slide: the highlight follows your finger ----
+  const box = async (t) => p.$eval(`#pill [data-tab="${t}"]`, (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  const a = await box("you"), z = await box("today");
+  await p.mouse.move(a.x, a.y); await p.mouse.down();
+  await p.mouse.move((a.x + z.x) / 2, a.y, { steps: 5 });
+  const mid = await p.$eval(".pill-bubble", (e) => e.getBoundingClientRect().left + e.getBoundingClientRect().width / 2);
+  check(Math.abs(mid - (a.x + z.x) / 2) < 12, "while sliding, the highlight sits under your finger");
+  await p.mouse.move(z.x, z.y, { steps: 5 }); await p.mouse.up(); await p.waitForTimeout(600);
+  check(await p.$eval("body", (b) => b.dataset.tab) === "today", "letting go over Today opens Today");
+  const w2 = await p.$eval("#pill", (e) => Math.round(e.getBoundingClientRect().width));
+  check(w === w2, `the pill is the same size on Today as on You (${w2} and ${w}), so nothing jumps`);
+  check(!/239, 237, 233/.test(await p.$eval("#pill .pill-act > button", (e) => getComputedStyle(e).backgroundColor)), "back on Today the action is its usual colour");
+
   // ---- Back to Today; flows hide the pill ----
-  await p.click('#pill [data-tab="today"]'); await p.waitForTimeout(600);
-  check(await p.$eval("body", (b) => b.dataset.tab) === "today" && await p.$eval("#home", (e) => getComputedStyle(e).pointerEvents) !== "none", "Today comes back");
+  check(await p.$eval("#home", (e) => getComputedStyle(e).pointerEvents) !== "none", "Today comes back");
   await p.evaluate(() => document.body.classList.add("in-flow")); await p.waitForTimeout(450);
   check(await p.$eval("#pill", (e) => getComputedStyle(e).opacity) === "0", "the pill hides during a check-in");
   await p.evaluate(() => document.body.classList.remove("in-flow"));
