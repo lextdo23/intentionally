@@ -3,7 +3,8 @@
 // live in the phone's bigger storage for websites (IndexedDB), next to it; the day only notes that it has one
 // (d.ph = { at, w: card words on, src: "cam" | "lib" }). Pictures are re-drawn before saving, which shrinks them to
 // card size and drops anything hidden inside the file (like where it was taken). They never go to the tester service:
-// tester mode only hears "a photo was added / removed", never the picture.
+// tester mode only hears "a photo was added / removed", never the picture. Save a copy carries them in the file the
+// person keeps, and Restore from a file puts them back (alex 2026-11-20).
 import { h, dayKey, keyDate, addDays, DAY_NAME, MONTH, MOODS, MOOD_COL, reduceMotion, hoursWords, sleepMins } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
@@ -107,6 +108,31 @@ export async function files() {
   }
   return out;
 }
+// Every photo, written out as text, for "Save a copy" (alex 2026-11-20): day -> { full, thumb, at }.
+const toText = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+export async function dump() {
+  const out = {};
+  for (const k of keys()) {
+    try { const rec = await tx("readonly", (s) => s.get(k)); if (rec && rec.full) out[k] = { full: await toText(rec.full), thumb: await toText(rec.thumb || rec.full), at: rec.at || 0 }; } catch { /* skip */ }
+  }
+  return out;
+}
+// "Restore from a file": put a copy's photos back. Anything that isn't a day and a JPEG picture is ignored.
+const JPEG = "data:image/jpeg;base64,";
+const fromText = (t) => { const bin = atob(t.slice(JPEG.length)), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: "image/jpeg" }); };
+export async function load(all) {
+  let n = 0;
+  for (const [k, rec] of Object.entries(all && typeof all === "object" ? all : {})) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !rec || typeof rec.full !== "string" || !rec.full.startsWith(JPEG)) continue;
+    try {
+      const full = fromText(rec.full), thumb = typeof rec.thumb === "string" && rec.thumb.startsWith(JPEG) ? fromText(rec.thumb) : full;
+      await tx("readwrite", (s) => s.put({ full, thumb, at: Number(rec.at) || 0 }, k)); n++;
+    } catch { /* skip a broken one */ }
+  }
+  if (n) keep();
+  return n;
+}
+
 async function shareOne(k) {
   try {
     const rec = await tx("readonly", (s) => s.get(k)), f = new File([rec.full], `Daydeck ${k}.jpg`, { type: "image/jpeg" });

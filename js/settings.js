@@ -13,8 +13,13 @@ import * as library from "./library.js";
 
 let onClosed = null, el = null;
 
+// The photos for "Save a copy", gathered as Settings opens, so the copy is ready the moment it's tapped
+// (iPhone can refuse a download that starts too long after the tap).
+let picsReady = null;
+const gatherPics = () => { picsReady = null; photos.dump().then((x) => { picsReady = x; }, () => { picsReady = {}; }); };
+
 export function openSettings(closed) {
-  onClosed = closed; tester.log("settings_open");
+  onClosed = closed; tester.log("settings_open"); gatherPics();
   el = h("div", { id: "settings", role: "dialog", "aria-modal": "true", "aria-label": "Settings" });
   el.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSettings(); });
   document.body.append(el);
@@ -59,7 +64,7 @@ function render() {
       linkRow("Save a copy", null, { onclick: saveCopy }),
       linkRow("Restore from a file", null, { onclick: restore }),
     ].concat(photos.keys().length ? [linkRow("Save my photos", `${photos.keys().length}`, { onclick: savePhotos })] : []),
-    photos.keys().length ? "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like. Photos aren't in it: Save my photos keeps them in your iPhone's Photos." : "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like."),
+    photos.keys().length ? "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like, with your photos in it too. Save my photos also puts them in your iPhone's Photos." : "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like."),
     h("div.set-card", null, testerRow(() => openTester(render))),
     group("Support", [
       linkRow("Talk to someone", "Lifeline 13 11 14", { href: "tel:131114" }),
@@ -119,14 +124,16 @@ function nudges() {
   return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()].concat(wind ? [windRow()] : []), msg);
 }
 
-// A copy of everything, as a file the person keeps. Tester details stay out of it.
-function saveCopy() {
+// A copy of everything, as a file the person keeps, photos included (alex 2026-11-20). Tester details stay out of it.
+async function saveCopy() {
   const data = Object.assign({}, store.get()); delete data.tester;
-  const blob = new Blob([JSON.stringify({ app: "daydeck", saved: dayKey(), data }, null, 1)], { type: "application/json" });
+  const pics = picsReady || await photos.dump().catch(() => ({}));
+  const blob = new Blob([JSON.stringify({ app: "daydeck", saved: dayKey(), data, photos: pics }, null, 1)], { type: "application/json" });
   const a = h("a", { href: URL.createObjectURL(blob), download: `Daydeck copy ${dayKey()}.json` });
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  tester.log("save_copy");
+  tester.log("save_copy", Object.keys(pics).length);
+  gatherPics();
 }
 
 // Every photo of a card, out to the phone's share sheet ("Save Images" puts them in Photos).
@@ -153,13 +160,18 @@ function restore() {
           h("button.btn-main", { onclick: () => close("done") }, "Okay"));
         return;
       }
-      const n = Object.keys(copy.data.days).length;
+      const n = Object.keys(copy.data.days).length, np = Object.keys(copy.photos && typeof copy.photos === "object" ? copy.photos : {}).length;
+      const holds = `${n} ${n === 1 ? "day" : "days"}` + (np ? ` and ${np} ${np === 1 ? "photo" : "photos"}` : "");
       panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Restore this copy?"),
-        h("p.sub", null, `It was saved on ${copy.saved} and holds ${n} ${n === 1 ? "day" : "days"}. It replaces what's on this phone now.`)),
+        h("p.sub", null, `It was saved on ${copy.saved} and holds ${holds}. It replaces what's on this phone now.`)),
         h("div.col", { style: { gap: "4px" } },
-          h("button.btn-main", { onclick: () => {
+          h("button.btn-main", { onclick: async (e) => {
+            e.currentTarget.disabled = true;
             const keep = store.get().tester;
-            Object.assign(store.reset(), copy.data, { tester: keep }); store.save(); notify.sync(); tester.log("restore");
+            // Photos first: the copy's replace whatever pictures are on this phone now.
+            let got = 0;
+            if (np) { await photos.wipe(); got = await photos.load(copy.photos); }
+            Object.assign(store.reset(), copy.data, { tester: keep }); store.save(); notify.sync(); tester.log("restore", got); gatherPics();
             close("done"); render();
           } }, "Restore"),
           h("button.btn-quiet", { onclick: () => close("no") }, "Not now")));
