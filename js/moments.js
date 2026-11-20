@@ -227,7 +227,8 @@ function moreMenu(m, onChange) {
           log("hide", 1); feed = (feed || []).filter((x) => x.by.username !== m.by.username);
           friends.note(`You won't see ${friends.shown(m.by)}'s moments in your feed. They aren't told.`);
           onChange && onChange(null, m);
-        } }, "Hide their moments"));
+        } }, "Hide their moments"),
+        h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => friends.openReport({ moment: m }), 300); } }, "Report"));
     }
     panel.append(h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
   }, { label: "More" });

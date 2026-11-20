@@ -94,6 +94,8 @@ const SAY = {
   too_many: "That's a lot of looking for now. Try again in a while.",
   too_many_shares: "That's lots of sharing for one day. Try again tomorrow.",
   bad_moment: "That couldn't be shared. Try again.",
+  paused: "Sharing is paused on your account while Daydeck looks into a report. Email hello@daydeck.day if you think that's a mistake.",
+  bad_report: "That report couldn't be sent. Try again.",
   not_found: "No one by that name. Check the spelling with your friend.",
   name_words: "That name can't be used. Try another.",
   adult: "Friends on Daydeck are for people 18 and over.",
@@ -355,7 +357,7 @@ function profileBody(p, isMe, close, list) {
   else kids.push(h("div.tab-empty.small", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" })));
   return h("div.fr-prof", null, kids);
 }
-// The ••• menu: hide their moments, remove friend, block (all quiet). Report comes in step 5.
+// The ••• menu: hide their moments, remove friend, report, block (all quiet).
 function more(p, pg) {
   openSheet((panel, close) => {
     panel.append(h("h2", null, shown(p)),
@@ -367,6 +369,7 @@ function more(p, pg) {
         note(p.hidden ? `You won't see ${shown(p)}'s moments in your feed. They aren't told.` : `${shown(p)}'s moments are back in your feed.`);
       } }, p.hidden ? "Show their moments" : "Hide their moments"),
       h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "remove", pg), 300); } }, "Remove friend"),
+      h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => openReport({ person: p, pg }), 300); } }, `Report @${p.username}`),
       h("button.btn-soft.fr-sheet-btn.danger", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "block", pg), 300); } }, `Block @${p.username}`),
       h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
   }, { label: "More" });
@@ -386,6 +389,49 @@ function sure(p, what, pg) {
     panel.append(h("h2", null, words[0]), h("p.fr-sheet-text", null, words[1]), go, h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
   }, { label: words[0] });
 }
+
+// ---------------- Report (step 5) ----------------
+// A moment ({ moment }) or a person ({ person }). Pick why, add a few words if you like, send. They're never told who.
+// Then: thanks, and the choice to also hide their moments or block them. "They might not be safe" also shows how to
+// get help now (000, Lifeline), since that report is about worry for someone, not about rules.
+const WHY = [["hurtful", "Hurtful, bullying or hateful"], ["sexual", "Sexual or violent"], ["risk", "They might not be safe"], ["spam", "Spam or a fake account"], ["else", "Something else"]];
+export function openReport({ moment, person, pg }) {
+  const who = moment ? moment.by : person, title = moment ? "Report this moment" : `Report @${who.username}`;
+  log("report_open", moment ? "moment" : "person");
+  openSheet((panel, close) => {
+    const step1 = () => panel.replaceChildren(h("span.grabber", { "aria-hidden": "true" }), h("h2", null, title),
+      h("p.fr-sheet-text", null, `Why are you reporting it? ${shown(who)} won't know it was you.`),
+      h("div.fr-why", { role: "list" }, WHY.map(([k, label]) => h("button.fr-why-row", { type: "button", role: "listitem", onclick: () => step2(k, label) }, h("span", null, label), h("span.set-chev", { "aria-hidden": "true" }, "›")))),
+      h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
+    const step2 = (k, label) => {
+      const note = h("textarea.fr-field.mo-cap", { maxlength: "300", rows: "3", placeholder: "Anything else we should know? (optional)", "aria-label": "Anything else we should know?" });
+      const send = h("button.btn-main.fr-main", { type: "button" }, "Send report");
+      send.addEventListener("click", () => busy(send, async () => {
+        const r = await account.call("/a/f/report", moment ? { moment: moment.id, why: k, note: note.value } : { username: who.username, why: k, note: note.value });
+        if (!r.ok) return friendsNote(r);
+        log("report", { kind: moment ? "moment" : "person", why: WHY.findIndex((w) => w[0] === k) });
+        step3(k);
+      }));
+      panel.replaceChildren(h("span.grabber", { "aria-hidden": "true" }), h("h2", null, label), note, send, h("button.btn-quiet", { type: "button", onclick: step1 }, "Back"));
+    };
+    const step3 = (k) => {
+      const kids = [h("span.grabber", { "aria-hidden": "true" }), h("h2", null, "Thanks for telling us"),
+        h("p.fr-sheet-text", null, `Daydeck will look at it soon. ${shown(who)} won't know it was you.`)];
+      if (k === "risk") kids.push(h("div.fr-lock.fr-help", null, h("span", null, "If they're in danger right now, call 000. Lifeline can help you work out what to say to them."),
+        h("div.fr-help-btns", null, h("a.btn-soft", { href: "tel:000" }, "Call 000"), h("a.btn-soft", { href: "tel:131114" }, "Lifeline 13 11 14"))));
+      const fd = data && data.friends.find((f) => f.username === who.username);
+      if (fd) kids.push(h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: async () => {
+        const r = await account.call("/a/f/hide", { username: who.username }); if (!r.ok) return friendsNote(r);
+        log("hide", 1); moments.resetFeed(); close("done"); again(); note(`You won't see ${shown(who)}'s moments in your feed.`);
+      } }, `Also hide ${shown(who)}'s moments`));
+      kids.push(h("button.btn-soft.fr-sheet-btn.danger", { type: "button", onclick: () => { close("done"); setTimeout(() => sure(who, "block", pg || { close: () => {} }), 300); } }, `Also block @${who.username}`),
+        h("button.btn-main.fr-main", { type: "button", onclick: () => close("done") }, "Done"));
+      panel.replaceChildren(...kids);
+    };
+    step1();
+  }, { label: title });
+}
+const friendsNote = (r) => note(say(r));
 
 // ---------------- Your friends: A to Z, with search ----------------
 // From the friends count on You. Only you see this list; friends only ever see the count (unless it's hidden).

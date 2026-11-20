@@ -12,11 +12,18 @@
 // Photos (2026-11-21): a shared moment can be the day's photo (photos first, alex). The phone shrinks and cleans it
 // (nothing but the picture) before it's sent; it's kept here with the moment, and only the owner and their friends
 // can fetch it. It goes when the moment is removed, or with the account. (Backing up every photo is separate.)
+// Reports (step 5, 2026-11-21): from the ••• on a friend's moment or profile, with a reason and, if they like, a few
+// words. A copy of what was reported is kept so alex can review it on the tester page (Reports tab) even if it's
+// deleted; the person reported is never told who reported them. A moment reported by three different people is held
+// back from feeds until alex looks. alex can keep it, remove the moment, or pause the account's sharing. Reviewed
+// reports (and their copies) are deleted after 90 days.
 
 const DAY = 86400000;
 export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, feedMax: 100, profileMax: 120, text: 200, caption: 280, photo: 450000 };
 const PICS = ["flower", "smile", "frog", "cat", "bunny", "bear", "chick", "sprout"];
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
+export const REASONS = ["hurtful", "sexual", "risk", "spam", "else"];
+const KEEP_DONE = 90 * DAY, HOLD_AT = 3;
 const MOOD_WORDS = ["awful", "rough", "low", "okay", "good", "really good", "great"];   // the app's own mood words, in words only
 
 // A shared photo must be a small JPEG with nothing but the picture: no location, time, phone or camera details
@@ -48,7 +55,11 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, owner TEXT, day TEXT, item TEXT, data TEXT, at INTEGER, UNIQUE (owner, day, item));
     CREATE TABLE IF NOT EXISTS sees (moment TEXT, who TEXT, at INTEGER, PRIMARY KEY (moment, who));
     CREATE TABLE IF NOT EXISTS hides (owner TEXT, who TEXT, PRIMARY KEY (owner, who));
-    CREATE TABLE IF NOT EXISTS mphotos (moment TEXT PRIMARY KEY, data TEXT);`);
+    CREATE TABLE IF NOT EXISTS mphotos (moment TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, reporter TEXT, who TEXT, moment TEXT, why TEXT, note TEXT, snap TEXT, photo TEXT, at INTEGER, state TEXT, done INTEGER);
+    CREATE TABLE IF NOT EXISTS mheld (moment TEXT PRIMARY KEY, at INTEGER);
+    CREATE TABLE IF NOT EXISTS paused (user TEXT PRIMARY KEY, at INTEGER);
+    CREATE TABLE IF NOT EXISTS mailed (k TEXT PRIMARY KEY, at INTEGER);`);
 }
 
 // Words typed for a name or "This season": plain text only, with invisible characters and line breaks taken out.
@@ -78,6 +89,7 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "GET /a/f/feed": return out(b.mFeed(token));
     case "GET /a/f/moments": return out(b.mOf(token, q.get("u") || ""));
     case "POST /a/f/see": return out(b.mSee(token, String(body.id || ""), body.undo === true));
+    case "POST /a/f/report": return out(b.rReport(token, body));
     case "GET /a/f/photo": return out(b.mPhoto(token, q.get("id") || ""));
     case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
   }
@@ -298,6 +310,7 @@ export const friendMethods = {
     const g = await this.fGate(token); if (g.error) return g;
     const me = g.u, m = this.mClean(body || {});
     if (!m) return { error: "bad_moment" };
+    if (this.one("SELECT 1 AS x FROM paused WHERE user = ?", me.id)) return { error: "paused" };
     const t = Date.now(), had = this.one("SELECT id FROM moments WHERE owner = ? AND day = ? AND item = ?", me.id, m.day, m.item);
     if (!had && this.one("SELECT COUNT(*) AS n FROM moments WHERE owner = ? AND at > ?", me.id, t - DAY).n >= LIMITS.perDay) return { error: "too_many_shares" };
     const id = had ? had.id : this.newToken().slice(0, 16);
@@ -309,14 +322,15 @@ export const friendMethods = {
   async mUnshare(token, id) {
     const g = await this.fGate(token, false); if (g.error) return g;
     const row = this.one("SELECT * FROM moments WHERE id = ? AND owner = ?", id, g.u.id);
-    if (row) { this.sql.exec("DELETE FROM sees WHERE moment = ?", id); this.sql.exec("DELETE FROM mphotos WHERE moment = ?", id); this.sql.exec("DELETE FROM moments WHERE id = ?", id); }
+    if (row) this.mDrop(id);
     return { ok: true };
   },
   // Friends' moments (and your own) from the last two weeks, newest first. Friends whose moments you hid are left out.
   async mFeed(token) {
     const g = await this.fGate(token); if (g.error) return g;
     const me = g.u, since = Date.now() - LIMITS.feedDays * DAY;
-    const rows = this.rows(`SELECT * FROM moments WHERE at > ? AND (owner = ? OR (owner IN (SELECT b FROM pals WHERE a = ?) AND owner NOT IN (SELECT who FROM hides WHERE owner = ?))) ORDER BY at DESC LIMIT ?`,
+    const rows = this.rows(`SELECT * FROM moments WHERE at > ? AND (owner = ? OR (owner IN (SELECT b FROM pals WHERE a = ?) AND owner NOT IN (SELECT who FROM hides WHERE owner = ?)
+      AND owner NOT IN (SELECT user FROM paused) AND id NOT IN (SELECT moment FROM mheld))) ORDER BY at DESC LIMIT ?`,
       since, me.id, me.id, me.id, LIMITS.feedMax);
     const users = {};
     const who = (id) => (users[id] ||= this.one("SELECT * FROM users WHERE id = ?", id));
@@ -328,9 +342,11 @@ export const friendMethods = {
     const me = g.u, them = this.fTarget(me, name);
     if (!them) return { error: "not_found", status: 404 };
     if (them.id !== me.id && !this.fIsPal(me.id, them.id)) return { ok: true, moments: [] };
-    const rows = this.rows("SELECT * FROM moments WHERE owner = ? ORDER BY at DESC LIMIT ?", them.id, LIMITS.profileMax);
+    if (them.id !== me.id && this.one("SELECT 1 AS x FROM paused WHERE user = ?", them.id)) return { ok: true, moments: [] };
+    const rows = this.rows(`SELECT * FROM moments WHERE owner = ? ${them.id === me.id ? "" : "AND id NOT IN (SELECT moment FROM mheld)"} ORDER BY at DESC LIMIT ?`, them.id, LIMITS.profileMax);
     return { ok: true, moments: rows.map((r) => this.mOut(r, me.id, them)) };
   },
+  mDrop(id) { for (const t of ["sees", "mphotos", "mheld"]) this.sql.exec(`DELETE FROM ${t} WHERE moment = ?`, id); this.sql.exec("DELETE FROM moments WHERE id = ?", id); },
   // A shared photo: only for its owner and their friends.
   async mPhoto(token, id) {
     const g = await this.fGate(token); if (g.error) return g;
@@ -357,6 +373,62 @@ export const friendMethods = {
     return { ok: true };
   },
 
+  // ---------------- Reports ----------------
+  // Report a friend's moment, or a person (from their profile). One report per person per thing; reporting again
+  // updates it. notify: tell alex by email (at most once an hour, and never what was reported).
+  async rReport(token, body) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, why = REASONS.includes(body.why) ? body.why : null, note = tidyText(body.note, 300);
+    if (!why) return { error: "bad_report" };
+    let who = null, moment = null, snap = null, photo = null;
+    if (body.moment) {
+      const row = this.one("SELECT * FROM moments WHERE id = ?", String(body.moment));
+      if (!row || row.owner === me.id || !this.fIsPal(me.id, row.owner)) return { error: "not_found", status: 404 };
+      who = row.owner; moment = row.id; snap = { day: row.day, ...JSON.parse(row.data) };
+      const ph = this.one("SELECT data FROM mphotos WHERE moment = ?", row.id); photo = ph ? ph.data : null;
+    } else {
+      const them = this.fByName(String(body.username || ""));
+      if (!them || them.id === me.id) return { error: "not_found", status: 404 };
+      who = them.id;
+    }
+    const p = this.fProf(who);
+    snap = { ...(snap || {}), profile: { name: p.name || "", season: p.season || "", pic: p.pic || "smile" } };
+    const had = this.one("SELECT id FROM reports WHERE reporter = ? AND who = ? AND moment IS ? AND state = 'open'", me.id, who, moment);
+    const id = had ? had.id : this.newToken().slice(0, 16), t = Date.now();
+    this.sql.exec("INSERT OR REPLACE INTO reports (id, reporter, who, moment, why, note, snap, photo, at, state, done) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL)",
+      id, me.id, who, moment, why, note, JSON.stringify(snap), photo, t);
+    // Three different people reporting the same moment: it's held back from feeds until alex looks.
+    if (moment && this.one("SELECT COUNT(DISTINCT reporter) AS n FROM reports WHERE moment = ? AND state = 'open'", moment).n >= HOLD_AT)
+      this.sql.exec("INSERT OR IGNORE INTO mheld (moment, at) VALUES (?, ?)", moment, t);
+    const last = this.one("SELECT at FROM mailed WHERE k = 'reports'");
+    const notify = !last || t - last.at > 3600000;
+    if (notify) this.sql.exec("INSERT OR REPLACE INTO mailed (k, at) VALUES ('reports', ?)", t);
+    return { ok: true, notify };
+  },
+  // For alex (tester page, behind TESTER_KEY): open reports first, then those reviewed lately.
+  rList() {
+    this.sql.exec("DELETE FROM reports WHERE state != 'open' AND done < ?", Date.now() - KEEP_DONE);
+    const name = (id) => { const u = this.one("SELECT name FROM users WHERE id = ?", id); return u ? u.name : null; };
+    const out = (r) => ({ id: r.id, why: r.why, note: r.note || "", at: r.at, state: r.state, done: r.done, moment: r.moment, still: !!(r.moment && this.one("SELECT 1 AS x FROM moments WHERE id = ?", r.moment)),
+      held: !!(r.moment && this.one("SELECT 1 AS x FROM mheld WHERE moment = ?", r.moment)), paused: !!this.one("SELECT 1 AS x FROM paused WHERE user = ?", r.who),
+      who: name(r.who) || "(account deleted)", by: name(r.reporter) || "(account deleted)", about: this.one("SELECT COUNT(*) AS n FROM reports WHERE who = ?", r.who).n,
+      snap: JSON.parse(r.snap || "{}"), photo: r.photo || null });
+    return { ok: true, open: this.rows("SELECT * FROM reports WHERE state = 'open' ORDER BY at").map(out), done: this.rows("SELECT * FROM reports WHERE state != 'open' ORDER BY done DESC LIMIT 30").map(out) };
+  },
+  // alex's answer: keep (nothing wrong), remove (the moment goes), pause (the account can't share, and their moments
+  // are hidden from friends), unpause. Every open report about the same thing is answered together.
+  rAct(id, act) {
+    const r = this.one("SELECT * FROM reports WHERE id = ?", id);
+    if (!r || !["keep", "remove", "pause", "unpause"].includes(act)) return { error: "not_found", status: 404 };
+    const t = Date.now(), same = r.moment ? ["moment = ?", r.moment] : ["who = ? AND moment IS NULL", r.who];
+    const close = (state) => this.sql.exec(`UPDATE reports SET state = ?, done = ?, photo = NULL WHERE state = 'open' AND ${same[0]}`, state, t, same[1]);
+    if (act === "keep") { if (r.moment) this.sql.exec("DELETE FROM mheld WHERE moment = ?", r.moment); close("kept"); }
+    if (act === "remove" && r.moment) { this.mDrop(r.moment); close("removed"); }
+    if (act === "pause") { this.sql.exec("INSERT OR IGNORE INTO paused (user, at) VALUES (?, ?)", r.who, t); close("paused"); }
+    if (act === "unpause") this.sql.exec("DELETE FROM paused WHERE user = ?", r.who);
+    return { ok: true };
+  },
+
   // Deleting an account: every friendship, request, block, invite and the profile go too.
   fForget(id) {
     this.sql.exec("DELETE FROM prof WHERE user = ?", id);
@@ -368,5 +440,8 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM mphotos WHERE moment IN (SELECT id FROM moments WHERE owner = ?)", id);
     this.sql.exec("DELETE FROM moments WHERE owner = ?", id);
     this.sql.exec("DELETE FROM hides WHERE owner = ? OR who = ?", id, id);
+    this.sql.exec("DELETE FROM mheld WHERE moment NOT IN (SELECT id FROM moments)");
+    this.sql.exec("DELETE FROM paused WHERE user = ?", id);
+    this.sql.exec("DELETE FROM reports WHERE reporter = ? OR who = ?", id, id);
   },
 };

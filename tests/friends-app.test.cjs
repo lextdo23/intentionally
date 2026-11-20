@@ -14,7 +14,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- The real service, in Node ----
   const mod = await loadWorker(), worker = mod.default, made = {};
   const ns = (Cls, env) => ({ idFromName: (n) => n, get: (n) => made[Cls.name + n] ||= (() => { const sql = fakeSql(); return new Cls({ storage: { sql, deleteAll: async () => {} } }, env); })() });
-  const env = { RESEND_API_KEY: "re_made_up" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env);
+  const env = { RESEND_API_KEY: "re_made_up", TESTER_KEY: "made-up-tester-key-123" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env); env.TESTERS = ns(mod.Testers, env);
   const mail = [], realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => String(url).startsWith("https://api.resend.com/") ? (mail.push(JSON.parse(init.body)), new Response("{}")) : realFetch(url, init);
   let ip = 1;
@@ -239,6 +239,24 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/@sam\.w/.test(await text(".fr-page:last-child")) && /moments/.test(await text(".fr-page:last-child")), "tapping a friend opens their profile");
   await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(500);
   await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
+
+  // Report (step 5): from the ••• on Sam's moment
+  await tab("friends"); await p.waitForTimeout(1000);
+  await p.locator("#friends .mo-post", { hasText: "Slept in" }).locator(".mo-more").click(); await p.waitForTimeout(600);
+  check(/Report/.test(await text(".sheet-host:last-child")) && /Hide their moments/.test(await text(".sheet-host:last-child")), "a friend's moment's ••• has Hide their moments and Report");
+  await p.click('.sheet-host:last-child button:has-text("Report")'); await p.waitForTimeout(700);
+  check(/Report this moment/.test(await text(".sheet-host:last-child")) && /won't know it was you/.test(await text(".sheet-host:last-child")), "Report: why, and they won't know it was you");
+  await shot("22-report");
+  await p.click('.sheet-host:last-child button:has-text("They might not be safe")'); await p.waitForTimeout(400);
+  await p.fill(".sheet-host:last-child textarea", "Worried about them");
+  await p.click(".sheet-host:last-child .fr-main"); await p.waitForTimeout(1000);
+  const thanks = await text(".sheet-host:last-child");
+  check(/Thanks for telling us/.test(thanks) && /000/.test(thanks) && /Lifeline/.test(thanks), "thanks, and for someone who might not be safe: 000 and Lifeline");
+  check(/Also hide/.test(thanks) && /Also block/.test(thanks), "with the choice to also hide or block");
+  await shot("23-report-thanks");
+  const rl = await call("GET", "/t/reports", null, "made-up-tester-key-123");
+  check(rl.open && rl.open.some((x) => x.why === "risk" && x.note === "Worried about them" && x.by === "mia.k" && x.who === "sam.w"), "alex sees the report on the tester page");
+  await p.click('.sheet-host:last-child button:has-text("Done")'); await p.waitForTimeout(500);
 
   // Her grid, and tapping a tile
   await tab("you"); await p.waitForTimeout(1200);

@@ -816,3 +816,10 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .fr-list { display: flex; flex-direction: column; margin-top: -8px; }
 .fr-list .fr-row { min-height: 64px; }
 .fr-list .set-chev { padding-right: 4px; }
+/* Report (social step 5) */
+.fr-why { display: flex; flex-direction: column; border-radius: 16px; background: rgba(239, 237, 233, .06); overflow: hidden; width: 100%; }
+.fr-why-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 0 16px; font-size: 17px; text-align: left; }
+.fr-why-row + .fr-why-row { border-top: 1px solid rgba(239, 237, 233, .08); }
+.fr-help { flex-direction: column; gap: 12px; width: 100%; }
+.fr-help-btns { display: flex; gap: 8px; }
+.fr-help-btns .btn-soft { flex: 1; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink); }

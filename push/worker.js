@@ -156,6 +156,16 @@ const CODE = /^T-[A-Z0-9]{4}$/, KEY = /^[0-9a-f]{32}$/, DAYK = /^\d{4}-\d\d-\d\d
 const short = (x, n = 30) => (typeof x === "string" ? x.slice(0, n) : "");
 
 async function testers(req, env, path) {
+  // Reports (social step 5): alex reviews them here, behind the same password and lockout as the tester page.
+  if (path === "/t/reports" || path === "/t/report") {
+    const no = await gate(req, env); if (no) return no;
+    const book = env.ACCOUNTS.get(env.ACCOUNTS.idFromName("book"));
+    if (req.method === "GET") return reply(await book.rList());
+    const b = await req.json().catch(() => null);
+    if (!b || typeof b.id !== "string" || typeof b.act !== "string") return reply({ error: "bad request" }, 400);
+    const r = await book.rAct(b.id, b.act);
+    return reply(r, r.error ? 404 : 200);
+  }
   if (req.method === "GET" && path === "/t/all") {
     const no = await gate(req, env); if (no) return no;
     return reply(await db(env).all());

@@ -44,8 +44,8 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
-const TABS = [["overview", "Overview"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
+const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
 const notYet = (title, what) => sec(title, `Starts filling in once ${what} is built in the app.`, "", "", true);
@@ -65,6 +65,7 @@ const SHAPE = {
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, friend_profile: (v) => v === 0 || v === 1,
   share: (v) => isObj(v) && ["photo", "card", "own", "rest"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home"].includes(v.from),
+  report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, friends_list: (v) => v === 1,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
@@ -107,7 +108,8 @@ function drawAll(D) {
   const who = (n) => new Set(by(n).map((e) => e.code)).size;
   const today = keyOf(Date.now());
   $("status").textContent = `${T} tester${T === 1 ? "" : "s"} · updated ${new Date(D.at).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`;
-  if (!T) { $("out").innerHTML = `<p class="sub">No testers yet. Send testers the invite link: <b>https://daydeck.day/?tester</b></p>`; return; }
+  // Reports show even before there are testers: they come from everyone using friends, not just testers.
+  if (!T) { $("out").innerHTML = `<p class="sub">No testers yet. Send testers the invite link: <b>https://daydeck.day/?tester</b></p>` + reportsSec().replace(/ data-g="reports"/, ""); reportsView(); return; }
 
   // Tiles
   const active = testers.filter((t) => Object.keys(days[t.code] || {}).some((k) => dayDiff(k, today) < 7)).length;
@@ -291,6 +293,8 @@ function drawAll(D) {
       "If people make lots of cards for one pillar, the deck may be missing cards they'd like there."); }
   // The card library (alex 2026-11-18): cards people chose to show to everyone wait here for alex's Yes or No.
   // The waiting list comes straight from the service (libraryView), not from tester data.
+  // Reports (social step 5): what friends reported, for alex to look at. Typed words only ever go on the page as text.
+  html += reportsSec();
   html += sec("Cards waiting for you", "Cards people chose to show to everyone. Fix the words if you need to, then say Yes or No. Only Yes cards are ever shown, and the maker only hears back on a Yes.",
     `<details class="rules"><summary>Your rules for checking</summary><p class="note"><b>Say No if the card:</b> is rude, cruel, sexual, or mentions drugs or getting drunk · could hurt someone (risky stunts, extreme fasting, pushing past pain) · mentions calories, weight, or good and bad food · names a real person, phone number, address, @handle or website · is an ad or tells you to buy something · is a joke or nonsense, not something you could do · talks about self-harm or suicide (never public).</p><p class="note"><b>Fix and say Yes if:</b> it has spelling or grammar slips · it's too long (trim to one clear action). Things like a partner, a car or a coffee are fine; a trip overseas isn't.</p></details><div id="libq"><p class="sub">Loading…</p></div>`, "");
   { const opens = by("lib_open").length, views = by("lib_view").length, adds = by("lib_add"), shares = by("lib_share"), ups = by("lib_up").length, removes = by("lib_remove").length;
@@ -466,6 +470,7 @@ function drawAll(D) {
   $("out").innerHTML = `<nav class="ttabs" role="tablist" aria-label="Sections">${TABS.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}">${l}</button>`).join("")}</nav>` + html;
   thumbsView(by("card_thumb"));
   libraryView();
+  reportsView();
   let tab = "overview"; try { tab = localStorage.getItem("daydeck-tester-tab") || tab; } catch {}
   const show = (k, top) => {
     if (!TABS.some(([x]) => x === k)) k = "overview";
@@ -610,6 +615,73 @@ async function libraryView() {
       el.querySelector(".t").textContent = c.text;
       el.querySelector(".meta").textContent = `${c.pillar} · ${c.name || "Anonymous daydeck user"} · ${ago(c.seen || c.t)}${c.state === "in" ? ` · ${ups[c.id] || 0} thumbs up` : ""}`;
       const chip = el.querySelector(".chip"); chip.textContent = c.state === "in" ? "Yes" : "No"; chip.classList.add(c.state === "in" ? "ok" : "look");
+      dl.append(el);
+    });
+  };
+  draw();
+}
+
+// ---------------- Reports: what friends reported ----------------
+// Reports (social step 5): what friends reported, for alex to look at. Typed words only ever go on the page as text.
+function reportsSec() {
+  return sec("Reports waiting for you", "Things people reported from the ••• on a friend's moment or profile. The person reported is never told who reported them. A moment reported by three people is already held back from feeds until you answer.",
+    `<details class="rules"><summary>Your rules for reports</summary><p class="note"><b>Remove the moment</b> if it's cruel, bullying, hateful, sexual, violent, shows or encourages self-harm, or shares someone else's private details. <b>Pause their sharing</b> if they keep doing it, or the account looks fake or spammy. <b>Keep it</b> if it's just something the reporter didn't like. For "They might not be safe": the reporter has already been shown 000 and Lifeline; keep the moment unless it encourages self-harm.</p></details><div id="repq"><p class="sub">Loading…</p></div>`, "");
+}
+const WHY = { hurtful: "Hurtful, bullying or hateful", sexual: "Sexual or violent", risk: "They might not be safe", spam: "Spam or a fake account", else: "Something else" };
+const STATE = { kept: ["Kept", "ok"], removed: ["Removed", "look"], paused: ["Sharing paused", "look"] };
+async function reportsView() {
+  const box = $("repq"); if (!box) return;
+  let q;
+  try { const a = await fetch(`${SERVICE}/t/reports`, { headers: { Authorization: "Bearer " + pw } }); if (!a.ok) throw new Error(a.status); q = await a.json(); if (!Array.isArray(q.open) || !Array.isArray(q.done)) throw new Error("shape"); }
+  catch { box.innerHTML = `<p class="sub">Couldn't load reports. Check you're online and reload.</p>`; return; }
+  const tabBtn = document.querySelector('.ttabs [data-tab="reports"]');
+  if (tabBtn && q.open.length) tabBtn.textContent = `Reports (${q.open.length})`;
+  const what = (r) => {
+    const s = r.snap || {}, wrap = document.createElement("div"); wrap.className = "rsnap";
+    if (r.moment) {
+      if (r.photo) { const im = document.createElement("img"); im.alt = "The reported photo"; im.src = r.photo; wrap.append(im); }
+      else if (s.kind === "photo") { const p = document.createElement("p"); p.className = "note"; p.textContent = "(The photo was let go after review.)"; wrap.append(p); }
+      if (s.text) { const p = document.createElement("p"); p.className = "rtext"; p.textContent = s.text; wrap.append(p); }
+      if (s.kind === "rest") { const p = document.createElement("p"); p.className = "rtext"; p.textContent = "A rest day"; wrap.append(p); }
+      if (s.cap) { const p = document.createElement("p"); p.textContent = `Caption: "${s.cap}"`; wrap.append(p); }
+      if (s.mood) { const p = document.createElement("p"); p.className = "note"; p.textContent = `Felt ${s.mood}${s.feel && s.feel.length ? " · " + s.feel.join(", ") : ""}`; wrap.append(p); }
+    } else {
+      const p = document.createElement("p"); p.textContent = `Their profile: name "${(s.profile || {}).name || "(none)"}", This season "${(s.profile || {}).season || "(none)"}".`; wrap.append(p);
+    }
+    return wrap;
+  };
+  const draw = () => {
+    box.innerHTML = `<div class="items open">${q.open.length ? "" : `<p class="sub">Nothing waiting. New reports show here, and you'll get an email at hello@daydeck.day.</p>`}</div>
+      ${q.done.length ? `<p class="note" style="margin-top:16px">Answered lately (kept for 90 days):</p><div class="items done"></div>` : ""}`;
+    const items = box.querySelector(".items.open");
+    q.open.forEach((r) => {
+      const el = document.createElement("div"); el.className = "lcard";
+      el.innerHTML = `<p class="meta"><span class="m"></span></p><p class="who"></p><div class="w"></div><p class="rnote"></p>
+        <div class="row two"><button class="keep">Keep it</button>${r.moment && r.still ? `<button class="main remove">Remove the moment</button>` : ""}</div>
+        <button class="pause"></button><p class="note msg" aria-live="polite"></p>`;
+      el.querySelector(".m").textContent = `${WHY[r.why] || r.why} · ${ago(r.at)} · reported by @${r.by}${r.held ? " · held back from feeds" : ""}`;
+      el.querySelector(".who").textContent = `${r.moment ? "A moment by" : "The account"} @${r.who}${r.about > 1 ? ` · ${r.about} reports about them so far` : ""}${r.moment && !r.still ? " · they've since removed it" : ""}`;
+      el.querySelector(".w").append(what(r));
+      const n = el.querySelector(".rnote"); if (r.note) n.textContent = `Their words: "${r.note}"`; else n.remove();
+      el.querySelector(".pause").textContent = r.paused ? "Let them share again" : "Pause their sharing";
+      const act = async (a) => {
+        el.querySelectorAll("button").forEach((b) => (b.disabled = true));
+        const res = await fetch(`${SERVICE}/t/report`, { method: "POST", headers: { Authorization: "Bearer " + pw, "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, act: a }) }).catch(() => null);
+        if (!res || !res.ok) { el.querySelector(".msg").textContent = "Couldn't save. Check you're online and try again."; el.querySelectorAll("button").forEach((b) => (b.disabled = false)); return; }
+        reportsView();
+      };
+      el.querySelector(".keep").onclick = () => act("keep");
+      const rm = el.querySelector(".remove"); if (rm) rm.onclick = () => act("remove");
+      el.querySelector(".pause").onclick = () => act(r.paused ? "unpause" : "pause");
+      items.append(el);
+    });
+    const dl = box.querySelector(".items.done");
+    if (dl) q.done.forEach((r) => {
+      const el = document.createElement("div"); el.className = "item";
+      el.innerHTML = `<span class="t"></span><span class="meta"></span><span class="chip"></span>`;
+      el.querySelector(".t").textContent = `@${r.who}: ${(r.snap && (r.snap.cap || r.snap.text)) || (r.moment ? "a moment" : "their account")}`;
+      el.querySelector(".meta").textContent = `${WHY[r.why] || r.why} · reported by @${r.by} · answered ${ago(r.done || r.at)}${r.paused ? " · still paused" : ""}`;
+      const [label, look] = STATE[r.state] || [r.state, "ok"], chip = el.querySelector(".chip"); chip.textContent = label; chip.classList.add(look);
       dl.append(el);
     });
   };
