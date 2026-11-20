@@ -35,11 +35,42 @@ export function start(today) {
     slot);
   document.body.append(nav);
   document.body.classList.add("has-pill");
+  follow();
   screens.friends = h("section", { id: "friends", class: "tab-screen", "aria-label": "Friends" });
   screens.you = h("section", { id: "you", class: "tab-screen", "aria-label": "You" });
   document.body.append(screens.friends, screens.you);
   mark();
 }
+// Press and slide along the tabs: the highlight follows your finger, and letting go opens the nearest tab
+// (alex 2026-11-20). A plain tap still works as before.
+function follow() {
+  let down = null;
+  const tabsBox = () => { const t = nav.querySelectorAll(".pill-tab"); const a = t[0].getBoundingClientRect(), z = t[t.length - 1].getBoundingClientRect(); return { left: a.left, right: z.right, w: a.width }; };
+  nav.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest(".pill-tab")) return;
+    down = { x: e.clientX, moved: false, box: tabsBox(), id: e.pointerId };
+  });
+  nav.addEventListener("pointermove", (e) => {
+    if (!down || e.pointerId !== down.id) return;
+    if (!down.moved && Math.abs(e.clientX - down.x) < 6) return;
+    if (!down.moved) { down.moved = true; try { nav.setPointerCapture(e.pointerId); } catch { /* fine */ } nav.classList.add("dragging"); }
+    const navLeft = nav.getBoundingClientRect().left, b = down.box;
+    const x = Math.max(b.left, Math.min(b.right - b.w, e.clientX - b.w / 2));
+    bubble.style.left = (x - navLeft) + "px";
+  });
+  const end = (e) => {
+    if (!down || e.pointerId !== down.id) return;
+    const d = down; down = null;
+    nav.classList.remove("dragging"); bubble.style.left = "";
+    if (!d.moved) return;
+    const b = d.box, i = Math.max(0, Math.min(TABS.length - 1, Math.round((e.clientX - b.left - b.w / 2) / ((b.right - b.left - b.w) / (TABS.length - 1)))));
+    go(TABS[i]);
+    nav.dataset.dragged = "1"; setTimeout(() => delete nav.dataset.dragged, 0);   // the click that follows a drag is ignored
+  };
+  nav.addEventListener("pointerup", end); nav.addEventListener("pointercancel", end);
+  nav.addEventListener("click", (e) => { if (nav.dataset.dragged && e.target.closest(".pill-tab")) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+
 export function stop() {
   if (!nav) return;
   [nav, screens.friends, screens.you].forEach((e) => e && e.remove());
@@ -48,17 +79,12 @@ export function stop() {
 }
 
 // The screen's main action sits in the pill (main.js hands over its "End your day" button and the like).
-// Until "Share a moment" arrives (step 3), the action shows on Today only: no orange on the social screens.
-let act = null;
+// The action stays in the pill on every tab, so the pill never changes shape (alex 2026-11-20: switching felt
+// jumpy). On Friends and You it turns off-white (no orange on the social screens) until "Share a moment" (step 3).
 export function setAction(btn) {
   if (!slot) return;
-  act = btn || null;
-  showAct();
-}
-function showAct() {
-  const b = tab === "today" ? act : null;
-  slot.replaceChildren(...(b ? [b] : []));
-  nav.classList.toggle("no-act", !b);
+  slot.replaceChildren(...(btn ? [btn] : []));
+  nav.classList.toggle("no-act", !btn);
 }
 
 export function go(t, quiet) {
@@ -75,7 +101,6 @@ export function go(t, quiet) {
 function mark() {
   const i = TABS.indexOf(tab);
   document.body.dataset.tab = tab;
-  showAct();
   nav.style.setProperty("--i", i);
   nav.querySelectorAll(".pill-tab").forEach((b) => {
     const here = b.dataset.tab === tab;

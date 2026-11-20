@@ -604,7 +604,10 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .pill-you { display: flex; border-radius: 50%; }
 .pill-act { flex: 1; display: flex; margin-left: 6px; min-width: 0; }
 .pill-act:empty { display: none; }
-#pill .pill-act > button { flex: 1; min-height: 54px; height: 54px; border-radius: 27px; padding: 0 14px; white-space: nowrap; }
+#pill .pill-act > button { flex: 1; min-height: 54px; height: 54px; border-radius: 27px; padding: 0 14px; white-space: nowrap; transition: background-color .35s ease, color .35s ease; }
+body:not([data-tab="today"]) #pill .pill-act > .btn-main { background: #efede9; color: #1d1e22; }
+#pill.dragging .pill-bubble { transition: none; }
+#pill { touch-action: none; }
 body.has-pill #home { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); }
 body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px); }
 :is(.in-flow, .in-ask, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels) #pill, body:has(.sheet-host) #pill { opacity: 0; transform: translateY(24px); pointer-events: none; }
@@ -614,7 +617,8 @@ body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px);
   transform: translateX(100%); opacity: .4; pointer-events: none; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); display: flex; flex-direction: column; gap: 24px; }
 body[data-tab="friends"] #friends, body[data-tab="you"] #you { transform: none; opacity: 1; pointer-events: auto; }
 body[data-tab="you"] #friends { transform: translateX(-30%); opacity: 0; }
-body.has-pill:not([data-tab="today"]) #home { transform: translateX(-30%); opacity: 0; pointer-events: none; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); }
+body.has-pill #home { transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); }
+body.has-pill:not([data-tab="today"]) #home { transform: translateX(-30%); opacity: 0; pointer-events: none; }
 body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .in-settings #you { transform: translateX(-24%); opacity: .4; pointer-events: none; }
 .tab-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
