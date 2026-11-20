@@ -24,11 +24,11 @@ It runs free on Cloudflare. The `Push service` workflow in GitHub puts it there.
 
 ## Tester mode (Daydeck beta)
 
-The same service stores what beta testers choose to share (see `v2/js/tester.js`). To read it on `v2/testers.html`:
+The same service stores what beta testers choose to share (see `js/tester.js`). To read it on `testers.html`:
 
 1. Make up a long password (at least 12 characters).
 2. On GitHub: Settings → Secrets and variables → Actions → New repository secret. Name `TESTER_KEY`, value = the password.
 3. Actions tab → "Push service" → Run workflow.
-4. Open https://lextdo23.github.io/intentionally/v2/testers.html and enter the password.
+4. Open https://daydeck.day/testers.html and enter the password.
 
-Testers join from https://lextdo23.github.io/intentionally/v2/?tester, or from Notifications → "Help test Daydeck".
+Testers join from https://daydeck.day/?tester, or from Notifications → "Help test Daydeck".

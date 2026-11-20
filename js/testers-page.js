@@ -1,4 +1,4 @@
-// The tester page (v2/testers.html). Kept in its own file so the page can refuse any inline or outside script.
+// The tester page (testers.html). Kept in its own file so the page can refuse any inline or outside script.
 import { MOODS, MOOD_COL } from "./util.js";
 import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./words.js";
 import { BANK } from "./cards-data.js";
@@ -101,7 +101,7 @@ function drawAll(D) {
   const who = (n) => new Set(by(n).map((e) => e.code)).size;
   const today = keyOf(Date.now());
   $("status").textContent = `${T} tester${T === 1 ? "" : "s"} · updated ${new Date(D.at).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`;
-  if (!T) { $("out").innerHTML = `<p class="sub">No testers yet. Send testers the invite link: <b>https://lextdo23.github.io/intentionally/v2/?tester</b></p>`; return; }
+  if (!T) { $("out").innerHTML = `<p class="sub">No testers yet. Send testers the invite link: <b>https://daydeck.day/?tester</b></p>`; return; }
 
   // Tiles
   const active = testers.filter((t) => Object.keys(days[t.code] || {}).some((k) => dayDiff(k, today) < 7)).length;
@@ -396,7 +396,7 @@ function drawAll(D) {
     <div class="items">${testers.map((t) => `<div class="tcard" data-code="${esc(t.code)}"><div class="ttop"><div class="who"><b>${esc(t.code)}</b>
       <span>${esc(t.phone || "")} · app ${esc(t.version || "?")} · joined ${fmt(t.joined)} · last sent ${fmt(t.seen)} · ${Object.keys(days[t.code] || {}).length} days noted</span></div>
       <button class="rm">Remove</button></div></div>`).join("")}</div>
-    <p class="note">Invite link for testers: https://lextdo23.github.io/intentionally/v2/?tester</p></section>`;
+    <p class="note">Invite link for testers: https://daydeck.day/?tester</p></section>`;
   html += `<section data-g="testers" class="foot"><h2>Your data</h2><p class="ask" style="margin:0">Download everything to keep a copy or to send to Claude. When testing ends, delete it all.</p>
     <div class="row"><button id="dl" class="main">Download all data</button><button id="wipe">Delete all tester data</button></div><p class="note" id="wipemsg" aria-live="polite"></p></section>`;
   // Needs a look: the few things worth seeing first, each one opens its tab.

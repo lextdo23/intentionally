@@ -18,7 +18,7 @@ for (let i = 0; i < 10; i++) FAKE[day(i)] = { sleep: { bed: 1380 + i, wake: 420 
     r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } });
   });
   // A tester who joined before this change: has sent before, never had the one-time full resend.
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "x" },
     tester: { on: true, consent: 2, code: "T-TEST", key: "0123456789abcdef0123456789abcdef", queue: [], sent: 1, all: false } })), FAKE);
   await p.reload(); await p.waitForTimeout(1500);
@@ -42,7 +42,7 @@ for (let i = 0; i < 10; i++) FAKE[day(i)] = { sleep: { bed: 1380 + i, wake: 420 
   check(sends.length >= 2 && Object.keys(later.days).length <= 4, "later sends go back to only the last few days");
 
   // The tester page still fills in from what's sent now.
-  await p.goto(server.url + "v2/testers.html"); await p.waitForFunction(() => window.__render);
+  await p.goto(server.url + "testers.html"); await p.waitForFunction(() => window.__render);
   const all = { at: Date.now(), testers: [{ code: "T-TEST", joined: Date.now() - 10 * 864e5, seen: Date.now(), phone: "iPhone iOS 26", version: "d26", started: first.started, nudges: "{}" }],
     days: Object.entries(first.days).map(([k, v]) => ({ code: "T-TEST", day: k, data: JSON.stringify(v) })), events: [] };
   const res = await p.evaluate((d) => { try { window.__render(d); } catch (e) { return e.message; } return { sections: document.querySelectorAll("#out section").length, mornings: document.querySelectorAll(".cell .a.on").length }; }, all);

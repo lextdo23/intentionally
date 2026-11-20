@@ -8,7 +8,7 @@ const { serve, checker } = require("./helpers.cjs");
   const server = await serve(), { check, done } = checker();
   const b = await chromium.launch(), p = await b.newPage({ viewport: { width: 430, height: 932 } });
   await p.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.abort());
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", days: {}, seen: { note: "x" }, tester: { on: true, consent: 99 } })));
   await p.reload(); await p.waitForTimeout(800);
   const bad = await p.evaluate(async () => {

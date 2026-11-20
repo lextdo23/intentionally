@@ -11,7 +11,7 @@ const SHOTS = process.env.SHOTS;
   const b = await chromium.launch(), ctx = await b.newContext({ viewport: { width: 430, height: 932 } }), p = await ctx.newPage(), errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.abort());
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   const k = await p.evaluate(async () => (await import("./js/util.js")).dayKey());
   await p.evaluate((k) => {
     const day = (id) => ({ sleep: { bed: 1380, wake: 420, rested: 2, tags: [] }, card: { hands: [[id, id + 1, id + 2]], id, done: true, how: 3 }, mood: 4, feel: [], pil: [] });
