@@ -87,7 +87,7 @@ const LITTLE = {
 export const LITTLE_IDS = Object.keys(LITTLE);
 const LITTLE_NAME = { flower: "Flower", smile: "Smile", frog: "Frog", cat: "Cat", bunny: "Bunny", bear: "Bear", chick: "Chick", sprout: "Sprout" };
 let clipN = 0;
-function littleOne(id, size) {
+export function littleOne(id, size) {
   const n = "pc" + (++clipN), el = h("span.pic", { style: { width: size + "px", height: size + "px" }, "aria-hidden": "true" });
   el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 64 64"><clipPath id="${n}"><circle cx="32" cy="32" r="32"></circle></clipPath><g clip-path="url(#${n})">${LITTLE[id] || LITTLE.smile}</g></svg>`;
   return el;

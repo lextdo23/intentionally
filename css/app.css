@@ -589,3 +589,47 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .acct-backup { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--dim); }
 .acct-backup i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .acct-link { color: var(--ink2); text-decoration: underline; text-underline-offset: 2px; }
+
+/* The glass pill (js/pill.js, social stage 1; alex 2026-11-20): subtle smoky glass, Today · Friends · You beside the
+   screen's main action. The highlight glides between tabs; screens slide across. Hidden during flows and sheets. */
+#pill { position: fixed; left: var(--edge); right: var(--edge); bottom: max(calc(env(safe-area-inset-bottom, 0px) - 4px), 16px); z-index: 6; display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 32px;
+  background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -1px 0 rgba(255, 255, 255, .05), 0 8px 24px rgba(0, 0, 0, .28);
+  transition: opacity .3s var(--ease), transform .35s var(--ease); --i: 0; }
+#pill.no-act { left: 50%; right: auto; transform: translateX(-50%); }
+.pill-bubble { position: absolute; left: calc(6px + var(--i) * 56px); top: 5px; width: 54px; height: 54px; border-radius: 27px; background: rgba(239, 237, 233, .14); transition: left .45s cubic-bezier(.32, .72, 0, 1); pointer-events: none; }
+.pill-tab { position: relative; z-index: 1; width: 54px; height: 54px; flex-shrink: 0; border-radius: 27px; display: flex; align-items: center; justify-content: center; color: #a9a59d; transition: color .3s ease; }
+.pill-tab.here { color: var(--ink); }
+.pill-tab:active { transform: none; }
+.pill-you { display: flex; border-radius: 50%; }
+.pill-act { flex: 1; display: flex; margin-left: 6px; min-width: 0; }
+.pill-act:empty { display: none; }
+#pill .pill-act > button { flex: 1; min-height: 54px; height: 54px; border-radius: 27px; padding: 0 14px; white-space: nowrap; }
+body.has-pill #home { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); }
+body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px); }
+:is(.in-flow, .in-ask, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels) #pill, body:has(.sheet-host) #pill { opacity: 0; transform: translateY(24px); pointer-events: none; }
+:is(.in-flow, .in-ask, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels) #pill.no-act, body:has(.sheet-host) #pill.no-act { transform: translate(-50%, 24px); }
+/* Tab screens: Friends and You slide in from the right; Today slides left and fades. */
+.tab-screen { position: fixed; inset: 0; z-index: 4; overflow-y: auto; padding: var(--top) var(--edge) calc(env(safe-area-inset-bottom, 0px) + 110px); background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, var(--sky3) 100%);
+  transform: translateX(100%); opacity: .4; pointer-events: none; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); display: flex; flex-direction: column; gap: 24px; }
+body[data-tab="friends"] #friends, body[data-tab="you"] #you { transform: none; opacity: 1; pointer-events: auto; }
+body[data-tab="you"] #friends { transform: translateX(-30%); opacity: 0; }
+body.has-pill:not([data-tab="today"]) #home { transform: translateX(-30%); opacity: 0; pointer-events: none; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); }
+body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
+.in-settings #you { transform: translateX(-24%); opacity: .4; pointer-events: none; }
+.tab-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tab-head h1:focus { outline: none; }
+.tab-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding-bottom: 40px; }
+.tab-empty.small { flex: 0; padding: 40px 0 0; }
+.tab-empty h2 { margin: 8px 0 0; font-size: 22px; font-weight: 600; }
+.tab-empty p { margin: 0; max-width: 320px; font-size: 17px; color: var(--ink2); }
+.tab-empty .tab-note { font-size: 13px; color: var(--dim); }
+.friends-faces { display: flex; }
+.friends-faces .pic { box-shadow: 0 0 0 3px var(--sky2); }
+.friends-faces .pic + .pic { margin-left: -14px; }
+.you-top { display: flex; align-items: center; gap: 20px; }
+.you-pic { width: 88px; height: 88px; border-radius: 50%; flex-shrink: 0; }
+.you-who { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.you-name { font-size: 22px; font-weight: 600; }
+.you-handle { font-size: 15px; color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { #pill, .pill-bubble, .pill-tab, .tab-screen, body.has-pill #home { transition: none !important; } }

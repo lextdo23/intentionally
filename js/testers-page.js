@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -322,6 +322,13 @@ function drawAll(D) {
         (Object.keys(pics).length ? `<p class="note">Pictures picked:</p>` + bars(Object.entries(pics).sort((a, b) => b[1] - a[1])) : "")
       : `<p class="sub">Nobody has seen the sign-up yet.</p>`,
       "lots stopping at the code means emails are slow or landing in junk; lots choosing \"without an account\" means the first screen doesn't explain why it helps."); }
+
+  // The glass pill (social stage 1, alex 2026-11-20): which tabs people open. Test mode only for now.
+  { const t = {}; by("tab").forEach((e) => { if (["today","friends","you"].includes(e.val)) t[e.val] = (t[e.val] || 0) + 1; });
+    const n = Object.values(t).reduce((a, b) => a + b, 0);
+    html += sec("How do people get around?", "Taps on the glass pill's tabs: Today, Friends and You (test mode only while friends are being built).",
+      n ? bars([["Today", t.today || 0], ["Friends", t.friends || 0], ["You", t.you || 0]], n) : `<p class="sub">Nobody has used the pill yet.</p>`,
+      "lots of Friends taps before it's built means people want it; very few means it can wait."); }
 
   // Which pillars and mindsets
   const lastPick = {}; by("pick_pillars").forEach((e) => (lastPick[e.code] = e.val || []));
