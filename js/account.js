@@ -233,14 +233,22 @@ function stepEmail() {
 }
 
 function stepCode() {
-  const input = h("input.acct-code-input", { type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]*", "aria-label": "6-digit code" });
+  const input = h("input.acct-code-input", { type: "text", inputmode: "numeric", autocomplete: "one-time-code", "aria-label": "6-digit code" });
   const boxes = Array.from({ length: 6 }, () => h("span.acct-box"));
   const code = h("div.acct-code", null, boxes, input);
   const left = h("span.acct-left"), life = h("p.acct-life", null, "Works for ", left);
   const msg = msgEl();
   const go = h("button.btn-main", { "aria-disabled": "true" }, "Continue");
   const draw = () => { const v = input.value; boxes.forEach((b, i) => { b.textContent = v[i] || ""; b.classList.toggle("on", i === Math.min(v.length, 5) && document.activeElement === input); }); go.setAttribute("aria-disabled", String(v.length !== 6)); };
-  input.addEventListener("input", () => { input.value = input.value.replace(/\D/g, "").slice(0, 6); msg.textContent = ""; draw(); if (input.value.length === 6) verify(); });
+  // Typed, filled in by iPhone from Mail, or pasted ("123 456", or a whole line from the email): keep the 6 digits.
+  const digits = (t) => { const c = String(t || "").replace(/[\s-]/g, ""), m = c.match(/\d{6}/); return m ? m[0] : c.replace(/\D/g, "").slice(0, 6); };
+  const take = (t) => { input.value = digits(t); msg.textContent = ""; draw(); if (input.value.length === 6) verify(); };
+  input.addEventListener("input", () => take(input.value));
+  input.addEventListener("paste", (e) => { const t = e.clipboardData && e.clipboardData.getData("text"); if (t) { e.preventDefault(); take(t); log("signup_paste"); } });
+  const paste = navigator.clipboard && navigator.clipboard.readText ? h("button.acct-paste", { onclick: async () => {
+    try { const t = await navigator.clipboard.readText(); if (digits(t).length === 6) { take(t); log("signup_paste"); } else msg.textContent = "There's no 6-digit code to paste yet."; }
+    catch { input.focus(); }
+  } }, "Paste code") : null;
   input.addEventListener("focus", draw); input.addEventListener("blur", draw);
   // "Works for 9:42": the code stops working 10 minutes after it was sent.
   const tick = () => {
@@ -273,19 +281,23 @@ function stepCode() {
   return screen([
     h("h1.acct-title", null, "Check your email"),
     h("p.acct-text", null, "We sent a 6-digit code to ", h("b", null, flow.email)),
-    code, life, msg,
+    code, h("div.acct-under", null, life, paste), msg,
   ], [go, again, h("p.acct-note", null, "Not there? Check your junk folder.")], { lead: back(() => show(stepEmail)) });
 }
 
 const NAME_WORDS = {
   short: "At least 3 characters.", long: "20 characters at most.", shape: "Only letters, numbers, full stops and underscores.",
   reserved: "That one's kept for Daydeck. Try another.", blocked: "Try a different one.", taken: "Taken. Try one of these:",
+  dot_ends: "It can't start or end with a full stop.", dots: "Only one full stop in a row.", no_letter: "It needs at least one letter.",
 };
-const NAME_SHAPE = /^[a-z0-9._]+$/;
+// The same shape rules as the service (push/accounts.js nameProblem), so most problems show straight away.
 function localNameProblem(n) {
   if (n.length < 3) return "short";
   if (n.length > 20) return "long";
-  if (!NAME_SHAPE.test(n) || n.includes("..")) return "shape";
+  if (!/^[a-z0-9._]+$/.test(n)) return "shape";
+  if (n.startsWith(".") || n.endsWith(".")) return "dot_ends";
+  if (n.includes("..")) return "dots";
+  if (!/[a-z]/.test(n)) return "no_letter";
   return null;
 }
 function stepName() {
@@ -306,8 +318,10 @@ function stepName() {
     msg.textContent = "";
     await new Promise((res) => setTimeout(res, 350));
     if (mine !== seq) return;
+    msg.textContent = "Checking…"; msg.classList.add("wait");
     const r = await api("/a/name?u=" + encodeURIComponent(n));
     if (mine !== seq) return;
+    msg.classList.remove("wait");
     if (r.ok) { okName = input.value.trim(); go.setAttribute("aria-disabled", "false"); msg.textContent = "That one's free."; msg.classList.add("ok"); }
     else if (r.error === "offline") msg.textContent = WORDS.offline;
     else {

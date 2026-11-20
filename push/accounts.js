@@ -33,22 +33,31 @@ export const cleanEmail = (e) => {
 };
 
 // ---------------- Usernames ----------------
-// 3 to 20 letters, numbers, full stops and underscores; capitals don't count; not starting or ending with a full stop.
-const NAME_SHAPE = /^[a-z0-9_](?:[a-z0-9._]{1,18})[a-z0-9_]$/;
+// 3 to 20 letters, numbers, full stops and underscores; capitals don't count; not starting or ending with a full stop,
+// no two full stops in a row, and at least one letter (alex 2026-11-20, like Instagram). Only these plain characters
+// are allowed, so nothing typed here can act as code, and no lookalike letters from other alphabets can pose as
+// someone else. Names are always stored with placeholders (?) and shown as plain text, never as code.
 const RESERVED_ANYWHERE = ["daydeck", "official", "admin", "moderator"];
 const RESERVED_EXACT = ["support", "help", "helpdesk", "staff", "team", "mod", "root", "system", "security", "settings", "account",
   "lifeline", "beyondblue", "headspace", "kidshelpline", "13yarn", "suicide", "crisis", "emergency", "police", "ambulance",
-  "anthropic", "claude", "null", "undefined", "me", "you"];
+  "anthropic", "claude", "null", "undefined", "me", "you",
+  "api", "www", "app", "login", "signin", "signup", "register", "verify", "about", "privacy", "terms", "owner", "everyone", "here", "all"];
 // A starter list of words that never belong in a name; add to it as needed.
 const BLOCKED_PARTS = ["fuck", "shit", "cunt", "bitch", "whore", "slut", "nazi", "hitler", "nigg", "fagg", "retard"];
+// Numbers standing in for letters ("adm1n", "dayd3ck") are read as the letters they stand for.
+const LEET = { 0: "o", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", 9: "g" };
+const readings = (n) => { const base = n.replace(/[0345789]/g, (d) => LEET[d]); return [n.replace(/[._0-9]/g, ""), base.replace(/1/g, "i").replace(/[._0-9]/g, ""), base.replace(/1/g, "l").replace(/[._0-9]/g, "")]; };
 export function nameProblem(raw) {
   const n = String(raw || "").trim().toLowerCase();
   if (n.length < 3) return "short";
   if (n.length > 20) return "long";
-  if (!NAME_SHAPE.test(n) || n.includes("..")) return "shape";
-  const bare = n.replace(/[._0-9]/g, "");
-  if (RESERVED_ANYWHERE.some((w) => bare.includes(w)) || RESERVED_EXACT.includes(n) || RESERVED_EXACT.includes(bare)) return "reserved";
-  if (BLOCKED_PARTS.some((w) => bare.includes(w))) return "blocked";
+  if (!/^[a-z0-9._]+$/.test(n)) return "shape";
+  if (n.startsWith(".") || n.endsWith(".")) return "dot_ends";
+  if (n.includes("..")) return "dots";
+  if (!/[a-z]/.test(n)) return "no_letter";
+  const r = readings(n);
+  if (RESERVED_EXACT.includes(n) || r.some((x) => RESERVED_EXACT.includes(x) || RESERVED_ANYWHERE.some((w) => x.includes(w)))) return "reserved";
+  if (r.some((x) => BLOCKED_PARTS.some((w) => x.includes(w)))) return "blocked";
   return null;
 }
 
