@@ -220,6 +220,26 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
   await shot("19-feed-photo");
 
+  // Your friends, A to Z, with search: from the friends count on You
+  await tab("you"); await p.waitForTimeout(900);
+  await p.click("#you .fr-count"); await p.waitForTimeout(800);
+  const fl = ".fr-page:last-child";
+  check(/Your friends/.test(await text(fl)) && /Only you see this list/.test(await text(fl)), "tapping the friends count opens Your friends (only you see it)");
+  const namesInList = await p.$$eval(`${fl} .fr-name`, (els) => els.map((e) => e.textContent));
+  check(namesInList.join() === "Josh,Sam", `A to Z: ${namesInList.join(", ")}`);
+  await shot("20-friends-list");
+  await p.fill(`${fl} .fr-search-box`, "sa"); await p.waitForTimeout(300);
+  check((await p.$$eval(`${fl} .fr-name`, (els) => els.map((e) => e.textContent))).join() === "Sam", "typing narrows it to matching friends");
+  await p.fill(`${fl} .fr-search-box`, "@josh"); await p.waitForTimeout(300);
+  check((await p.$$eval(`${fl} .fr-name`, (els) => els.map((e) => e.textContent))).join() === "Josh", "@usernames work too");
+  await shot("21-friends-search");
+  await p.fill(`${fl} .fr-search-box`, "zz"); await p.waitForTimeout(300);
+  check(/No friends called/.test(await text(fl)), "and it says so kindly when nobody matches");
+  await p.fill(`${fl} .fr-search-box`, "sam"); await p.click(`${fl} .fr-open`); await p.waitForTimeout(1000);
+  check(/@sam\.w/.test(await text(".fr-page:last-child")) && /moments/.test(await text(".fr-page:last-child")), "tapping a friend opens their profile");
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(500);
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
+
   // Her grid, and tapping a tile
   await tab("you"); await p.waitForTimeout(1200);
   check(!!(await p.$("#you .mo-grid .mo-cell")), "What you've shared is a grid");

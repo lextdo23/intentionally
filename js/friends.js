@@ -337,7 +337,10 @@ function profileBody(p, isMe, close, list) {
   const count = p.friends != null;
   const kids = [
     h("div.fr-prof-top", null, mine ? h("button.you-pic", { type: "button", "aria-label": "Change your picture", onclick: () => account.choosePicture(again) }, account.picture(88)) : pic(p, 88),
-      h("div.fr-who", null, h("span.fr-prof-name", null, shown(p)), h("span.fr-handle.big", null, "@" + p.username, count ? h("span", null, " · ", h("b", null, String(p.friends)), p.friends === 1 ? " friend" : " friends") : null))),
+      h("div.fr-who", null, h("span.fr-prof-name", null, shown(p)), h("span.fr-handle.big", null, "@" + p.username, count ? [" · ", mine && data && data.friends.length
+        // Your own friends count opens your friends list, with search (alex 2026-11-21).
+        ? h("button.fr-count", { type: "button", onclick: openFriendsList, "aria-label": `${p.friends} ${p.friends === 1 ? "friend" : "friends"}. See your friends` }, h("b", null, String(p.friends)), p.friends === 1 ? " friend" : " friends")
+        : h("span", null, h("b", null, String(p.friends)), p.friends === 1 ? " friend" : " friends")] : null))),
     p.season ? h("p.fr-season", null, h("span.fr-dim", null, "This season · "), p.season) : null,
   ];
   if (!mine && p.state !== "friends") {
@@ -382,6 +385,32 @@ function sure(p, what, pg) {
     }));
     panel.append(h("h2", null, words[0]), h("p.fr-sheet-text", null, words[1]), go, h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
   }, { label: words[0] });
+}
+
+// ---------------- Your friends: A to Z, with search ----------------
+// From the friends count on You. Only you see this list; friends only ever see the count (unless it's hidden).
+export function openFriendsList() {
+  if (!data) return;
+  let q = "";
+  log("friends_list", 1);
+  const fold = (x) => String(x || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  page("Your friends", () => {
+    const list = h("div.fr-list");
+    const fill = () => {
+      const f = fold(q.trim().replace(/^@/, ""));
+      const shownList = data.friends.filter((p) => !f || fold(p.name).split(/\s+/).some((w) => w.startsWith(f)) || fold(p.name).startsWith(f) || p.username.startsWith(f));
+      list.replaceChildren(...(shownList.length ? shownList.map((p) => row(p, h("span.set-chev", { "aria-hidden": "true" }, "›"), () => openPerson(p.username)))
+        : [h("p.fr-note.left", null, `No friends called “${q.trim()}”.`)]));
+    };
+    const box = h("input.fr-field.fr-search-box", { type: "search", inputmode: "search", autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false", enterkeyhint: "search", placeholder: "Search your friends", "aria-label": "Search your friends", value: q });
+    box.addEventListener("input", () => { q = box.value; fill(); });
+    fill();
+    const n = data.friends.length;
+    return h("div.fr-stack", null,
+      h("label.fr-search-wrap", null, h("span.fr-search-ico", { "aria-hidden": "true" }, svg(18, [["circle", { cx: "11", cy: "11", r: "6.5" }], ["path", { d: "M16 16l4.5 4.5" }]], { "stroke-width": "2" })), box),
+      h("p.fr-field-note", null, `${n} ${n === 1 ? "friend" : "friends"}, A to Z. Only you see this list.`),
+      list);
+  }, { label: "Your friends", right: () => iconBtn(ICON.add, "Add friends", openAdd) });
 }
 
 // ---------------- You: your own profile ----------------

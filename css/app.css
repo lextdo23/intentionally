@@ -806,3 +806,13 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .mo-cell { display: block; padding: 0; }
 .mo-cell .mo-tile { border-radius: 0; border: 0; }
 .fr-body .mo-feed { margin-top: 8px; }
+/* Your friends: A to Z with search (alex 2026-11-21) */
+.fr-count { display: inline; min-height: 44px; padding: 12px 0; margin: -12px 0; color: var(--dim); font-size: 15px; }
+.fr-count b { color: var(--ink); font-weight: 600; }
+.fr-search-wrap { position: relative; display: flex; }
+.fr-search-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dim); display: flex; pointer-events: none; }
+.fr-search-box { padding-left: 38px; min-height: 44px; }
+.fr-search-box::-webkit-search-cancel-button { filter: invert(1) opacity(.5); }
+.fr-list { display: flex; flex-direction: column; margin-top: -8px; }
+.fr-list .fr-row { min-height: 64px; }
+.fr-list .set-chev { padding-right: 4px; }

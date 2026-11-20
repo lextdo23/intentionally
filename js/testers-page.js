@@ -65,7 +65,7 @@ const SHAPE = {
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, friend_profile: (v) => v === 0 || v === 1,
   share: (v) => isObj(v) && ["photo", "card", "own", "rest"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home"].includes(v.from),
-  share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1,
+  share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, friends_list: (v) => v === 1,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
@@ -353,7 +353,7 @@ function drawAll(D) {
     const sees = by("see").filter((e) => e.val === 1).length, from = (w) => opens.filter((e) => e.val === w).length;
     html += sec("Do people share moments?", "Shares from Share a moment (in the pill) and Share with friends (under a done card). Only what kind of thing was shared, never the words.",
       opens.length ? bars([["Their photo", k.photo || 0], ["Their card", k.card || 0], ["A card they made", k.own || 0], ["A rest day", k.rest || 0]], n || 1) +
-        `<p class="note">Opened ${opens.length} times (${from("pill")} from the pill, ${from("home")} from under the card); shared ${n} (${opens.length ? Math.round(100 * n / opens.length) : 0}% of opens). With a caption: ${pct((e) => e.val.cap)}. With how the day felt: ${pct((e) => e.val.mood)}. From an earlier day: ${pct((e) => e.val.ago > 0)}. "I see you" said ${sees} times. Moments removed: ${by("unshare").length}. Friends' moments hidden: ${by("hide").length}. Grids opened: ${by("grid_open").length}.</p>`
+        `<p class="note">Opened ${opens.length} times (${from("pill")} from the pill, ${from("home")} from under the card); shared ${n} (${opens.length ? Math.round(100 * n / opens.length) : 0}% of opens). With a caption: ${pct((e) => e.val.cap)}. With how the day felt: ${pct((e) => e.val.mood)}. From an earlier day: ${pct((e) => e.val.ago > 0)}. "I see you" said ${sees} times. Moments removed: ${by("unshare").length}. Friends' moments hidden: ${by("hide").length}. Grids opened: ${by("grid_open").length}. Friends list opened: ${by("friends_list").length}.</p>`
         : `<p class="sub">Nobody has shared a moment yet.</p>`,
       "many opens but few shares means the share screen asks too much; lots of hides means feeds feel noisy."); }
 
