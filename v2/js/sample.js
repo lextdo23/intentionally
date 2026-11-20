@@ -1,7 +1,7 @@
 // Test mode: two months of made-up days, so Your days has something to show.
 import { addDays, dayKey } from "./util.js";
 import { FEELINGS, band, SLEEP_TAGS, SLEEP_MORE } from "./words.js";
-import { BANK } from "./cards-data.js";
+import { LIVE as BANK } from "./cards-data.js";
 import { feltMain, howFromFelt } from "./deck.js";
 
 export const SAMPLE_PILLARS = [["Friends", 1.1], ["Move", 0.7], ["Play and create", 0.5], ["Rest", 0.1], ["Work and study", -0.4]];

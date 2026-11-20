@@ -9,7 +9,7 @@ import * as boxes from "./boxes.js";
 import * as photos from "./photos.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
-import { pickSteps } from "./pillars.js";
+import { pickSteps, needsRepick, repickSteps } from "./pillars.js";
 import * as library from "./library.js";
 
 const SIZE = { Tiny: "Tiny", Small: "Small", Bigger: "Bigger" };
@@ -85,6 +85,8 @@ const P = (k) => `translate(${k * 0.6}px,${-12 - k * 1.7}px)`;          // a thi
 export function drawSteps() {
   // The very first draw: choose your pillars first, so the deck is yours.
   if (!Array.isArray(store.get().pillars)) return pickSteps(() => drawSteps(), { first: true });
+  // Pillars were reworked (alex 2026-11-20): anyone with an old answer is asked once to pick again.
+  if (needsRepick()) return repickSteps(() => drawSteps());
   const k = dayKey(), d = store.day(k);
   // Leaving and coming back keeps the same three (and the same number of draws).
   if (!d.card || !d.card.hands || !d.card.hands.length) {

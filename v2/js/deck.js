@@ -1,13 +1,14 @@
 // The daily card: which cards are in your deck, how three are drawn each morning, and what the app remembers
 // about each card (seen, passed over, done, loved, saved for later). Everything stays on this phone.
-import { BANK } from "./cards-data.js";
+import { BANK, LIVE } from "./cards-data.js";
 import * as store from "./store.js";
 import { dayKey, keyDate, addDays } from "./util.js";
 
 export const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
 // Pillar tints: one per group (people, body, doing, purpose, rest and learning).
 export const PILLAR_COL = { Friends: "#d9b3a6", Family: "#d9b3a6", Love: "#d9b3a6", Community: "#d9b3a6", Move: "#a9c4b5", Outdoors: "#a9c4b5",
-  Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9" };
+  Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9",
+  Self: "#a9c9cf" };   // Self has its own group and tint (placeholder until alex picks one)
 export const card = (id) => {
   if (isLib(id)) { const l = libCard(id); return l && { id, pillar: l.pillar, size: "Tiny", for: "Everyone", text: l.text, why: "", source: "", lib: true, by: l.name || "", mine: !!l.mine }; }
   if (isOwn(id)) { const o = ownCard(id); return o && { id, pillar: o.pillar, size: "Tiny", for: "Everyone", text: o.text, why: "", source: "", own: true }; }
@@ -49,9 +50,10 @@ export function myPillars() {
 }
 export function deck() {
   const ps = myPillars();
-  return [...new Set(BANK.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || r[3].some((m) => (p.mindsets || []).includes(m))))).map((r) => r[0])
+  // A pillar with no answer for where you're at (stand-in pillars, or "Not now" after the rework) gets all its cards.
+  return [...new Set(LIVE.filter((r) => ps.some((p) => p.name === r[1] && (r[3] === "Everyone" || !(p.mindsets || []).length || r[3].some((m) => p.mindsets.includes(m))))).map((r) => r[0])
     .concat(ownCards().filter((o) => o.deck).map((o) => o.id))   // own cards you chose to add to your deck
-    .concat(boxAdded().filter((id) => BANK[id - 1] && ps.some((p) => p.name === BANK[id - 1][1])))   // new cards from boxes (js/boxes.js)
+    .concat(boxAdded().filter((id) => BANK[id - 1] && !BANK[id - 1][7] && ps.some((p) => p.name === BANK[id - 1][1])))   // new cards from boxes (js/boxes.js)
     .concat(libAdded(ps)))];   // cards you added from the card library (js/library.js)
 }
 // Boxes (js/boxes.js): cards a box brought from outside your deck, and when each new card joins your draws.
@@ -136,7 +138,7 @@ const FELT_GOOD = FELT.slice(0, 7);
 const FELT_PILLAR = { Friends: "Closer to someone", Family: "Closer to someone", Love: "Closer to someone", Community: "Closer to someone",
   Move: "More energy", Outdoors: "More energy", Rest: "Calmer", Food: "Calmer",
   "Work and study": "Proud of myself", Money: "Proud of myself", Learn: "Proud of myself",
-  "Play and create": "Felt like me", Give: "Felt like me", Meaning: "Felt like me" };
+  "Play and create": "Felt like me", Give: "Felt like me", Meaning: "Felt like me", Self: "Felt like me" };
 // The five shown first for a pillar (a pillar of your own gets "Felt like me"); always with an honest low end.
 export function feltMain(pillar) { return [...new Set([FELT_PILLAR[pillar] || "Felt like me", "Enjoyed it", "Glad it's done", "Hard", "Drained me"])]; }
 // The old one-tap scale (HOW) still drives card memory and charts: none good = Drained, good and hard = Okay, one good = Good, two or more = Loved it.

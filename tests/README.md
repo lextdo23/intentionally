@@ -15,3 +15,5 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/old-app-caches.test.cjs
     node tests/library-service.test.cjs
     node tests/library.test.cjs
+    node tests/card-fit.test.cjs      (every card fits the card at iPhone 15 Pro Max size)
+    node tests/repick.test.cjs        (people with old pillar answers are asked once to pick again)

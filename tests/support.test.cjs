@@ -1,4 +1,4 @@
-// Settings, Support: Lifeline call, text and chat, the Debt Helpline and 000 are all there and point to the right
+// Settings, Support: Lifeline call, text and chat, Butterfly Foundation, QLife and 000 are all there and point to the right
 // places; "isn't therapy" stays; the word "crisis" never shows on screen; check-ins still show the Lifeline line.
 const { chromium } = require("playwright");
 const { serve, checker } = require("./helpers.cjs");
@@ -7,7 +7,8 @@ const WANT = [
   ["Talk to someone", "Lifeline 13 11 14", "tel:131114"],
   ["Text someone", "0477 13 11 14", "sms:0477131114"],
   ["Chat online", "Lifeline", "https://www.lifeline.org.au/crisis-chat/"],
-  ["Money worries", "Debt Helpline", "tel:1800007007"],
+  ["Body image", "Butterfly 1800 33 4673", "tel:1800334673"],
+  ["LGBTQIA+", "QLife 1800 184 527", "tel:1800184527"],
   ["In danger right now", "Call 000", "tel:000"],
 ];
 

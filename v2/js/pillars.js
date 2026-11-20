@@ -1,6 +1,6 @@
 // Choosing pillars (3 to 5) and, for each, where you're at right now (1 or 2 mindsets).
 // Saved as  pillars: [{ name: "Friends", mindsets: ["I feel lonely"] }]  using the card bank's own names,
-// plus optional  kind: "Gym"  (Move),  own: true  (a pillar the person named),  note / other  (their own words, never sent).
+// plus optional  kind: "Gym"  (Move),  own: true  (a pillar the person named),  note  (their own words, never sent).
 // The screens say things in plain first-person lines; MINDSETS maps each line to the card bank's name for it.
 import { h, LIFELINE } from "./util.js";
 import * as store from "./store.js";
@@ -8,33 +8,31 @@ import { roundBtn } from "./ui.js";
 import { log } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 
+// Set aside for now (alex 2026-11-19): Outdoors, Learn, Give, Food and Money come back once they're reworked.
 export const GROUPS = [
   ["People", ["Friends", "Family", "Love", "Community"]],
-  ["Body and mind", ["Move", "Food", "Rest", "Outdoors"]],
-  ["Doing", ["Work and study", "Money", "Learn", "Play and create"]],
-  ["Purpose", ["Give", "Meaning"]],
+  ["Body and mind", ["Move", "Rest"]],
+  ["Doing", ["Work and study", "Play and create"]],
+  ["Purpose", ["Meaning"]],
+  ["Self", ["Self"]],
 ];
-// [words on screen, name in the card bank]
+export const SET_ASIDE = ["Outdoors", "Learn", "Give", "Food", "Money"];
+// [words on screen, name in the card bank]. Reworked with alex pillar by pillar (2026-11-19/20). No "Something else".
 export const MINDSETS = {
   "Friends": [["I don't feel close to my friends", "I feel lonely"], ["I want deeper friendships", "Deeper friendships"], ["We're close, but I rarely see them", "See them more"], ["I want to meet new people", "Meet new people (incl. starting from scratch)"]],
   "Family": [["I want to be closer", "Be closer"], ["It's complicated", "It's complicated"], ["I've just moved out", "Just moved out"]],
-  "Love": [["I'm in a relationship", "In a relationship"], ["I'd like to meet someone", "I'd like to meet someone"], ["I'm single and okay", "Single and okay"], ["I've just had a break-up", "Just had a break-up"]],
+  "Love": [["I'm in a relationship", "In a relationship"], ["I'd like to meet someone", "I'd like to meet someone"], ["I've just had a break-up", "Just had a break-up"]],
   "Community": [["I want to feel part of something", "Part of something"], ["I've just moved somewhere new", "Just moved"], ["I want to find my people", "Find my people"]],
-  "Move": [["I want to start", "I want to start"], ["I want to keep going", "Keep going"], ["I'm coming back after a break", "Coming back after a break"]],
-  "Food": [["I forget to eat properly", "I forget to eat properly"], ["I want to cook more", "Cook more"], ["I want to enjoy food again", "Enjoy food again"]],
+  "Move": [["I sit too much", "Sit too much"], ["I want to start moving", "Start moving"], ["I keep starting and stopping", "Starting and stopping"], ["I already train regularly", "Already train"], ["I want to find something I enjoy", "Find something I enjoy"]],
   "Rest": [["I'm exhausted", "I'm exhausted"], ["I can't switch off", "Can't switch off"], ["I want better sleep", "Better sleep"], ["I'm on my phone too late", "On my phone too late"]],
-  "Outdoors": [["I'm inside too much", "I'm inside too much"], ["I want to explore more", "Explore more"]],
-  "Work and study": [["I want to get ahead", "Get ahead"], ["It's eating my life", "It's eating my life"], ["I'm stuck", "I'm stuck"], ["I'm looking for work", "Looking for work"], ["Study is swamping me", "Study is swamping me"], ["I want to feel good at what I do", "Feel good at what I do"]],
-  "Money": [["I'm stressed about money", "Stressed about money"], ["I avoid looking at my account", "Avoid looking at my account"], ["I want to save for something", "Save for something"]],
-  "Learn": [["I want a new skill", "A new skill"], ["I want to read more", "Read more"], ["I'm curious about something", "Curious about something"], ["I want to finish something I started", "Finish something I started"]],
-  "Play and create": [["I've lost my hobbies", "Lost my hobbies"], ["I want to make something", "Make something"], ["I just want more fun", "More fun"], ["I want less screen time", "Less screen time"]],
-  "Give": [["I want to help more", "Help more"], ["I want to be kinder", "Be kinder"]],
-  "Meaning": [["I want to work out what matters to me", "Work out what matters to me"], ["I want to connect with my culture", "Connect with my culture"]],
+  "Work and study": [["I have too much on my plate", "Too much on my plate"], ["I keep putting things off", "Putting things off"], ["I want to move forward at work or uni", "Move forward"], ["I'm not sure I'm on the right path", "Right path"], ["I'm looking for work", "Looking for work"]],
+  "Play and create": [["I want to get back into an old hobby", "Old hobby"], ["I want to find a new hobby", "New hobby"], ["I want to make something", "Make something"], ["I want more laughs and play", "Laughs and play"], ["I want to scroll less and do more", "Scroll less"]],
+  "Meaning": [["I want to work out my values", "Work out my values"], ["My days feel like they're on repeat", "Days on repeat"], ["I want more moments that take my breath away", "Breath away"], ["I want to connect with my heritage", "Connect with my heritage"]],
+  "Self": [["I want to be kinder to myself", "Kinder to myself"], ["I want to feel more confident", "More confident"], ["I want to feel okay in my body", "Okay in my body"], ["I compare myself to others", "Compare myself to others"], ["I'm working out who I am", "Working out who I am"], ["I want to understand my feelings better", "Understand my feelings"]],
 };
-const ASK = { "Friends": "friends", "Family": "family", "Love": "love", "Community": "community", "Move": "moving your body", "Food": "food", "Rest": "rest",
-  "Outdoors": "the outdoors", "Work and study": "work and study", "Money": "money", "Learn": "learning", "Play and create": "play and making things", "Give": "giving", "Meaning": "meaning" };
+const ASK = { "Friends": "friends", "Family": "family", "Love": "love", "Community": "community", "Move": "moving your body", "Rest": "rest",
+  "Work and study": "work and study", "Play and create": "play and making things", "Meaning": "meaning", "Self": "yourself" };
 export const MOVE_KINDS = ["Gym", "Running", "Walking", "Yoga", "Sport", "Dance"];
-const OTHER = "Something else";
 const MAX = 5, MIN = 3;
 
 const and = (list) => list.length < 2 ? list.join("") : list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
@@ -47,10 +45,11 @@ export function pickPillars(onDone, { first = false } = {}) { begin(onDone); pic
 export function pickSteps(then, { first = false } = {}) {
   const had = store.get().pillars || [];
   const st = {
-    picked: had.filter((p) => !p.own).map((p) => p.name),
+    picked: had.filter((p) => !p.own && MINDSETS[p.name]).map((p) => p.name),
     own: had.filter((p) => p.own).map((p) => p.name),
-    ms: Object.fromEntries(had.map((p) => [p.name, (p.mindsets || []).slice().concat(p.other != null ? [OTHER] : [])])),
-    other: Object.fromEntries(had.map((p) => [p.name, p.other || p.note || ""])),
+    // Only answers that still exist come back: set-aside pillars and old mindsets drop out (alex 2026-11-20).
+    ms: Object.fromEntries(had.filter((p) => MINDSETS[p.name]).map((p) => [p.name, (p.mindsets || []).filter((m) => MINDSETS[p.name].some(([, k]) => k === m))])),
+    other: Object.fromEntries(had.filter((p) => p.own).map((p) => [p.name, p.note || ""])),
     kind: Object.fromEntries(had.filter((p) => p.kind).map((p) => [p.name, p.kind])),
     kinds: MOVE_KINDS.slice(), i: 0, t0: Date.now(), at: "pillars",
   };
@@ -120,18 +119,12 @@ export function pickSteps(then, { first = false } = {}) {
     }
 
     const picked = st.ms[p] || (st.ms[p] = []);
-    const note = h("p.note", { "aria-live": "polite" }), otherWrap = h("div");
+    const note = h("p.note", { "aria-live": "polite" });
     const btn = mainBtn(label, picked.length > 0, () => {
-      log("pick_mindset", { p, m: picked.filter((x) => x !== OTHER), other: picked.includes(OTHER), kind: p === "Move" ? (st.kind[p] ? (MOVE_KINDS.includes(st.kind[p]) ? st.kind[p] : "Own") : null) : undefined });
+      log("pick_mindset", { p, m: picked.slice(), kind: p === "Move" ? (st.kind[p] ? (MOVE_KINDS.includes(st.kind[p]) ? st.kind[p] : "Own") : null) : undefined });
       st.i++; mindset();
     });
     const rows = [];
-    const drawOther = () => {
-      if (!picked.includes(OTHER)) return otherWrap.replaceChildren();
-      const inp = h("input", { placeholder: "In your own words (optional)", maxlength: "80", "aria-label": "In your own words" });
-      inp.value = st.other[p] || ""; inp.addEventListener("input", () => (st.other[p] = inp.value));
-      otherWrap.replaceChildren(h("div.own-row", null, inp));
-    };
     const refresh = () => {
       rows.forEach(([el, key]) => { const on = picked.includes(key); el.setAttribute("aria-pressed", String(on)); el.classList.toggle("off", !on && picked.length >= 2); });
       btn.setAttribute("aria-disabled", String(!picked.length));
@@ -141,12 +134,10 @@ export function pickSteps(then, { first = false } = {}) {
       else if (picked.length >= 2) { note.textContent = "Two is plenty. Tap one to change it."; return; }
       else picked.push(key);
       note.textContent = "";
-      if (key === OTHER) drawOther();
       refresh();
     };
-    const list2 = MINDSETS[p].concat([[OTHER, OTHER]]);
-    const rowsEl = h("div.mrows", null, list2.map(([shown, key]) => { const el = h("button.mrow", { onclick: () => tap(key) }, shown); rows.push([el, key]); return el; }));
-    drawOther(); refresh();
+    const rowsEl = h("div.mrows", null, MINDSETS[p].map(([shown, key]) => { const el = h("button.mrow", { onclick: () => tap(key) }, shown); rows.push([el, key]); return el; }));
+    refresh();
 
     let kind = null;
     if (p === "Move") {
@@ -162,7 +153,7 @@ export function pickSteps(then, { first = false } = {}) {
     }
     show(top(step(head,
       [h("h1.q.rise", { style: { fontSize: "22px" } }, `Where are you at with ${ASK[p]} right now?`), h("p.q2.rise", null, "Pick one or two."),
-        h("div.rise", null, rowsEl), h("div.rise", null, otherWrap), kind, h("div.rise", null, note)],
+        h("div.rise", null, rowsEl), kind, h("div.rise", null, note)],
       [btn, LIFELINE()])));
   }
 
@@ -171,8 +162,7 @@ export function pickSteps(then, { first = false } = {}) {
     const s = store.get();
     s.pillars = all().map((name) => {
       if (st.own.includes(name)) { const o = { name, own: true, mindsets: [] }; const t = (st.other[name] || "").trim(); if (t) o.note = t; return o; }
-      const m = st.ms[name] || [], o = { name, mindsets: m.filter((x) => x !== OTHER) };
-      if (m.includes(OTHER)) o.other = (st.other[name] || "").trim();
+      const o = { name, mindsets: (st.ms[name] || []).slice() };
       if (st.kind[name]) o.kind = st.kind[name];
       return o;
     });
@@ -200,6 +190,30 @@ export function pickSteps(then, { first = false } = {}) {
   }
 
   pillars();
+}
+
+// Pillars and mindsets were reworked (alex 2026-11-20). Someone who picked a set-aside pillar or an old mindset is asked
+// once, gently, to pick again. "Not now" keeps whatever still exists and doesn't ask again.
+const fits = (p) => p.own || (MINDSETS[p.name] && p.other == null && (p.mindsets || []).every((m) => MINDSETS[p.name].some(([, k]) => k === m)));
+export function needsRepick(s = store.get()) { return Array.isArray(s.pillars) && !s.repicked && s.pillars.some((p) => !fits(p)); }
+function tidy(s) {
+  s.pillars = s.pillars.filter((p) => p.own || MINDSETS[p.name]).map((p) => {
+    if (p.own) return p;
+    const o = { name: p.name, mindsets: (p.mindsets || []).filter((m) => MINDSETS[p.name].some(([, k]) => k === m)) };
+    if (p.kind) o.kind = p.kind;
+    return o;
+  });
+  s.repicked = 1; store.save();
+}
+export function repickSteps(then) {
+  const s = store.get(), gone = s.pillars.filter((p) => !p.own && !MINDSETS[p.name]).map((p) => p.name);
+  log("repick_shown", { gone: gone.length });
+  show(step([spacer(), where("Your pillars"), spacer()],
+    [h("h1.q.rise", { style: { fontSize: "22px" } }, "Your pillars have new choices"),
+      h("p.q2.rise", null, "The cards have been reworked, and so have the answers to where you're at. Pick again so your deck fits you."),
+      gone.length ? h("p.q2.rise", null, `${and(gone)} ${gone.length > 1 ? "are" : "is"} set aside for now while ${gone.length > 1 ? "they're" : "it's"} reworked. Pick another if you like.`) : null],
+    [mainBtn("Pick again", true, () => { log("repick", "pick"); tidy(s); pickSteps(then); }),
+      h("button.btn-quiet", { onclick: () => { log("repick", "later"); tidy(s); then(); } }, "Not now"), LIFELINE()]));
 }
 
 // For Settings: "Friends, Rest and Move".
