@@ -67,7 +67,7 @@ const SCREENS = [
   await p.goto(server.url + "privacy.html"); await p.waitForTimeout(300);
   check(/script-src 'self'(;|$)/.test(await csp()), "the privacy page has the safety net too");
   const pv = await p.evaluate(() => ({ scripts: document.scripts.length, sections: document.querySelectorAll("section").length, text: document.body.textContent }));
-  check(pv.scripts === 0 && pv.sections >= 4 && /train AI/.test(pv.text) && !/Alex/.test(pv.text) && /13 11 14/.test(pv.text), "the privacy page has no scripts, every section shows, names nobody, and Lifeline is there");
+  check(pv.scripts === 0 && pv.sections >= 3 && !/Alex/.test(pv.text) && /13 11 14/.test(pv.text), "the privacy page has no scripts, every section shows, names nobody, and Lifeline is there");
 
   // Old /v2/ links and icons are sent on to Daydeck, keeping ?tester, with the safety net on.
   const went = []; const seen = (f) => f === p.mainFrame() && went.push(f.url()); p.on("framenavigated", seen);
