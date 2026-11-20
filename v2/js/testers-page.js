@@ -70,6 +70,7 @@ const SHAPE = {
   card_smaller: (v) => isObj(v) && isNum(v.from),
   own_card: (v) => isObj(v) && typeof v.p === "string" && v.p.length < 30 && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)) && isInt(v.deck, 0, 1),
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
+  repick: (v) => v === "pick" || v === "later", repick_shown: (v) => isObj(v) && isInt(v.gone, 0, 20),
 };
 const okEvent = (name, val) => typeof name === "string" && (!SHAPE[name] || SHAPE[name](val));
 const okDay = (d) => isObj(d) && (d.mood == null || isInt(d.mood, 0, 6)) && arrOrNone(d.feel) && arrOrNone(d.pil)
@@ -311,14 +312,22 @@ function drawAll(D) {
   const mc = {}, other = {}, kinds = {}; const lastM = {};
   by("pick_mindset").forEach((e) => { if (e.val && e.val.p && e.val.p !== "Own") lastM[e.code + "|" + e.val.p] = e.val; });
   Object.values(lastM).forEach((v) => { (v.m || []).forEach((m) => (mc[v.p + " · " + m] = (mc[v.p + " · " + m] || 0) + 1)); if (v.other) other[v.p] = (other[v.p] || 0) + 1; if (v.kind) kinds[v.kind] = (kinds[v.kind] || 0) + 1; });
-  const PILL = ["Friends", "Family", "Love", "Community", "Move", "Food", "Rest", "Outdoors", "Work and study", "Money", "Learn", "Play and create", "Give", "Meaning", "Own"];
+  // Outdoors, Learn, Give, Food and Money are set aside for now (alex 2026-11-19); they show only if someone picked them before.
+  const PILL = ["Friends", "Family", "Love", "Community", "Move", "Rest", "Work and study", "Play and create", "Meaning", "Self", "Own"]
+    .concat(["Outdoors", "Learn", "Give", "Food", "Money"].filter((n) => pc[n]));
   const N = Object.keys(lastPick).length;
   html += sec("Which pillars and mindsets do people choose?", `Each tester's latest choice (${N} so far). "Own" is a pillar they named themselves; the name is never sent.`,
     N ? bars(PILL.map((n) => [n === "Own" ? "Their own pillar" : n, pc[n] || 0]).sort((a, b) => b[1] - a[1]), N) +
       `<details><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">Show where people are at, per pillar</summary>${bars(Object.entries(mc).sort((a, b) => b[1] - a[1]))}</details>
-       <p class="note">"Something else" picked: ${Object.entries(other).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "never"}. Kinds of moving: ${Object.entries(kinds).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none picked"}.</p>`
+       <p class="note">"Something else" picked (before it was taken out on 20 Nov): ${Object.entries(other).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "never"}. Kinds of moving: ${Object.entries(kinds).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none picked"}.</p>`
     : `<p class="sub">Nobody has chosen pillars yet.</p>`,
-    "pillars nobody picks can be cut or merged; lots of \"Something else\" on one pillar means its list is missing something.");
+    "pillars nobody picks can be cut or merged.");
+  // Pillars and mindsets were reworked on 20 Nov: people with old answers are asked once to pick again.
+  { const shown = new Set(by("repick_shown").map((e) => e.code)).size, again = new Set(by("repick").filter((e) => e.val === "pick").map((e) => e.code)).size,
+      later = new Set(by("repick").filter((e) => e.val === "later").map((e) => e.code)).size, lost = by("repick_shown").filter((e) => e.val && e.val.gone > 0).length;
+    html += sec("Picking again after the rework", "On 20 Nov the pillars and where-you're-at answers changed. Testers with old answers are asked once to pick again.",
+      shown ? `<p class="note">Asked: ${shown}. Picked again: ${again}. Said not now: ${later}. Had a pillar that's now set aside: ${lost}.</p>` : `<p class="sub">Nobody has been asked yet.</p>`,
+      "lots of \"not now\" means the screen feels like a chore; check their decks still have enough cards."); }
   // Levels (from 17 Nov): each level reached, and the level a tester started at (people from before levels start higher).
   // Everyone went back to level 1 on 18 Nov (level_reset): only levels after a tester's reset count.
   { const top = {}, reach = {}, resetAt = {};
@@ -446,7 +455,8 @@ function drawAll(D) {
 window.__render = (d) => { raw = d; $("login").hidden = true; render(d); };
 // ---------------- Card thumbs ----------------
 const PCOL = { Friends: "#d9b3a6", Family: "#d9b3a6", Love: "#d9b3a6", Community: "#d9b3a6", Move: "#a9c4b5", Outdoors: "#a9c4b5",
-  Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9" };
+  Food: "#cfc59b", "Work and study": "#cfc59b", Money: "#cfc59b", Rest: "#a9b9d6", Learn: "#a9b9d6", "Play and create": "#c4b4c9", Give: "#c4b4c9", Meaning: "#c4b4c9",
+  Self: "#a9c9cf" };
 const TH = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M7 10v11H4V10h3zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.6a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 17.7 21H7"/></svg>`;
 function thumbsView(events) {
   const box = $("thumbs"); if (!box) return;

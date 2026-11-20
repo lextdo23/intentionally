@@ -13,7 +13,7 @@ import { h, dayKey, addDays, reduceMotion } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
 import * as levels from "./levels.js";
-import { BANK } from "./cards-data.js";
+import { LIVE as BANK } from "./cards-data.js";   // only live cards come out of boxes
 import { log } from "./tester.js";
 
 export const LOOKS = [{ id: "chrome", name: "Chrome", art: ["heart", "moon", "sparkle", "spiky", "sun"] }];

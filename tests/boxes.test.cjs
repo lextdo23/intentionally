@@ -18,7 +18,7 @@ const SHOTS = process.env.SHOTS;
     const days = { "2026-11-10": day(1), "2026-11-11": day(10) };
     days[k] = { sleep: { bed: 1380, wake: 420, rested: 2, tags: [] } };
     localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", seen: { note: "sleep" }, levels: { seen: 3 },
-      pillars: [{ name: "Rest", mindsets: [] }, { name: "Outdoors", mindsets: [] }, { name: "Friends", mindsets: [] }], days }));
+      pillars: [{ name: "Rest", mindsets: ["I'm exhausted"] }, { name: "Move", mindsets: ["Start moving"] }, { name: "Friends", mindsets: ["I feel lonely"] }], days }));
   }, k);
   await p.reload(); await p.waitForTimeout(900);
   // Everyone starts again at level 1 (alex 2026-11-18): old points are set aside once, and no boxes are owed for them.

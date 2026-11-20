@@ -287,7 +287,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .stage .hc { position: absolute; left: 50%; top: 56%; margin: -80px 0 0 -54px; transition: transform .45s var(--card-ease); }
 /* The kept card: the task leads, why it helps sits quietly at the bottom. */
 .big-holder { display: flex; justify-content: center; }
-.dcard.big { width: 220px; height: 310px; }
+.dcard.big { width: 250px; height: 370px; }   /* every card fits without scrolling, "Back again" too (alex 2026-11-20); was 220 x 310 */
 .dcard.big .face { border-radius: 16px; }
 .dcard.big .front { padding: 20px; gap: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }   /* long cards scroll inside (alex 2026-11-17) */
 .dcard.big .front::-webkit-scrollbar { display: none; }
