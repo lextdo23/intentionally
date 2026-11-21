@@ -84,6 +84,7 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/block": return out(b.fBlock(token, String(body.username || ""), body.undo === true));
     case "POST /a/f/invite": return out(b.fInvite(token));
     case "POST /a/f/join": return out(b.fJoin(token, String(body.t || "")));
+    case "GET /a/f/invite": return out(b.fInviteWho(q.get("t") || ""));
     case "POST /a/f/share": return out(b.mShare(token, body));
     case "POST /a/f/unshare": return out(b.mUnshare(token, String(body.id || "")));
     case "GET /a/f/feed": return out(b.mFeed(token));
@@ -265,6 +266,13 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM invites WHERE user = ? OR exp < ?", g.u.id, Date.now());
     this.sql.exec("INSERT INTO invites (hash, user, exp) VALUES (?, ?, ?)", await this.scramble("inv:" + t), g.u.id, Date.now() + LIMITS.invite);
     return { ok: true, t, until: Date.now() + LIMITS.invite };
+  },
+  // Who sent this invite (for the invite page in Safari, before anyone signs in): their name, @username and picture.
+  // Only someone holding the link can ask; the link is long and random, so it can't be guessed.
+  async fInviteWho(t) {
+    const inv = /^[A-Za-z0-9_-]{20,64}$/.test(t) && this.one("SELECT * FROM invites WHERE hash = ? AND exp > ?", await this.scramble("inv:" + t), Date.now());
+    const them = inv && this.one("SELECT * FROM users WHERE id = ?", inv.user);
+    return them ? { ok: true, person: this.fCard(them) } : { error: "old_invite" };
   },
   // Opening someone's invite: it lands as a request from them, waiting in Friends (saying yes needs the 18+ tick,
   // like any other request). The person who made the link already said yes by sharing it.

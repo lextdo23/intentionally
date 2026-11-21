@@ -132,8 +132,26 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await shot("9-asked");
   await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
 
-  // ---- An invite link ----
+  // ---- An invite link opened in Safari: an iPhone never opens links in the Home Screen app ----
   const inv = await josh.post("/a/f/invite", {});
+  const safari = await ctx.newPage(); safari.on("pageerror", (e) => errors.push(e.message));
+  await safari.goto(server.url + "/?add=" + inv.t); await safari.waitForTimeout(1800);
+  const land = await safari.textContent(".fr-page:last-child");
+  check(/Josh invited you to be friends on Daydeck/.test(land) && /@josh_r/.test(land) && /Copy invite/.test(land) && /Add to Home Screen/.test(land), "in Safari, an invite shows who it's from, Copy invite, and how to add Daydeck to the Home Screen");
+  check(!(await safari.$("#acct")), "and the sign-up waits (it's not what they came for)");
+  if (SHOTS) await safari.screenshot({ path: path.join(SHOTS, "24-invite-safari.png") });
+  await safari.close();
+  // Pasting the invite into Add friends (the Home Screen app)
+  const inv2 = await sam.post("/a/f/invite", {});
+  await quiet(); await tab("friends");
+  await p.click('#friends button[aria-label="Add friends"]'); await p.waitForTimeout(700);
+  await p.fill(".fr-page:last-child .fr-field", "Add me as a friend on Daydeck. I'm @sam.w " + server.url + "?add=" + inv2.t);
+  await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(900);
+  check(/Sam/.test(await text(".fr-page:last-child .fr-found")) && /Accept|Friends/.test(await text(".fr-page:last-child .fr-found")), "pasting the whole invite message into Add friends opens Sam's invite");
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
+
+  // ---- An invite link opened inside the Home Screen app (e.g. Android, or typed in) ----
+  await p.addInitScript(() => Object.defineProperty(navigator, "standalone", { get: () => true }));
   await p.goto(server.url + "/?add=" + inv.t); await p.waitForTimeout(2600);
   check(!/add=/.test(p.url()), "the invite link is tidied from the address");
   check((await mia.get("/a/f")).asksYou.some((x) => x.username === "josh_r"), "opening Josh's invite leaves his request waiting for Mia");
@@ -143,7 +161,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- You: Edit profile ----
   await quiet(); await tab("you");
-  check(/mia\.k/.test(await text("#you")) && /1 friend/.test(await text("#you")) && /What you've shared/.test(await text("#you")), "You shows your @username, friends count and what you've shared");
+  check(/mia\.k/.test(await text("#you")) && /\d friends?/.test(await text("#you")) && /What you've shared/.test(await text("#you")), "You shows your @username, friends count and what you've shared");
   await p.click('#you button:has-text("Edit")'); await p.waitForTimeout(700);
   const fields = await p.$$(".fr-page:last-child .fr-field");
   await fields[0].fill("Mia"); await fields[1].fill("Sleeping more and seeing friends");

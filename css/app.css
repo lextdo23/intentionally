@@ -825,3 +825,12 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .fr-help-btns .btn-soft { flex: 1; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink); }
 .fr-link { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 .fr-guide { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; color: var(--ink2); }
+/* A friend's invite opened in Safari (js/friends.js inviteLanding) */
+.fr-invite { padding-top: 8px; }
+.fr-invite-top { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.fr-invite-title { margin: 8px 0 0; font-size: 22px; font-weight: 600; line-height: 1.3; }
+.fr-invite-title:focus { outline: none; }
+.fr-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 16px; background: rgba(239, 237, 233, .06); }
+.fr-card h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.fr-card p { margin: 0; font-size: 15px; color: var(--ink2); }
+.fr-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; color: var(--ink2); }

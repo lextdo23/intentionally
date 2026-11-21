@@ -205,11 +205,49 @@ async function invite(btn) {
     const url = location.origin + "/?add=" + inv.t;
     log("friend", "invite");
     if (navigator.share) {
-      try { await navigator.share({ title: "Daydeck", text: "Add me as a friend on Daydeck", url }); } catch { /* they changed their mind */ }
+      // The link opens in Safari, not the Home Screen app (an iPhone rule), so the message also says how to add by username.
+      try { await navigator.share({ title: "Daydeck", text: `Add me as a friend on Daydeck. I'm @${u}`, url }); } catch { /* they changed their mind */ }
       return;
     }
-    try { await navigator.clipboard.writeText(url); note("Link copied. Send it to a friend."); } catch { note(url); }
+    try { await navigator.clipboard.writeText(`Add me as a friend on Daydeck. I'm @${u} ${url}`); note("Invite copied. Send it to a friend."); } catch { note(url); }
   });
+}
+
+// ---------------- An invite opened in Safari ----------------
+// On an iPhone, a link always opens in Safari, never in the Home Screen app, and the two don't share storage
+// (alex 2026-11-21: "when i share the link for friends, for them it gets them to go to safari"). So an invite
+// opened in a browser shows who it's from and how to finish: copy it and paste it in Daydeck, or add Daydeck first.
+export const inBrowser = () => !navigator.standalone && !matchMedia("(display-mode: standalone)").matches;
+export function inviteLanding(t, url) {
+  log("invite_landing", 1);
+  let who = null, gone = false;
+  const pg = page("", () => {
+    if (gone) return h("div.tab-empty", null, faces(),
+      h("h2", null, "This invite has expired"),
+      h("p", null, "Ask your friend for a new one, or add them in Daydeck by their @username."),
+      h("button.btn-main.soft", { type: "button", onclick: () => pg.close() }, "Open Daydeck here"));
+    if (!who) return h("div.tab-empty", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" }));
+    const copy = h("button.btn-main.fr-main", { type: "button" }, "Copy invite");
+    copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(url); copy.textContent = "Copied. Now open Daydeck"; log("invite_copy", 1); }
+      catch { copy.textContent = "Copy didn't work. Search for @" + who.username + " instead"; }
+    });
+    return h("div.fr-stack.fr-invite", null,
+      h("div.fr-invite-top", null, pic(who, 96), h("h1.fr-invite-title", { tabindex: "-1" }, `${shown(who)} invited you to be friends on Daydeck`), h("p.fr-handle.big", null, "@" + who.username)),
+      h("div.fr-card", null, h("h2", null, "Already have Daydeck?"),
+        h("p", null, "Copy the invite, open Daydeck from your Home Screen, then go to Friends → Add friends and paste it."),
+        copy,
+        h("p.fr-field-note", null, `Or search for @${who.username} in Add friends.`)),
+      h("div.fr-card", null, h("h2", null, "New to Daydeck?"),
+        h("ol.fr-steps", null,
+          h("li", null, "Tap Share at the bottom of Safari (the square with an arrow)."),
+          h("li", null, "Tap Add to Home Screen, then Add."),
+          h("li", null, "Open Daydeck from your Home Screen and make your account."),
+          h("li", null, `Friends opens after your first few days. Then add @${who.username}.`))),
+      h("button.btn-quiet", { type: "button", onclick: () => pg.close() }, "Look around in Safari instead"));
+  }, { label: "Friend invite", x: true });
+  account.call("/a/f/invite?t=" + encodeURIComponent(t)).then((r) => { if (r.ok) who = r.person; else gone = true; pg.refresh(); });
+  return pg;
 }
 
 // ---------------- Full-screen pages (Add friends, a profile, Edit, Privacy, Blocked) ----------------
@@ -251,15 +289,26 @@ export const closeAll = () => [...pages].reverse().forEach((p) => p.close());
 
 // ---------------- Add friends ----------------
 const cleanName = (s) => String(s || "").trim().replace(/^@/, "").toLowerCase();
+// The invite's code, from a pasted link or a whole pasted message ("…?add=abc…"), or null.
+export const inviteToken = (s) => { const m = /[?&]add=([A-Za-z0-9_-]{20,64})/.exec(String(s || "")); return m ? m[1] : null; };
 export function openAdd() {
   if (!data || !data.me.adult) return;
   log("friends_add_open", 1);
   let found = null, msg = "", typed = "";
   page("Add friends", (redraw) => {
-    const input = h("input.fr-field", { type: "text", inputmode: "text", autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false", enterkeyhint: "search", maxlength: "21", placeholder: "Their @username", "aria-label": "Their username", value: typed });
+    const input = h("input.fr-field", { type: "text", inputmode: "text", autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false", enterkeyhint: "search", maxlength: "400", placeholder: "Their @username, or an invite", "aria-label": "Their username, or an invite they sent you", value: typed });
     const find = h("button.fr-btn.soft.fr-find", { type: "button" }, "Find");
     const look = () => busy(find, async () => {
-      typed = input.value; const n = cleanName(typed);
+      typed = input.value;
+      // A pasted invite (the link, or the whole message): it opens straight away as their request.
+      const t = inviteToken(typed);
+      if (t) {
+        const r = await account.call("/a/f/join", { t });
+        log("friend", "join");
+        if (!r.ok) { found = null; msg = r.error === "old_invite" ? "That invite has expired. Ask your friend for a new one, or search for their @username." : say(r); return redraw(); }
+        await load(); found = { ...r.person, state: r.state }; msg = ""; typed = ""; return redraw();
+      }
+      const n = cleanName(typed);
       if (!/^[a-z0-9._]{3,20}$/.test(n)) { found = null; msg = "Usernames are 3 to 20 letters, numbers, full stops or underscores."; return redraw(); }
       const r = await account.call("/a/f/find?u=" + encodeURIComponent(n));
       log("friend", "find");
@@ -272,7 +321,7 @@ export function openAdd() {
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") look(); });
     input.addEventListener("input", () => { typed = input.value; });
     const result = found ? h("div.fr-found", null, row(found, stateBtn(found, redraw), found.state === "friends" ? () => openPerson(found.username) : null))
-      : msg ? h("p.fr-msg", { role: "status" }, msg) : null;
+      : msg ? h("p.fr-msg", { role: "status" }, msg) : h("p.fr-field-note", null, "Type their @username, or paste an invite they sent you.");
     const reqs = data.asksYou.length ? h("section.fr-sec", null, h("h2.fr-sec-head", null, "Requests"), data.asksYou.map(requestRow)) : null;
     const waiting = data.asked.length ? h("section.fr-sec", null, h("h2.fr-sec-head", null, "Waiting for them"),
       data.asked.map((p) => row(p, small("Asked", (e) => takeBack(e.currentTarget, p))))) : null;
