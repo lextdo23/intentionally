@@ -69,6 +69,12 @@ const SCREENS = [
   const pv = await p.evaluate(() => ({ scripts: document.scripts.length, sections: document.querySelectorAll("section").length, text: document.body.textContent }));
   check(pv.scripts === 0 && pv.sections >= 3 && !/Alex/.test(pv.text) && /13 11 14/.test(pv.text), "the privacy page has no scripts, every section shows, names nobody, and Lifeline is there");
 
+  // The Friends guidelines: same safety net, no scripts, names nobody, Lifeline and how to report are on it.
+  await p.goto(server.url + "guidelines.html"); await p.waitForTimeout(300);
+  check(/script-src 'self'(;|$)/.test(await csp()), "the Friends guidelines page has the safety net too");
+  const gl = await p.evaluate(() => ({ scripts: document.scripts.length, sections: document.querySelectorAll("section").length, text: document.body.textContent }));
+  check(gl.scripts === 0 && gl.sections >= 6 && !/Alex/.test(gl.text) && /13 11 14/.test(gl.text) && /000/.test(gl.text) && /They might not be safe/.test(gl.text) && /18 or over/.test(gl.text), "the guidelines page has no scripts, names nobody, and has Lifeline, 000, how to report and 18+");
+
   // Old /v2/ links and icons are sent on to Daydeck, keeping ?tester, with the safety net on.
   const went = []; const seen = (f) => f === p.mainFrame() && went.push(f.url()); p.on("framenavigated", seen);
   await p.goto(server.url + "v2/?tester"); await p.waitForTimeout(800); p.off("framenavigated", seen);

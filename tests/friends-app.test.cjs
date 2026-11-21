@@ -82,6 +82,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- The 18+ tick ----
   await tab("friends");
   check(/18 and over/.test(await text("#friends")), "Friends asks, the first time, if you're 18 or over");
+  check(await p.getAttribute('#friends a[href="guidelines.html"]', "href") === "guidelines.html" && /you agree to the Friends guidelines/.test(await text("#friends")), "and says continuing means agreeing to the Friends guidelines, with a link");
   check(await p.getAttribute("#friends .fr-main", "aria-disabled") === "true", "Continue waits for the tick");
   await shot("2-adult");
   await p.click("#friends .fr-tick"); await p.click("#friends .fr-main"); await p.waitForTimeout(800);
@@ -246,6 +247,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Report/.test(await text(".sheet-host:last-child")) && /Hide their moments/.test(await text(".sheet-host:last-child")), "a friend's moment's ••• has Hide their moments and Report");
   await p.click('.sheet-host:last-child button:has-text("Report")'); await p.waitForTimeout(700);
   check(/Report this moment/.test(await text(".sheet-host:last-child")) && /won't know it was you/.test(await text(".sheet-host:last-child")), "Report: why, and they won't know it was you");
+  check(!!(await p.$('.sheet-host:last-child a[href="guidelines.html"]')), "with a link to the Friends guidelines");
   await shot("22-report");
   await p.click('.sheet-host:last-child button:has-text("They might not be safe")'); await p.waitForTimeout(400);
   await p.fill(".sheet-host:last-child textarea", "Worried about them");

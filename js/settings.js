@@ -82,7 +82,7 @@ function render() {
       linkRow("LGBTQIA+", "QLife 1800 184 527", { href: "tel:1800184527" }),
       linkRow("In danger right now", "Call 000", { href: "tel:000" }),
     ], "Daydeck is here to help you look after yourself. It isn't therapy."),
-    group("About", [linkRow("How Daydeck works", null, { onclick: howItWorks }), linkRow("Your privacy", null, { href: "privacy.html" })]),
+    group("About", [linkRow("How Daydeck works", null, { onclick: howItWorks }), linkRow("Your privacy", null, { href: "privacy.html" }), linkRow("Friends guidelines", null, { href: "guidelines.html" })]),
     deleteAll())));
   el.querySelector(".set-scroll").scrollTop = top;
 }

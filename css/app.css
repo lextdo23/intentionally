@@ -823,3 +823,5 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .fr-help { flex-direction: column; gap: 12px; width: 100%; }
 .fr-help-btns { display: flex; gap: 8px; }
 .fr-help-btns .btn-soft { flex: 1; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink); }
+.fr-link { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.fr-guide { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; color: var(--ink2); }
