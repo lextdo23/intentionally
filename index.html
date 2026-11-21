@@ -19,8 +19,35 @@
   <link rel="stylesheet" href="css/box.css">
   <link rel="stylesheet" href="css/photos.css">
   <link rel="stylesheet" href="css/library.css">
+  <!-- Opening Daydeck (alex 2026-11-21): a fresh open shows the sun on a blank sky, then the app fades in (main.js).
+       Styled here, not in app.css, so it's there from the very first moment. The phone's own launch pictures
+       (icons/launch-*.png, made by tools/make-launch.cjs) look exactly the same, so the hand-over can't be seen. -->
+  <style>
+    html { background: #08090a; }
+    #splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center;
+      background: linear-gradient(180deg, #24262b 0%, #141518 60%, #08090a 100%); transition: opacity .55s ease, visibility 0s linear .55s; }
+    #splash > * { grid-area: 1 / 1; border-radius: 50%; transition: transform .7s cubic-bezier(.32, .72, 0, 1); }
+    #splash .glow { width: 320px; height: 320px; background: radial-gradient(circle, rgb(246 196 140 / .55) 0, rgb(242 192 143 / .165) 45%, rgb(242 192 143 / 0) 70%); }
+    #splash .disc { width: 96px; height: 96px; background: linear-gradient(135deg, #fffaf2, #f2b27a); box-shadow: 0 6px 14px rgb(0 0 0 / .35); }
+    #splash.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+    #splash.gone > * { transform: scale(1.08); }
+    #splash.now { transition: none; }
+    .booting #home { opacity: 0; transform: translateY(12px); }
+    .booting #pill { opacity: 0; }
+  </style>
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1320x2868.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1290x2796.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1284x2778.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1206x2622.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1179x2556.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1170x2532.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1125x2436.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1242x2688.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="icons/launch-828x1792.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="icons/launch-750x1334.png">
 </head>
-<body>
+<body class="booting">
+  <div id="splash" aria-hidden="true"><i class="glow"></i><i class="disc"></i></div>
   <div id="sun" aria-hidden="true"><i></i></div>
   <main id="home" class="screen"></main>
   <div id="dim" aria-hidden="true"></div>

@@ -137,6 +137,11 @@ function early() {
   if ((st.levels || {}).early) levels.openEarly(["friends"]);
 }
 
+// What home would show, in short: the day, the greeting and which main button. Coming back to Daydeck only redraws
+// home when this has changed (a new day, morning turned to afternoon), so otherwise it's just as it was left.
+let look = "";
+function lookNow() { const hr = new Date(now()).getHours(); return [dayKey(), greeting(), hr < 15, hr >= 17 || hr < 4].join("|"); }
+
 function render(moment) {
   early();
   wrapped.applyPlan();   // a rest day kept for this week arrives on its own
@@ -245,6 +250,7 @@ function render(moment) {
     h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
   testBar();
+  look = lookNow();
 
   // A moment: the greeting turns gold with what just happened, then softens back to "head" and "after".
   function play(big, small, lift, after = line) {
@@ -317,30 +323,57 @@ if (store.get().lib) library.refresh();
 library.finishUnshare();
 // Asks the service about this account; if it's one of the early ones (Friends straight away), redraw now so the pill
 // shows without waiting for the next time home redraws (alex 2026-11-21: "it's not showing").
-account.refresh().then(() => { const u = account.user(); if (u && u.early && !(store.get().levels || {}).early) render(); });
+const acctReady = account.refresh().then(() => { const u = account.user(); if (u && u.early && !(store.get().levels || {}).early) render(); }).catch(() => {});
+
+// Opening Daydeck (alex 2026-11-21, "like other social apps"): a fresh open shows the sun on a blank sky (the splash
+// in index.html) while home gets ready behind it, then the splash fades and home rises in. It stays at least a moment,
+// so it never just flickers, and at most about 1.5 seconds, so a slow or missing connection never holds it up.
+const splash = document.getElementById("splash");
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const booted = Promise.all([wait(Math.max(0, (reduceMotion() ? 300 : 800) - performance.now())), Promise.race([acctReady, wait(1500)])])
+  .then(() => { splash.classList.add("gone"); document.body.classList.remove("booting"); return wait(450); });
 sync.start(() => render());
 photoBackup.start(() => render());   // photos go up to the account's private store, and come back on a new phone   // backup and sync: changes go up quietly, and come in from the account's other phones
 // Accounts (alex 2026-11-20): new people see the sign-up first; people already using the app see it once.
 // A tester invite link goes first; the sign-up waits for the next open.
+// Each waits until the splash has gone and home has settled, so nothing pops up while Daydeck is opening.
 const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
-if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
-else if (askAccount) setTimeout(() => account.openSignup(() => render()), 400);
-else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
+if (tester.needsAsk()) booted.then(() => setTimeout(() => askAgain(() => render()), 300));
+else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
+else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
 { const add = new URLSearchParams(location.search).get("add");
   if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
   friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
-if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render(); });
+if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(openTester, 200)); }
+
+// Coming back to Daydeck (alex 2026-11-21): it shows just as it was left, with no redraw and no reload. Home only
+// redraws if what it shows has moved on (a new day, or morning turned to afternoon), and never mid-way through
+// something. An update that arrived while Daydeck was open waits: it goes in the next time Daydeck is opened fresh,
+// or when someone comes back after half an hour or more, behind the splash, so it looks like a fresh open.
+// (Real time, not now(): test mode's time travel shouldn't decide how long someone was away.)
+const AWAY_LONG = 30 * 60e3;
+let awayAt = 0, updateWaiting = false, reloading = false;
+const busy = () => ["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage", "in-settings"].some((x) => document.body.classList.contains(x)) || !!document.querySelector(".sheet-host, .cam, .ph-viewer");
+function freshOpen() {
+  if (reloading) return;
+  reloading = true;
+  splash.classList.add("now"); splash.classList.remove("gone");   // straight onto the splash, no fade
+  location.reload();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") { awayAt = Date.now(); return; }
+  const wasLong = awayAt && Date.now() - awayAt >= AWAY_LONG;
+  if (updateWaiting && wasLong && !busy()) return freshOpen();
+  if (lookNow() !== look && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render();
+});
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
-  const had = !!navigator.serviceWorker.controller;
+  let had = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js").then((reg) => {
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update(); });
   }).catch(() => {});
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (had && !reloaded && !document.body.classList.contains("in-flow") && !document.querySelector(".sheet-host")) { reloaded = true; location.reload(); }
-  });
+  // A fresh open already loads the newest files, so a new version taking over never needs a reload straight away.
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) updateWaiting = true; had = true; });
 }
