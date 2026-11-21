@@ -11,7 +11,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const mod = await loadWorker(), worker = mod.default, made = {};
   const ns = (Cls, env) => ({ idFromName: (n) => n, get: (n) => made[Cls.name + n] ||= (() => { const sql = fakeSql(); return new Cls({ storage: { sql, deleteAll: async () => {} } }, env); })() });
   const bucket = new Map();
-  const env = { RESEND_API_KEY: "re_made_up", PHOTOS: { put: async (k, v) => { bucket.set(k, new Uint8Array(v)); }, get: async (k) => (bucket.has(k) ? { body: bucket.get(k) } : null), delete: async (ks) => { [].concat(ks).forEach((k) => bucket.delete(k)); } } };
+  const env = { RESEND_API_KEY: "re_made_up", EARLY_BEFORE: "1", PHOTOS: { put: async (k, v) => { bucket.set(k, new Uint8Array(v)); }, get: async (k) => (bucket.has(k) ? { body: bucket.get(k) } : null), delete: async (ks) => { [].concat(ks).forEach((k) => bucket.delete(k)); } } };
   env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env);
   const mail = [], realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => String(url).startsWith("https://api.resend.com/") ? (mail.push(JSON.parse(init.body)), new Response("{}")) : realFetch(url, init);

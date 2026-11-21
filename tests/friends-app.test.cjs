@@ -14,7 +14,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- The real service, in Node ----
   const mod = await loadWorker(), worker = mod.default, made = {};
   const ns = (Cls, env) => ({ idFromName: (n) => n, get: (n) => made[Cls.name + n] ||= (() => { const sql = fakeSql(); return new Cls({ storage: { sql, deleteAll: async () => {} } }, env); })() });
-  const env = { RESEND_API_KEY: "re_made_up", TESTER_KEY: "made-up-tester-key-123" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env); env.TESTERS = ns(mod.Testers, env);
+  const env = { RESEND_API_KEY: "re_made_up", TESTER_KEY: "made-up-tester-key-123", EARLY_BEFORE: "1" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env); env.TESTERS = ns(mod.Testers, env);
   const mail = [], realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => String(url).startsWith("https://api.resend.com/") ? (mail.push(JSON.parse(init.body)), new Response("{}")) : realFetch(url, init);
   let ip = 1;

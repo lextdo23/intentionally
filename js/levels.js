@@ -88,9 +88,12 @@ export const UNLOCKS = [
 // Anything already opened for someone stays open when its level moves (nothing is ever taken away): its tip
 // showed, so they've had it.
 // (Keeping things open for people from before was dropped: everyone starts again, alex 2026-11-19. keepAll stays false.)
+// Opened early for this person, whatever their level (main.js: accounts marked early get Friends straight away).
+const early = new Set();
+export function openEarly(ids) { ids.forEach((id) => early.add(id)); }
 export function isOpen(id) {
   const u = UNLOCKS.find((x) => x.id === id);
-  if (!u || mem().keepAll) return true;
+  if (!u || mem().keepAll || early.has(id)) return true;
   return level().level >= u.level || !!(mem().tips || {})[id];
 }
 // What opened at this level (for the level-up moment), or null.

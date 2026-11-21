@@ -17,6 +17,7 @@ const ORIGINS = ["https://daydeck.day", "https://www.daydeck.day"];
 const CODE_LIFE = 10 * MIN, CODE_TRIES = 5, TICKET_LIFE = 20 * MIN, CHALLENGE_LIFE = 5 * MIN, SESSION_LIFE = 180 * DAY;
 const SENDS = { gap: MIN, perEmailDay: 5, perPlaceHour: 8, allDay: 90 };   // Resend's free plan allows 100 a day
 const RENAME_EVERY = 30 * DAY, NAME_HELD = 30 * DAY;
+const EARLY_BEFORE = Date.parse("2026-11-21T02:00:00Z");   // 1 pm Sydney, 21 Nov 2026: the people already using Daydeck
 const BACKUP_MAX = 1500000;                        // about 1.5 MB of days; photos stay on the phone (later: their own store, see CLAUDE.md)
 
 // ---------------- Small helpers ----------------
@@ -371,7 +372,9 @@ export class Accounts extends DurableObject {
     this.sql.exec("INSERT INTO sessions (hash, user, exp, made) VALUES (?, ?, ?, ?)", await hash(token), userId, t + SESSION_LIFE, t);
     return token;
   }
-  publicUser(u) { return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY }; }
+  // early: accounts made before Friends went live for everyone get Friends straight away, whatever their level
+  // (alex 2026-11-21: "for the current 2 users, who have not reached level 4 yet, activate the friends part").
+  publicUser(u) { return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE) }; }   // tests can set EARLY_BEFORE
 
   // Finish signing up or getting back in. A passkey is saved if one came (Face ID can be skipped or unavailable;
   // then the email code is how they get back in).
