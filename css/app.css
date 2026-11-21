@@ -595,7 +595,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 #pill { position: fixed; left: var(--edge); right: var(--edge); bottom: max(calc(env(safe-area-inset-bottom, 0px) - 4px), 16px); z-index: 6; display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 32px;
   background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -1px 0 rgba(255, 255, 255, .05), 0 8px 24px rgba(0, 0, 0, .28);
-  transition: opacity .3s var(--ease), transform .35s var(--ease); --i: 0; }
+  transition: opacity .3s var(--ease), transform .35s var(--ease), visibility 0s; --i: 0; }
 #pill.no-act { left: 50%; right: auto; transform: translateX(-50%); }
 .pill-bubble { position: absolute; left: calc(6px + var(--i) * 56px); top: 5px; width: 54px; height: 54px; border-radius: 27px; background: rgba(239, 237, 233, .14); transition: left .45s cubic-bezier(.32, .72, 0, 1); pointer-events: none; }
 .pill-tab { position: relative; z-index: 1; width: 54px; height: 54px; flex-shrink: 0; border-radius: 27px; display: flex; align-items: center; justify-content: center; color: #a9a59d; transition: color .3s ease; }
@@ -610,8 +610,12 @@ body:not([data-tab="today"]) #pill .pill-act > .btn-main { background: #efede9; 
 #pill { touch-action: none; }
 body.has-pill #home { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); }
 body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px); }
-:is(.in-flow, .in-ask, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels) #pill, body:has(.sheet-host) #pill { opacity: 0; transform: translateY(24px); pointer-events: none; }
-:is(.in-flow, .in-ask, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels) #pill.no-act, body:has(.sheet-host) #pill.no-act { transform: translate(-50%, 24px); }
+/* Hidden: faded and then switched off altogether (visibility), because Safari can keep drawing the frosted glass of a
+   faded-out pill (alex 2026-11-21: it still showed while rating a card). While rating a card, it's hidden only until
+   Done or Not now (.ask-open, js/draw.js), and comes back as the card glides home. */
+:is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill, body:has(.sheet-host) #pill { opacity: 0; visibility: hidden; transform: translateY(24px); pointer-events: none;
+  transition: opacity .3s var(--ease), transform .35s var(--ease), visibility 0s linear .35s; }
+:is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill.no-act, body:has(.sheet-host) #pill.no-act { transform: translate(-50%, 24px); }
 /* Tab screens: Friends and You slide in from the right; Today slides left and fades. */
 .tab-screen { position: fixed; inset: 0; z-index: 4; overflow-y: auto; padding: var(--top) var(--edge) calc(env(safe-area-inset-bottom, 0px) + 110px); background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, var(--sky3) 100%);
   transform: translateX(100%); opacity: .4; pointer-events: none; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); display: flex; flex-direction: column; gap: 24px; }
@@ -642,7 +646,6 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
    switches in sage; colour only in pictures (alex 2026-11-20). ---- */
 .pill-tab.dot::after { content: ""; position: absolute; top: 12px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: #a9c4b5; box-shadow: 0 0 0 2px rgba(20, 21, 24, .8); }
 .pill-tab { position: relative; }
-:is(.in-fpage) #pill { opacity: 0; transform: translateY(24px); pointer-events: none; }
 .fr-main, .fr-page .btn-main:not(.soft) { background: #efede9; color: #1d1e22; }
 .fr-main[aria-disabled="true"] { background: rgba(239, 237, 233, .08); color: var(--faint); }
 .fr-page .switch[aria-checked="true"], #friends .switch[aria-checked="true"] { background: #a9c4b5; }
