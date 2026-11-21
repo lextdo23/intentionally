@@ -320,16 +320,22 @@ library.finishUnshare();
 account.refresh().then(() => { const u = account.user(); if (u && u.early && !(store.get().levels || {}).early) render(); });
 sync.start(() => render());
 photoBackup.start(() => render());   // photos go up to the account's private store, and come back on a new phone   // backup and sync: changes go up quietly, and come in from the account's other phones
+// A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
+// In Safari (not the Home Screen app), it shows who it's from and how to finish instead: an iPhone opens links in
+// Safari, and Safari doesn't share storage with the Home Screen app.
+const inviteInSafari = (() => {
+  const add = new URLSearchParams(location.search).get("add");
+  if (add && friends.inBrowser()) { const url = location.href; history.replaceState(null, "", location.pathname); setTimeout(() => friends.inviteLanding(add, url), 300); return true; }
+  if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
+  friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); });
+  return false;
+})();
 // Accounts (alex 2026-11-20): new people see the sign-up first; people already using the app see it once.
 // A tester invite link goes first; the sign-up waits for the next open.
-const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
+const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester") && !inviteInSafari;
 if (tester.needsAsk()) setTimeout(() => askAgain(() => render()), 700);
 else if (askAccount) setTimeout(() => account.openSignup(() => render()), 400);
-else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) setTimeout(whatsNew, 700);
-// A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
-{ const add = new URLSearchParams(location.search).get("add");
-  if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
-  friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
+else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester") && !inviteInSafari) setTimeout(whatsNew, 700);
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); setTimeout(openTester, 400); }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render(); });

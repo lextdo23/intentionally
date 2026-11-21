@@ -10,7 +10,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const mod = await loadWorker(), worker = mod.default;
   const made = {};
   const ns = (Cls, env) => ({ idFromName: (n) => n, get: (n) => made[Cls.name + n] ||= (() => { const sql = fakeSql(); return new Cls({ storage: { sql, deleteAll: async () => { sql.exec("DELETE FROM b"); } } }, env); })() });
-  const env = {}; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env);
+  const env = { EARLY_BEFORE: "1" }; env.ACCOUNTS = ns(mod.Accounts, env); env.VAULTS = ns(mod.Vault, env);
   // A made-up account, signed in on two phones.
   const book = env.ACCOUNTS.get("book"), t0 = Date.now();
   book.sql.exec("INSERT INTO users (id, handle, email, name, name_l, name_at, made) VALUES ('u1', 'h1', 'mia@example.com', 'mia.k', 'mia.k', ?, ?)", t0, t0);
