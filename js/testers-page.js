@@ -66,7 +66,7 @@ const SHAPE = {
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, friend_profile: (v) => v === 0 || v === 1,
   share: (v) => isObj(v) && ["photo", "card", "own", "rest"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home"].includes(v.from),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
-  share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, friends_list: (v) => v === 1,
+  share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
@@ -339,6 +339,11 @@ function drawAll(D) {
     html += sec("How do people get around?", "Taps on the glass pill's tabs: Today, Friends and You (test mode only while friends are being built).",
       n ? bars([["Today", t.today || 0], ["Friends", t.friends || 0], ["You", t.you || 0]], n) : `<p class="sub">Nobody has used the pill yet.</p>`,
       "lots of Friends taps means people want it; very few means it can wait."); }
+  // Photo backup: how many photos went up, who turned it off, and any limits reached.
+  { const up = by("photo_backed").length, offs = by("photo_backup").filter((e) => e.val === "off").length, ons = by("photo_backup").filter((e) => e.val === "on").length, waits = by("photo_backup_wait");
+    html += sec("Is photo backup working?", "Photos backed up to people's accounts (privately; you never see them), and anyone who turned it off.",
+      `<p class="note">${up} photos backed up. Turned off: ${offs} (turned back on: ${ons}). Saw the one-time note: ${by("photo_backup_note").length}. Limits reached: ${waits.length ? waits.map((e) => e.val.replace("_", " ")).join(", ") : "none"}.</p>`,
+      "lots of people turning it off means the note or the reason isn't landing; \"photos full\" means it's time to raise the 50 GB ceiling."); }
   // Friends (social step 2): what people do, never who or what they typed.
   { const f = {}; by("friend").forEach((e) => (f[e.val] = (f[e.val] || 0) + 1));
     const who = (n) => new Set(by(n).map((e) => e.code)).size;

@@ -38,13 +38,39 @@ export const has = (k) => !!((store.get().days[k] || {}).ph);
 // Every day with a photo, newest first.
 export const keys = () => Object.keys(store.get().days).filter((k) => store.get().days[k].ph).sort().reverse();
 
+// Photo backup (js/photo-backup.js) plugs in here: told when a photo is saved or removed, and asked for a backed-up
+// picture this phone doesn't have yet (a new phone). Kept loose so this file works without it.
+let hooks = { saved: () => {}, removed: () => {}, fetch: null };
+export function plug(h) { hooks = { ...hooks, ...h }; }
+const fetching = new Map();
+async function fromBackup(k) {
+  if (!hooks.fetch) return null;
+  if (!fetching.has(k)) fetching.set(k, (async () => {
+    const full = await hooks.fetch(k);
+    if (!full) return null;
+    const im = new Image(), u = URL.createObjectURL(full); im.src = u;
+    try { await im.decode(); } catch { URL.revokeObjectURL(u); return null; }
+    const c = document.createElement("canvas"); c.width = TW; c.height = TH; c.getContext("2d").drawImage(im, 0, 0, TW, TH);
+    URL.revokeObjectURL(u);
+    const thumb = await blob(c, 0.78);
+    await tx("readwrite", (s) => s.put({ full, thumb }, k));
+    return true;
+  })().finally(() => fetching.delete(k)));
+  return fetching.get(k);
+}
+// This phone's copy is out of date (a newer photo came from another phone) or was removed elsewhere: let it go.
+export async function drop(k) { try { await tx("readwrite", (s) => s.delete(k)); } catch { /* not there */ } forget(k); }
+// The picture itself, for backing up.
+export async function fullBlob(k) { try { const rec = await tx("readonly", (s) => s.get(k)); return rec && rec.full || null; } catch { return null; } }
+
 // A picture's address for an <img>, or null. size: "thumb" (small, for lists) or "full".
 export async function url(k, size = "thumb") {
   if (!has(k)) return null;
   const c = urls.get(k) || {};
   if (c[size]) return c[size];
   try {
-    const rec = await tx("readonly", (s) => s.get(k));
+    let rec = await tx("readonly", (s) => s.get(k));
+    if (!rec && store.get().days[k].ph.b && await fromBackup(k)) rec = await tx("readonly", (s) => s.get(k));
     if (!rec || !rec[size]) return null;
     c[size] = URL.createObjectURL(rec[size]); urls.set(k, c);
     return c[size];
@@ -102,17 +128,20 @@ export async function save(k, canvas, { src = "cam", words = true } = {}) {
   await tx("readwrite", (s) => s.put({ full, thumb }, k));
   forget(k);
   const d = store.day(k), had = !!d.ph;
-  d.ph = { w: words ? 1 : 0 };
+  d.ph = { w: words ? 1 : 0 };   // not backed up yet (no b): photo backup sends it, then marks it
   store.save();
   log(had ? "photo_change" : "photo_add", src);
+  hooks.saved(k);
   keep();
   return true;
 }
 export async function remove(k) {
   try { await tx("readwrite", (s) => s.delete(k)); } catch { /* already gone */ }
   forget(k);
-  const d = store.get().days[k]; if (d) { delete d.ph; store.save(); }
+  const d = store.get().days[k], was = d && d.ph && d.ph.b;
+  if (d) { delete d.ph; store.save(); }
   log("photo_remove");
+  hooks.removed(k, !!was);
 }
 export function setWords(k, on) { const d = store.get().days[k]; if (d && d.ph) { d.ph.w = on ? 1 : 0; store.save(); log("photo_words", on ? "on" : "off"); } }
 // "Delete everything": the whole picture store goes.
@@ -392,16 +421,22 @@ export function offerOK(k) {
 }
 export function offered(k) { const d = store.day(k); if (!d.phOff) { d.phOff = 1; store.save(); log("photo_offer"); } }
 
-// The first photo ever: one note about where photos live (alex 2026-11-18).
+// The first photo ever: one note about where photos live (alex 2026-11-18). With an account and backup on, it says
+// they're backed up (photo-backup.js tells this file via plug({ backedUp })).
+const backedUp = () => !!(hooks.backedUp && hooks.backedUp());
 export function firstNote() {
   const st = store.get(); st.ph = st.ph || {};
   if (st.ph.noted) return;
   st.ph.noted = 1; store.save();
   openSheet((panel, close) => {
     panel.append(
-      h("h2", null, "Your photos stay on this phone"),
-      h("p.update-text", null, "They're never sent anywhere. If you delete Daydeck, they go with it."),
-      h("p.update-text", null, "Keep Daydeck on your Home Screen so your iPhone keeps them safe. Settings has Save my photos if you want copies."),
+      ...(backedUp()
+        ? [h("h2", null, "Your photos are backed up"),
+          h("p.update-text", null, "Each day's photo goes to your account, privately, so a new phone gets them back. Only you can see them, and nothing is kept but the picture."),
+          h("p.update-text", null, "You can turn this off in Settings.")]
+        : [h("h2", null, "Your photos stay on this phone"),
+          h("p.update-text", null, "They're never sent anywhere. If you delete Daydeck, they go with it."),
+          h("p.update-text", null, "Keep Daydeck on your Home Screen so your iPhone keeps them safe. Settings has Save my photos if you want copies.")]),
       h("button.btn-main", { onclick: () => close("done") }, "Got it"));
   }, { label: "Your photos" });
 }

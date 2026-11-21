@@ -43,6 +43,17 @@ export function onAccount(fn) { hooks.push(fn); }
 function tell(what) { hooks.forEach((fn) => { try { fn(what); } catch { /* keep going */ } }); }
 // For js/sync.js: talk to the service as this account.
 export const call = (path, body) => api(path, body);
+// For photo backup (js/photo-backup.js): photos travel as their own bytes. Answers the raw response, or null offline.
+export async function raw(path, { method = "GET", body, type } = {}) {
+  if (!me.token) return null;
+  const headers = { Authorization: "Bearer " + me.token };
+  if (type) headers["Content-Type"] = type;
+  try {
+    const r = await fetch(SERVICE + path, { method, headers, body });
+    if (r.status === 401) forgetSignIn();
+    return r;
+  } catch { return null; }
+}
 // This phone was emptied (Start again, Delete everything): sign out here only; the account and its backup stay.
 export function forgetHere() { forgetSignIn(); }
 
@@ -101,6 +112,9 @@ export function picture(size = 56) {
 }
 // Which little one this person's picture is, for friends to see. A photo stays on this phone until photos are
 // backed up (social step 4), so friends see the smile until then.
+// The profile photo, for photo backup: { data } or null, and putting a backed-up one back on a new phone.
+export const photoPic = () => ((me.pic || {}).kind === "photo" ? me.pic.data : null);
+export function restorePhotoPic(data) { if (!me.pic || me.pic.kind !== "photo") { me.pic = { kind: "photo", data }; keep(); } }
 export const picId = () => { const p = me.pic || {}; return p.kind === "photo" ? "smile" : (LITTLE[p.id] ? p.id : "smile"); };
 const camIcon = () => h("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
   h("path", { d: "M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" }), h("circle", { cx: "12", cy: "12.5", r: "3.2" }));
@@ -109,7 +123,7 @@ const camIcon = () => h("svg", { width: "18", height: "18", viewBox: "0 0 24 24"
 // the one photo chosen; Daydeck never gets the photo library.
 export function choosePicture(changed) {
   openSheet((panel, close) => {
-    const pick = (id) => { me.pic = { kind: "little", id }; keep(); log("avatar", id); close("done"); changed && changed(); };
+    const pick = (id) => { const wasPhoto = (me.pic || {}).kind === "photo"; me.pic = { kind: "little", id }; keep(); log("avatar", id); if (wasPhoto) tell("pic"); close("done"); changed && changed(); };
     const grid = h("div.pic-grid", { role: "list" }, LITTLE_IDS.map((id) => {
       const on = (me.pic || {}).kind !== "photo" && ((me.pic || {}).id || "smile") === id;
       return h("button.pic-pick", { role: "listitem", "aria-label": LITTLE_NAME[id], "aria-pressed": String(on), onclick: () => pick(id) }, littleOne(id, 64));
@@ -157,7 +171,7 @@ function cropPhoto(file, changed) {
       const cleanB = b && await clean(b);
       if (cleanB) {
         const data = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(cleanB); });
-        me.pic = { kind: "photo", data }; keep(); log("avatar", "photo");
+        me.pic = { kind: "photo", data }; keep(); log("avatar", "photo"); tell("pic");
       }
       URL.revokeObjectURL(url); close("done"); changed && changed();
     } }, "Use photo");
@@ -478,7 +492,7 @@ export function settingsSection(group, linkRow, redraw, syncStatus) {
   return group("Your account", [head,
     linkRow("Username", u.username || "", { onclick: () => rename(redraw) }),
     h("button.set-row", { onclick: async () => { await signOut(); redraw(); } }, h("span.set-label", null, "Sign out")),
-    del], "Your days back up whenever you're online. Photos stay on this phone, and travel in Save a copy. Signing out keeps this phone's days; deleting your account erases your backup.");
+    del], "Your days back up whenever you're online. Signing out keeps this phone's days; deleting your account erases your backup.");
 }
 function rename(redraw) {
   openSheet((panel, close) => {

@@ -9,6 +9,7 @@
 // Emails are sent by Resend from daydeck.day; the key is the Cloudflare secret RESEND_API_KEY.
 import { DurableObject } from "cloudflare:workers";
 import { friendTables, friendRoutes, friendMethods } from "./friends.js";
+import { photoTables, photoRoutes, photoMethods } from "./photos.js";
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 export const RP_ID = "daydeck.day";                 // passkeys are tied to this address forever
@@ -155,12 +156,11 @@ async function sendCode(env, email, code) {
   return !!(res && res.ok);
 }
 
-async function tellAlex(env) {
+async function tellAlex(env, subject = "A report is waiting on Daydeck", text = "Someone reported something on Daydeck. Open the tester page, then the Reports tab, to look at it.\n\nhttps://daydeck.day/testers.html") {
   if (!env.RESEND_API_KEY) return;
-  const text = "Someone reported something on Daydeck. Open the tester page, then the Reports tab, to look at it.\n\nhttps://daydeck.day/testers.html";
   await fetch("https://api.resend.com/emails", {
     method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Daydeck <hello@daydeck.day>", to: ["hello@daydeck.day"], subject: "A report is waiting on Daydeck", text }),
+    body: JSON.stringify({ from: "Daydeck <hello@daydeck.day>", to: ["hello@daydeck.day"], subject, text }),
   });
 }
 
@@ -172,6 +172,8 @@ const bearer = (req) => (req.headers.get("Authorization") || "").replace(/^Beare
 export async function accounts(req, env, path, reply) {
   if (req.method === "OPTIONS") return reply(null);
   if (Number(req.headers.get("Content-Length") || 0) > BACKUP_MAX + 10000) return reply({ error: "too_big" }, 413);
+  // Photo backup (photos.js): photos travel as their own bytes, not JSON.
+  if (path === "/a/p" || path.startsWith("/a/p/")) return photoRoutes(req, env, path, book(env), bearer(req), reply, tellAlex);
   const body = req.method === "POST" ? await req.json().catch(() => null) : null;
   if (req.method === "POST" && (!body || typeof body !== "object")) return reply({ error: "bad_request" }, 400);
   const place = await hash("ip:" + (req.headers.get("CF-Connecting-IP") || "unknown"));
@@ -218,6 +220,8 @@ export async function accounts(req, env, path, reply) {
       const r = await b.remove(bearer(req));
       if (r.error) return reply(r, r.status || 401);
       await vault(env, r.user).wipe();
+      const pk = await b.pAllOf(r.user);
+      if (pk.length && env.PHOTOS) await env.PHOTOS.delete(pk.map((k) => `u/${r.user}/${k}.jpg`));
       return reply({ ok: true });
     }
     case "GET /a/backup": {
@@ -251,6 +255,7 @@ export class Accounts extends DurableObject {
       CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user TEXT, exp INTEGER, made INTEGER);
       CREATE TABLE IF NOT EXISTS held (name_l TEXT PRIMARY KEY, until INTEGER);`);
     friendTables(this.sql);
+    photoTables(this.sql);
   }
   // For friends.js.
   nameProblemWords(plain) { return wordsProblem(plain); }
@@ -456,7 +461,7 @@ export class Accounts extends DurableObject {
   }
 }
 
-Object.assign(Accounts.prototype, friendMethods);
+Object.assign(Accounts.prototype, friendMethods, photoMethods);
 
 // ---------------- A person's vault: their backed-up days ----------------
 export class Vault extends DurableObject {

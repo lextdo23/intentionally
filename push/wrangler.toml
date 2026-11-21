@@ -25,6 +25,11 @@ class_name = "Accounts"
 name = "VAULTS"
 class_name = "Vault"
 
+# Photo backup (photos.js): the private R2 bucket alex made in Cloudflare (2026-11-21).
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "daydeck-photos"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Phone", "Keys"]

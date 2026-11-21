@@ -9,12 +9,11 @@
 // the other phone removes it too.
 //
 // What stays on this phone only: tester mode, test mode, notifications (each phone asks for its own), photo
-// settings, and the card library's caches. PHOTOS stay on the phone for now (alex 2026-11-20); a day's "has a
-// photo" note is kept out of the backup so another phone never looks for a picture it doesn't have.
-// LATER (alex 2026-11-20: photos will be backed up too): photos go in their own store, one picture per day, not
-// inside this backup (which is capped at about 1.5 MB). Each photo is cleaned first (photos.js clean()), sent
-// shrunk, and only ever readable by its owner; the day's note then says the photo is backed up, and a new phone
-// fetches pictures as they're shown. See CLAUDE.md "Accounts".
+// settings, and the card library's caches. PHOTOS go in their own private store (js/photo-backup.js, 2026-11-21),
+// not inside this backup (capped at about 1.5 MB). A day's "has a photo" note joins this backup only once that
+// photo is backed up (ph.b), so another phone never looks for a picture it can't get; it then fetches the picture
+// the first time it's shown. A newer photo on another phone (ph.v) replaces this phone's copy; a backed-up photo
+// removed on another phone is removed here too.
 //
 // Times here use the real clock on purpose (not now() from clock.js): two phones must agree on which change came
 // last, and test mode's time travel would otherwise make one phone's changes always win.
@@ -25,11 +24,14 @@ import { log } from "./tester.js";
 const META = "daydeck-sync";
 const SKIP = new Set(["tester", "test", "notify", "ph", "v"]);       // this phone only
 const LIB_LOCAL = ["list", "at", "status", "pending"];              // the card library's caches and queue
-const DAY_LOCAL = ["ph"];                                            // photos stay on this phone for now
+const DAY_LOCAL = ["ph"];                                            // a photo's note travels only once it's backed up (ph.b)
 const GONE_KEEP = 90 * 864e5;
 const DAY_ID = /^d:\d{4}-\d{2}-\d{2}$/, KEY_ID = /^k:[a-zA-Z]{1,30}$/;
 
 let meta = readMeta(), timer = 0, running = null, again = false, onChanged = null;
+// photo-backup.js listens: a day whose picture on this phone is out of date or was removed elsewhere.
+let photoGone = () => {};
+export function onPhotoGone(fn) { photoGone = fn; }
 function readMeta() { try { const m = JSON.parse(localStorage.getItem(META)); if (m && typeof m === "object" && m.h) return m; } catch { /* fresh */ } return blank(); }
 function blank() { return { user: null, base: 0, h: {}, at: {}, gone: {}, last: 0, state: "" }; }
 function keepMeta() { try { localStorage.setItem(META, JSON.stringify(meta)); } catch { /* full */ } }
@@ -45,7 +47,11 @@ const hash = (v) => { const s = steady(v); let h = 2166136261; for (let i = 0; i
 
 function pieces() {
   const s = store.get(), out = {};
-  for (const [k, d] of Object.entries(s.days || {})) if (DAY_ID.test("d:" + k)) out["d:" + k] = strip(d, DAY_LOCAL);
+  for (const [k, d] of Object.entries(s.days || {})) if (DAY_ID.test("d:" + k)) {
+    const p = strip(d, DAY_LOCAL);
+    if (d.ph && d.ph.b) p.ph = { b: 1, v: d.ph.v || 0, w: d.ph.w ? 1 : 0 };
+    out["d:" + k] = p;
+  }
   for (const [k, v] of Object.entries(s)) {
     if (k === "days" || SKIP.has(k) || v === undefined || !KEY_ID.test("k:" + k)) continue;
     out["k:" + k] = k === "lib" ? strip(v, LIB_LOCAL) : v;
@@ -58,10 +64,15 @@ function put(id, v) {
   const s = store.get(), k = id.slice(2);
   if (id.startsWith("d:")) {
     if (v === undefined) { delete s.days[k]; return; }
-    const d = s.days[k] || (s.days[k] = {}), keep = {};
-    DAY_LOCAL.forEach((x) => { if (x in d) keep[x] = d[x]; });
+    const d = s.days[k] || (s.days[k] = {}), mine = d.ph, theirs = v && v.ph;
     Object.keys(d).forEach((x) => delete d[x]);
-    Object.assign(d, v, keep);
+    Object.assign(d, v);
+    delete d.ph;
+    // The photo note: a photo only on this phone stays; a backed-up one follows the backup (newer replaces older;
+    // removed elsewhere is removed here). photos.js is told, so it can drop a picture it no longer needs.
+    if (mine && !mine.b) d.ph = mine;
+    else if (theirs && theirs.b) { d.ph = { ...theirs }; if (mine && (mine.v || 0) < (theirs.v || 0)) photoGone(k); }
+    else if (mine && mine.b && !theirs) photoGone(k);
     return;
   }
   if (v === undefined) { delete s[k]; return; }

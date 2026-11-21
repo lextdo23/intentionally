@@ -543,4 +543,8 @@ function openBlocked(back) {
 }
 
 // Signing out or in: start fresh.
-account.onAccount((what) => { data = null; problem = null; if (what === "out") { dotFn(false); closeAll(); } else { useInvite().then(() => again()); } });
+account.onAccount((what) => {
+  if (what === "pic") { if (data) account.call("/a/f/profile", { pic: account.picId() }).then(() => { if (data) data.me.pic = account.picId(); }); return; }
+  data = null; problem = null;
+  if (what === "out") { dotFn(false); closeAll(); } else { useInvite().then(() => again()); }
+});
