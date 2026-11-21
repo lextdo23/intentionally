@@ -28,6 +28,7 @@ import * as sync from "./sync.js";
 import * as pill from "./pill.js";
 import * as friends from "./friends.js";
 import * as moments from "./moments.js";
+import * as photoBackup from "./photo-backup.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -306,7 +307,8 @@ tester.opened();
 if (store.get().lib) library.refresh();
 library.finishUnshare();
 account.refresh();
-sync.start(() => render());   // backup and sync: changes go up quietly, and come in from the account's other phones
+sync.start(() => render());
+photoBackup.start(() => render());   // photos go up to the account's private store, and come back on a new phone   // backup and sync: changes go up quietly, and come in from the account's other phones
 // Accounts (alex 2026-11-20): new people see the sign-up first; people already using the app see it once.
 // A tester invite link goes first; the sign-up waits for the next open.
 const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
