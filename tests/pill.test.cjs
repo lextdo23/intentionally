@@ -25,6 +25,15 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!(await p.$("#pill")), "outside test mode there's no pill yet");
   check(!!(await p.$('#home button[aria-label="Settings"]')), "and Settings is on home as before");
 
+  // ---- Accounts from before Friends went live get it straight away, whatever their level ----
+  await p.evaluate(() => { const a = JSON.parse(localStorage.getItem("daydeck-account")); a.user.early = true; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
+  await p.reload(); await p.waitForTimeout(1500);
+  check(!!(await p.$("#pill")), "an early account (from before Friends went live) gets the pill and Friends at level 3");
+  await p.evaluate(() => { const a = JSON.parse(localStorage.getItem("daydeck-account")); delete a.user.early; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
+  await p.reload(); await p.waitForTimeout(1500);
+  check(!!(await p.$("#pill")), "and once opened, it stays open on that phone");
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("daydeck")); delete s.levels.early; localStorage.setItem("daydeck", JSON.stringify(s)); });
+
   // ---- Test mode: the pill ----
   await p.goto(server.url + "?test"); await p.waitForTimeout(1500);
   await p.evaluate(() => document.querySelectorAll(".tip-layer, .sheet-host").forEach((e) => e.remove()));

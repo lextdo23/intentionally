@@ -129,7 +129,16 @@ function placeSun(t, done) {
   document.body.classList.toggle("day-done", !!done);
 }
 
+// Accounts made before Friends went live for everyone (the people already using Daydeck) get it straight away
+// (alex 2026-11-21). The service says so; once it has, it stays open on this phone.
+function early() {
+  const st = store.get(), u = account.user();
+  if (u && u.early && !(st.levels || {}).early) { st.levels = st.levels || {}; st.levels.early = 1; store.save(); log("friends_early", 1); }
+  if ((st.levels || {}).early) levels.openEarly(["friends"]);
+}
+
 function render(moment) {
+  early();
   wrapped.applyPlan();   // a rest day kept for this week arrives on its own
   const st = store.get(), k = dayKey(), today = st.days[k] || {}, t = new Date(now()), hr = t.getHours();
   const needAM = !today.sleep, ended = today.mood != null;
