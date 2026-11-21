@@ -177,7 +177,9 @@ function adultGate() {
     h("h2", null, "Friends, gently"),
     h("p", null, "Add a few friends, see the moments they choose to share, and cheer each other on. Nothing is ever shared unless you choose to."),
     h("p", null, "Friends on Daydeck are for people 18 and over."),
-    tick, go);
+    tick,
+    h("p.tab-note", null, "By continuing, you agree to the ", h("a.fr-link", { href: "guidelines.html" }, "Friends guidelines"), "."),
+    go);
 }
 
 // A short line that floats up and fades, for things that went wrong or "Link copied".
@@ -402,6 +404,7 @@ export function openReport({ moment, person, pg }) {
     const step1 = () => panel.replaceChildren(h("span.grabber", { "aria-hidden": "true" }), h("h2", null, title),
       h("p.fr-sheet-text", null, `Why are you reporting it? ${shown(who)} won't know it was you.`),
       h("div.fr-why", { role: "list" }, WHY.map(([k, label]) => h("button.fr-why-row", { type: "button", role: "listitem", onclick: () => step2(k, label) }, h("span", null, label), h("span.set-chev", { "aria-hidden": "true" }, "›")))),
+      h("a.fr-link.fr-guide", { href: "guidelines.html" }, "Read the Friends guidelines"),
       h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
     const step2 = (k, label) => {
       const note = h("textarea.fr-field.mo-cap", { maxlength: "300", rows: "3", placeholder: "Anything else we should know? (optional)", "aria-label": "Anything else we should know?" });
