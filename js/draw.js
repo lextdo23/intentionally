@@ -424,7 +424,7 @@ const HEAVY = ["Hard", "Drained me", "Not for me"];
 export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const c = deck.card(id), el = lifter.querySelector(".home-card"), front = el.querySelector(".front");
   const rm = reduceMotion(), D = (ms) => (rm ? 0 : ms);
-  document.body.classList.add("in-ask");
+  document.body.classList.add("in-ask", "ask-open");   // ask-open hides the bottom pill until Done or Not now
   lifter.style.pointerEvents = "none"; lifter.style.transformOrigin = "50% 0";
   const did = el.querySelector(".did");
   if (did) { const t = tickEl(c); t.classList.add("fresh-tick"); did.replaceWith(t); }
@@ -446,7 +446,11 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const wrap = pp.el.querySelector(".more-wrap");
   const h0 = ask.offsetHeight, extra = wrap ? wrap.firstChild.scrollHeight + 8 : 0;
   // If the question (or the open "Show more") would reach past where "End your day" was, everything moves up together.
-  const shift = (open) => Math.max(0, Math.round(m.top + top + h0 + (open ? extra : 0) - hide.getBoundingClientRect().bottom));
+  // With the bottom pill, "End your day" is inside it (and the pill hides), so the limit is just above Lifeline instead:
+  // crisis support always stays in view and tappable (alex 2026-11-21).
+  const lifeline = document.body.classList.contains("has-pill") && mid.parentElement.querySelector(".lifeline");
+  const floor = () => (lifeline ? lifeline.getBoundingClientRect().top - 8 : hide.getBoundingClientRect().bottom);
+  const shift = (open) => Math.max(0, Math.round(m.top + top + h0 + (open ? extra : 0) - floor()));
   const up = (s) => `translateY(${-20 - s}px) scale(.5)`;
   let at = up(shift(false));
   const move = (to, ms) => {
@@ -470,6 +474,7 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const finish = (list) => {
     if (gone) return; gone = true;
     hide.classList.remove("soft-gone");
+    document.body.classList.remove("ask-open");   // the bottom pill comes back as soon as they've answered
     ask.classList.remove("on"); ask.classList.add("leaving");
     setTimeout(() => ask.remove(), D(400));
     onPick(list);
