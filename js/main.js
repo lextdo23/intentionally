@@ -315,7 +315,9 @@ tester.opened();
 // The card library: only phones that have used it check in (cards shared while offline, and how shared cards are going).
 if (store.get().lib) library.refresh();
 library.finishUnshare();
-account.refresh();
+// Asks the service about this account; if it's one of the early ones (Friends straight away), redraw now so the pill
+// shows without waiting for the next time home redraws (alex 2026-11-21: "it's not showing").
+account.refresh().then(() => { const u = account.user(); if (u && u.early && !(store.get().levels || {}).early) render(); });
 sync.start(() => render());
 photoBackup.start(() => render());   // photos go up to the account's private store, and come back on a new phone   // backup and sync: changes go up quietly, and come in from the account's other phones
 // Accounts (alex 2026-11-20): new people see the sign-up first; people already using the app see it once.

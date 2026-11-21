@@ -25,6 +25,13 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!(await p.$("#pill")), "outside test mode there's no pill yet");
   check(!!(await p.$('#home button[aria-label="Settings"]')), "and Settings is on home as before");
 
+  // ---- The service says "early" after the app has already drawn home: the pill appears without reopening ----
+  await ctx.route("https://intentionally-push.lextdo.workers.dev/a/me", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, user: { username: "mia.k", email: "mia@example.com", early: true }, passkeys: 1 }), headers: { "access-control-allow-origin": "*" } }));
+  await p.reload(); await p.waitForTimeout(2000);
+  check(!!(await p.$("#pill")), "when the service says the account is early, the pill shows straight away, without reopening the app");
+  await ctx.unroute("https://intentionally-push.lextdo.workers.dev/a/me");
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("daydeck")); delete s.levels.early; localStorage.setItem("daydeck", JSON.stringify(s)); const a = JSON.parse(localStorage.getItem("daydeck-account")); delete a.user.early; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
+
   // ---- Accounts from before Friends went live get it straight away, whatever their level ----
   await p.evaluate(() => { const a = JSON.parse(localStorage.getItem("daydeck-account")); a.user.early = true; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
   await p.reload(); await p.waitForTimeout(1500);
