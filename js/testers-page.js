@@ -43,7 +43,7 @@ function bars(rows, max, unit = "") {
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
-  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
@@ -77,6 +77,7 @@ const SHAPE = {
   card_smaller: (v) => isObj(v) && isNum(v.from),
   own_card: (v) => isObj(v) && typeof v.p === "string" && v.p.length < 30 && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)) && isInt(v.deck, 0, 1),
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
+  sleep_seen: (v) => ["up", "range", "down", "none", "steady", "empty"].includes(v), sleep_view: (v) => v === "hours" || v === "date",
   repick: (v) => v === "pick" || v === "later", repick_shown: (v) => isObj(v) && isInt(v.gone, 0, 20),
 };
 const okEvent = (name, val) => typeof name === "string" && (!SHAPE[name] || SHAPE[name](val));
@@ -229,6 +230,15 @@ function drawAll(D) {
   html += sec("Do the patterns feel true?", "Lines shown in \"What seems to help you\", and how often testers tapped \"That's not it\". Lines starting r- are from research; the rest are people's own patterns.",
     pats.length ? `<div class="items">${pats.map((id) => item(id, `Shown ${shown[id]} times · dismissed ${hid[id] || 0}`, (hid[id] || 0) / shown[id] >= 0.25 ? "Often dismissed" : "Feels true", (hid[id] || 0) / shown[id] >= 0.25)).join("")}</div>` : `<p class="sub">Nobody has opened Your days yet.</p>`,
     "lines people dismiss a lot need rewording or removing.");
+
+  // 9b. Mood and sleep card (alex 2026-11-22)
+  const sk = {}; by("sleep_seen").forEach((e) => (sk[e.val] = (sk[e.val] || 0) + 1));
+  const KIND = { up: "Best days after X hours or more", range: "Best days after X to Y hours", down: "Best days after under X hours", none: "No clear link yet", steady: "Sleep has been steady", empty: "Still filling in" };
+  const sv = { hours: 0, date: 0 }; by("sleep_view").forEach((e) => (sv[e.val] = (sv[e.val] || 0) + 1));
+  html += sec("Is the sleep chart read?", "What the Mood and sleep card told testers, and whether they slid across it, switched order or opened a day from it.",
+    by("sleep_seen").length ? `${bars(Object.keys(KIND).map((k) => [KIND[k], sk[k] || 0]))}<div style="height:16px"></div>${bars([["Slid across the nights", who("sleep_slide")], ["Opened a day from it", who("sleep_day_open")], ["Switched to By date", who("sleep_view")], ["Followed the link to What seems to help", who("sleep_to_helps")]], T)}
+     <p class="note">Switches: By date ${sv.date}, back to By hours ${sv.hours}.</p>` : `<p class="sub">Nobody has opened Your days since the new sleep chart.</p>`,
+    "if hardly anyone slides across or opens a day, the chart is being read at a glance only, which is fine. Lots of 'No clear link' means people's moods hang on other things, or need more nights.");
 
   // 10. Errors and phones
   const errs = {}; by("error").forEach((e) => { const k = String(e.val); (errs[k] = errs[k] || { n: 0, who: new Set() }).n++; errs[k].who.add(e.code); });

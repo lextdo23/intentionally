@@ -1,5 +1,5 @@
 // Daydeck (test build). Home: the greeting, a peek at your week, the sun, and one main button.
-import { h, MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LIFELINE, reduceMotion, clock12 } from "./util.js";
+import { h, CHART_COL as MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LIFELINE, reduceMotion, clock12 } from "./util.js";
 import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
