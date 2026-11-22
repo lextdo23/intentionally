@@ -10,6 +10,7 @@ import * as notify from "./notify.js";
 import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
 import * as photos from "./photos.js";
+import { easier } from "./stats.js";
 
 // ---------------- small helpers ----------------
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
@@ -113,7 +114,7 @@ export function build(w) {
   if (n >= 3 && max > min) D.best = { days: noted, top: D.light, rows: thatDay(D.light[0], days), hard };
 
   // 3 · something we noticed: one kind a week, never the same kind twice running
-  const kinds = hard ? [rhythm, deckGrew, thenNow] : [pattern, thenNow, rhythm, deckGrew];
+  const kinds = hard ? [gotEasier, rhythm, deckGrew, thenNow] : [pattern, gotEasier, thenNow, rhythm, deckGrew];
   const found = kinds.map((f) => f(D)).filter(Boolean), lastKind = m0.kinds[addDays(w, -7)];
   D.find = found.find((f) => f.kind !== lastKind) || found[0] || null;
   D.usual = usualBed(days);
@@ -184,6 +185,13 @@ function deckGrew(D) {
   const enjoyed = met.filter((id) => liked.has(id));
   const show = enjoyed.concat(met.filter((id) => !liked.has(id))).slice(0, 6);
   return { kind: "deck", c: GOLD, lab: "Your deck this week", big: String(met.length), line: enjoyed.length ? `new cards met. You enjoyed ${num(enjoyed.length)} of them.` : "new cards met.", show, liked };
+}
+
+// Getting easier (alex 2026-11-22): a pillar that mostly took a lot a few weeks ago and mostly lifts you now
+// (easier() in js/stats.js). Only when it's clearly true; never the opposite.
+function gotEasier(D) {
+  const e = easier(store.get().days, D.w);
+  return e ? { kind: "easier", c: tint(e.pillar), lab: "Something we noticed", big: e.pillar, line: "has felt easier over the last few weeks.", weeks: e.weeks } : null;
 }
 
 // --- what works for you ---
@@ -500,6 +508,12 @@ function scrFind(ctx, j) {
       h("div.wr-ab", { style: "left:0;right:0;top:204px;height:2px;background:rgb(23 24 27 / .3)" }),
       ticks.map(([v, l], k) => h("div.wr-ab.tick", { style: `left:${X(v)}%;top:214px;translate:${k === 0 ? "0" : k === ticks.length - 1 ? "-100%" : "-50%"}` }, l)),
       h("p.wr-ab.wr-fade", { style: "left:0;right:0;top:248px;--d:2.6s;font-size:15px;opacity:.8" }, "Each dot is a night, coloured by how the next day felt."));
+  } else if (F.kind === "easier") {
+    // Week by week, how that pillar's cards mostly felt, in words (no dots to decode).
+    const WORD = { lift: "Lifted you", done: "Got it done", hard: "Took a lot" };
+    const most = (W) => { const n = { lift: 0, done: 0, hard: 0 }; W.forEach((k) => n[k]++); return W.length ? (n.lift >= n.done && n.lift >= n.hard ? "lift" : n.done >= n.hard ? "done" : "hard") : null; };
+    pic = h("div.wr-pic.wr-easy", null, F.weeks.map((W, r) => { const m = most(W);
+      return h("div.wr-easy-row.wr-fade", { style: `--d:${0.8 + r * 0.35}s` }, h("span", null, ["3 weeks ago", "2 weeks ago", "Last week", "This week"][r]), h("b", { style: m ? "" : "opacity:.4" }, m ? WORD[m] : "No cards")); }));
   } else {
     pic = h("div.wr-pic.wr-grid", null, F.show.map((id, k) => { const c = deck.card(id);
       return h("div.wr-mini.wr-pop", { style: `--d:${0.9 + k * 0.15}s;width:104px;height:144px` }, h("div.bk.wr-out", { style: `--d:${1.8 + k * 0.15}s` }),
@@ -601,7 +615,7 @@ function scrNext(ctx, j) {
 // words, sleep lengths, anything typed, level or counts. Moods are on unless switched off. Story shaped (9 by 16),
 // so it fills a story without cropping. The screen shows the very picture that gets shared.
 const NOTICED = { pattern: (F) => `${F.big} have been a good day three weeks running`, then: (F) => `${F.big} more sleep a night than last week`,
-  rhythm: (F) => `${F.big} is your usual lights out`, deck: (F) => `${F.big} new cards met this week` };
+  rhythm: (F) => `${F.big} is your usual lights out`, deck: (F) => `${F.big} new cards met this week`, easier: (F) => `${F.big} has felt easier lately` };
 export function posterData(D) {
   const c = D.loved ? D.loved.c : null, b = D.light[0];
   return { w: D.w, days: [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(D.w, i)), dates: D.dates, name: D.name.name, line: D.name.line, ms: D.ms, hard: D.hard,
