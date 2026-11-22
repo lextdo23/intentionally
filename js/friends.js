@@ -72,7 +72,9 @@ const ICON = {
 };
 const iconBtn = (icon, label, onclick) => h("button.round", { type: "button", "aria-label": label, onclick }, icon());
 export const shown = (p) => p.name || p.username;
-export const pic = (p, size) => account.littleOne(p.pic || "smile", size);
+// You always see your own picture as it really is (a photo too); friends see the little one the service keeps.
+const isMe = (p) => { const u = account.user(); return !!(u && p && p.username && p.username.toLowerCase() === String(u.username || "").toLowerCase()); };
+export const pic = (p, size) => (isMe(p) ? account.picture(size) : account.littleOne(p.pic || "smile", size));
 // A person in a list: picture, name and @username, with whatever goes on the right.
 function row(p, right, open) {
   const who = h("div.fr-who", null, h("span.fr-name", null, shown(p)), h("span.fr-handle", null, "@" + p.username + (p.season ? " · " + p.season : "")));
