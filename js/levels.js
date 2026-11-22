@@ -80,10 +80,10 @@ export const BASICS = { name: "Your daily card", line: "Start your day, your car
 export const UNLOCKS = [
   { level: 2, id: "days", name: "Your days", line: "See how your days have felt, and what seems to help." },
   { level: 3, id: "own", name: "Make your own card", line: "At the end of your day, add something else you did." },
-  // Friends opens within about 4 days of use (alex 2026-11-20), so the card library moved to 5 and Month and Year to 6.
+  // Friends opens within about 4 days of use (alex 2026-11-20), so the card library moved to 5.
+  // Month and Year on Your days are always open (alex 2026-11-23), so they're no longer a level.
   { level: 4, id: "friends", name: "Friends", line: "Add a few friends and cheer each other on." },
   { level: 5, id: "library", name: "Card library", line: "Every card in Daydeck, to look through." },
-  { level: 6, id: "months", name: "Month and Year on Your days", line: "Look back over a whole month or year." },
 ];
 // Anything already opened for someone stays open when its level moves (nothing is ever taken away): its tip
 // showed, so they've had it.

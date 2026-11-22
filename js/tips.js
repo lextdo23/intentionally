@@ -8,13 +8,12 @@ import * as levels from "./levels.js";
 import { log } from "./tester.js";
 
 // Where each new thing lives on home (the card library is the round Cards button at the top).
-const TARGET = { days: "button.peek", own: ".btn-main", friends: '#pill [data-tab="friends"]', library: 'button[aria-label="Cards"]', months: "button.peek" };
+const TARGET = { days: "button.peek", own: ".btn-main", friends: '#pill [data-tab="friends"]', library: 'button[aria-label="Cards"]' };
 const TIP = {
   days: ["Your days", "See how your days have felt, and what seems to help. It's always here at the top."],
   own: ["Make your own card", "Tonight, when you end your day, you can add something else you did as a card of your own."],
   friends: ["Friends", "Add a few friends and cheer each other on. Only friends see what you choose to share, and only when you choose."],
   library: ["Card library", "Every card in Daydeck, to look through and add to your deck."],
-  months: ["Month and Year", "Open Your days to look back over a whole month or year."],
 };
 
 // Some tips wait for the right moment: making your own card is pointed out only while the day is still open.
