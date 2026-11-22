@@ -57,8 +57,7 @@ function days(set, n = set.length, extraOld = 0) {
   check(p.noted.some((n) => Math.abs(n.h - 2) < 0.01) && p.noted.some((n) => Math.abs(n.h - 13) < 0.01), "2 hours and 13 hours are kept as real nights");
 
   // What seems to help you uses the same hours.
-  const h = st.helps(days(SETS.more), {}, []), line = h.find((x) => x.id === "sleep");
-  check(!line || line.text("").join("").includes("8 hours or more"), "What seems to help you names the same hours as the card");
-  check(!h.some((x) => x.id === "sleep730"), "the old 7h30 line is gone");
+  const h = st.helps(days(SETS.more), {}, []);
+  check(!h.some((x) => x.id === "sleep" || x.id === "sleep730"), "What seems to help you leaves sleep hours to the sleep card");
   done();
 })();

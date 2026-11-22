@@ -252,7 +252,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .slp-note b { color: #7ab57a; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .slp-col, .slp-band, .slp-band-l, .slp-col i { transition: none; } }
 .prow { display: flex; align-items: center; gap: 8px; min-height: 20px; }
-.prow .l { width: 104px; flex-shrink: 0; font-size: 13px; color: var(--dim); }
+.prow .l { width: 116px; flex-shrink: 0; font-size: 13px; color: var(--dim); }
 .prow .bar { flex-grow: 1; height: 10px; border-radius: 5px; }
 .prow .c { width: 64px; text-align: right; font-size: 13px; color: var(--ink2); }
 .help { display: flex; flex-direction: column; gap: 8px; padding: 12px 0 4px; border-bottom: 1px solid rgba(239, 237, 233, .06); }
