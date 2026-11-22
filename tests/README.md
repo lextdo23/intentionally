@@ -17,6 +17,7 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/signup.test.cjs        (the sign-up screens and Your account in Settings, with a pretend service and Face ID). Accounts are on for everyone, so tests about other things start as someone who chose "Use without an account" (daydeck-account = {"skip":1})
     node tests/launch.test.cjs        (opening: the splash, then home; coming back: just as it was)
     node tests/rate-pill.test.cjs     (the bottom pill hides while a card is rated, Show more included, and comes back on Done)
+    node tests/test-account.test.cjs  (alex's test accounts: everything open, nothing in tester data)
     node tests/recap-nudge.test.cjs   (weekly recap notifications: Sunday's heads-up and Monday's catch-up, their times and words)
     node tests/pill.test.cjs          (the glass pill: Today, Friends, You; test mode only for now)
     node tests/sync.test.cjs          (backup and sync: two pretend phones and the real backup service)

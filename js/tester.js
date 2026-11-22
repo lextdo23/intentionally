@@ -23,7 +23,10 @@ export const NEVER = ["Anything you type in your own words, unless you show a ca
 
 const MAX_QUEUE = 2000;
 const t = () => store.get().tester;
-export const on = () => !!(t() && t().on && t().consent >= CONSENT);
+// alex's own test accounts never send tester data, even if tester mode is on (alex 2026-11-22). Read straight from
+// the account's own storage (js/account.js), since account.js already uses this file.
+const testAccount = () => { try { const a = JSON.parse(localStorage.getItem("daydeck-account")); return !!(a && a.user && a.user.test); } catch { return false; } };
+export const on = () => !!(t() && t().on && t().consent >= CONSENT) && !testAccount();
 export const code = () => t() && t().code;
 // A tester who agreed to an older consent screen: asked again before anything more is sent (js/tester-sheet.js askAgain).
 export const needsAsk = () => !!(t() && t().on && t().code && (t().consent || 0) < CONSENT);

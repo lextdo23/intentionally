@@ -18,6 +18,10 @@ const CODE_LIFE = 10 * MIN, CODE_TRIES = 5, TICKET_LIFE = 20 * MIN, CHALLENGE_LI
 const SENDS = { gap: MIN, perEmailDay: 5, perPlaceHour: 8, allDay: 90 };   // Resend's free plan allows 100 a day
 const RENAME_EVERY = 30 * DAY, NAME_HELD = 30 * DAY;
 const EARLY_BEFORE = Date.parse("2026-11-21T02:00:00Z");   // 1 pm Sydney, 21 Nov 2026: the people already using Daydeck
+// alex's own test accounts (alex 2026-11-22): every feature open whatever the level, and never in tester data.
+// Kept as scrambled emails (hash() of the lowercase email), so the addresses never sit in this public code.
+// Tests can add more with the TEST_ACCOUNTS setting (commas between).
+const TEST_ACCOUNTS = ["1dzDjM55YiVadq4ts7Cd-Y5TebrhCTz_wL4IGIFwEpY"];
 const BACKUP_MAX = 1500000;                        // about 1.5 MB of days; photos stay on the phone (later: their own store, see CLAUDE.md)
 
 // ---------------- Small helpers ----------------
@@ -374,7 +378,12 @@ export class Accounts extends DurableObject {
   }
   // early: accounts made before Friends went live for everyone get Friends straight away, whatever their level
   // (alex 2026-11-21: "for the current 2 users, who have not reached level 4 yet, activate the friends part").
-  publicUser(u) { return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE) }; }   // tests can set EARLY_BEFORE
+  // test: one of alex's own test accounts (see TEST_ACCOUNTS).
+  async publicUser(u) {
+    const tests = TEST_ACCOUNTS.concat(String((this.env && this.env.TEST_ACCOUNTS) || "").split(",").filter(Boolean));
+    const test = tests.includes(await hash(String(u.email || "").trim().toLowerCase()));
+    return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE), test };   // tests can set EARLY_BEFORE
+  }
 
   // Finish signing up or getting back in. A passkey is saved if one came (Face ID can be skipped or unavailable;
   // then the email code is how they get back in).
@@ -388,7 +397,7 @@ export class Accounts extends DurableObject {
       const r = await this.savePasskey(user.id, credential, "s:" + user.id);
       if (r.error) return r;
       this.sql.exec("INSERT INTO creds (id, user, jwk, alg, count, made, used) VALUES (?, ?, ?, ?, ?, ?, ?)", r.k.id, user.id, JSON.stringify(r.k.jwk), r.k.alg, r.k.count, Date.now(), 0);
-      return { ok: true, user: this.publicUser(user) };
+      return { ok: true, user: await this.publicUser(user) };
     }
     const tkey = await hash(ticket);
     let user = tk.user ? this.one("SELECT * FROM users WHERE id = ?", tk.user) : null;
@@ -404,7 +413,7 @@ export class Accounts extends DurableObject {
     }
     if (k) this.sql.exec("INSERT INTO creds (id, user, jwk, alg, count, made, used) VALUES (?, ?, ?, ?, ?, ?, ?)", k.id, user.id, JSON.stringify(k.jwk), k.alg, k.count, t, 0);
     this.sql.exec("DELETE FROM tickets WHERE hash = ?", tkey);
-    return { ok: true, session: await this.newSession(user.id), user: this.publicUser(user), passkey: !!k, created: !tk.user };
+    return { ok: true, session: await this.newSession(user.id), user: await this.publicUser(user), passkey: !!k, created: !tk.user };
   }
 
   async signInOptions(place) {
@@ -431,26 +440,26 @@ export class Accounts extends DurableObject {
     this.sql.exec("UPDATE creds SET count = ?, used = ? WHERE id = ?", count, Date.now(), saved.id);
     const user = this.one("SELECT * FROM users WHERE id = ?", saved.user);
     if (!user) return { error: "unknown_passkey" };
-    return { ok: true, session: await this.newSession(user.id), user: this.publicUser(user) };
+    return { ok: true, session: await this.newSession(user.id), user: await this.publicUser(user) };
   }
 
   async who(token) { const u = await this.sessionUser(token); return u ? u.id : null; }
   async me(token) {
     const u = await this.sessionUser(token);
     if (!u) return { error: "signed_out", status: 401 };
-    return { ok: true, user: this.publicUser(u), passkeys: this.one("SELECT COUNT(*) AS n FROM creds WHERE user = ?", u.id).n };
+    return { ok: true, user: await this.publicUser(u), passkeys: this.one("SELECT COUNT(*) AS n FROM creds WHERE user = ?", u.id).n };
   }
   async rename(token, username) {
     const u = await this.sessionUser(token);
     if (!u) return { error: "signed_out", status: 401 };
     const n = username.trim();
-    if (n.toLowerCase() === u.name_l) { this.sql.exec("UPDATE users SET name = ? WHERE id = ?", n, u.id); return { ok: true, user: this.publicUser({ ...u, name: n }) }; }
+    if (n.toLowerCase() === u.name_l) { this.sql.exec("UPDATE users SET name = ? WHERE id = ?", n, u.id); return { ok: true, user: await this.publicUser({ ...u, name: n }) }; }
     if (Date.now() - u.name_at < RENAME_EVERY) return { error: "too_soon", after: u.name_at + RENAME_EVERY };
     const c = this.nameCheck(n); if (!c.ok) return { error: "name", ...c };
     const t = Date.now();
     this.sql.exec("INSERT OR REPLACE INTO held (name_l, until) VALUES (?, ?)", u.name_l, t + NAME_HELD);
     this.sql.exec("UPDATE users SET name = ?, name_l = ?, name_at = ? WHERE id = ?", n, n.toLowerCase(), t, u.id);
-    return { ok: true, user: this.publicUser({ ...u, name: n, name_at: t }) };
+    return { ok: true, user: await this.publicUser({ ...u, name: n, name_at: t }) };
   }
   async signOut(token) { if (token) this.sql.exec("DELETE FROM sessions WHERE hash = ?", await hash(token)); return { ok: true }; }
   // Delete the account: everything about it goes. The name stays held for a while so nobody can pose as them.

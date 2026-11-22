@@ -135,6 +135,8 @@ function early() {
   const st = store.get(), u = account.user();
   if (u && u.early && !(st.levels || {}).early) { st.levels = st.levels || {}; st.levels.early = 1; store.save(); log("friends_early", 1); }
   if ((st.levels || {}).early) levels.openEarly(["friends"]);
+  // alex's own test accounts (alex 2026-11-22): everything open, whatever the level (the service says which).
+  if (u && u.test) levels.openEarly(levels.UNLOCKS.map((x) => x.id));
 }
 
 // What home would show, in short: the day, the greeting and which main button. Coming back to Daydeck only redraws
@@ -323,7 +325,7 @@ if (store.get().lib) library.refresh();
 library.finishUnshare();
 // Asks the service about this account; if it's one of the early ones (Friends straight away), redraw now so the pill
 // shows without waiting for the next time home redraws (alex 2026-11-21: "it's not showing").
-const acctReady = account.refresh().then(() => { const u = account.user(); if (u && u.early && !(store.get().levels || {}).early) render(); }).catch(() => {});
+const acctReady = account.refresh().then(() => { const u = account.user(); if (u && ((u.early && !(store.get().levels || {}).early) || (u.test && !levels.isOpen("months")))) render(); }).catch(() => {});
 
 // Opening Daydeck (alex 2026-11-21, "like other social apps"): a fresh open shows the sun on a blank sky (the splash
 // in index.html) while home gets ready behind it, then the splash fades and home rises in. It stays at least a moment,
