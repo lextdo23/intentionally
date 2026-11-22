@@ -89,6 +89,8 @@
 .mc::before { content: ""; width: 14px; height: 14px; border-radius: 7px; background: var(--m); }
 .mc.dim { opacity: .3; } .mc.none { background: none; box-shadow: inset 0 0 0 1.5px rgb(23 24 27 / .25); color: var(--on-sun); } .mc.none::before { background: none; }
 .mc.hi { box-shadow: 0 0 0 1.5px rgb(227 196 134 / .7), 0 0 18px rgb(242 192 143 / .5); }
+.wr-easy { display: flex; flex-direction: column; gap: 12px; } .wr-easy-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 1.5px solid rgb(23 24 27 / .15); }
+.wr-easy-row span { font-size: 15px; font-weight: 600; opacity: .7; } .wr-easy-row b { font-size: 22px; font-weight: 700; }
 .wl { font-size: 13px; font-weight: 600; opacity: .7; margin-bottom: 4px; }
 .wr-card .bar { height: 56px; border-radius: 12px; background: rgb(23 24 27 / .14); position: relative; overflow: hidden; }
 .wr-card .bar i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 12px; background: var(--on-sun); }

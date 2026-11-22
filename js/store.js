@@ -6,7 +6,7 @@ const fresh = () => ({
   days: {},                         // "2026-11-12": { sleep: {bed, wake, rested, tags}, mood, feel: [], pil: [], rest }
   sleepTags: { last: {}, own: [] }, // when each tag was last picked (day number), and the person's own words
   feel: { last: {}, own: [] },      // last[band][word] = day number
-  order: ["A", "B", "C", "D"], hidden: {}, notes: {}, test: { offset: 0 },
+  order: ["A", "B", "E", "C", "D"], hidden: {}, notes: {}, test: { offset: 0 },
 });
 let state;
 export function load() {

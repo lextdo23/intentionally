@@ -1,5 +1,6 @@
 // The numbers behind Your days. Everything here only reads what the person noted.
 import { addDays, dayKey, keyDate, DAY_LETTER, MONTH, mostPicked, avg, isGood, sleepMins } from "./util.js";
+import { card as cardOf, ownCard } from "./deck.js";
 
 // ---- Your moods: one line, Week / Month / Year ----
 // Real calendar periods: a week runs Monday to Sunday, a month is its name, a year is its number.
@@ -99,18 +100,91 @@ export function sleepHours(p) {
 }
 export const inSleepBand = (p, h) => p.lo != null && h >= p.lo && h < p.hi;
 
-// ---- Mood and what you did: one row per pillar ----
-export const SOLID = 5;
-export function pillarRows(days, colours) {
-  const by = {};
-  Object.values(days).forEach((d) => {
-    if (d.mood == null) return;
-    (d.rest ? ["Rest day"] : d.pil || []).forEach((p) => (by[p] = by[p] || []).push(d.mood));
+// ---- Activities: how doing each card felt (alex 2026-11-22) ----
+// Every "How did doing it feel?" word belongs to one of three kinds. A card's kind is the one most of its words
+// belong to (ties: lifted, then got it done). Own cards count the same as deck cards.
+export const FELT_KIND = { "Enjoyed it": "lift", Calmer: "lift", "Closer to someone": "lift", "More energy": "lift", "Felt like me": "lift",
+  "Proud of myself": "done", "Glad it's done": "done", Hard: "hard", "Drained me": "hard", "Not for me": "hard" };
+export const KIND_WORD = { lift: "Lifted you", done: "Got it done", hard: "Took a lot" };
+export const ACT_SOLID = 5;               // a pillar needs 5 cards before it's more than "still learning"
+const kindOf = (felt) => {
+  const n = { lift: 0, done: 0, hard: 0 }; felt.forEach((w) => FELT_KIND[w] && n[FELT_KIND[w]]++);
+  return n.lift >= n.done && n.lift >= n.hard && n.lift ? "lift" : n.done >= n.hard && n.done ? "done" : n.hard ? "hard" : null;
+};
+// One entry per card answered: { k, id, pillar, text, felt, kind, mood }. Oldest first.
+export function activities(days, from = "", to = dayKey()) {
+  const out = [];
+  Object.keys(days).filter((k) => k >= from && k <= to).sort().forEach((k) => {
+    const d = days[k], mood = d.mood != null ? d.mood : null;
+    if (!d.rest && d.card && d.card.id && (d.card.felt || []).length) {
+      const c = cardOf(d.card.id), kind = kindOf(d.card.felt);
+      if (c && kind) out.push({ k, id: d.card.id, pillar: c.pillar, text: c.text, felt: d.card.felt.slice(), kind, mood });
+    }
+    (d.made || []).forEach((id) => { const o = ownCard(id); const kind = o && kindOf(o.felt || []); if (kind) out.push({ k, id, pillar: o.pillar, text: o.text, felt: o.felt.slice(), kind, mood }); });
   });
-  const rows = Object.entries(by).map(([name, ms]) => ({ name, ms, n: ms.length, av: avg(ms), top: mostPicked(ms), lo: Math.min(...ms), hi: Math.max(...ms), col: colours[name] || null }))
-    .sort((a, b) => b.av - a.av);
-  const best = rows.find((r) => r.n >= SOLID && r.name !== "Rest day" && isGood(r.top));
-  return { rows, best };
+  return out;
+}
+// Mood and activities: one row per pillar. How doing it felt (the main kind, its count, its two most-picked words)
+// next to how those days went (usual evening mood). A gold note where the two clearly disagree.
+export function moodActivities(days) {
+  const A = activities(days), by = {};
+  A.forEach((a) => (by[a.pillar] = by[a.pillar] || []).push(a));
+  const rows = Object.entries(by).map(([pillar, list]) => {
+    const n = { lift: 0, done: 0, hard: 0 }; list.forEach((a) => n[a.kind]++);
+    const kind = n.lift >= n.done && n.lift >= n.hard ? "lift" : n.done >= n.hard ? "done" : "hard";
+    const wc = {}; list.filter((a) => a.kind === kind).forEach((a) => a.felt.filter((w) => FELT_KIND[w] === kind).forEach((w) => (wc[w] = (wc[w] || 0) + 1)));
+    const words = Object.keys(wc).sort((a, b) => wc[b] - wc[a]).slice(0, 2);
+    const moodDays = [...new Set(list.filter((a) => a.mood != null).map((a) => a.k))].map((k) => days[k].mood);
+    const usual = moodDays.length ? Math.round(avg(moodDays)) : null, av = moodDays.length ? avg(moodDays) : null;
+    const total = list.length, learning = total < ACT_SOLID;
+    let note = null;
+    if (!learning && moodDays.length >= ACT_SOLID) {
+      if (n.hard / total >= 0.5 && av >= 4) note = "worth";        // hard to do, but those days still went well
+      else if (n.lift / total >= 0.7 && av < 3) note = "moment";   // helped in the moment, even on lower days
+    }
+    return { pillar, list, n, kind, count: n[kind], total, words, usual, learning, note };
+  }).sort((a, b) => b.total - a.total);
+  const best = rows.find((r) => r.note === "worth") || rows.find((r) => r.note === "moment");
+  const top = rows.filter((r) => !r.learning && r.n.lift).sort((a, b) => b.n.lift - a.n.lift)[0];
+  const lead = best ? { kind: best.note, pillar: best.pillar } : top ? { kind: top.usual != null && top.usual >= 4 ? "both" : "lift", pillar: top.pillar } : { kind: "empty" };
+  return { rows, lead };
+}
+// What lifts you: the cards that lifted you most in the last 4 weeks, and the ones that still helped on harder
+// days (Low or below). Harder days only show once there are 5 cards done on harder days.
+export const HARDER_DAY = 2, HARDER_NEED = 5;
+export function lifts(days, today = dayKey()) {
+  const A = activities(days, addDays(today, -27), today);
+  const group = (list, keep) => {
+    const by = {};
+    list.forEach((a) => { const g = (by[a.id] = by[a.id] || { id: a.id, pillar: a.pillar, text: a.text, n: 0, of: 0, words: {} }); g.of++; if (keep(a)) { g.n++; a.felt.filter((w) => keep({ kind: FELT_KIND[w] })).forEach((w) => (g.words[w] = (g.words[w] || 0) + 1)); } });
+    return Object.values(by).filter((g) => g.n).map((g) => ({ ...g, word: Object.keys(g.words).sort((a, b) => g.words[b] - g.words[a])[0] || "" }))
+      .sort((a, b) => b.n - a.n || b.n / b.of - a.n / a.of).slice(0, 3);
+  };
+  const any = group(A, (a) => a.kind === "lift");
+  const harderList = A.filter((a) => a.mood != null && a.mood <= HARDER_DAY);
+  const harder = harderList.length >= HARDER_NEED ? group(harderList, (a) => a.kind === "lift" || a.kind === "done") : [];
+  return { any, harder };
+}
+// Getting easier, for the weekly look back: a pillar that mostly "took a lot" a few weeks ago and mostly lifts now.
+// Needs the pillar in at least 3 of the last 4 weeks and 6+ cards. Never says the opposite.
+export function easier(days, weekStart) {
+  const from = addDays(weekStart, -21), A = activities(days, from, addDays(weekStart, 6)), by = {};
+  A.forEach((a) => (by[a.pillar] = by[a.pillar] || []).push(a));
+  let best = null;
+  Object.entries(by).forEach(([pillar, list]) => {
+    if (list.length < 6) return;
+    const weeks = [0, 1, 2, 3].map((i) => list.filter((a) => a.k >= addDays(from, i * 7) && a.k < addDays(from, i * 7 + 7)));
+    if (weeks.filter((w) => w.length).length < 3) return;
+    const early = weeks[0].concat(weeks[1]), late = weeks[2].concat(weeks[3]);
+    if (early.length < 2 || late.length < 2) return;
+    const hardThen = early.filter((a) => a.kind === "hard").length / early.length, liftNow = late.filter((a) => a.kind === "lift").length / late.length;
+    const hardNow = late.filter((a) => a.kind === "hard").length / late.length;
+    if (hardThen >= 0.5 && liftNow >= 0.6 && hardThen - hardNow >= 0.4) {
+      const score = liftNow - hardNow + hardThen;
+      if (!best || score > best.score) best = { pillar, weeks: weeks.map((w) => w.map((a) => a.kind)), score };
+    }
+  });
+  return best;
 }
 
 // ---- What seems to help you ----

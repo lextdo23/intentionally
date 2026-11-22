@@ -185,6 +185,41 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .lab { position: absolute; font-size: 11px; color: var(--dim); white-space: nowrap; line-height: 16px; }
 .hit { position: absolute; top: 0; bottom: 0; }
+/* Mood and activities, What lifts you (alex 2026-11-22): words lead, no keys; one meaning per colour */
+.acts, .lifts { gap: 16px; }
+.acts .lead b, .lifts .lead b { font-weight: 600; }
+.acts-list { display: flex; flex-direction: column; }
+.acts-head, .acts-grid { display: grid; grid-template-columns: minmax(0, 1fr) 132px 8px; gap: 0 12px; }
+.acts-head span { white-space: nowrap; }
+.acts-head { padding-bottom: 8px; font-size: 15px; color: var(--dim); }
+.acts-head span:nth-child(2), .acts-day { text-align: center; }
+.acts-row { width: 100%; padding: 16px 0; display: flex; flex-direction: column; gap: 8px; text-align: left; border-top: 1px solid rgba(239, 237, 233, .06); }
+.acts-row:active { background: rgba(239, 237, 233, .05); box-shadow: 0 0 0 8px rgba(239, 237, 233, .05); border-radius: 4px; }
+.acts-name { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.acts-learn { font-size: 13px; color: var(--faint); }
+.acts-grid { align-items: start; }
+.acts-grid > svg { margin-top: 4px; }
+.acts-felt { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.acts-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 15px; }
+.acts-top b, .acts-day { font-size: 15px; font-weight: 600; }
+.acts-n { font-size: 13px; color: var(--dim); white-space: nowrap; }
+.acts-bar { display: block; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .08); overflow: hidden; }
+.acts-bar i { display: block; height: 100%; border-radius: 3px; }
+.acts-words { font-size: 13px; color: var(--ink2); }
+.acts-note { font-size: 13px; line-height: 1.4; color: var(--gold); }
+.acts-cards { display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }
+.acts-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid rgba(239, 237, 233, .06); font-size: 15px; line-height: 1.35; }
+.acts-card b { font-weight: 600; white-space: nowrap; }
+.acts-date { font-size: 13px; color: var(--dim); }
+.lifts-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.lifts-card { min-height: 168px; padding: 10px; border-radius: 12px; display: flex; flex-direction: column; gap: 6px;
+  background: radial-gradient(130% 55% at 50% -8%, rgb(242 192 143 / .20), rgb(242 192 143 / .04) 55%, transparent 75%), linear-gradient(175deg, #2f3036, #1c1d21);
+  box-shadow: 0 0 0 1px rgb(227 196 134 / .28), 0 10px 24px rgba(0, 0, 0, .45); }
+.lifts-p { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); }
+.lifts-p i { width: 8px; height: 8px; border-radius: 2px; }
+.lifts-t { flex-grow: 1; font-size: 15px; line-height: 1.3; }
+.lifts-card b { font-size: 12px; line-height: 1.3; font-weight: 600; }
+.lifts-n { font-size: 11px; color: var(--faint); }
 /* Mood and sleep (alex 2026-11-22): one chart, By hours / By date, slide across to read a night */
 .slp { gap: 12px; }
 .slp .lead { min-height: 23px; }

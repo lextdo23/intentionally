@@ -43,7 +43,7 @@ function bars(rows, max, unit = "") {
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
-  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
@@ -77,6 +77,8 @@ const SHAPE = {
   card_smaller: (v) => isObj(v) && isNum(v.from),
   own_card: (v) => isObj(v) && typeof v.p === "string" && v.p.length < 30 && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)) && isInt(v.deck, 0, 1),
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
+  acts_seen: (v) => ["worth", "moment", "both", "lift", "empty"].includes(v), acts_open: (v) => v == null, lifts_view: (v) => v === "any" || v === "harder",
+  lifts_seen: (v) => isObj(v) && isInt(v.any, 0, 3) && isInt(v.harder, 0, 3),
   sleep_seen: (v) => ["up", "range", "down", "none", "steady", "empty"].includes(v), sleep_view: (v) => v === "hours" || v === "date",
   repick: (v) => v === "pick" || v === "later", repick_shown: (v) => isObj(v) && isInt(v.gone, 0, 20),
 };
@@ -239,6 +241,15 @@ function drawAll(D) {
     by("sleep_seen").length ? `${bars(Object.keys(KIND).map((k) => [KIND[k], sk[k] || 0]))}<div style="height:16px"></div>${bars([["Slid across the nights", who("sleep_slide")], ["Opened a day from it", who("sleep_day_open")], ["Switched to By date", who("sleep_view")], ["Followed the link to What seems to help", who("sleep_to_helps")]], T)}
      <p class="note">Switches: By date ${sv.date}, back to By hours ${sv.hours}.</p>` : `<p class="sub">Nobody has opened Your days since the new sleep chart.</p>`,
     "if hardly anyone slides across or opens a day, the chart is being read at a glance only, which is fine. Lots of 'No clear link' means people's moods hang on other things, or need more nights.");
+
+  // 9c. How activities felt (alex 2026-11-22): Mood and activities, What lifts you, Getting easier
+  const ak = {}; by("acts_seen").forEach((e) => (ak[e.val] = (ak[e.val] || 0) + 1));
+  const AK = { worth: "Hard to do, but the day went well", moment: "Helped in the moment, on lower days", both: "Lifted you, and the days went well", lift: "Lifted you most", empty: "Still filling in" };
+  const hardSide = by("lifts_seen").filter((e) => e.val && e.val.harder > 0).length;
+  html += sec("Do people read how activities felt?", "What the Mood and activities card told testers, and whether they opened a pillar's cards or the Harder days side of What lifts you.",
+    by("acts_seen").length ? `${bars(Object.keys(AK).map((k) => [AK[k], ak[k] || 0]))}<div style="height:16px"></div>${bars([["Opened a pillar's cards", who("acts_open")], ["Switched to Harder days", who("lifts_view")]], T)}
+     <p class="note">Times What lifts you had a Harder days side to show: ${hardSide}.</p>` : `<p class="sub">Nobody has opened Your days since these cards arrived.</p>`,
+    "lots of 'Still filling in' means people answer few cards. If nobody opens Harder days, it may need a gentler way in.");
 
   // 10. Errors and phones
   const errs = {}; by("error").forEach((e) => { const k = String(e.val); (errs[k] = errs[k] || { n: 0, who: new Set() }).n++; errs[k].who.add(e.code); });

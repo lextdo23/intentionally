@@ -3,7 +3,7 @@
 import { h, MOODS, CHART_COL as MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE, keyDate, MONTH } from "./util.js";
 import { weeksSection } from "./wrapped.js";
 import * as store from "./store.js";
-import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, pillarRows, helps, goodCount, SOLID } from "./stats.js";
+import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, helps, goodCount, moodActivities, lifts, KIND_WORD, FELT_KIND } from "./stats.js";
 import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
@@ -13,7 +13,9 @@ import * as tips from "./tips.js";
 import { img, openViewer } from "./photos.js";
 import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
 export { PILLAR_COL };
-const NAME = { A: "Your moods", B: "Mood and sleep", C: "Mood and what you did", D: "What seems to help you" };
+const NAME = { A: "Your moods", B: "Mood and sleep", E: "What lifts you", C: "Mood and activities", D: "What seems to help you" };
+// Cards added later join an older saved order next to their neighbour (What lifts you goes before Mood and activities).
+const fullOrder = (o) => { const out = o.slice(); Object.keys(NAME).forEach((k) => { if (!out.includes(k)) { const i = out.indexOf("C"); out.splice(i < 0 ? out.length : i, 0, k); } }); return out; };
 let view = "week", back = 0, origin = null, onClosed = null, helpsSeen = false;
 const root = () => document.getElementById("days");
 const coloured = (m, text) => h("span", { style: { color: MOOD_COL[m], fontWeight: "600" } }, text || moodWord(m));
@@ -39,7 +41,7 @@ function to(target, vel, done) {
   stop = spring(p, target, (vel || 0) / innerWidth, draw, done);
 }
 export function openDays(fromEl, closed) {
-  onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false; sleepSeen = false; sleepSlid = false; sleepSel = null;
+  onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false; actsSeen = false; liftsSeen = false; sleepSeen = false; sleepSlid = false; sleepSel = null;
   const el = root(); render();
   el.querySelector(".scroll").scrollTop = 0;
   draw(0); el.classList.add("open");
@@ -73,7 +75,7 @@ function render() {
   el.replaceChildren(h("div.bg"), h("div.scroll", null, h("div.page", null,
     h("div.page-head", null, roundBtn("back", "Back to today", () => closeDays()), h("button.btn-pill", { onclick: arrange }, "Edit")),
     h("h1.big-title", null, "Your days"),
-    h("div.sections", null, s.order.map((k) => ({ A: secMoods, B: secSleep, C: secPillars, D: secHelps }[k])(s)), weeksSection()),
+    h("div.sections", null, fullOrder(s.order).map((k) => ({ A: secMoods, B: secSleep, C: secActs, D: secHelps, E: secLifts }[k])(s)), weeksSection()),
     LIFELINE())));
   const edge = h("div.edge", { "aria-hidden": "true" }); el.append(edge); edgeSwipe(edge);
 }
@@ -227,30 +229,79 @@ function secSleep(s) {
   return card;
 }
 
-// C: mood and what you did, one row per pillar: a soft bar from lowest to highest mood, a dot at the middle
-function secPillars(s) {
-  const { rows, best } = pillarRows(s.days, PILLAR_COL);
-  const card = h("div.card", { style: { gap: "12px" } }, h("h3", null, "Mood and what you did"));
-  if (!rows.length) { card.append(h("p.sub", null, "Once daily cards are in, this shows how days with each part of your life felt.")); return card; }
-  card.append(best ? h("p.lead", null, "Days with ", h("span", { style: { color: best.col || "#a9b9d6", fontWeight: "600" } }, best.name), " often felt ", coloured(best.top), ".")
-    : h("p.lead", null, "Your first week so far."));
-  const pct = (m) => 4 + m / 6 * 92;
+// Activities (alex 2026-11-22). Colours mean the kind of feeling: lifted you, got it done, took a lot.
+const KIND_COL = { lift: "#7ab57a", done: "#e3c486", hard: "#8a89c4" };
+const NOTE_LINE = { worth: "Hard to do, but those days still went well.", moment: "Helped in the moment, even on lower days." };
+const shortDay = (k) => { const d = keyDate(k); return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]} ${d.getDate()} ${MONTH[d.getMonth()]}`; };
+const kindWord = (a) => a.felt.find((w) => FELT_KIND[w] === a.kind) || a.felt[0];
+const chev = () => h("svg", { width: "8", height: "14", viewBox: "0 0 8 14", fill: "none", stroke: "#8d8981", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, h("path", { d: "M1 1l6 6-6 6" }));
+let actsSeen = false, liftsSeen = false, liftsView = "any";
+
+// C: Mood and activities. Each pillar: how doing it felt (its main kind, how often, the words picked) next to how
+// those days went. A gold line where the two tell different stories. Tap a pillar for every card, oldest first.
+function secActs(s) {
+  const { rows, lead } = moodActivities(s.days);
+  if (!actsSeen) { actsSeen = true; log("acts_seen", lead.kind); }
+  const card = h("div.card.acts", null, h("h3", null, "Mood and activities"));
+  const P = (name) => h("b", { style: { color: PILLAR_COL[name] || "#a9b9d6" } }, name);
+  card.append(lead.kind === "worth" ? h("p.lead", null, P(lead.pillar), " often felt hard to do, but those days still went well.")
+    : lead.kind === "moment" ? h("p.lead", null, P(lead.pillar), " helped in the moment, even on lower days.")
+    : lead.kind === "both" ? h("p.lead", null, P(lead.pillar), " lifted you most, and those days went well too.")
+    : lead.kind === "lift" ? h("p.lead", null, P(lead.pillar), " lifted you most.")
+    : h("p.lead", null, rows.length ? "This fills in as you do more cards." : "Once you've done a few cards, this shows how each part of your life felt to do, and how those days went."));
+  if (!rows.length) return card;
+  const list = h("div.acts-list", null, h("div.acts-head", { "aria-hidden": "true" }, h("span", null, "How it felt to do"), h("span", null, "How the day went"), h("span")));
   rows.forEach((r) => {
-    const dashed = r.n < SOLID, c = MOOD_COL[Math.round(r.av)];
-    const plot = h("div", { style: { position: "relative", height: "44px", flexGrow: "1" } },
-      h("span", { style: { position: "absolute", left: "0", right: "0", top: "22px", height: "1px", background: "rgba(239,237,233,0.08)" } }),
-      h("span", { style: { position: "absolute", top: "17px", height: "10px", borderRadius: "5px", left: `calc(${pct(r.lo)}% - 5px)`, width: `calc(${pct(r.hi) - pct(r.lo)}% + 10px)`,
-        ...(dashed ? { border: `1.5px dashed ${c}`, opacity: "0.8" } : { background: `linear-gradient(90deg, ${MOOD_COL[r.lo]}, ${MOOD_COL[r.hi]})`, opacity: "0.45" }) } }),
-      h("span", { style: { position: "absolute", top: "14px", width: "16px", height: "16px", borderRadius: "8px", left: `calc(${pct(r.av)}% - 8px)`,
-        ...(dashed ? { border: `2px solid ${c}`, background: "#1d1e22" } : { border: "2px solid #1d1e22", background: c }) } }));
-    card.append(h("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, "aria-label": `${r.name}: ${r.n} days, mostly ${moodWord(r.top)}${dashed ? ", still learning" : ""}` },
-      h("div.col", { style: { width: "108px", flexShrink: "0", gap: "2px" } },
-        h("span", { style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" } }, h("span.sq", { style: r.col ? { background: r.col } : { border: "1.5px solid #a9b9d6" } }), r.name),
-        h("span", { style: { fontSize: "11px", color: "#a9a59d", paddingLeft: "20px" } }, `${r.n} ${r.n === 1 ? "day" : "days"}${dashed ? " · still learning" : ""}`)), plot));
+    const col = KIND_COL[r.kind], fill = Math.round(r.count / r.total * 100);
+    list.append(h("button.acts-row", { "aria-label": `${r.pillar}${r.learning ? ", still learning" : ""}: ${KIND_WORD[r.kind].toLowerCase()} ${r.count} of ${r.total} times${r.words.length ? ", mostly " + r.words.join(" and ") : ""}. The day went mostly ${r.usual != null ? moodWord(r.usual) : "not noted"}.${r.note ? " " + NOTE_LINE[r.note] : ""} See your ${r.pillar} cards`,
+      onclick: () => { log("acts_open"); cardsSheet(r); } },
+      h("span.acts-name", null, h("span.sq", { style: { background: PILLAR_COL[r.pillar] || "#a9a59d" } }), r.pillar, r.learning ? h("span.acts-learn", null, "· still learning") : null),
+      h("span.acts-grid", null,
+        h("span.acts-felt", null,
+          h("span.acts-top", null, h("b", { style: { color: col } }, KIND_WORD[r.kind]), h("span.acts-n", null, `${r.count} of ${r.total}`)),
+          h("span.acts-bar", null, h("i", { style: { width: fill + "%", background: col } })),
+          r.words.length ? h("span.acts-words", null, r.words.join(", ")) : null),
+        h("b.acts-day", { style: { color: r.usual != null ? MOOD_COL[r.usual] : "#8d8981" } }, r.usual != null ? MOODS[r.usual] : "–"),
+        chev()),
+      r.note ? h("span.acts-note", null, NOTE_LINE[r.note]) : null));
   });
-  card.append(h("div", { style: { display: "flex", gap: "8px" } }, h("span", { style: { width: "108px", flexShrink: "0" } }),
-    h("div", { style: { position: "relative", flexGrow: "1", height: "16px" } }, [[0, "Awful"], [3, "Okay"], [6, "Great"]].map(([m, l]) =>
-      h("span", { style: { position: "absolute", left: `${pct(m)}%`, transform: "translateX(-50%)", fontSize: "11px", color: "#a9a59d" } }, l)))));
+  card.append(list);
+  return card;
+}
+// Every card for one pillar, oldest first: the date, the card, and how it felt.
+function cardsSheet(r) {
+  openSheet((panel) => {
+    panel.append(h("h2", { style: { display: "flex", alignItems: "center", gap: "10px" } }, h("span.sq", { style: { width: "14px", height: "14px", background: PILLAR_COL[r.pillar] || "#a9a59d" } }), `Your ${r.pillar} cards`),
+      h("div.acts-cards", null, r.list.map((a) => h("div.acts-card", null,
+        h("span.col", { style: { gap: "2px", minWidth: "0" } }, h("span.acts-date", null, shortDay(a.k)), h("span", null, a.text)),
+        h("b", { style: { color: KIND_COL[a.kind] } }, kindWord(a))))));
+  }, { label: `Your ${r.pillar} cards` });
+}
+
+// E: What lifts you. Your top three lifts (last 4 weeks) as small cards; on harder days (Low or below), the ones that
+// still helped. The Harder days side only appears once there are enough harder days to say something honest.
+function secLifts(s) {
+  const L = lifts(s.days), hasHard = L.harder.length > 0;
+  if (!hasHard) liftsView = "any";
+  if (!liftsSeen) { liftsSeen = true; log("lifts_seen", { any: L.any.length, harder: L.harder.length }); }
+  const card = h("div.card.lifts", null, h("h3", null, "What lifts you"));
+  if (!L.any.length && !hasHard) { card.append(h("p.lead", null, "Your lifts show here once a few cards have lifted you.")); return card; }
+  const body = h("div.col", { style: { gap: "12px" } });
+  const draw = () => {
+    const hard = liftsView === "harder", list = hard ? L.harder : L.any, top = list[0];
+    body.replaceChildren(
+      hard ? h("p.lead", null, "Even on harder days, these still ", h("b", { style: { color: KIND_COL.lift } }, "helped"), ".")
+        : h("p.lead", null, top ? [top.text.replace(/\.$/, ""), " ", h("b", { style: { color: KIND_COL.lift } }, "lifted you most"), "."] : "Nothing has lifted you yet in the last 4 weeks."),
+      h("div.lifts-grid", null, list.map((g) => h("div.lifts-card", null,
+        h("span.lifts-p", null, h("i", { style: { background: PILLAR_COL[g.pillar] || "#a9a59d" } }), g.pillar),
+        h("span.lifts-t", null, g.text),
+        h("b", { style: { color: FELT_KIND[g.word] === "done" ? KIND_COL.done : KIND_COL.lift } }, g.word),
+        h("span.lifts-n", null, hard ? `${g.n} of ${g.of} harder days` : g.n === 1 ? "Lifted you once" : `Lifted you ${g.n} times`)))),
+      h("p.note", { style: { textAlign: "left" } }, hard ? "Doing a little often comes before feeling better." : "From your cards over the last 4 weeks."));
+  };
+  if (hasHard) card.append(h("div.seg", { role: "tablist", "aria-label": "Which days" }, [["any", "Any day"], ["harder", "Harder days"]].map(([v, l]) =>
+    h("button", { role: "tab", "aria-selected": String(liftsView === v), onclick: (e) => { liftsView = v; log("lifts_view", v); e.currentTarget.parentNode.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b === e.currentTarget))); draw(); } }, l))));
+  draw(); card.append(body);
   return card;
 }
 
@@ -279,7 +330,7 @@ function secHelps(s) {
 
 // ---------- Arrange your view: drag rows, applies on Done, tap outside cancels ----------
 function arrange() {
-  const s = store.get(); let draft = s.order.slice();
+  const s = store.get(); let draft = fullOrder(s.order);
   openSheet((panel, close) => {
     const list = h("div.col", { style: { gap: "8px" } });
     const RH = 60;
