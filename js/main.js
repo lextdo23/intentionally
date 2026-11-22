@@ -347,6 +347,14 @@ else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.sea
   friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
 if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(openTester, 200)); }
+// Monday's "Weekly recap ready" notification opens the recap itself (if it's still waiting), from a fresh open or
+// when Daydeck was already open. Sunday's opens home as usual, so the person can end their day.
+function openRecap() { const w = wrapped.readyWeek(); if (w) { log("wrap_from_nudge"); wrapped.openWrapped(w, () => render()); } }
+if (new URLSearchParams(location.search).get("open") === "recap") {
+  const u = new URL(location.href); u.searchParams.delete("open"); history.replaceState(null, "", u.pathname + u.search);
+  booted.then(() => setTimeout(openRecap, 300));
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.recap) setTimeout(openRecap, 300); });
 
 // Coming back to Daydeck (alex 2026-11-21): it shows just as it was left, with no redraw and no reload. Home only
 // redraws if what it shows has moved on (a new day, or morning turned to afternoon), and never mid-way through

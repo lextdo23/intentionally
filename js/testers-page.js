@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -416,6 +416,16 @@ function drawAll(D) {
         `<p class="note">Used: ${Object.keys(XN).filter((k) => used[k]).map((k) => `${XN[k]} ${used[k]}`).join(", ") || "none yet"}. Furthest into a look: ${Object.entries(looks).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none yet"}.</p>`
       : `<p class="sub">No boxes yet. They come with each level from level 2.</p>`,
       "lots of boxes kept for later, or opened but never finished, means opening isn't wanted (or takes too long); extras that come but never get used can be swapped out."); }
+
+  // Weekly recap reminders (alex 2026-11-22): Sunday's heads-up ("Weekly recap tonight", before ending the day) and
+  // Monday's catch-up ("Weekly recap ready", only if it's still waiting). Sent, tapped, and recaps opened from a tap.
+  { const n = (what, k) => by("nudge_" + what).filter((e) => e.val === k).length;
+    const sun = [n("sent", "recap-sun"), n("tap", "recap-sun")], mon = [n("sent", "recap-mon"), n("tap", "recap-mon")];
+    html += sec("Do weekly recap reminders help?", "Sunday's reminder arrives at the evening nudge time (7pm if evenings are off) until the day is ended. Monday's arrives at the morning nudge time (8am if mornings are off), only if the recap is still waiting. How many were sent and tapped, and recaps opened straight from Monday's.",
+      sun[0] || mon[0] ? `<p class="note">Sunday: Weekly recap tonight</p>${bars([["Sent", sun[0]], ["Tapped", sun[1]]], Math.max(1, sun[0]))}
+        <p class="note">Monday: Weekly recap ready</p>${bars([["Sent", mon[0]], ["Tapped", mon[1]], ["Recap opened from it", by("wrap_from_nudge").length]], Math.max(1, mon[0]))}`
+      : `<p class="sub">None sent yet. The first go out on a tester's first Sunday from day 7, if they have morning or evening nudges on.</p>`,
+      "if many Monday reminders go out, people aren't ending Sunday, so Sunday's words or time need a rethink; if few are tapped, the reminders may be noise."); }
 
   // Weekly wrapped (from 17 Nov): ready vs opened vs finished, where people stop, the guess, what they keep, sharing.
   { const ready = who("wrap_ready"), opened = who("wrap_open"), fin = who("wrap_done");

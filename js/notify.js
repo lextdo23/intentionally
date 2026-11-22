@@ -3,7 +3,7 @@
 // the service worker here picks the words, so nothing the person noted ever leaves the phone.
 import * as store from "./store.js";
 import { dayKey, keyDate, addDays } from "./util.js";
-import { card as cardOf } from "./deck.js";
+import { card as cardOf, dayOfUse } from "./deck.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const DAY = 864e5;
@@ -71,6 +71,27 @@ export function windTimes(s = store.get(), at = Date.now()) {
   return out;
 }
 
+// Weekly recap (alex 2026-11-22). Sunday: "Weekly recap tonight" at the evening nudge time (7pm if evenings are off),
+// unless the day is already ended. Monday: "Weekly recap ready" at the morning nudge time (8am if mornings are off),
+// only while that week's recap still waits on home. Never more than these two for one week, and only when a recap
+// will really be there (from day 7 of use, like js/wrapped.js readyWeek). Only for people with morning or evening
+// nudges on. When it lands on the same minute as the usual nudge, the service sends one ping and it gets these words.
+// evenIfDone keeps the ones no longer needed (marked done) so a ping already on its way stays quiet.
+export function recapTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
+  const n = prefs();
+  if (!(n.am.on || n.pm.on) || !s.started) return [];
+  const seen = (s.wrap && s.wrap.seen) || {}, k = dayKey(at), mon = addDays(k, -((keyDate(k).getDay() + 6) % 7)), out = [];
+  const on = (day, hhmm) => { const [h, m] = hhmm.split(":").map(Number), x = keyDate(day); x.setHours(h, m, 0, 0); return x.getTime() + (h < 4 ? DAY : 0); };
+  for (const w of [addDays(mon, -7), mon]) {
+    const sun = addDays(w, 6), d = s.days[sun] || {};
+    if (dayOfUse(sun) < 7) continue;
+    const noted = Array.from({ length: 7 }, (_, i) => s.days[addDays(w, i)]).some((x) => x && x.mood != null);
+    out.push({ t: on(sun, n.pm.on ? n.pm.t : "19:00"), kind: "recap-sun", done: !!seen[w] || d.mood != null });
+    out.push({ t: on(addDays(w, 7), n.am.on ? n.am.t : "08:00"), kind: "recap-mon", done: !!seen[w] || !noted });
+  }
+  return out.filter((x) => x.t > at && (evenIfDone || !x.done));
+}
+
 // The service worker picks the words for each ping, so it keeps a copy of today's card reminder times and task.
 // Only on this phone: the service still gets times and nothing else.
 // It also knows when the card is done, so a ping that was already on its way when "I did it" was tapped stays quiet.
@@ -79,6 +100,7 @@ async function keepCardPlan(s) {
     const d = s.days[dayKey(Date.now())] || {}, c = d.card && d.card.id ? cardOf(d.card.id) : null, at = cardTimes(s, Date.now(), true);
     await (await caches.open("nudge-plan")).put("card", new Response(JSON.stringify({ at, task: at.length && c ? c.text : "", done: !!(d.card && d.card.done) })));
     await (await caches.open("nudge-plan")).put("wind", new Response(JSON.stringify({ at: windTimes(s) })));
+    await (await caches.open("nudge-plan")).put("recap", new Response(JSON.stringify({ at: recapTimes(s, Date.now(), true) })));
   } catch { /* no copy: a ping then gets the morning or evening words */ }
 }
 
@@ -91,7 +113,8 @@ export async function sync() {
   try {
     const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
     if (!sub) return;
-    const card = cardTimes(), once = card.concat(windTimes().slice(0, Math.max(0, 4 - card.length)));
+    // The service takes four one-off times at most: the weekly recap first, then card reminders, then wind-down.
+    const once = recapTimes().map((x) => x.t).concat(cardTimes(), windTimes()).slice(0, 4);
     await keepCardPlan(store.get());
     const sig = sub.endpoint + times.join(",") + "|" + once.join(",");
     if (sig === sent) return;
