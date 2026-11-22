@@ -61,10 +61,15 @@ function build(rows, own = []) {
   // What lifts you: any day, and harder days once there are 5.
   days = use(build(rows));
   let L = st.lifts(days, TODAY);
-  check(L.any.length >= 1 && L.any[0].n >= L.any[L.any.length - 1].n, "top lifts, most lifted first");
+  check(L.any.length >= 1, "lifts show");
+  check(L.any.every((g, i, a) => !i || a[i - 1].n > 1 || g.n === 1 && a[i - 1].last >= g.last), "lifted more than once goes first, then the most recent");
+  check(st.whenWords(TODAY, TODAY) === "Today" && /^Last /.test(st.whenWords("2026-11-19", TODAY)) && /^Thu 5 Nov$/.test(st.whenWords("2026-11-05", TODAY)), "when words: Today, Last Thursday, Thu 5 Nov");
   check(L.harder.length >= 1 && L.harder.every((g) => g.of >= g.n), "harder days: enough Low-or-below days, each 'n of times done'");
   L = st.lifts(use(build(good)), TODAY);
   check(L.harder.length === 0, "no harder days: the Harder days side stays hidden");
+  const few = []; for (let i = 0; i < 6; i++) few.push([12 - i, "Rest", ["Calmer"], i < 3 ? 1 : 4]);
+  L = st.lifts(use(build(few)), TODAY);
+  check(L.harder.length >= 1 && L.harderEarly, "3 harder days: shows, as 'So far'");
 
   // Getting easier: Move took a lot three weeks ago, lifts now.
   const ez = [];
