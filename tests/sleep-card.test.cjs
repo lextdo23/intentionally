@@ -10,7 +10,7 @@ function state(n) {
   const days = {}, rows = MORE.slice(0, n);
   rows.forEach(([hr, m], i) => { days[day(rows.length - i)] = { sleep: { bed: 1380, wake: Math.round(1380 + hr * 60) % 1440, rested: 2, tags: [] }, mood: m, feel: ["calm"], pil: [] }; });
   days[day(0)] = { sleep: { bed: 1380, wake: 400, rested: 2, tags: [] } };
-  return { v: 1, started: day(Math.max(1, n)), days, seen: { note: "sleep" }, order: ["B", "A", "C", "D"], levels: { keepAll: true } };
+  return { v: 1, started: day(Math.max(1, n)), days, seen: { note: "sleep" }, order: ["B", "A", "C", "D"], levels: n <= 1 ? {} : { keepAll: true } };
 }
 
 (async () => {
@@ -66,6 +66,7 @@ function state(n) {
 
   await open(1);
   check(/This fills in after your first few mornings and evenings/.test(await text(".slp .lead")), "first nights: fills in");
+  check(await p.evaluate(() => [...document.querySelectorAll("button[role=tab]")].map((b) => b.textContent).filter((t) => ["Week", "Month", "Year"].includes(t)).length) === 3, "a brand-new person already has Week, Month and Year");
   check(errors.length === 0, "no errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await b.close(); server.close(); done();
 })();
