@@ -54,21 +54,50 @@ export function mostlyWord(days, view, back = 0) {
   return mostPicked(s.pts.map((p) => p.m).filter((m) => m != null));
 }
 
-// ---- Mood and sleep: one dot per day, hours across, mood up ----
-export const BANDS = [["under 6", 0, 6], ["6 to 7", 6, 7], ["7 to 8", 7, 8], ["8 to 9", 8, 9], ["9 or more", 9, 99]];
-export function sleepMood(days) {
-  const N = Object.values(days).filter((d) => d.sleep && d.mood != null).map((d) => ({ h: sleepMins(d.sleep) / 60, m: d.mood }));
-  const G = BANDS.map((b) => { const ms = N.filter((d) => d.h >= b[1] && d.h < b[2]).map((d) => d.m); return { b, ms, top: mostPicked(ms) }; });
-  const ok = G.map((g, i) => i).filter((i) => G[i].ms.length >= 3);
-  const best = N.length >= 5 && ok.length ? ok.sort((a, b) => G[b].top - G[a].top || G[b].ms.length - G[a].ms.length)[0] : null;
-  // average mood in each whole-hour band, only once that band has 3 or more nights (one odd day shouldn't bend it)
-  const line = [];
-  for (let hr = 5; hr < 10; hr++) {
-    const ms = N.filter((d) => d.h >= hr && d.h < hr + 1).map((d) => d.m);
-    if (ms.length >= 3) line.push([hr + 0.5, avg(ms)]);
+// ---- Mood and sleep: the one sleep rule (alex 2026-11-22) ----
+// Every sleep line in Your days uses this, so the hours never disagree between cards.
+// A night counts when it has both the morning's sleep and that day's evening mood. Real times only: a night of
+// 2 hours or 13 hours is kept as noted (people can change a day if it's wrong).
+// Nights go in whole-hour groups; the group(s) with the best AVERAGE mood win, so mostly-low weeks still show a
+// pattern. A group needs 3 nights (2 in the early days), and the best group must be about one mood step above the
+// lowest. Early days (fewer than 21 nights ever) name one group only, never a range.
+export const SLEEP_READY = 21;            // research: sleep settles in about a week, mood in two, a link takes about three
+export const SLEEP_WINDOW = 28;           // By hours and By date both show the last 4 weeks
+const HOUR_GROUPS = [[0, 6], [6, 7], [7, 8], [8, 9], [9, 99]];
+export function sleepPattern(days, today = dayKey()) {
+  const all = Object.keys(days).filter((k) => k <= today && days[k].sleep && days[k].mood != null);
+  const total = all.length, early = total < SLEEP_READY;
+  const start = addDays(today, -(SLEEP_WINDOW - 1));
+  const nights = Object.keys(days).filter((k) => k >= start && k <= today && days[k].sleep).sort()
+    .map((k) => ({ k, h: sleepMins(days[k].sleep) / 60, m: days[k].mood != null ? days[k].mood : null }))
+    .filter((n) => n.m != null || n.k === today);   // last night shows (as an outline) until today's mood is in
+  const noted = nights.filter((n) => n.m != null).slice().sort((a, b) => a.h - b.h || (a.k < b.k ? -1 : 1));
+  const need = early ? 2 : 3;
+  const G = HOUR_GROUPS.map(([lo, hi]) => { const ms = noted.filter((n) => n.h >= lo && n.h < hi).map((n) => n.m); return { lo, hi, n: ms.length, av: ms.length ? avg(ms) : 0 }; });
+  const ok = G.map((g, i) => i).filter((i) => G[i].n >= need);
+  const hs = noted.map((n) => n.h), spread = hs.length ? Math.max(...hs) - Math.min(...hs) : 0;
+  let kind = "none", b1 = -1, b2 = -1;
+  if (noted.length < 3) kind = "empty";
+  else if (spread < 1.25) kind = "steady";
+  else if (ok.length >= 2) {
+    const top = Math.max(...ok.map((i) => G[i].av)), low = Math.min(...ok.map((i) => G[i].av));
+    if (top - low >= 0.8) {
+      b1 = b2 = ok.find((i) => G[i].av === top);
+      if (!early) {
+        while (ok.includes(b1 - 1) && G[b1 - 1].av >= top - 0.5) b1--;
+        while (ok.includes(b2 + 1) && G[b2 + 1].av >= top - 0.5) b2++;
+      }
+      kind = b2 === Math.max(...ok) ? "up" : b1 === 0 ? "down" : "range";
+    }
   }
-  return { N, best: best == null ? null : BANDS[best], line };
+  const lo = b1 < 0 ? null : HOUR_GROUPS[b1][0], hi = b2 < 0 ? null : HOUR_GROUPS[b2][1];
+  return { nights, noted, kind, lo, hi, total, early, left: Math.max(0, SLEEP_READY - total) };
 }
+// The pattern's hours in words: "7 hours or more", "7 to 9 hours", "under 7 hours".
+export function sleepHours(p) {
+  return p.kind === "up" ? `${p.lo} hours or more` : p.kind === "down" ? `under ${p.hi} hours` : p.kind === "range" ? `${p.lo} to ${p.hi} hours` : "";
+}
+export const inSleepBand = (p, h) => p.lo != null && h >= p.lo && h < p.hi;
 
 // ---- Mood and what you did: one row per pillar ----
 export const SOLID = 5;
@@ -92,7 +121,7 @@ export function helps(days, hidden, pillars) {
   const keys = Object.keys(days).sort(), out = [];
   const moodOf = (k) => (days[k] && days[k].mood != null ? days[k].mood : null);
   const test = (id, a, b, withL, withoutL, text) => {
-    if (hidden[id] || a.length < 5 || b.length < 5) return;
+    if (hidden[id] || (id === "sleep" && hidden.sleep730) || a.length < 5 || b.length < 5) return;   // sleep730: the old 7h30 line, hidden before
     const gap = share(a) - share(b), top = mostPicked(a);
     if (gap >= 0.25 && isGood(top)) out.push({ id, gap, top, text, rows: [[withL, a], [withoutL, b]] });
   };
@@ -102,10 +131,15 @@ export function helps(days, hidden, pillars) {
     const d = days[k]; if (!d.sleep || d.mood == null) return;
     const bed = d.sleep.bed, isEarly = bed >= 18 * 60 && bed <= 23 * 60 + 30;
     (isEarly ? early : late).push(d.mood);
-    (sleepMins(d.sleep) >= 450 ? long : short).push(d.mood);
+  });
+  // Hours of sleep: the same band as the Mood and sleep card (sleepPattern), never a separate threshold.
+  const sp = sleepPattern(days);
+  if (["up", "range", "down"].includes(sp.kind) && !sp.early) keys.forEach((k) => {
+    const d = days[k]; if (!d.sleep || d.mood == null) return;
+    (inSleepBand(sp, sleepMins(d.sleep) / 60) ? long : short).push(d.mood);
   });
   test("bed1130", early, late, "Before 11:30", "After 11:30", (w) => ["After lights out before 11:30, the next day was mostly ", w, "."]);
-  test("sleep730", long, short, "Longer sleep", "Shorter sleep", (w) => ["After 7 hours 30 minutes or more of sleep, days were mostly ", w, "."]);
+  test("sleep", long, short, `${sleepHours(sp).replace(/^./, (c) => c.toUpperCase())} sleep`, "Other nights", (w) => [`After ${sleepHours(sp)} of sleep, days were mostly `, w, "."]);
   pillars.forEach((p) => {
     const a = [], b = [];
     keys.forEach((k) => { const m = moodOf(k); if (m == null) return; ((days[k].pil || []).includes(p) ? a : b).push(m); });

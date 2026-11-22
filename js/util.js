@@ -20,6 +20,9 @@ const SVG_TAGS = new Set(["path", "circle", "rect", "line", "g", "defs", "linear
 // Mood: 0 Awful … 6 Great. Colours run blue (hard) through warm sand (okay) to green (great).
 export const MOODS = ["Awful", "Rough", "Low", "Okay", "Good", "Really good", "Great"];
 export const MOOD_COL = ["#4a4fa8", "#6a6aa6", "#8e87a0", "#bdae8e", "#a3b384", "#7ab57a", "#56b56c"];
+// Mood colours for charts and mood words in Your days (alex 2026-11-22): Awful and Rough are lifted so short, hard
+// nights and low days stay visible on the dark sky (3:1 or more). Same order and meaning as MOOD_COL.
+export const CHART_COL = ["#7479cf", "#8a89c4", "#8e87a0", "#bdae8e", "#a3b384", "#7ab57a", "#56b56c"];
 export const moodWord = (m) => MOODS[m].toLowerCase();
 export const isGood = (m) => m >= 4;
 

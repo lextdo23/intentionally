@@ -1,9 +1,9 @@
 // Your days: one scrolling page. Your moods, Mood and sleep, Mood and what you did, What seems to help you.
 // Slides in from the right like iPhone Settings; "‹ Today" or a swipe in from the left edge goes back.
-import { h, MOODS, MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE } from "./util.js";
+import { h, MOODS, CHART_COL as MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE, keyDate, MONTH } from "./util.js";
 import { weeksSection } from "./wrapped.js";
 import * as store from "./store.js";
-import { moodSeries, mostlyWord, oldestBack, sleepMood, pillarRows, helps, goodCount, SOLID } from "./stats.js";
+import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, pillarRows, helps, goodCount, SOLID } from "./stats.js";
 import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
@@ -39,7 +39,7 @@ function to(target, vel, done) {
   stop = spring(p, target, (vel || 0) / innerWidth, draw, done);
 }
 export function openDays(fromEl, closed) {
-  onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false;
+  onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false; sleepSeen = false; sleepSlid = false; sleepSel = null;
   const el = root(); render();
   el.querySelector(".scroll").scrollTop = 0;
   draw(0); el.classList.add("open");
@@ -127,27 +127,103 @@ function secMoods(s) {
   return out;
 }
 
-// B: mood and sleep, one dot per day
+// B: mood and sleep (alex 2026-11-22). One column per night: taller = more sleep, colour = how the next day felt.
+// By hours lines the last 4 weeks up shortest to longest (the columns slide); By date shows the same nights in order.
+// Slide a finger across to read a night; tap the line it shows to open that day. The headline and band come from
+// sleepPattern (js/stats.js), the same rule "What seems to help you" uses.
+const PX_H = 14.5;   // column height per hour of sleep (12 hours fills the chart; longer real nights are kept, just drawn at the top)
+let sleepView = "hours", sleepSel = null, sleepT = 0, sleepSlid = false, sleepSeen = false;
 function secSleep(s) {
-  const { N, best, line } = sleepMood(s.days);
-  const card = h("div.card", null, h("h3", null, "Mood and sleep"));
-  if (!best) { card.append(h("p.sub", null, N.length ? "A few more nights and evenings and this fills in." : "This fills in after a few mornings and evenings.")); if (N.length < 3) return card; }
-  else card.append(h("p.lead", null, "You felt best after ", h("span", { style: { color: "#f2c08f", fontWeight: "600" } }, `${best[0]} hours`), " of sleep."));
-  const W = 334, X0 = 4.5, X1 = 10.5, L = 80, R = 326, T = 14, step = 26;
-  const X = (hr) => L + (Math.max(X0, Math.min(X1, hr)) - X0) / (X1 - X0) * (R - L), Y = (m) => T + (6 - m) * step;
-  const seen = {};
-  const dots = N.map((d) => { const k = Math.round(d.h * 4) + "_" + d.m, c = (seen[k] = (seen[k] || 0) + 1), o = c === 1 ? 0 : (c % 2 ? 1 : -1) * Math.ceil((c - 1) / 2) * 5;
-    return h("circle", { cx: (X(d.h) + o).toFixed(1), cy: Y(d.m), r: "5", fill: MOOD_COL[d.m], stroke: "#1d1e22", "stroke-width": "1.5", opacity: "0.55" }); });
-  const avgPath = line.length > 1 ? smoothPath(line.map(([x, y]) => [X(x), Y(y)])) : "";
-  const svg = h("svg", { viewBox: `0 0 ${W} 210`, role: "img", "aria-label": "Each day as a dot: hours slept across, mood up" },
-    best && h("rect", { x: X(Math.max(best[1], 4.5)).toFixed(1), y: "4", width: (X(Math.min(best[2], 10.5)) - X(Math.max(best[1], 4.5))).toFixed(1), height: 6 * step + 20, rx: "10", fill: "rgba(242,192,143,0.09)" }),
-    MOODS.map((_, m) => h("line", { x1: "74", y1: Y(m), x2: "330", y2: Y(m), stroke: "rgba(239,237,233,0.06)" })),
-    h("defs", null, h("linearGradient", { id: "avg2", x1: "0", y1: "14", x2: "0", y2: "170", gradientUnits: "userSpaceOnUse" }, h("stop", { offset: "0", "stop-color": "#56b56c" }), h("stop", { offset: "0.5", "stop-color": "#bdae8e" }), h("stop", { offset: "1", "stop-color": "#4a4fa8" }))),
-    avgPath && h("path", { d: avgPath, fill: "none", stroke: "url(#avg2)", "stroke-width": "3", "stroke-linecap": "round", opacity: "0.9" }),
-    dots,
-    MOODS.map((w, m) => h("text", { x: "68", y: Y(m) + 4, "text-anchor": "end", fill: "#a9a59d", "font-size": "11" }, w)),
-    [5, 6, 7, 8, 9, 10].map((hr) => { const inb = best && hr >= best[1] && hr <= Math.min(best[2], 10); return h("text", { x: X(hr), y: T + 6 * step + 26, "text-anchor": "middle", "font-size": "12", fill: inb ? "#f2c08f" : "#a9a59d", "font-weight": inb ? "600" : "400" }, hr + "h"); }));
-  card.append(h("div.chart", null, svg), h("span.note", null, "Hours of sleep"));
+  const P = sleepPattern(s.days), card = h("div.card.slp", null, h("h3", null, "Mood and sleep"));
+  if (!sleepSeen) { sleepSeen = true; log("sleep_seen", P.kind); }
+  const DAYS3 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const hw = (hr) => { const m = Math.round(hr * 60); return `${Math.floor(m / 60)}h${m % 60 ? " " + (m % 60) + "m" : ""}`; };
+  const dayLabel = (k) => { const d = keyDate(k); return `${DAYS3[d.getDay()]} ${d.getDate()} ${MONTH[d.getMonth()]}`; };
+
+  const tabs = h("div.seg", { role: "tablist", "aria-label": "Order the nights" }, [["hours", "By hours"], ["date", "By date"]].map(([v, l]) =>
+    h("button", { role: "tab", id: "slp-" + v, "aria-controls": "slp-chart", "aria-selected": String(sleepView === v), onclick: () => {
+      if (sleepView === v) return; sleepView = v; firstDone(); log("sleep_view", v); if (sleepSel) later();
+      tabs.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.id === "slp-" + v))); update();
+    } }, l)));
+  const so = (t) => (P.early ? "So far, " + t.charAt(0).toLowerCase() + t.slice(1) : t);
+  const lead = P.kind === "empty" ? h("p.lead", null, "This fills in after your first few ", h("b", null, "mornings and evenings"), ".")
+    : P.kind === "steady" ? h("p.lead", null, "Your sleep has been ", h("b", null, "steady"), ", so there’s little to compare.")
+    : P.kind === "none" ? h("p.lead", null, so("No clear link between "), h("b", null, "sleep and mood"), " yet.")
+    : h("p.lead", null, so("Your best days came after "), h("b", null, sleepHours(P)), ".");
+  const more = P.kind === "none" || P.kind === "steady" ? h("p.more", null, "Your mood may hang more on other things. ",
+    h("button", { onclick: () => { const t = root().querySelector(".helps-card"); t && t.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); log("sleep_to_helps"); } }, "See what seems to help ›")) : null;
+  const read = h("div.read", { "aria-live": "polite" });
+  const chart = h("div.slp-chart", { id: "slp-chart", role: "tabpanel" });
+  const band = h("div.slp-band"), bandL = h("span.slp-band-l"), seven = h("div.slp-7", { style: { top: `${190 - 7 * PX_H}px` } }), sevenL = h("span.slp-7l", { style: { top: `${174 - 7 * PX_H}px` } }, "7h");
+  chart.append(band, bandL, seven, sevenL);
+  const cols = P.nights.map((n, idx) => {
+    const now = n.m == null;
+    const b = h("button.slp-col" + (now ? ".now" : ""), { "aria-label": now ? `Last night, ${hw(n.h)}, today not noted yet` : `${dayTitle(n.k)}, slept ${hw(n.h)}, then a ${moodWord(n.m)} day`,
+      onclick: () => { if (!now) pick(sleepSel === n.k ? null : n.k); } }, h("i", { style: { height: `${Math.round(Math.min(n.h, 12) * PX_H)}px`, ...(now ? {} : { background: MOOD_COL[n.m] }) } }));
+    b.style.transitionDelay = "0s"; chart.append(b); return { n, b, idx };
+  });
+  const touch = h("div.slp-touch", { "aria-hidden": "true" }); chart.append(touch);
+  const ticks = h("div"); chart.append(ticks);
+  const key = h("div.slp-key", { "aria-hidden": "true" }, h("span", null, "Next day"), h("span", null, "Awful"), ...MOOD_COL.map((c) => h("i", { style: { background: c } })), h("span", null, "Great"));
+  const noteEl = h("p.slp-note", null, h("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#a9a59d", "stroke-width": "2", "stroke-linecap": "round", "aria-hidden": "true" }, h("circle", { cx: "12", cy: "12", r: "9" }), h("path", { d: "M12 11v5M12 8h.01" })),
+    P.left ? h("span", null, h("b", null, P.left === 1 ? "1 more day" : `${P.left} more days`), " and patterns get more reliable.") : h("span", null, `Based on ${P.total} days. Patterns get steadier over time.`));
+  card.append(tabs, lead, more || "", read, chart, key, noteEl);
+
+  // The first time only: what the columns mean, in the hint line. Gone after the first slide or tab switch.
+  function firstDone() { if (!s.notes.sleepHint) { s.notes.sleepHint = true; store.save(); } }
+  function pick(k) { clearTimeout(sleepT); sleepSel = k; if (k != null) later(); update(); }
+  function later() { clearTimeout(sleepT); sleepT = setTimeout(() => { sleepSel = null; if (card.isConnected) update(); }, 4000); }   // the pattern comes back on its own
+  const noted = P.noted, rank = new Map(noted.map((n, r) => [n.k, r]));
+  const geo = () => {
+    const W = chart.clientWidth || 358, dS = Math.min(16, W / Math.max(1, P.nights.length)), sS = Math.min(16, W / Math.max(1, noted.length));
+    return { W, dS, sS, dx: (i) => i * dS + dS / 2, sx: (r) => r * sS + sS / 2 };
+  };
+  function update() {
+    const g = geo(), byH = sleepView === "hours", showBand = byH && ["up", "range", "down"].includes(P.kind);
+    cols.forEach(({ n, b, idx }) => {
+      const now = n.m == null, r = rank.get(n.k), slot = byH ? g.sS : g.dS, cx = byH ? (now ? g.W - g.sS / 2 : g.sx(r)) : g.dx(idx);
+      b.style.left = `${Math.round(cx - slot / 2)}px`; b.style.width = `${Math.max(12, Math.round(slot))}px`;
+      b.style.opacity = now && byH ? "0" : "1"; b.style.transitionDelay = `${((byH ? r : idx) || 0) * 0.015}s`;
+      b.classList.toggle("on", sleepSel === n.k); b.tabIndex = now && byH ? -1 : 0;
+    });
+    chart.classList.toggle("picking", sleepSel != null);
+    chart.setAttribute("aria-labelledby", "slp-" + sleepView);
+    const inB = noted.map((n, r) => ({ n, r })).filter((x) => inSleepBand(P, x.n.h));
+    band.style.opacity = bandL.style.opacity = showBand && inB.length ? "1" : "0";
+    if (inB.length) {
+      const L = Math.round(inB[0].r * g.sS), Wd = Math.max(28, Math.round(inB.length * g.sS));
+      Object.assign(band.style, { left: L + "px", width: Wd + "px" }); Object.assign(bandL.style, { left: L + "px", width: Wd + "px" });
+      bandL.textContent = P.kind === "up" ? `${P.lo}h+` : P.kind === "down" ? `Under ${P.hi}h` : `${P.lo}–${P.hi}h`;
+    }
+    sevenL.style.opacity = byH ? "0" : "1";
+    // Labels under the chart: hours when sorted, dates (every 7th night from the newest) when not. Never overlapping.
+    let T;
+    if (byH) T = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((hr) => ({ hr, r: noted.findIndex((n) => n.h >= hr) })).filter((t) => t.r >= 0 && noted[t.r].h < t.hr + 1)
+      .map((t) => ({ l: g.sx(t.r), text: t.hr + "h", inb: showBand && t.hr >= P.lo && t.hr <= Math.min(P.hi, 12) }));
+    else T = P.nights.map((n, i) => ({ n, i })).filter((x) => (P.nights.length - 1 - x.i) % 7 === 0).map((x) => ({ l: g.dx(x.i), text: `${keyDate(x.n.k).getDate()} ${MONTH[keyDate(x.n.k).getMonth()]}` }));
+    T = T.filter((t, i) => !T.slice(0, i).some((u) => Math.abs(u.l - t.l) < 32));
+    ticks.replaceChildren(...T.map((t) => h("span.slp-tick" + (t.inb ? ".in" : ""), { style: { left: Math.round(t.l) + "px" } }, t.text)));
+    const n = sleepSel && P.nights.find((x) => x.k === sleepSel);
+    read.classList.toggle("first", !n && !s.notes.sleepHint && P.kind !== "empty");
+    if (n) read.replaceChildren(h("button", { "aria-label": `Open ${dayTitle(n.k)}`, onclick: () => { log("sleep_day_open"); openDay(n.k); } },
+      h("span.dot", { style: { background: MOOD_COL[n.m] } }), h("span", null, h("b", { style: { fontWeight: "600" } }, dayLabel(n.k)), ` · ${hw(n.h)} · `, h("b", { style: { color: MOOD_COL[n.m], fontWeight: "600" } }, MOODS[n.m])), h("span.chev", { "aria-hidden": "true" }, "›")));
+    else if (P.kind === "empty") read.replaceChildren();
+    else if (!s.notes.sleepHint) read.replaceChildren(h("span", null, "Each column is a night. Taller is more sleep.", h("br"), "Slide across to see each one."));
+    else read.replaceChildren(h("span", null, "Last 4 weeks · slide across to see each night"));
+  }
+  // Slide a finger across: the line follows the night under it. Up and down still scroll the page.
+  const at = (e) => {
+    const g = geo(), r = touch.getBoundingClientRect(), x = (e.clientX - r.left) * g.W / (r.width || g.W);
+    if (sleepView === "hours") return noted.length ? noted[Math.max(0, Math.min(noted.length - 1, Math.floor(x / g.sS)))].k : null;
+    const n = P.nights[Math.max(0, Math.min(P.nights.length - 1, Math.floor(x / g.dS)))];
+    return n && n.m != null ? n.k : sleepSel;
+  };
+  let drag = null;
+  touch.addEventListener("pointerdown", (e) => { clearTimeout(sleepT); drag = { x: e.clientX, moved: false, start: sleepSel }; try { touch.setPointerCapture(e.pointerId); } catch { /* ok */ } firstDone(); const k = at(e); if (k !== sleepSel) { sleepSel = k; update(); } });
+  touch.addEventListener("pointermove", (e) => { if (!drag) return; if (Math.abs(e.clientX - drag.x) > 4 && !drag.moved) { drag.moved = true; if (!sleepSlid) { sleepSlid = true; log("sleep_slide"); } } const k = at(e); if (k !== sleepSel) { sleepSel = k; update(); } });
+  const end = (e) => { const d = drag; drag = null; if (!d) return; if (!d.moved && d.start === sleepSel && e.type === "pointerup") { sleepSel = null; update(); return; } later(); };
+  touch.addEventListener("pointerup", end); touch.addEventListener("pointercancel", end);
+  requestAnimationFrame(update); update();
   return card;
 }
 
@@ -183,7 +259,7 @@ function secHelps(s) {
   const pills = [...new Set(Object.values(s.days).flatMap((d) => d.pil || []))];
   const items = helps(s.days, s.hidden, pills);
   if (!helpsSeen) { helpsSeen = true; log("helps_seen", items.map((it) => String(it.id).slice(0, 40))); }
-  const card = h("div.card", { style: { gap: "4px" } }, h("h3", { style: { paddingBottom: "4px" } }, "What seems to help you"));
+  const card = h("div.card.helps-card", { style: { gap: "4px" } }, h("h3", { style: { paddingBottom: "4px" } }, "What seems to help you"));
   items.forEach((it) => {
     const hide = h("button", { style: { alignSelf: "flex-start", minHeight: "44px", color: "#8d8981", fontSize: "13px" }, onclick: () => { s.hidden[it.id] = true; s.notes.hid = true; store.save(); redraw(); log("help_hide", String(it.id).slice(0, 60)); } }, "That's not it");
     if (it.research) {
