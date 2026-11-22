@@ -414,7 +414,7 @@ export function openDoctor() {
     });
     panel.append(
       h("div.col", { style: { gap: "4px" } }, h("h2", null, "Share with your doctor"),
-        h("span.sub", null, "A summary for your GP or psychologist. It's made on your phone, and only goes where you send it.")),
+        h("span.sub", null, "A summary for your GP or psychologist. No information is shared anywhere.")),
       h("div.doc-group", null, h("label.doc-row", null, h("span.doc-col", null, h("span.doc-name", null, "Since your last appointment"), cover), date)),
       h("div.doc-set", null, h("span.doc-label", null, "What to include"), h("div.doc-group", null, rows)),
       h("label.doc-set", null, h("span.doc-label", null, "Your name on it (optional)"), nameIn),
