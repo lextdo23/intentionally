@@ -43,7 +43,7 @@ function bars(rows, max, unit = "") {
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
-  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people read how activities felt?": "cards",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
@@ -79,6 +79,8 @@ const SHAPE = {
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
   acts_seen: (v) => ["worth", "moment", "both", "lift", "empty"].includes(v), acts_open: (v) => v == null, lifts_view: (v) => v === "any" || v === "harder",
   lifts_seen: (v) => isObj(v) && isInt(v.any, 0, 3) && isInt(v.harder, 0, 3),
+  doctor_open: (v) => v == null,
+  doctor_made: (v) => isObj(v) && isInt(v.d, 1, 84) && typeof v.p === "string" && /^m?s?a?h?$/.test(v.p) && isInt(v.t, 0, 1) && isInt(v.n, 0, 1),
   sleep_seen: (v) => ["up", "range", "down", "none", "steady", "empty"].includes(v), sleep_view: (v) => v === "hours" || v === "date",
   repick: (v) => v === "pick" || v === "later", repick_shown: (v) => isObj(v) && isInt(v.gone, 0, 20),
 };
@@ -250,6 +252,14 @@ function drawAll(D) {
     by("acts_seen").length ? `${bars(Object.keys(AK).map((k) => [AK[k], ak[k] || 0]))}<div style="height:16px"></div>${bars([["Opened a pillar's cards", who("acts_open")], ["Switched to Harder days", who("lifts_view")]], T)}
      <p class="note">Times What lifts you had a Harder days side to show: ${hardSide}.</p>` : `<p class="sub">Nobody has opened Your days since these cards arrived.</p>`,
     "lots of 'Still filling in' means people answer few cards. If nobody opens Harder days, it may need a gentler way in.");
+
+  const made = by("doctor_made").filter((e) => e.val);
+  const partN = (c) => made.filter((e) => e.val.p.includes(c)).length;
+  html += sec("Do people share with their doctor?", "Who opened Share with your doctor, who made the summary, and what they put in it. Never what it said.",
+    by("doctor_open").length ? `${bars([["Opened it", who("doctor_open")], ["Made a summary", who("doctor_made")]], T)}
+     ${made.length ? `<div style="height:16px"></div>${bars([["Mood and feelings", partN("m")], ["Sleep", partN("s")], ["Activities", partN("a")], ["Health notes", partN("h")], ["Added things to talk about", made.filter((e) => e.val.t).length], ["Put their name on it", made.filter((e) => e.val.n).length]], made.length)}
+     <p class="note">Summaries made: ${made.length}. Usual length: ${Math.round(made.map((e) => e.val.d).sort((a, b) => a - b)[Math.floor(made.length / 2)])} days.</p>` : ""}` : `<p class="sub">Nobody has opened Share with your doctor yet.</p>`,
+    "lots of opens but few summaries could mean the screen asks too much. If health notes are rarely added, that's fine: they're off unless chosen.");
 
   // 10. Errors and phones
   const errs = {}; by("error").forEach((e) => { const k = String(e.val); (errs[k] = errs[k] || { n: 0, who: new Set() }).n++; errs[k].who.add(e.code); });
