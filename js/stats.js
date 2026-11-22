@@ -191,29 +191,62 @@ export function easier(days, weekStart) {
 // Compare days with something vs days without it. Only things the person controls, only better days.
 // A line needs 5+ days on each side and a clear gap in how many were good days.
 const share = (ms) => ms.filter(isGood).length / ms.length;
+export const NOTE_NEED = 5;   // a line from a night note only shows for people who use that note on 5+ nights
+const LATE_BED = "Stayed up later than I meant to";
 export function helps(days, hidden, pillars) {
   const keys = Object.keys(days).sort(), out = [];
   const moodOf = (k) => (days[k] && days[k].mood != null ? days[k].mood : null);
-  const test = (id, a, b, withL, withoutL, text) => {
-    if (hidden[id] || (id === "sleep" && hidden.sleep730) || a.length < 5 || b.length < 5) return;   // sleep730: the old 7h30 line, hidden before
-    const gap = share(a) - share(b), top = mostPicked(a);
-    if (gap >= 0.25 && isGood(top)) out.push({ id, gap, top, text, rows: [[withL, a], [withoutL, b]] });
+  // test(): days with something (a) vs without (b). measure "good" counts good days; "rested" counts rested mornings.
+  const test = (id, a, b, withL, withoutL, text, measure = "good") => {
+    if (hidden[id] || a.length < 5 || b.length < 5) return;
+    const ok = measure === "rested" ? (r) => r >= 3 : isGood;
+    const sh = (xs) => xs.filter(ok).length / xs.length, gap = sh(a) - sh(b), top = mostPicked(a);
+    if (gap >= 0.25 && (measure === "rested" ? sh(a) >= 0.5 : isGood(top))) out.push({ id, gap, top, text, measure, rows: [[withL, a], [withoutL, b]] });
   };
-  // bedtime: the night before each day
-  const early = [], late = [], long = [], short = [];
-  keys.forEach((k) => {
-    const d = days[k]; if (!d.sleep || d.mood == null) return;
-    const bed = d.sleep.bed, isEarly = bed >= 18 * 60 && bed <= 23 * 60 + 30;
-    (isEarly ? early : late).push(d.mood);
+  // Mornings with a sleep check-in and that day's mood (the night notes describe the night before the day).
+  const slept = keys.filter((k) => days[k].sleep && days[k].mood != null);
+  const tagged = (t) => slept.filter((k) => (days[k].sleep.tags || []).includes(t));
+  const split = (pick) => { const a = [], b = []; slept.forEach((k) => (pick(k) ? a : b).push(days[k].mood)); return [a, b]; };
+  // Bedtime: their own plan if they use "Stayed up later than I meant to"; otherwise lights out before 11:30. Never both.
+  if (tagged(LATE_BED).length >= NOTE_NEED) {
+    const [a, b] = split((k) => !(days[k].sleep.tags || []).includes(LATE_BED));
+    test("planned", a, b, "Bed as planned", "Stayed up later", (w) => ["When you went to bed when you meant to, the next day was mostly ", w, "."]);
+  } else {
+    const [a, b] = split((k) => { const bed = days[k].sleep.bed; return bed >= 18 * 60 && bed <= 23 * 60 + 30; });
+    test("bed1130", a, b, "Before 11:30", "After 11:30", (w) => ["After lights out before 11:30, the next day was mostly ", w, "."]);
+  }
+  // Waking at about your usual time (within 30 minutes of your usual over the last 4 weeks).
+  const recent = slept.filter((k) => k >= addDays(keys[keys.length - 1] || dayKey(), -27));
+  if (recent.length >= 10) {
+    const usual = recent.map((k) => days[k].sleep.wake).sort((x, y) => x - y)[Math.floor(recent.length / 2)];
+    const near = (m) => Math.min(Math.abs(m - usual), 1440 - Math.abs(m - usual)) <= 30;
+    const [a, b] = split((k) => near(days[k].sleep.wake));
+    test("wake", a, b, "At your usual time", "Earlier or later", (w) => ["When you woke at about your usual time, the next day was mostly ", w, "."]);
+  }
+  // Late caffeine and drinks: only for people who use those notes.
+  [["caffeine", "Caffeine late", "No late caffeine", "Late caffeine", (w) => ["When you skipped late caffeine, the next day was mostly ", w, "."]],
+   ["drinks", "Had a few drinks", "No drinks", "Had a few drinks", (w) => ["Nights without drinks were followed by mostly ", w, " days."]]].forEach(([id, tag, wl, wol, text]) => {
+    if (tagged(tag).length < NOTE_NEED) return;
+    const [a, b] = split((k) => !(days[k].sleep.tags || []).includes(tag));
+    test(id, a, b, wl, wol, text);
   });
-  // Hours of sleep: the same band as the Mood and sleep card (sleepPattern), never a separate threshold.
-  const sp = sleepPattern(days);
-  if (["up", "range", "down"].includes(sp.kind) && !sp.early) keys.forEach((k) => {
-    const d = days[k]; if (!d.sleep || d.mood == null) return;
-    (inSleepBand(sp, sleepMins(d.sleep) / 60) ? long : short).push(d.mood);
-  });
-  test("bed1130", early, late, "Before 11:30", "After 11:30", (w) => ["After lights out before 11:30, the next day was mostly ", w, "."]);
-  test("sleep", long, short, `${sleepHours(sp).replace(/^./, (c) => c.toUpperCase())} sleep`, "Other nights", (w) => [`After ${sleepHours(sp)} of sleep, days were mostly `, w, "."]);
+  // Rested: which whole-hour group of sleep you woke most rested after (the sleep chart's groups, rested not mood).
+  const nights = keys.filter((k) => days[k].sleep && days[k].sleep.rested != null).map((k) => ({ h: sleepMins(days[k].sleep) / 60, r: days[k].sleep.rested }));
+  const G = [[0, 6], [6, 7], [7, 8], [8, 9], [9, 99]].map(([lo, hi]) => { const rs = nights.filter((n) => n.h >= lo && n.h < hi).map((n) => n.r); return { lo, hi, rs }; }).filter((g) => g.rs.length >= 3);
+  if (G.length >= 2) {
+    const best = G.slice().sort((x, y) => avg(y.rs) - avg(x.rs))[0];
+    const words = best.hi === 99 ? `${best.lo} hours or more` : best.lo === 0 ? `under ${best.hi} hours` : `${best.lo} to ${best.hi} hours`;
+    const a = best.rs, b = nights.filter((n) => !(n.h >= best.lo && n.h < best.hi)).map((n) => n.r);
+    test("rested", a, b, words.replace(/^./, (c) => c.toUpperCase()), "Other nights", () => ["You woke most rested after ", words, "."], "rested");
+  }
+  // Picking your card before midday (when the card was chosen).
+  { const a = [], b = [];
+    keys.forEach((k) => { const d = days[k], m = moodOf(k); if (m == null || d.rest || !d.card || !d.card.id || !d.card.at) return; (new Date(d.card.at).getHours() < 12 ? a : b).push(m); });
+    test("card-am", a, b, "Before midday", "Later", (w) => ["On days you picked your card before midday, the day was mostly ", w, "."]); }
+  // Making your own card.
+  { const a = [], b = [];
+    keys.forEach((k) => { const m = moodOf(k); if (m == null) return; ((days[k].made || []).length ? a : b).push(m); });
+    test("own", a, b, "Made a card", "Other days", (w) => ["Days you made your own card were mostly ", w, "."]); }
   pillars.forEach((p) => {
     const a = [], b = [];
     keys.forEach((k) => { const m = moodOf(k); if (m == null) return; ((days[k].pil || []).includes(p) ? a : b).push(m); });
@@ -230,7 +263,7 @@ export function helps(days, hidden, pillars) {
     ["r-wake", "Waking at about the same time each day tends to lift mood over a few weeks."],
     ["r-outside", "Ten minutes of daylight outside goes with better mood and better sleep."],
     ["r-name", "Naming what you feel, like you do each evening, can take the edge off it."],
-  ].filter((r) => !hidden[r[0]]);
+  ].filter((r) => !hidden[r[0]] && !(r[0] === "r-wake" && mine.some((m) => m.id === "wake")));
   const fill = Math.max(0, 3 - mine.length);
   return mine.concat(RESEARCH.slice(0, fill).map(([id, t]) => ({ id, research: true, text: () => [t] })));
 }
