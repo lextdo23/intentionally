@@ -262,13 +262,13 @@ function planSub(it, end) {
 }
 function stopItem(it) { it.off = true; store.save(); notify.sync(); log("wrap_stop", it.kind); }
 
-// One quiet line under the level on home: "Your week is ready" when there's a wrapped to open, and what you kept
+// One quiet line under the level on home: "Your weekly recap is ready" when there's a wrapped to open, and what you kept
 // for this week (never a second card: home is about today's card).
 export function homeLines(rerender) {
   const out = [], w = readyWeek();
   if (w) {
     const m = mem(); if (m.readyLogged !== w) { m.readyLogged = w; store.save(); log("wrap_ready"); }
-    out.push(h("button.wr-home.ready", { onclick: () => openWrapped(w, rerender) }, h("i", { style: { background: "var(--sun)", borderRadius: "50%" } }), h("span", null, "Your week is ready"), h("span.chev", { "aria-hidden": "true" }, "›")));
+    out.push(h("button.wr-home.ready", { onclick: () => openWrapped(w, rerender) }, h("i", { style: { background: "var(--sun)", borderRadius: "50%" } }), h("span", null, "Your weekly recap is ready"), h("span.chev", { "aria-hidden": "true" }, "›")));
   }
   const items = planItems().filter((x) => x.kind !== "same");
   if (items.length) {
@@ -316,7 +316,7 @@ export function openWrapped(w, onClose, opts = {}) {
     if (old) { old.el.classList.remove("in"); old.el.classList.add("out"); setTimeout(() => old.el.remove(), 400); old.stop && old.stop(); }
     if (cur.auto) timer = { left: cur.auto, t0: Date.now(), id: setTimeout(() => show(i + 1), cur.auto) };
     if (!opts.only) log("wrap_screen", all[j][0]);
-    if (all[j][0] === "poster") { m.seen[w] = 1; store.save(); }
+    if (all[j][0] === "poster") { m.seen[w] = 1; store.save(); notify.sync(); } // seen: no Monday reminder
   }
   function clear() { if (timer) clearTimeout(timer.id); timer = null; }
   function finish(done) {
