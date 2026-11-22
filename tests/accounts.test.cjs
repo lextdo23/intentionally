@@ -108,19 +108,19 @@ async function phone() {
   // ---- Saving a passkey (Face ID) ----
   const ph = await phone();
   r = await call("POST", "/a/passkey/options", { ticket, username: "Mia.K" });
-  check(r.ok && r.options.rp.id === "daydeck.day" && r.options.authenticatorSelection.residentKey === "required" && r.options.user.name === "@Mia.K", "Face ID is asked to save a passkey for daydeck.day, named @Mia.K");
+  check(r.ok && r.options.rp.id === "daydeck.day" && r.options.authenticatorSelection.residentKey === "required" && r.options.user.name === "@mia.k", "Face ID is asked to save a passkey for daydeck.day, named @mia.k (always lowercase)");
   const wrongSite = await (await phone()).create(r.options, { origin: "https://evil.example" });
   let f = await call("POST", "/a/finish", { ticket, username: "Mia.K", credential: wrongSite });
   check(f.error === "bad_passkey", "a passkey made on another website is refused");
   r = await call("POST", "/a/passkey/options", { ticket, username: "Mia.K" });
   const cred = await ph.create(r.options);
   f = await call("POST", "/a/finish", { ticket, username: "Mia.K", credential: cred });
-  check(f.ok && f.session && f.created && f.passkey && f.user.username === "Mia.K", "signing up finishes: account made, passkey saved, signed in");
+  check(f.ok && f.session && f.created && f.passkey && f.user.username === "mia.k", "signing up finishes: account made, passkey saved, signed in, username kept in lowercase");
   const s1 = f.session;
   r = await call("POST", "/a/finish", { ticket, username: "Mia.K", credential: cred });
   check(r.error === "expired", "the same ticket can't be used twice");
   r = await call("GET", "/a/me", null, { token: s1 });
-  check(r.ok && r.user.username === "Mia.K" && r.user.email === "mia@example.com" && r.passkeys === 1, "signed in, the account shows its username, email and one passkey");
+  check(r.ok && r.user.username === "mia.k" && r.user.email === "mia@example.com" && r.passkeys === 1, "signed in, the account shows its username, email and one passkey");
   r = await name("MIA.K");
   check(r.why === "taken" && r.try.length >= 2 && r.try.every((x) => x !== "mia.k" && /^[a-z0-9._]{3,20}$/.test(x)), `a taken name (any capitals) gets suggestions: ${r.try.join(", ")}`);
 
@@ -129,7 +129,7 @@ async function phone() {
   check(r.ok && r.options.rpId === "daydeck.day" && r.options.challenge, "sign-in asks Face ID for a daydeck.day passkey");
   let a = await ph.sign(r.options, { count: 1 });
   let si = await call("POST", "/a/signin", { credential: a });
-  check(si.ok && si.session && si.user.username === "Mia.K", "Face ID signs in");
+  check(si.ok && si.session && si.user.username === "mia.k", "Face ID signs in");
   si = await call("POST", "/a/signin", { credential: a });
   check(si.error === "expired", "a sign-in can't be replayed");
   r = await call("POST", "/a/signin/options", {});
@@ -162,8 +162,12 @@ async function phone() {
     check(left > 179 * DAYMS, "and using the app renews it for another 180 days, so nobody has to sign in again"); }
 
   // ---- Username changes ----
-  r = await call("POST", "/a/username", { username: "mia.k" }, { token: s1 });
-  check(r.ok && r.user.username === "mia.k", "changing only the capitals is always fine");
+  r = await call("POST", "/a/username", { username: "MIA.K" }, { token: s1 });
+  check(r.ok && r.user.username === "mia.k", "asking for the same name in capitals changes nothing: it stays lowercase");
+  { const book = made["Accountsbook"];
+    book.sql.exec("UPDATE users SET name = 'Mia.K'");   // pretend an older account was saved with capitals
+    const again = new book.constructor(book.ctx, book.env);   // the service starting up again
+    check(again.one("SELECT name FROM users").name === "mia.k", "names saved with capitals before are made lowercase when the service starts"); }
   r = await call("POST", "/a/username", { username: "mia.knew" }, { token: s1 });
   check(r.error === "too_soon" && r.after > Date.now(), "a new name has to wait 30 days after the last change");
 

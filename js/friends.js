@@ -475,7 +475,7 @@ export function openFriendsList() {
     const list = h("div.fr-list");
     const fill = () => {
       const f = fold(q.trim().replace(/^@/, ""));
-      const shownList = data.friends.filter((p) => !f || fold(p.name).split(/\s+/).some((w) => w.startsWith(f)) || fold(p.name).startsWith(f) || p.username.startsWith(f));
+      const shownList = data.friends.filter((p) => !f || fold(p.name).split(/\s+/).some((w) => w.startsWith(f)) || fold(p.name).startsWith(f) || p.username.toLowerCase().startsWith(f));
       list.replaceChildren(...(shownList.length ? shownList.map((p) => row(p, h("span.set-chev", { "aria-hidden": "true" }, "›"), () => openPerson(p.username)))
         : [h("p.fr-note.left", null, `No friends called “${q.trim()}”.`)]));
     };

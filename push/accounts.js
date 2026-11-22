@@ -40,7 +40,7 @@ export const cleanEmail = (e) => {
 };
 
 // ---------------- Usernames ----------------
-// 3 to 20 letters, numbers, full stops and underscores; capitals don't count; not starting or ending with a full stop,
+// 3 to 20 letters, numbers, full stops and underscores; always kept in lowercase (alex 2026-11-22), so "Mia" = "mia"; not starting or ending with a full stop,
 // no two full stops in a row, and at least one letter (alex 2026-11-20, like Instagram). Only these plain characters
 // are allowed, so nothing typed here can act as code, and no lookalike letters from other alphabets can pose as
 // someone else. Names are always stored with placeholders (?) and shown as plain text, never as code.
@@ -261,6 +261,8 @@ export class Accounts extends DurableObject {
       CREATE TABLE IF NOT EXISTS held (name_l TEXT PRIMARY KEY, until INTEGER);`);
     friendTables(this.sql);
     photoTables(this.sql);
+    // Usernames are always lowercase (alex 2026-11-22): any name saved with capitals before then is put right.
+    this.sql.exec("UPDATE users SET name = name_l WHERE name IS NOT name_l");
   }
   // For friends.js.
   nameProblemWords(plain) { return wordsProblem(plain); }
@@ -344,7 +346,7 @@ export class Accounts extends DurableObject {
     const tk = await this.ticketRow(ticket);
     if (tk) {
       if (tk.user) { user = this.one("SELECT * FROM users WHERE id = ?", tk.user); handle = user.handle; name = user.name; }
-      else { const c = this.nameCheck(username); if (!c.ok) return { error: "name", ...c }; handle = tk.handle; name = username.trim(); }
+      else { const c = this.nameCheck(username); if (!c.ok) return { error: "name", ...c }; handle = tk.handle; name = username.trim().toLowerCase(); }
     } else {
       user = await this.sessionUser(token);
       if (!user) return { error: "expired", status: 401 };
@@ -407,7 +409,7 @@ export class Accounts extends DurableObject {
     if (!user) {
       const c = this.nameCheck(username); if (!c.ok) return { error: "name", ...c };
       if (this.one("SELECT 1 AS x FROM users WHERE email = ?", tk.email)) return { error: "expired" };
-      const id = b64u(rand(16)), name = username.trim();
+      const id = b64u(rand(16)), name = username.trim().toLowerCase();
       this.sql.exec("INSERT INTO users (id, handle, email, name, name_l, name_at, made) VALUES (?, ?, ?, ?, ?, ?, ?)", id, tk.handle, tk.email, name, name.toLowerCase(), t, t);
       user = this.one("SELECT * FROM users WHERE id = ?", id);
     }
@@ -452,13 +454,13 @@ export class Accounts extends DurableObject {
   async rename(token, username) {
     const u = await this.sessionUser(token);
     if (!u) return { error: "signed_out", status: 401 };
-    const n = username.trim();
-    if (n.toLowerCase() === u.name_l) { this.sql.exec("UPDATE users SET name = ? WHERE id = ?", n, u.id); return { ok: true, user: await this.publicUser({ ...u, name: n }) }; }
+    const n = username.trim().toLowerCase();
+    if (n === u.name_l) return { ok: true, user: await this.publicUser(u) };   // the same name: nothing to change
     if (Date.now() - u.name_at < RENAME_EVERY) return { error: "too_soon", after: u.name_at + RENAME_EVERY };
     const c = this.nameCheck(n); if (!c.ok) return { error: "name", ...c };
     const t = Date.now();
     this.sql.exec("INSERT OR REPLACE INTO held (name_l, until) VALUES (?, ?)", u.name_l, t + NAME_HELD);
-    this.sql.exec("UPDATE users SET name = ?, name_l = ?, name_at = ? WHERE id = ?", n, n.toLowerCase(), t, u.id);
+    this.sql.exec("UPDATE users SET name = ?, name_l = ?, name_at = ? WHERE id = ?", n, n, t, u.id);
     return { ok: true, user: await this.publicUser({ ...u, name: n, name_at: t }) };
   }
   async signOut(token) { if (token) this.sql.exec("DELETE FROM sessions WHERE hash = ?", await hash(token)); return { ok: true }; }
