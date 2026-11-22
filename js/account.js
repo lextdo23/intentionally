@@ -348,14 +348,14 @@ function stepName() {
     const r = await api("/a/name?u=" + encodeURIComponent(n));
     if (mine !== seq) return;
     msg.classList.remove("wait");
-    if (r.ok) { okName = input.value.trim(); go.setAttribute("aria-disabled", "false"); msg.textContent = "That one's free."; msg.classList.add("ok"); }
+    if (r.ok) { okName = n; go.setAttribute("aria-disabled", "false"); msg.textContent = "That one's free."; msg.classList.add("ok"); }
     else if (r.error === "offline") msg.textContent = WORDS.offline;
     else {
       msg.textContent = NAME_WORDS[r.why] || "Try a different one.";
       (r.try || []).forEach((t) => chips.append(h("button.acct-chip", { onclick: () => { input.value = t; log("signup_suggestion"); check(); } }, "@" + t)));
     }
   };
-  input.addEventListener("input", () => { input.value = input.value.replace(/\s/g, ""); check(); });
+  input.addEventListener("input", () => { input.value = input.value.replace(/\s/g, "").toLowerCase(); check(); });
   const next = () => { if (!okName) return; flow.username = okName; log("signup_step", "faceid"); show(passkeysOK() ? stepFaceID : stepFinishNoPasskey); };
   go.addEventListener("click", next);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") next(); });
@@ -500,10 +500,11 @@ function rename(redraw) {
   openSheet((panel, close) => {
     const u = user() || {};
     const input = h("input.acct-field.acct-name", { type: "text", autocapitalize: "off", autocorrect: "off", spellcheck: "false", maxlength: "20", "aria-label": "Username", value: u.username || "" });
+    input.addEventListener("input", () => { input.value = input.value.replace(/\s/g, "").toLowerCase(); });
     const msg = h("p.acct-msg", { role: "status", "aria-live": "polite" });
     const soon = u.renameAfter && u.renameAfter > Date.now();
     const save = h("button.btn-main", { onclick: async () => {
-      const n = input.value.trim(), p = localNameProblem(n.toLowerCase());
+      const n = input.value.trim().toLowerCase(), p = localNameProblem(n);
       if (p) { msg.textContent = NAME_WORDS[p]; return; }
       busy(save, true);
       const r = await api("/a/username", { username: n });
@@ -514,7 +515,7 @@ function rename(redraw) {
       else msg.textContent = r.error === "offline" ? WORDS.offline : "That didn't work. Try again.";
     } }, "Save");
     panel.append(h("h2", null, "Username"), h("label.acct-at", null, h("span", { "aria-hidden": "true" }, "@"), input), msg,
-      h("p.acct-note", { style: { textAlign: "left" } }, soon ? `You can change it once every 30 days. Next change from ${new Date(u.renameAfter).toLocaleDateString("en-AU", { day: "numeric", month: "long" })}; changing only the capitals is fine any time.` : "You can change it once every 30 days."),
+      h("p.acct-note", { style: { textAlign: "left" } }, soon ? `You can change it once every 30 days. Next change from ${new Date(u.renameAfter).toLocaleDateString("en-AU", { day: "numeric", month: "long" })}.` : "You can change it once every 30 days."),
       save);
   }, { label: "Username" });
 }
