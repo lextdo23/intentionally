@@ -3,7 +3,7 @@
 import { h, MOODS, CHART_COL as MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE, keyDate, MONTH } from "./util.js";
 import { weeksSection } from "./wrapped.js";
 import * as store from "./store.js";
-import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, helps, goodCount, moodActivities, lifts, KIND_WORD, FELT_KIND } from "./stats.js";
+import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, helps, goodCount, moodActivities, lifts, whenWords, KIND_WORD, FELT_KIND } from "./stats.js";
 import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
@@ -278,25 +278,28 @@ function cardsSheet(r) {
   }, { label: `Your ${r.pillar} cards` });
 }
 
-// E: What lifts you. Your top three lifts (last 4 weeks) as small cards; on harder days (Low or below), the ones that
-// still helped. The Harder days side only appears once there are enough harder days to say something honest.
+// E: What lifts you (alex 2026-11-23). Cards worth doing again, as real-looking cards you swipe through (the next one
+// peeks in). Harder days (Low or below) shows from 3 cards done on harder days, "So far" until 5.
 function secLifts(s) {
   const L = lifts(s.days), hasHard = L.harder.length > 0;
   if (!hasHard) liftsView = "any";
   if (!liftsSeen) { liftsSeen = true; log("lifts_seen", { any: L.any.length, harder: L.harder.length }); }
   const card = h("div.card.lifts", null, h("h3", null, "What lifts you"));
-  if (!L.any.length && !hasHard) { card.append(h("p.lead", null, "Your lifts show here once a few cards have lifted you.")); return card; }
-  const body = h("div.col", { style: { gap: "12px" } });
+  if (!L.any.length && !hasHard) { card.append(h("p.lead", null, "Cards that lift you will show here, so you can do them again.")); return card; }
+  const body = h("div.col", { style: { gap: "16px" } });
   const draw = () => {
-    const hard = liftsView === "harder", list = hard ? L.harder : L.any, top = list[0];
+    const hard = liftsView === "harder", list = hard ? L.harder : L.any;
+    const lift = (t) => h("b", { style: { color: KIND_COL.lift } }, t);
     body.replaceChildren(
-      hard ? h("p.lead", null, "Even on harder days, these still ", h("b", { style: { color: KIND_COL.lift } }, "helped"), ".")
-        : h("p.lead", null, top ? [top.text.replace(/\.$/, ""), " ", h("b", { style: { color: KIND_COL.lift } }, "lifted you most"), "."] : "Nothing has lifted you yet in the last 4 weeks."),
-      h("div.lifts-grid", null, list.map((g) => h("div.lifts-card", null,
-        h("span.lifts-p", null, h("i", { style: { background: PILLAR_COL[g.pillar] || "#a9a59d" } }), g.pillar),
-        h("span.lifts-t", null, g.text),
-        h("b", { style: { color: FELT_KIND[g.word] === "done" ? KIND_COL.done : KIND_COL.lift } }, g.word),
-        h("span.lifts-n", null, hard ? `${g.n} of ${g.of} harder days` : g.n === 1 ? "Lifted you once" : `Lifted you ${g.n} times`)))),
+      hard ? h("p.lead", null, L.harderEarly ? [lift("So far,"), " on harder days these still helped."] : [lift("Even on harder days,"), " these still helped."])
+        : h("p.lead", null, list.length ? [lift("Worth doing again:"), " these lifted you lately."] : "Nothing has lifted you yet in the last 4 weeks."),
+      list.length ? h("div.lifts-row", { role: "list" }, list.map((g) => { const kind = FELT_KIND[g.word] === "done" ? "done" : "lift";
+        const when = hard ? (g.of > 1 ? `${g.n} of ${g.of} harder days` : whenWords(g.last)) : g.n > 1 ? `Lifted you ${g.n} times` : whenWords(g.last);
+        return h("div.lifts-card", { role: "listitem", "aria-label": `${g.text}. ${g.pillar}. ${g.word}. ${when}.` },
+          h("span.lifts-p", null, h("i", { style: { background: PILLAR_COL[g.pillar] || "#a9a59d" } }), g.pillar),
+          h("span.lifts-t", null, g.text),
+          h("span.lifts-chip", { style: { color: KIND_COL[kind], background: kind === "done" ? "rgb(227 196 134 / .14)" : "rgb(122 181 122 / .14)" } }, g.word),
+          h("span.lifts-n", null, when)); })) : null,
       h("p.note", { style: { textAlign: "left" } }, hard ? "Doing a little often comes before feeling better." : "From your cards over the last 4 weeks."));
   };
   if (hasHard) card.append(h("div.seg", { role: "tablist", "aria-label": "Which days" }, [["any", "Any day"], ["harder", "Harder days"]].map(([v, l]) =>

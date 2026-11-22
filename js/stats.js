@@ -149,21 +149,31 @@ export function moodActivities(days) {
   const lead = best ? { kind: best.note, pillar: best.pillar } : top ? { kind: top.usual != null && top.usual >= 4 ? "both" : "lift", pillar: top.pillar } : { kind: "empty" };
   return { rows, lead };
 }
-// What lifts you: the cards that lifted you most in the last 4 weeks, and the ones that still helped on harder
-// days (Low or below). Harder days only show once there are 5 cards done on harder days.
-export const HARDER_DAY = 2, HARDER_NEED = 5;
+// What lifts you (alex 2026-11-23): cards worth doing again. A card that lifted you more than once goes first, with
+// its count; the rest are your most recent lifts, with when. On harder days (Low or below), the ones that still lifted
+// you or got done; that side shows from 3 cards done on harder days ("So far" until 5).
+export const HARDER_DAY = 2, HARDER_NEED = 3, HARDER_SOLID = 5;
 export function lifts(days, today = dayKey()) {
   const A = activities(days, addDays(today, -27), today);
   const group = (list, keep) => {
     const by = {};
-    list.forEach((a) => { const g = (by[a.id] = by[a.id] || { id: a.id, pillar: a.pillar, text: a.text, n: 0, of: 0, words: {} }); g.of++; if (keep(a)) { g.n++; a.felt.filter((w) => keep({ kind: FELT_KIND[w] })).forEach((w) => (g.words[w] = (g.words[w] || 0) + 1)); } });
+    list.forEach((a) => { const g = (by[a.id] = by[a.id] || { id: a.id, pillar: a.pillar, text: a.text, n: 0, of: 0, last: "", words: {} }); g.of++;
+      if (keep(a)) { g.n++; if (a.k > g.last) g.last = a.k; a.felt.filter((w) => keep({ kind: FELT_KIND[w] })).forEach((w) => (g.words[w] = (g.words[w] || 0) + 1)); } });
     return Object.values(by).filter((g) => g.n).map((g) => ({ ...g, word: Object.keys(g.words).sort((a, b) => g.words[b] - g.words[a])[0] || "" }))
-      .sort((a, b) => b.n - a.n || b.n / b.of - a.n / a.of).slice(0, 3);
+      .sort((a, b) => (b.n > 1) - (a.n > 1) || (b.n > 1 && a.n > 1 ? b.n - a.n : 0) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0)).slice(0, 3);
   };
   const any = group(A, (a) => a.kind === "lift");
   const harderList = A.filter((a) => a.mood != null && a.mood <= HARDER_DAY);
   const harder = harderList.length >= HARDER_NEED ? group(harderList, (a) => a.kind === "lift" || a.kind === "done") : [];
-  return { any, harder };
+  return { any, harder, harderEarly: harderList.length < HARDER_SOLID };
+}
+// "Today", "Yesterday", "Last Thursday" (within a week), else "Thu 12 Nov".
+export function whenWords(k, today = dayKey()) {
+  if (k === today) return "Today";
+  if (k === addDays(today, -1)) return "Yesterday";
+  const d = keyDate(k), DN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  if (k > addDays(today, -7)) return "Last " + DN[d.getDay()];
+  return `${DN[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTH[d.getMonth()]}`;
 }
 // Getting easier, for the weekly look back: a pillar that mostly "took a lot" a few weeks ago and mostly lifts now.
 // Needs the pillar in at least 3 of the last 4 weeks and 6+ cards. Never says the opposite.

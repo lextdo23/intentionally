@@ -46,11 +46,12 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   if (shots) await p.locator(".sheet").screenshot({ path: "acts-sheet.png" });
   await p.mouse.click(10, 10); await p.waitForTimeout(600);
 
-  check(/lifted you most/.test(await text(".lifts .lead")), "What lifts you: the top lift leads");
+  check(/Worth doing again: these lifted you lately\./.test(await text(".lifts .lead")), "What lifts you: worth doing again");
   check(await p.locator(".lifts-card").count() >= 1, "lift cards show");
   check(await p.locator(".lifts .seg button", { hasText: "Harder days" }).count() === 1, "enough harder days: the Harder days side appears");
   await p.locator(".lifts .seg button", { hasText: "Harder days" }).click(); await p.waitForTimeout(300);
-  check(/Even on harder days, these still helped\./.test(await text(".lifts .lead")) && /harder days/.test(await text(".lifts-card")), "Harder days: what still helped, 'n of m harder days'");
+  check(/(Even on harder days,|So far, on harder days) these still helped\./.test(await text(".lifts .lead")), "Harder days: what still helped");
+  check(await p.evaluate(() => { const r = document.querySelector(".lifts-row"); return r && r.scrollWidth > r.clientWidth; }), "the cards swipe sideways, the next one peeking in");
   if (shots) await p.locator(".lifts").screenshot({ path: "lifts-card.png" });
 
   // Getting easier: Move took a lot three weeks ago and lifts now.
