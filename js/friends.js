@@ -41,13 +41,26 @@ export async function load() {
     if (!r.ok || !r.me) { problem = r.error || "offline"; return null; }
     data = r; problem = null;
     dotFn(r.asksYou.length > 0);
-    // Your picture travels as which little one it is; a photo stays on this phone until photos arrive (step 4),
-    // so friends see the smile until then.
-    const pic = account.picId();
-    if (r.me.pic !== pic) account.call("/a/f/profile", { pic }).then(() => { if (data) data.me.pic = pic; });
+    sendPic();
     return r;
   })();
   return loading;
+}
+// Your picture, for friends: which little one it is, or your photo (the small cleaned square kept for your
+// picture, 240 by 240). Sent again only when it changes, or when the service doesn't have it yet.
+function picKey() { const ph = account.photoPic(), u = account.user(); return (u ? u.username : "") + "|" + (ph ? "photo:" + ph.length + ":" + ph.slice(-48) : account.picId()); }
+function sendPic() {
+  if (!data) return;
+  if (!account.hasPic()) {   // a new phone that hasn't picked one: take the picture friends already see, never send the smile over it
+    const svc = data.me.pic, done = () => { local.pic = picKey(); keep(); redrawYou(); };
+    if (svc === "photo") face(data.me).then((src) => { if (src && !account.hasPic()) { account.restorePhotoPic(src); done(); } });
+    else if (svc && svc !== "smile") { account.useLittle(svc); done(); }
+    return;
+  }
+  const id = account.picId(), k = picKey();
+  if (data.me.pic === id && local.pic === k) return;
+  const ph = id === "photo" ? account.photoPic() : null;
+  account.call("/a/f/profile", ph ? { pic: "photo", photo: ph } : { pic: id }).then((r) => { if (r.ok) { local.pic = k; keep(); if (data) data.me.pic = id; } });
 }
 const again = async () => { await load(); if (data && data.me.adult) { await moments.loadFeed(); if (account.user()) mine = await moments.loadOf(account.user().username); } if (fScreen && fScreen.isConnected) drawFriends(fScreen); redrawYou(); pages.forEach((p) => p.refresh && p.refresh()); };
 
@@ -72,9 +85,22 @@ const ICON = {
 };
 const iconBtn = (icon, label, onclick) => h("button.round", { type: "button", "aria-label": label, onclick }, icon());
 export const shown = (p) => p.name || p.username;
-// You always see your own picture as it really is (a photo too); friends see the little one the service keeps.
+// A person's picture: yours always as it really is; a friend's photo is fetched once (the smile shows until it
+// arrives, or if it can't be fetched); otherwise their little one.
 const isMe = (p) => { const u = account.user(); return !!(u && p && p.username && p.username.toLowerCase() === String(u.username || "").toLowerCase()); };
-export const pic = (p, size) => (isMe(p) ? account.picture(size) : account.littleOne(p.pic || "smile", size));
+const facePics = new Map();
+function face(p) {
+  const k = p.username.toLowerCase() + ":" + (p.pv || 0);
+  if (!facePics.has(k)) facePics.set(k, account.call("/a/f/face?u=" + encodeURIComponent(p.username)).then((r) => (r.ok && typeof r.data === "string" && r.data.startsWith("data:image/jpeg;base64,") ? r.data : null)));
+  return facePics.get(k);
+}
+export const pic = (p, size) => {
+  if (isMe(p)) return account.picture(size);
+  if (p.pic !== "photo") return account.littleOne(p.pic || "smile", size);
+  const el = account.littleOne("smile", size);
+  face(p).then((src) => { if (src) el.replaceChildren(h("img", { src, alt: "", draggable: "false" })); });
+  return el;
+};
 // A person in a list: picture, name and @username, with whatever goes on the right.
 function row(p, right, open) {
   const who = h("div.fr-who", null, h("span.fr-name", null, shown(p)), h("span.fr-handle", null, "@" + p.username + (p.season ? " · " + p.season : "")));
@@ -549,7 +575,7 @@ function openBlocked(back) {
 
 // Signing out or in: start fresh.
 account.onAccount((what) => {
-  if (what === "pic") { if (data) account.call("/a/f/profile", { pic: account.picId() }).then(() => { if (data) data.me.pic = account.picId(); }); return; }
+  if (what === "pic") { sendPic(); return; }
   data = null; problem = null;
   if (what === "out") { dotFn(false); closeAll(); } else { useInvite().then(() => again()); }
 });

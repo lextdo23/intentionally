@@ -12,6 +12,10 @@
 // Photos (2026-11-21): a shared moment can be the day's photo (photos first, alex). The phone shrinks and cleans it
 // (nothing but the picture) before it's sent; it's kept here with the moment, and only the owner and their friends
 // can fetch it. It goes when the moment is removed, or with the account. (Backing up every photo is separate.)
+// Profile photos (alex 2026-11-22): a photo picture is shown to friends too. The phone sends a small square (240 by
+// 240, cleaned: nothing but the picture); it's kept here and only you, your friends, and someone you've asked to be
+// friends can fetch it. Everyone else sees the smile. Picking a little one, or deleting the account, removes it.
+// An account whose sharing alex has paused shows the smile to others.
 // Reports (step 5, 2026-11-21): from the ••• on a friend's moment or profile, with a reason and, if they like, a few
 // words. A copy of what was reported is kept so alex can review it on the tester page (Reports tab) even if it's
 // deleted; the person reported is never told who reported them. A moment reported by three different people is held
@@ -19,7 +23,7 @@
 // reports (and their copies) are deleted after 90 days.
 
 const DAY = 86400000;
-export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, feedMax: 100, profileMax: 120, text: 200, caption: 280, photo: 450000 };
+export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, feedMax: 100, profileMax: 120, text: 200, caption: 280, photo: 450000, face: 60000 };
 const PICS = ["flower", "smile", "frog", "cat", "bunny", "bear", "chick", "sprout"];
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
 export const REASONS = ["hurtful", "sexual", "risk", "spam", "else"];
@@ -56,6 +60,7 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS sees (moment TEXT, who TEXT, at INTEGER, PRIMARY KEY (moment, who));
     CREATE TABLE IF NOT EXISTS hides (owner TEXT, who TEXT, PRIMARY KEY (owner, who));
     CREATE TABLE IF NOT EXISTS mphotos (moment TEXT PRIMARY KEY, data TEXT);
+    CREATE TABLE IF NOT EXISTS faces (user TEXT PRIMARY KEY, data TEXT, v INTEGER);
     CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, reporter TEXT, who TEXT, moment TEXT, why TEXT, note TEXT, snap TEXT, photo TEXT, at INTEGER, state TEXT, done INTEGER);
     CREATE TABLE IF NOT EXISTS mheld (moment TEXT PRIMARY KEY, at INTEGER);
     CREATE TABLE IF NOT EXISTS paused (user TEXT PRIMARY KEY, at INTEGER);
@@ -91,6 +96,7 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/see": return out(b.mSee(token, String(body.id || ""), body.undo === true));
     case "POST /a/f/report": return out(b.rReport(token, body));
     case "GET /a/f/photo": return out(b.mPhoto(token, q.get("id") || ""));
+    case "GET /a/f/face": return out(b.fFace(token, q.get("u") || ""));
     case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
   }
   return null;
@@ -101,8 +107,22 @@ export const friendMethods = {
   fProf(id) { return this.one("SELECT * FROM prof WHERE user = ?", id) || { user: id, name: "", season: "", pic: "smile", adult: 0, closed: 0, hide: 0 }; },
   // What a friend (or someone looking you up) sees. Never the email.
   fCard(u, extra = {}) {
-    const p = this.fProf(u.id);
+    const p = this.fProf(u.id), face = p.pic === "photo" ? this.fFaceRow(u.id) : null;
+    if (face) return { username: u.name, name: p.name || "", pic: "photo", pv: face.v, ...extra };
     return { username: u.name, name: p.name || "", pic: PICS.includes(p.pic) ? p.pic : "smile", ...extra };
+  },
+  // Your profile photo, unless alex has paused your sharing (then others see the smile).
+  fFaceRow(id) { return this.one("SELECT 1 AS x FROM paused WHERE user = ?", id) ? null : this.one("SELECT v FROM faces WHERE user = ?", id); },
+  // A profile photo: for you, your friends, and someone you've asked to be friends (so they know who's asking).
+  async fFace(token, name) {
+    const g = await this.fGate(token, false); if (g.error) return g;
+    const me = g.u, them = this.fByName(name);
+    if (!them) return { error: "not_found", status: 404 };
+    const mine = them.id === me.id;
+    const may = mine || (!this.fBlocked(me.id, them.id) && (this.fIsPal(me.id, them.id) || !!this.one("SELECT 1 AS x FROM asks WHERE f = ? AND t = ?", them.id, me.id)));
+    if (!may || this.fProf(them.id).pic !== "photo" || (!mine && !this.fFaceRow(them.id))) return { error: "not_found", status: 404 };
+    const f = this.one("SELECT data, v FROM faces WHERE user = ?", them.id);
+    return f ? { ok: true, data: f.data, v: f.v } : { error: "not_found", status: 404 };
   },
   fByName(n) { return this.one("SELECT * FROM users WHERE name_l = ?", String(n || "").trim().replace(/^@/, "").toLowerCase()); },
   fBlocked(a, b) { return !!this.one("SELECT 1 AS x FROM blocks WHERE (owner = ? AND who = ?) OR (owner = ? AND who = ?)", a, b, b, a); },
@@ -166,7 +186,17 @@ export const friendMethods = {
       next.name = n;
     }
     if ("season" in body) next.season = tidyText(body.season, LIMITS.season);
-    if ("pic" in body) next.pic = PICS.includes(body.pic) ? body.pic : "smile";
+    if ("pic" in body) {
+      if (body.pic === "photo") {
+        const ph = typeof body.photo === "string" && body.photo.length <= LIMITS.face ? photoOK(body.photo) : null;
+        if (ph) this.sql.exec("INSERT OR REPLACE INTO faces (user, data, v) VALUES (?, ?, ?)", me.id, ph, Date.now());
+        else if (!this.one("SELECT 1 AS x FROM faces WHERE user = ?", me.id)) return { error: "bad_photo" };
+        next.pic = "photo";
+      } else {
+        next.pic = PICS.includes(body.pic) ? body.pic : "smile";
+        this.sql.exec("DELETE FROM faces WHERE user = ?", me.id);
+      }
+    }
     if (body.adult === true) next.adult = 1;            // once ticked, it stays ticked
     if ("closed" in body) next.closed = body.closed ? 1 : 0;
     if ("hide" in body) next.hide = body.hide ? 1 : 0;
@@ -390,6 +420,7 @@ export const friendMethods = {
       const them = this.fByName(String(body.username || ""));
       if (!them || them.id === me.id) return { error: "not_found", status: 404 };
       who = them.id;
+      const f = this.one("SELECT data FROM faces WHERE user = ?", who); photo = f ? f.data : null;   // their profile photo, for alex to see
     }
     const p = this.fProf(who);
     snap = { ...(snap || {}), profile: { name: p.name || "", season: p.season || "", pic: p.pic || "smile" } };
@@ -429,9 +460,10 @@ export const friendMethods = {
     return { ok: true };
   },
 
-  // Deleting an account: every friendship, request, block, invite and the profile go too.
+  // Deleting an account: every friendship, request, block, invite and the profile (and its photo) go too.
   fForget(id) {
     this.sql.exec("DELETE FROM prof WHERE user = ?", id);
+    this.sql.exec("DELETE FROM faces WHERE user = ?", id);
     this.sql.exec("DELETE FROM pals WHERE a = ? OR b = ?", id, id);
     this.sql.exec("DELETE FROM asks WHERE f = ? OR t = ?", id, id);
     this.sql.exec("DELETE FROM blocks WHERE owner = ? OR who = ?", id, id);

@@ -662,6 +662,7 @@ async function reportsView() {
       if (s.mood) { const p = document.createElement("p"); p.className = "note"; p.textContent = `Felt ${s.mood}${s.feel && s.feel.length ? " · " + s.feel.join(", ") : ""}`; wrap.append(p); }
     } else {
       const p = document.createElement("p"); p.textContent = `Their profile: name "${(s.profile || {}).name || "(none)"}", This season "${(s.profile || {}).season || "(none)"}".`; wrap.append(p);
+      if (r.photo) { const im = document.createElement("img"); im.alt = "Their profile photo"; im.src = r.photo; wrap.append(im); const n = document.createElement("p"); n.className = "note"; n.textContent = "Their profile photo. Pausing their sharing also hides it from friends (they see the smile)."; wrap.append(n); }
     }
     return wrap;
   };

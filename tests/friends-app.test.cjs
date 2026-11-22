@@ -201,6 +201,23 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
   await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
   check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");
+  // Profile photos (alex 2026-11-22): friends see each other's photo pictures
+  // Made the way the app makes one: a 240 by 240 square, cleaned (nothing but the picture).
+  const facePhoto = (col) => p.evaluate(async (col) => {
+    const ph = await import("./js/photos.js"), c = document.createElement("canvas"); c.width = 240; c.height = 240;
+    const x = c.getContext("2d"); x.fillStyle = col; x.fillRect(0, 0, 240, 240);
+    const b = await ph.clean(await new Promise((res) => c.toBlob(res, "image/jpeg", 0.85)));
+    return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
+  }, col);
+  check((await sam.post("/a/f/profile", { pic: "photo", photo: await facePhoto("#a9c4b5") })).ok, "Sam picks a photo for his picture");
+  await tab("you"); await tab("friends"); await p.waitForTimeout(1200);
+  check(!!(await p.$('#friends .mo-post:has-text("Slept in") .mo-who .pic img')), "Mia sees Sam's photo on his moment");
+  const miaFace = await facePhoto("#d9b3a6");
+  await p.evaluate((data) => { const a = JSON.parse(localStorage.getItem("daydeck-account")); a.pic = { kind: "photo", data }; localStorage.setItem("daydeck-account", JSON.stringify(a)); }, miaFace);
+  await p.reload(); await p.waitForTimeout(1800); await quiet(); await tab("friends"); await p.waitForTimeout(1200);
+  check((await sam.get("/a/f/face?u=mia.k")).data === miaFace, "Mia's photo picture reaches her friends");
+  check((await sam.get("/a/f")).friends.find((x) => x.username === "mia.k").pic === "photo", "and Sam's list shows she has one");
+  check(!!(await p.$('#friends .mo-post:has-text("Walked to work") .mo-who .pic img')), "Mia sees her own photo on her own moment");
   // Photos first: yesterday has a photo, so it's offered before the card
   await p.evaluate(async (k) => { const ph = await import("./js/photos.js"); const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; const x = c.getContext("2d"); x.fillStyle = "#6b7f72"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#e3c486"; x.beginPath(); x.arc(700, 500, 160, 0, 7); x.fill(); await ph.save(k, c, { src: "lib" }); }, day(1));
   await p.waitForTimeout(500);
@@ -222,7 +239,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await shot("19-feed-photo");
 
   // Your friends, A to Z, with search: from the friends count on You
-  await tab("you"); await p.waitForTimeout(900);
+  await quiet(); await tab("you"); await p.waitForTimeout(900);
   await p.click("#you .fr-count"); await p.waitForTimeout(800);
   const fl = ".fr-page:last-child";
   check(/Your friends/.test(await text(fl)) && /Only you see this list/.test(await text(fl)), "tapping the friends count opens Your friends (only you see it)");
