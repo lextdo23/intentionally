@@ -691,7 +691,9 @@ body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px);
 :is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill, body:has(.sheet-host) #pill { opacity: 0; visibility: hidden; transform: translateY(24px); pointer-events: none;
   transition: opacity .3s var(--ease), transform .35s var(--ease), visibility 0s linear .35s; }
 :is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill.no-act, body:has(.sheet-host) #pill.no-act { transform: translate(-50%, 24px); }
-/* Tab screens: Friends and You slide in from the right; Today slides left and fades. */
+/* Tab screens (alex 2026-11-23): tapping a tab switches straight away (.tab-now turns movement off for that moment).
+   Swiping moves whole screens side by side (js/pill.js) like separate phone screens: rounded corners on black,
+   a gap between them, the pill staying on top (.tab-drag; alex 2026-11-23, from Instagram's swipe). */
 .tab-screen { position: fixed; inset: 0; z-index: 4; overflow-y: auto; padding: var(--top) var(--edge) calc(env(safe-area-inset-bottom, 0px) + 110px); background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, var(--sky3) 100%);
   transform: translateX(100%); opacity: .4; pointer-events: none; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .45s cubic-bezier(.32, .72, 0, 1); display: flex; flex-direction: column; gap: 24px; }
 body[data-tab="friends"] #friends, body[data-tab="you"] #you { transform: none; opacity: 1; pointer-events: auto; }
@@ -715,6 +717,11 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .you-who { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .you-name { font-size: 22px; font-weight: 600; }
 .you-handle { font-size: 15px; color: var(--dim); }
+body.tab-now :is(#home, #sun, .tab-screen) { transition: none !important; }
+body.tab-drag { background: #000; }
+body.tab-drag #sun { visibility: hidden; }
+body.tab-drag :is(#home, .tab-screen) { border-radius: 46px; overflow: hidden; }
+body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 @media (prefers-reduced-motion: reduce) { #pill, .pill-bubble, .pill-tab, .tab-screen, body.has-pill #home, .fr-page, .fr-toast, .mo-day, .mo-day-pic { transition: none !important; } }
 
 /* ---- Friends (social step 2, js/friends.js). No sun or orange here: main buttons off-white with dark text,
