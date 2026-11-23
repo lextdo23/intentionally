@@ -10,6 +10,7 @@ import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
 import * as levels from "./levels.js";
 import * as tips from "./tips.js";
+import * as crumbs from "./crumbs.js";
 
 import { img, openViewer } from "./photos.js";
 import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
@@ -379,8 +380,12 @@ function openDay(k) {
         h("button.btn-soft", { style: { flex: "1" }, onclick: () => { k = addDays(k, -1); draw(); } }, "‹ Day before"),
         h("button.btn-soft", { style: { flex: "1" }, disabled: k >= dayKey(), "aria-disabled": String(k >= dayKey()), onclick: () => { if (k < dayKey()) { k = addDays(k, 1); draw(); } } }, "Next day ›"));
       const parts = [h("div.col", { style: { gap: "4px" } }, h("h2", null, dayTitle(k)), d.mood != null ? h("span", { style: { fontSize: "17px", fontWeight: "600", color: MOOD_COL[d.mood] } }, MOODS[d.mood]) : null)];
-      if (d.mood == null && !d.sleep) parts.push(h("p", { style: { color: "#cfcac1" } }, "You didn't note this day. That's okay."));
+      if (d.mood == null && !d.sleep && !(d.crumbs && d.crumbs.length)) parts.push(h("p", { style: { color: "#cfcac1" } }, "You didn't note this day. That's okay."));
       if (d.feel && d.feel.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You felt"), h("div.pills", null, d.feel.map((f) => h("span.chip", null, f)))));
+      // Crumbs: kept to look back on, never counted (alex 2026-11-23). Tap one to change or remove it.
+      const cr = crumbs.ofDay(k);
+      if (cr.length) parts.push(h("div.col", { style: { gap: "4px" } }, h("span.note", { style: { textAlign: "left" } }, cr.length > 1 ? "Your crumbs" : "Your crumb"),
+        cr.map((c) => crumbs.row(c, () => crumbs.open({ k, t: c.t, onSaved: draw })))));
       if (d.rest) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You did"), h("span.chip", { style: { alignSelf: "flex-start" } }, "No card today, on purpose")));
       else if (d.card && d.card.id && cardOf(d.card.id)) { const c = cardOf(d.card.id); parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "Today's card"),
         d.ph ? dayPhoto(k) : null,

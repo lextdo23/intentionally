@@ -15,7 +15,7 @@ export function h(tag, props, ...kids) {
   for (const k of kids.flat(9)) if (k != null && k !== false) el.append(k instanceof Node ? k : String(k));
   return el;
 }
-const SVG_TAGS = new Set(["path", "circle", "rect", "line", "g", "defs", "linearGradient", "radialGradient", "stop", "clipPath", "text"]);
+const SVG_TAGS = new Set(["path", "circle", "rect", "line", "g", "defs", "linearGradient", "radialGradient", "stop", "clipPath", "text", "mask"]);
 
 // Mood: 0 Awful … 6 Great. Colours run blue (hard) through warm sand (okay) to green (great).
 export const MOODS = ["Awful", "Rough", "Low", "Okay", "Good", "Really good", "Great"];

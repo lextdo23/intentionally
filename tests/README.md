@@ -27,3 +27,4 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/library.test.cjs
     node tests/card-fit.test.cjs      (every card fits the card at iPhone 15 Pro Max size)
     node tests/repick.test.cjs        (people with old pillar answers are asked once to pick again)
+    node tests/crumbs.test.cjs        (Crumbs: off by default, the offer, the face button beside the week, the sheet, crumbs at the end of the day, Settings)

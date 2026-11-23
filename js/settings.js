@@ -14,6 +14,7 @@ import * as sync from "./sync.js";
 import * as library from "./library.js";
 import * as friends from "./friends.js";
 import * as photoBackup from "./photo-backup.js";
+import * as crumbs from "./crumbs.js";
 
 let onClosed = null, el = null;
 
@@ -67,6 +68,7 @@ function render() {
     // Friends' privacy, once Friends is open (the pill shows) and there's an account.
     account.signedIn() && document.body.classList.contains("has-pill") ? group("Friends", [linkRow("Privacy", "Who can see you", { onclick: friends.openPrivacy })]) : null,
     group("What matters to you", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars })]),
+    crumbsGroup(),
     nudges(),
     group("Your data", [
       linkRow("Save a copy", null, { onclick: saveCopy }),
@@ -85,6 +87,14 @@ function render() {
     group("About", [linkRow("How Daydeck works", null, { onclick: howItWorks }), linkRow("Your privacy", null, { href: "privacy.html" }), linkRow("Friends guidelines", null, { href: "guidelines.html" })]),
     deleteAll())));
   el.querySelector(".set-scroll").scrollTop = top;
+}
+
+// Crumbs (js/crumbs.js, alex 2026-11-23): off unless chosen. Turning it off keeps crumbs already dropped.
+function crumbsGroup() {
+  const sw = h("button.switch", { role: "switch", "aria-checked": String(crumbs.isOn()), "aria-label": "Crumbs" });
+  sw.addEventListener("click", () => { const on = !crumbs.isOn(); crumbs.setOn(on, "settings"); sw.setAttribute("aria-checked", String(on)); });
+  return group("Crumbs", [h("div.set-row.set-toggle", null, h("span.set-label", null, "Crumbs"), sw)],
+    "Tap how you feel as your day goes, then follow your crumbs back when you end your day. Turning it off keeps the ones you've dropped.");
 }
 
 // Choosing pillars happens over the sky, so Settings steps aside and comes back after.

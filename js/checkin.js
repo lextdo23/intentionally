@@ -12,6 +12,7 @@ import { lastNote, markUsed } from "./sleep.js";
 import { now } from "./clock.js";
 import * as deck from "./deck.js";
 import * as levels from "./levels.js";
+import * as crumbs from "./crumbs.js";
 
 // Starts a flow from somewhere else (the card draw from home): the sun stays, home steps back.
 export function begin(onDone) { finish = onDone; track = null; document.body.classList.add("in-flow"); }
@@ -176,9 +177,15 @@ export function evening(onDone) {
     const upd = () => { const m = toMood(st.v); word.textContent = st.touched ? MOODS[m] : " "; word.style.color = `rgb(${mix(st.v).join(" ")})`; range.setAttribute("aria-valuetext", MOODS[m]); tint(); };
     range.addEventListener("input", () => { st.v = +range.value; st.touched = true; next.textContent = "Next"; next.setAttribute("aria-disabled", "false"); upd(); });
     upd();
+    // Crumbs (alex 2026-11-23): today's crumbs first, so there's something to look back on before answering.
+    // Part of this step, not a step of its own. The latest four show; the rest are in Your days.
+    const cr = crumbs.ofDay(k);
+    if (cr.length) log("crumbs_seen", Math.min(cr.length, 20));
+    const replay = cr.length ? h("div.crumb-replay.rise", null, h("span.note", null, "Your crumbs today"), cr.slice(-4).map((c) => crumbs.row(c)),
+      cr.length > 4 ? h("span.note", null, `and ${cr.length - 4} earlier, in Your days`) : null) : null;
     show(step(
       [roundBtn("close", "Not now", () => close(false)), where(`End your day · 1 of ${N}`), spacer()],
-      [h("h1.q.rise", null, "How was today?"), h("div.rise", null, word), h("div.col.rise", { style: { gap: "8px" } }, range, h("div.ends", null, h("span", null, "Awful"), h("span", null, "Great")))],
+      [replay, h("h1.q.rise", null, "How was today?"), h("div.rise", null, word), h("div.col.rise", { style: { gap: "8px" } }, range, h("div.ends", null, h("span", null, "Awful"), h("span", null, "Great")))],
       [next, LIFELINE()]));
   };
   const two = () => {
@@ -188,6 +195,9 @@ export function evening(onDone) {
     const order = [...new Set(firstSix(b).concat(s2.feel.own, nearestOrder(b)))];
     const ranked = order.slice().sort((x, y) => ((L[y] || 0) - (L[x] || 0)) || order.indexOf(x) - order.indexOf(y));
     const main = ranked.slice(0, 6).sort((x, y) => order.indexOf(x) - order.indexOf(y));
+    // Crumbs: a couple of words from each other band today's crumbs pointed to join the first ones (up to 3 extra).
+    let extra = 0;
+    crumbs.bands(k).filter((cb) => cb !== b).forEach((cb) => firstSix(cb).slice(0, 2).forEach((w) => { if (extra < 3 && !main.includes(w)) { main.push(w); extra++; } }));
     st.feel.forEach((w) => { if (w !== "Not sure" && !main.includes(w)) main.push(w); });
     const more = ranked.filter((x) => !main.includes(x));
     const done = N === 3 ? mainBtn("Next", st.feel.size > 0, three) : mainBtn("Done", st.feel.size > 0, () => save());
