@@ -694,7 +694,7 @@ body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px);
 /* Hidden: faded and then switched off altogether (visibility), because Safari can keep drawing the frosted glass of a
    faded-out pill (alex 2026-11-21: it still showed while rating a card). While rating a card, it's hidden only until
    Done or Not now (.ask-open, js/draw.js), and comes back as the card glides home. */
-:is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill, body:has(.sheet-host) #pill { opacity: 0; visibility: hidden; transform: translateY(24px); pointer-events: none;
+:is(.in-flow, .in-levelup, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill, body:has(.sheet-host) #pill { opacity: 0; visibility: hidden; transform: translateY(24px); pointer-events: none;
   transition: opacity .3s var(--ease), transform .35s var(--ease), visibility 0s linear .35s; }
 :is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill.no-act, body:has(.sheet-host) #pill.no-act { transform: translate(-50%, 24px); }
 /* Tab screens (alex 2026-11-23): tapping a tab switches straight away (.tab-now turns movement off for that moment).
@@ -1010,3 +1010,25 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .dcard .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 .dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
 .home-card.did .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
+/* The level-up moment (js/levelup.js, alex 2026-11-24): the eclipse opens, then the card for what opened. */
+.lu { position: fixed; inset: 0; z-index: 50; }
+.lu-dim { position: absolute; inset: 0; background: #000; opacity: 0; }
+.lu-ecl { position: absolute; left: 50%; width: 180px; height: 180px; margin-left: -90px; opacity: 0; }
+.lu-title { position: absolute; left: 0; right: 0; text-align: center; color: var(--ink); opacity: 0; pointer-events: none; }
+.lu-title b { display: block; font-size: 34px; font-weight: 600; }
+.lu-title span { display: block; margin-top: 8px; font-size: 15px; color: var(--ink2); }
+.lu-card { position: absolute; left: 50%; perspective: 900px; transform: translateY(120vh); }
+.lu-in { position: absolute; inset: 0; transform-style: preserve-3d; }
+.lu-face { position: absolute; inset: 0; border-radius: 20px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+.lu-back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 20px 40px rgba(0, 0, 0, .6); }
+.lu-back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.lu-front { transform: rotateY(180deg); background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), 0 20px 40px rgba(0, 0, 0, .6);
+  padding: 24px; display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--ink); }
+.lu-front small { font-size: 15px; color: var(--dim); }
+.lu-front b { font-size: 34px; font-weight: 600; line-height: 1.15; }
+.lu-front p { margin: 0; font-size: 17px; line-height: 1.35; color: var(--ink2); }
+.lu-btns { position: absolute; left: var(--edge); right: var(--edge); bottom: var(--bot); display: flex; flex-direction: column; gap: 4px; opacity: 0; }
+/* The level number gives a small bump as it rolls over. */
+.lv-num.lv-bump { display: inline-block; transform-origin: 0 70%; animation: lv-bump .6s ease-out; }
+@keyframes lv-bump { 40% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .lv-num.lv-bump { animation: none; } }

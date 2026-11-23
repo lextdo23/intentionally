@@ -21,6 +21,7 @@ import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
 import { openLevels } from "./path.js";
+import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
 import * as library from "./library.js";
 import * as account from "./account.js";
@@ -60,9 +61,11 @@ function peek() {
 // The bar slides from where it was to where it is now; on a new level it fills, then starts again from empty.
 // Showing the gain (alex 2026-11-17): while it slides, only the end of the bar brightens a little (no circle), and a
 // small gold "+1" / "+2" (whatever the step gave) rises from the end of the bar and fades.
-let lvShown = null, lvBack = false;
-function levelRow() {
-  const L = levels.level(), pts = levels.total(), was = lvShown;
+let lvShown = null, lvBack = false, lvHold = null, lvRelease = null;   // lvHold: the bar waits for the level-up moment to close
+function levelRow(lvNew) {
+  const L = levels.level(), pts = levels.total();
+  let was = lvShown;
+  if (lvNew && (!was || was.level >= L.level)) was = { level: L.level - 1, frac: 0.92, pts };   // a fresh open still ticks over
   lvShown = { level: L.level, frac: L.frac, pts };
   const fill = h("i"), bar = h("div.lv-bar", null, fill), track = h("div.lv-track", { "aria-hidden": "true" }, bar);
   const next = h("span.lv-next", null, `Next box at level ${L.level + 1}`);
@@ -83,18 +86,34 @@ function levelRow() {
   // Start from where it was, then slide (after the row has faded back in, if it was hidden for the rating).
   fill.style.transition = "none"; set(was.frac, was.level === L.level && was.frac >= levels.NEAR);
   const wait = row.classList.contains("lv-back") ? 700 : 150;
-  setTimeout(() => {
+  const start = (go) => (lvHold ? lvHold.then(() => setTimeout(go, 150)) : setTimeout(go, wait));
+  start(() => {
     fill.style.transition = ""; glide();
     if (was.level < L.level) {
       set(1, false); plus(1);
-      setTimeout(() => { num.textContent = `Level ${L.level}`; fill.style.transition = "none"; set(0, false);
+      setTimeout(() => { num.textContent = `Level ${L.level}`; num.classList.remove("lv-bump"); void num.offsetWidth; num.classList.add("lv-bump");
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch { /* not on iPhone */ }
+        fill.style.transition = "none"; set(0, false);
         requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = ""; if (L.frac > 0) glide(); set(L.frac, L.frac >= levels.NEAR); })); }, 1100);
     } else { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); }
-  }, wait);
+  });
   return row;
 }
 
 // A box earned and not opened yet (js/boxes.js): a quiet gold row under the level bar until it's opened.
+// The level-up moment, once the splash has gone: the eclipse opens and, if the level opened something, its card
+// is dealt (it takes the place of the pointing tip). Then the bar ticks over.
+function levelUpMoment(lv) {
+  const u = levels.opensAt(lv);
+  if (u) tips.shown(u.id);
+  const go = () => {
+    if (document.body.classList.contains("booting")) return setTimeout(go, 200);
+    levelup.show(lv, u, { text: u ? tips.tipText(u.id) : "", onOpen: (id) => tips.open(id),
+      onDone: () => { const r = lvRelease; lvHold = null; lvRelease = null; r && r(); } });
+  };
+  setTimeout(go, 400);
+}
+
 // When Today is crowded (a level-up moment, boxes waiting and the recap line at once), the card shrinks just enough
 // that nothing slides under the bottom pill (alex 2026-11-24). An ordinary day keeps the full-size card.
 function fitCard() {
@@ -249,7 +268,9 @@ function render(moment) {
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
   if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
   if (lvNew) { log("level", lvNew); const u = levels.opensAt(lvNew); if (u && !(store.get().levels || {}).keepAll) log("unlock", u.id); }
-  const mo = lvNew ? [`Level ${lvNew}.`, null] : moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
+  // A new level gets its own moment (js/levelup.js, alex 2026-11-24); the bar ticks over once it closes.
+  if (lvNew) lvHold = new Promise((r) => (lvRelease = r));
+  const mo = moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
   const greet = h("h1.greet", null, mo ? mo[0] : head);
   const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
   let taps = 0, tapT = 0;
@@ -283,7 +304,7 @@ function render(moment) {
   const right = h("div.dd-right", null, cardsOpen ? settingsBtn : null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
   home.replaceChildren(
     h("div.dd-head", null, left, mark, right),
-    levelRow(),
+    levelRow(lvNew),
     weekRow(),
     boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
@@ -311,6 +332,7 @@ function render(moment) {
   clearTimeout(momentT);
   if (mo) play(mo[0], mo[1] ? mo[1] : line, true);
   fitCard();   // after the moment's words are in, before anything is drawn
+  if (lvNew) levelUpMoment(lvNew);
   tips.soon(mo ? 4200 : 1500);   // a new thing a level opened gets its tip once home is quiet (alex 2026-11-18)
 }
 

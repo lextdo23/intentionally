@@ -59,7 +59,7 @@ const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isA
 // What each level opens (same ids as UNLOCKS in levels.js).
 const UNLOCK_NAMES = [["days", "Your days"], ["own", "Own card"], ["friends", "Friends"], ["library", "Card library"], ["months", "Month and Year"]];
 const SHAPE = {
-  level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
+  level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), unlock_act: (v) => isObj(v) && UNLOCK_NAMES.some(([id]) => id === v.id) && (v.open === 0 || v.open === 1), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
@@ -443,7 +443,7 @@ function drawAll(D) {
     html += sec("How fast do people level up?", "Each tester's level now, and on which day after joining people usually reach a level. Each level brings a box.",
       n ? bars(Object.entries(hist).sort((a, b) => (parseInt(a[0].replace(/\D/g, "")) || 0) - (parseInt(b[0].replace(/\D/g, "")) || 0)), n) +
         `<p class="note">Usually reached: level 2 on ${day(2)}, level 3 on ${day(3)}, level 5 on ${day(5)}, level 10 on ${day(10)}. Planned for a usual week: level 2 on day 1, level 3 by day 3, level 5 by day 8, level 10 by day 28.</p>` +
-        `<p class="note">New things opened by a level (testers who joined after 18 Nov): ${UNLOCK_NAMES.map(([id, nm]) => `${nm} ${new Set(by("unlock").filter((e) => e.val === id).map((e) => e.code)).size}`).join(", ")}. Your levels page opened ${by("levels_open").length} time${by("levels_open").length === 1 ? "" : "s"} by ${who("levels_open")} tester${who("levels_open") === 1 ? "" : "s"}.</p>`
+        `<p class="note">New things opened by a level (testers who joined after 18 Nov): ${UNLOCK_NAMES.map(([id, nm]) => `${nm} ${new Set(by("unlock").filter((e) => e.val === id).map((e) => e.code)).size}`).join(", ")}. Your levels page opened ${by("levels_open").length} time${by("levels_open").length === 1 ? "" : "s"} by ${who("levels_open")} tester${who("levels_open") === 1 ? "" : "s"}. From the level-up card: opened straight away ${by("unlock_act").filter((e) => e.val && e.val.open === 1).length}, Later ${by("unlock_act").filter((e) => e.val && e.val.open === 0).length}.</p>`
       : `<p class="sub">No levels yet. They start counting once a tester opens the new version.</p>`,
       "if people are much slower than planned, boxes feel far away and the points or the curve need easing; much faster and boxes lose their meaning."); }
 
