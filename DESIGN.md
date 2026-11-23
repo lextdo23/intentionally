@@ -17,7 +17,8 @@ Today (home) is the reference screen: when unsure, match it.
    - the logo;
    - a short moment worth noticing ("Level 4.");
    - the check-in sun: its glow, and on Last night the sun and the bar between the moon and sun (alex 2026-11-24);
-   - the outline on the card you pick from the three, and the light behind today's card (rule 37) (alex 2026-11-24).
+   - the outline on the card you pick from the three, and the light behind today's card (rule 37) (alex 2026-11-24);
+   - a switch that's on (alex 2026-11-24), except on the social screens (rule 7).
 
    Anything else that's marigold is a mistake. Only one marigold *button* on a screen.
 4. **White (ink) shows plain facts:** the level row, numbers, counts.
@@ -100,7 +101,7 @@ For each screen, in order:
 | Morning check-in | Done 2026-11-24 | |
 | Evening check-in (and Going to sleep) | Done 2026-11-24 | |
 | Card draw, rating and "How did doing it feel?" | Done 2026-11-24 | |
-| Make your own card | To do | "Made by you" words in gold (5); + and button now white (done with check-ins) |
+| Make your own card | Done 2026-11-24 | |
 | Level-up moment and level path | To do | Level numbers, bar and steps in gold (4, 5) |
 | Tips | To do | Tip outline is gold (5); tip box is old charcoal (36) |
 | Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5) |

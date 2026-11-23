@@ -1,6 +1,6 @@
 // Make your own card, from the evening check-out (alex 2026-11-17, look A "write on the card").
 // Something else you did today that you felt good about becomes a card: a blank card turns over, you write straight
-// onto it and tap a pillar (the card takes its colour), then pick how it felt (the words land on the card in gold).
+// onto it and tap a pillar (the card takes its colour), then pick how it felt (the words land on the card in white).
 // "Add it to my deck" (off unless turned on) lets it come up in a morning draw. Your words never leave this phone:
 // tester data gets the pillar (or "own" for a pillar you made up), feeling positions and the deck switch.
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
@@ -51,9 +51,9 @@ export function makeCard({ back, kept, k = dayKey() }) {
     const pills = h("div.pills", { style: { justifyContent: "center" }, role: "radiogroup", "aria-label": "Which pillar?" });
     const drawPills = () => {
       const names = st.more ? mine.concat(ALL.filter((n) => !mine.includes(n))) : mine.concat(st.pillar && !mine.includes(st.pillar) ? [st.pillar] : []);
-      pills.replaceChildren(...names.map((n) => h("button.pill.own-pil", { role: "radio", "aria-checked": String(st.pillar === n), "aria-pressed": String(st.pillar === n),
+      pills.replaceChildren(...[...names.map((n) => h("button.pill.own-pil", { role: "radio", "aria-checked": String(st.pillar === n), "aria-pressed": String(st.pillar === n),
         onclick: () => { st.pillar = n; paint(); drawPills(); ready(); } }, h("span.sq", { style: { background: deck.PILLAR_COL[n] || "#a9a59d" } }), n)),
-        st.more ? null : h("button.pill.outline", { onclick: () => { st.more = true; drawPills(); } }, "More"));
+        st.more ? null : h("button.pill.outline", { onclick: () => { st.more = true; drawPills(); } }, "More")].filter(Boolean));   // a null here used to show as the word "null"
     };
     drawPills(); ready();
     show(step(
