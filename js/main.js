@@ -29,6 +29,7 @@ import * as pill from "./pill.js";
 import * as friends from "./friends.js";
 import * as moments from "./moments.js";
 import * as photoBackup from "./photo-backup.js";
+import * as crumbs from "./crumbs.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -144,6 +145,22 @@ function early() {
 let look = "";
 function lookNow() { const hr = new Date(now()).getHours(); return [dayKey(), greeting(), hr < 15, hr >= 17 || hr < 4].join("|"); }
 
+// The week's peek (Your days opens at level 2) and, once Crumbs is on, its face button beside it (alex 2026-11-23).
+// Crumbs isn't tied to a level: before the peek shows, the button sits in the same spot on its own.
+function weekRow() {
+  const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render()) : null;
+  if (!cb) return pk || "";
+  return h("div.peek-row", null, pk, cb);
+}
+// Crumbs is offered once, after an evening check-in, when home is quiet (same wait as the photos note).
+function crumbsWhenFree(tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer");
+    if (busy && tries < 40) return crumbsWhenFree(tries + 1);
+    if (!busy && crumbs.offerOK()) crumbs.offer(() => render());
+  }, tries ? 1500 : 3400);
+}
+
 function render(moment) {
   early();
   wrapped.applyPlan();   // a rest day kept for this week arrives on its own
@@ -244,13 +261,14 @@ function render(moment) {
         !levels.isOpen || levels.isOpen("library") ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : null,
         roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
         usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render())))),
-    levels.isOpen("days") ? peek() : "",   // Your days opens at level 2
+    weekRow(),
     levelRow(),
     boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     mid,
     h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
   placeSun(t, ended);
+  if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
   look = lookNow();
 
