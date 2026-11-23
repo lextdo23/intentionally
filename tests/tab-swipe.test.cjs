@@ -53,24 +53,24 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(parseFloat(mid.r) > 30 && parseFloat(mid.hr) > 30, "both look like separate phone screens, with rounded corners");
   check(mid.bg === "rgb(0, 0, 0)" && mid.fr - mid.homeRight >= 10, "on black, with a gap between them (" + Math.round(mid.fr - mid.homeRight) + "px)");
   if (SHOTS) await p.screenshot({ path: path.join(SHOTS, "mid-swipe.png") });
-  await p.waitForTimeout(150); await touch("touchEnd"); await p.waitForTimeout(450);
+  await p.waitForTimeout(150); await touch("touchEnd"); await p.waitForTimeout(650);
   check(await tab() === "friends", "letting go past halfway (even after stopping) moves on to Friends");
   check(await p.$eval("#friends", (e) => e.style.transform === "" && Math.abs(e.getBoundingClientRect().left) < 1), "and Friends settles exactly in place");
 
   y = await quiet();
-  await drag(300, 240, y, { steps: 6, wait: 40 }); await p.waitForTimeout(450);
+  await drag(300, 240, y, { steps: 6, wait: 40 }); await p.waitForTimeout(650);
   check(await tab() === "friends", "a short, slow swipe springs back");
 
-  await drag(330, 250, y, { steps: 3, wait: 10 }); await p.waitForTimeout(450);
+  await drag(330, 250, y, { steps: 3, wait: 10 }); await p.waitForTimeout(650);
   check(await tab() === "you", "a quick flick moves on, even when short");
 
   y = await quiet();
-  await drag(200, 40, y); await p.waitForTimeout(450);
+  await drag(200, 40, y); await p.waitForTimeout(650);
   check(await tab() === "you", "past the last screen it only gives a little, then stays on You");
 
-  await drag(60, 400, y); await p.waitForTimeout(450);
+  await drag(60, 400, y); await p.waitForTimeout(650);
   check(await tab() === "friends", "swiping right goes back to Friends");
-  await drag(60, 400, y); await p.waitForTimeout(450);
+  await drag(60, 400, y); await p.waitForTimeout(650);
   check(await tab() === "today", "and again to Today");
   check(await p.$eval("#sun", (e) => getComputedStyle(e).visibility === "visible" && getComputedStyle(e).opacity !== "0"), "the sun is back");
   check(await p.$eval("#home", (e) => e.style.background === "" && getComputedStyle(e).borderTopLeftRadius === "0px"), "and Today is back to normal, square and see-through");
@@ -82,11 +82,11 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- Things that move sideways themselves keep working ----
   const card = await p.evaluate(() => { const c = [...document.querySelectorAll("#home *")].find((e) => e.style.touchAction === "pan-y"); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-  if (card) { await drag(card.x + 80, card.x - 120, card.y); await p.waitForTimeout(450); check(await tab() === "today", "swiping on the day card turns the card, not the tab"); }
+  if (card) { await drag(card.x + 80, card.x - 120, card.y); await p.waitForTimeout(650); check(await tab() === "today", "swiping on the day card turns the card, not the tab"); }
 
   // ---- Nothing switches while something is open over the screen ----
   await p.evaluate(() => document.body.classList.add("in-settings"));
-  y = await quiet(); await drag(380, 60, y); await p.waitForTimeout(450);
+  y = await quiet(); await drag(380, 60, y); await p.waitForTimeout(650);
   check(await tab() === "today", "no swiping between tabs while Settings (or a check-in, sheet or page) is open");
   await p.evaluate(() => document.body.classList.remove("in-settings"));
 
