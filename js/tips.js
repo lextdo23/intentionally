@@ -27,10 +27,8 @@ function waiting() {
   return levels.UNLOCKS.filter((u) => levels.isOpen(u.id) && !m.tips[u.id] && TIP[u.id]);
 }
 
-// "New" tag on something inside a screen, until it's first used. newTag("own") / used("own").
-export function isNew(id) { const m = mem(); return !m.keepAll && levels.isOpen(id) && !(m.used || {})[id]; }
+// Notes that something inside a screen has been used (there's no "New" tag any more: the level-up tip says it, alex 2026-11-24).
 export function used(id) { const m = mem(); m.used = m.used || {}; if (!m.used[id]) { m.used[id] = 1; store.save(); } }
-export const newTag = () => h("span.new-tag", null, "New");
 
 let layer = null;
 // Show the next waiting tip if home is quiet and its thing is on screen. Returns true if one showed.

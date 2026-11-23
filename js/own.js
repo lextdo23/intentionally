@@ -110,5 +110,5 @@ export function ownArea(k, open) {
   return h("div.col", { style: { gap: "8px", alignItems: "center" } },
     ...made.map((id) => deck.ownCard(id)).filter(Boolean).map((o) => h("div.mini", null,
       h("span.ctag", null, h("i", { style: { background: deck.PILLAR_COL[o.pillar] || "#a9a59d" } }), `${o.pillar} · Made by you`), h("span", null, o.text))),
-    h("button.pill.own-btn", { onclick: () => { tips.used("own"); open(); } }, h("span", { "aria-hidden": "true" }, "+"), made.length ? "Make another" : "Make my own card", tips.isNew("own") ? tips.newTag() : null));
+    h("button.pill.own-btn", { onclick: () => { tips.used("own"); open(); } }, h("span", { "aria-hidden": "true" }, "+"), made.length ? "Make another" : "Make my own card"));
 }
