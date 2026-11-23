@@ -26,7 +26,7 @@
   box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 14px 30px rgba(0, 0, 0, .45); }
 .lib-mini { min-height: 214px; padding: 14px; width: 100%; }
 .lib-mini:active { transform: scale(.98); }
-.lib-mini:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.lib-mini:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .lib-front { display: contents; }
 .lib-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .lib-mini .ctag { font-size: 12px; min-width: 0; overflow: hidden; }

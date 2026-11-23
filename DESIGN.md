@@ -15,7 +15,8 @@ Today (home) is the reference screen: when unsure, match it.
    - the main button on a screen (always marigold with dark text `#1d1e22`, whatever card look is in use, because it's what draws the eye to press);
    - one line that needs to catch the eye (the recap line on Today);
    - the logo;
-   - a short moment worth noticing ("Level 4.").
+   - a short moment worth noticing ("Level 4.");
+   - the check-in sun: its glow, and on Last night the sun and the bar between the moon and sun (alex 2026-11-24).
 
    Anything else that's marigold is a mistake. Only one marigold *button* on a screen.
 4. **White (ink) shows plain facts:** the level row, numbers, counts.
@@ -32,15 +33,16 @@ Today (home) is the reference screen: when unsure, match it.
 
 ## 3. Surfaces and buttons
 
-12. **Glass is for things you tap:** round icon buttons, the Your days row, the pill. Use the same glass as the pill: `rgba(255,255,255,.07)`, blurred, with a fine light edge and a highlight on top. Things you only read are flat, with no glass.
+12. **Glass is for buttons that stand on their own:** round icon buttons, the Your days row, the pill, tiles you tap (like the bedtime and wake-up times). Use the same glass as the pill: `rgba(255,255,255,.07)`, blurred, with a fine light edge and a highlight on top. Rows of choices (word chips, list rows) stay flat soft fills, so they don't look busy (alex 2026-11-24). Things you only read are flat, with no glass.
 13. **Everything pressable gives a little when touched:** shrinks to 96% and brightens. Not when reduce-motion is on.
 14. **Buttons that are only an icon are round.** Everything you tap is at least 44 by 44 points.
 15. **Corners:** sheet 26, card 16, button 14, field 12, chip 10. Nothing else unless it's a full circle.
 16. **Spacing comes from 4 / 8 / 16 / 24 / 40,** with one 20-point left edge on every screen.
+36. **Sheets that pull up are near-black** (`#141416`, the card face), with a fine light line along the top edge, over the screen dimmed to 62% black (alex 2026-11-24). Small pop-up menus are neutral dark `#1c1c1e` with the same edge. No blue-grey surfaces anywhere. Never glass: a sheet must look the same whatever is behind it.
 
 ## 4. Type
 
-17. **System font (SF Pro) at Apple's sizes, never scaled with the screen:** large title 34, titles 22 / 20, body and buttons 17, smaller 15, notes 13, tiny labels 12 / 11. Never below 11 as seen on the phone. (Inside the home card, sizes are drawn smaller and the card is enlarged, so check them on the phone, not in the code.)
+17. **System font (SF Pro) at Apple's sizes, never scaled with the screen:** large title 34, titles 28 / 22 / 20, body and buttons 17, smaller 15, notes 13, tiny labels 12 / 11. Never below 11 as seen on the phone. (Inside the home card, sizes are drawn smaller and the card is enlarged, so check them on the phone, not in the code.)
 18. **A label is never smaller than what it labels.** Each screen or card has one focal point, and everything else steps down.
 19. **Wordmark:** the drawn lowercase "daydeck" (`js/wordmark.js`), in ink on dark, used only at the top of Today and on brand pieces. Never retyped in a font.
 
@@ -82,7 +84,7 @@ Today (home) is the reference screen: when unsure, match it.
 For each screen, in order:
 
 1. Screenshot it as it is now, on alex's phone size, with a few months of sample data.
-2. Go through rules 1 to 35 and list every rule it breaks.
+2. Go through every rule and list the ones it breaks.
 3. Show alex the list and a mockup of the fix; alex picks.
 4. Build it, screenshot again, and recheck every rule (not just the ones that were broken).
 5. Mark it done in the list below, with the date.
@@ -92,19 +94,19 @@ For each screen, in order:
 | Screen | Status | Known breaks before rework |
 | --- | --- | --- |
 | Splash and app icon | Done 2026-11-23 | |
-| Today (home) | Done 2026-11-23 | Focus outline still gold (5) |
-| Morning check-in | To do | |
-| Evening check-in | To do | |
+| Today (home) | Done 2026-11-23 | |
+| Morning check-in | Done 2026-11-24 | |
+| Evening check-in (and Going to sleep) | Done 2026-11-24 | |
 | Card draw, rating and "How did doing it feel?" | To do | Card face rim is gold (5) |
 | Make your own card | To do | "Made by you" words in gold (5) |
 | Level-up moment and level path | To do | Level numbers, bar and steps in gold (4, 5) |
-| Tips | To do | Tip outline is gold (5) |
+| Tips | To do | Tip outline is gold (5); tip box is old charcoal (36) |
 | Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5) |
 | Share with your doctor (sheet only; the PDF stays as it is) | To do | |
 | Crumbs sheet | To do | |
-| Weekly recap | To do | |
-| Your photos | To do | |
-| Cards library and boxes | To do | |
+| Weekly recap | To do | Mini cards in old charcoal with gold edges (5) |
+| Your photos | To do | Bottom bar is old charcoal (36); camera background tinted (1) |
+| Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5) |
 | Settings | To do | |
 | Sign-up and Your account | To do | |
 | Choosing pillars (first day) | To do | |
