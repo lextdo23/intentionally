@@ -50,7 +50,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(await p.$eval("body", (b) => b.dataset.tab) === "today", "Daydeck opens on Today");
   check(/Do your card|End your day|Draw your card|Start your day|Change today|Going to sleep/.test(await p.textContent("#pill .pill-act")), "the main action sits in the pill");
   check(!(await p.$('#home button[aria-label="Settings"]')), "Settings has moved off home");
-  check(/Lifeline/.test(await p.textContent("#home")), "Lifeline is still on home");
+  check(!/Lifeline/.test(await p.textContent("#home")), "Lifeline is no longer on home (alex 2026-11-23: it lives in check-ins, draws, Your days and Friends)");
   const blur = await p.$eval("#pill", (e) => getComputedStyle(e).backdropFilter || getComputedStyle(e).webkitBackdropFilter || "");
   check(/blur/.test(blur), "the pill is see-through glass");
   await shot("1-today");

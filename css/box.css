@@ -10,7 +10,7 @@
 .bx-halo { position: absolute; left: 50%; top: 450px; width: 560px; height: 560px; margin: -280px 0 0 -280px; border-radius: 50%;
   background: radial-gradient(circle, rgb(var(--bx-glow) / .15), transparent 62%); pointer-events: none; }
 .bx-halo2 { position: absolute; left: 50%; top: var(--hy, 500px); width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; opacity: 0; transform: scale(.55); pointer-events: none;
-  background: radial-gradient(circle, rgb(255 226 184 / .6), rgb(242 192 143 / .24) 30%, transparent 64%); transition: opacity 2.4s ease, transform 2.4s var(--bx-ce), top 1.2s var(--bx-ce); }
+  background: radial-gradient(circle, rgb(255 226 184 / .6), rgb(255 165 31 / .24) 30%, transparent 64%); transition: opacity 2.4s ease, transform 2.4s var(--bx-ce), top 1.2s var(--bx-ce); }
 .bx-halo2.on { opacity: 1; transform: scale(1); }
 .bx-halo2.breathe { animation: bx-breath 9s ease-in-out infinite; }
 .bx-halo2.soft { opacity: .55; transform: scale(.7); }
@@ -46,8 +46,8 @@
 .bx-lid.open { transform: rotateX(178deg); }
 .bx-front { background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(circle at 50% 46%, rgb(255 230 196 / .62) 0%, rgb(250 214 170 / .52) 6%, rgb(242 192 143 / .4) 13%, rgb(242 192 143 / .29) 20%, rgb(236 182 132 / .19) 28%, rgb(226 170 120 / .11) 37%, rgb(210 155 110 / .055) 47%, rgb(200 145 100 / .02) 58%, transparent 70%),
-    repeating-radial-gradient(circle at 50% 46%, transparent 0 15px, rgb(242 192 143 / .07) 15px 16px),
+    radial-gradient(circle at 50% 46%, rgb(255 230 196 / .62) 0%, rgb(250 214 170 / .52) 6%, rgb(255 165 31 / .4) 13%, rgb(255 165 31 / .29) 20%, rgb(236 182 132 / .19) 28%, rgb(226 170 120 / .11) 37%, rgb(210 155 110 / .055) 47%, rgb(200 145 100 / .02) 58%, transparent 70%),
+    repeating-radial-gradient(circle at 50% 46%, transparent 0 15px, rgb(255 165 31 / .07) 15px 16px),
     linear-gradient(180deg, #202127, #191a1f);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05); }
 .bx-front .frame { position: absolute; inset: 14px; border-radius: 10px; border: 1.5px solid rgb(227 196 134 / .5); }
@@ -59,11 +59,11 @@
 .bx-dark { background: #101114; }
 .bx-linside { background: linear-gradient(0deg, #1e1d1f, #18181b); }
 .bx-inner { background: linear-gradient(0deg, #1c1a1a 0%, #141417 60%); }
-.bx-ltop { background: radial-gradient(circle at 50% 50%, rgb(242 192 143 / .32) 0 9px, transparent 10px), repeating-radial-gradient(circle at 50% 50%, transparent 0 14px, rgb(242 192 143 / .07) 14px 15px), linear-gradient(180deg, #2b2c32, #24252b); }
+.bx-ltop { background: radial-gradient(circle at 50% 50%, rgb(255 165 31 / .32) 0 9px, transparent 10px), repeating-radial-gradient(circle at 50% 50%, transparent 0 14px, rgb(255 165 31 / .07) 14px 15px), linear-gradient(180deg, #2b2c32, #24252b); }
 .bx-lfront { background: linear-gradient(180deg, #25262b, #1f2025); }
-.bx-glowfloor { border-radius: 4px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(ellipse at 50% 50%, rgb(255 236 206) 0%, rgb(250 216 174) 18%, rgb(242 192 143 / .9) 36%, rgb(190 140 98 / .8) 56%, rgb(110 76 50 / .75) 76%, #1a1714 100%); }
+.bx-glowfloor { border-radius: 4px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(ellipse at 50% 50%, rgb(255 236 206) 0%, rgb(250 216 174) 18%, rgb(255 165 31 / .9) 36%, rgb(190 140 98 / .8) 56%, rgb(110 76 50 / .75) 76%, #1a1714 100%); }
 .bx-beam { position: absolute; left: -120px; top: -420px; width: 240px; height: 300px; transform: translateZ(-30px); opacity: 0; transition: opacity 1.2s ease; pointer-events: none;
-  background: radial-gradient(ellipse 50% 100% at 50% 100%, rgb(255 230 190 / .42) 0%, rgb(250 214 170 / .3) 15%, rgb(242 192 143 / .19) 32%, rgb(242 192 143 / .1) 48%, rgb(242 192 143 / .04) 63%, transparent 78%); }
+  background: radial-gradient(ellipse 50% 100% at 50% 100%, rgb(255 230 190 / .42) 0%, rgb(250 214 170 / .3) 15%, rgb(255 165 31 / .19) 32%, rgb(255 165 31 / .1) 48%, rgb(255 165 31 / .04) 63%, transparent 78%); }
 .bx-beam.on { opacity: 1; }
 
 /* cards: 230 x 324 */
@@ -73,20 +73,20 @@
 .bx-card.rise { transition: transform 1.5s cubic-bezier(.22, 1, .36, 1), --bx-sa 1.4s, --bx-oa 1.4s; }
 /* a soft light far behind the card that doesn't turn with it, so it never drops out or cuts across the card */
 .bx-card .glow { position: absolute; inset: -90px; border-radius: 50%; transform: translateZ(-150px) scale(1.12); opacity: 0; transition: opacity 2.2s ease-in; pointer-events: none;
-  background: radial-gradient(closest-side, rgb(255 230 196 / .8) 0%, rgb(250 212 168 / .62) 30%, rgb(242 192 143 / .4) 52%, rgb(242 192 143 / .2) 70%, rgb(242 192 143 / .07) 86%, transparent 100%); }
+  background: radial-gradient(closest-side, rgb(255 230 196 / .8) 0%, rgb(250 212 168 / .62) 30%, rgb(255 165 31 / .4) 52%, rgb(255 165 31 / .2) 70%, rgb(255 165 31 / .07) 86%, transparent 100%); }
 .bx-card.charge .glow { opacity: 1; }
 .bx.fin .bx-card.charge .glow { opacity: .6; transition-duration: 1.2s; }
 .bx-card .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s var(--bx-ce); }
 .bx-card.up .in { transform: rotateY(180deg); }
 .bx-card.slow .in { transition: transform 2.2s cubic-bezier(.65, 0, .35, 1); }
 .bx-card .face { position: absolute; inset: 0; border-radius: 16px; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
-.bx-card .bk { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 10px, rgb(242 192 143 / .10) 10px 11px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
+.bx-card .bk { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 10px, rgb(255 165 31 / .10) 10px 11px), radial-gradient(circle at 50% 50%, rgb(255 165 31 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
   box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 8px 18px rgba(0, 0, 0, .4); }
 .bx-card .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
 .bx-card.charge .bk { box-shadow: 0 0 0 1.5px rgb(255 226 184 / .9), 0 8px 18px rgba(0, 0, 0, .4); transition: box-shadow 2.2s ease-in; }
 .bx-card .fr { transform: rotateY(180deg); padding: 22px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;
-  background: radial-gradient(130% 55% at 50% -8%, rgb(242 192 143 / .26), rgb(242 192 143 / .05) 55%, transparent 75%), linear-gradient(175deg, #2f3036, #1c1d21);
-  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 0 44px rgb(242 192 143 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
+  background: radial-gradient(130% 55% at 50% -8%, rgb(255 165 31 / .26), rgb(255 165 31 / .05) 55%, transparent 75%), linear-gradient(175deg, #2f3036, #1c1d21);
+  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 14px 30px rgba(0, 0, 0, .5); }
 .bx-card .fr.look { padding: 0; overflow: visible; background: radial-gradient(120% 60% at 20% -10%, rgba(255, 255, 255, .09), transparent 60%), linear-gradient(172deg, #1d1d21 0%, #0e0e10 46%, #08080a 100%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .11), 0 10px 24px rgba(0, 0, 0, .45); }
 .bx-card .fr.look img { position: absolute; left: -5.3%; top: -3.8%; width: 110.7%; height: 107.6%; max-width: none; -webkit-backface-visibility: hidden; backface-visibility: hidden; }

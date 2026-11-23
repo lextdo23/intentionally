@@ -1,14 +1,15 @@
-/* Daydeck, Dusk look: one dark sky, a warm sun, one solid sun-coloured button per screen.
+/* Daydeck (new look, alex 2026-11-23): plain black, one owned colour (marigold) for the card and the main action,
+   white for plain facts. No glow except the check-in sun, which still tints with how the day felt.
    Text sizes follow Apple's standard styles (34 / 22 / 20 / 17 / 15 / 13 / 12 / 11), never scaled.
    Spacing 4 / 8 / 16 / 24 / 40. Corners: sheet 26, card 16, button 14 (pills are fully round), field 12. */
 :root {
-  --sky1: #24262b; --sky2: #141518; --sky3: #08090a;
+  --sky1: #0a0a0b; --sky2: #0a0a0b; --sky3: #0a0a0b;
   --ink: #efede9; --ink2: #cfcac1; --dim: #a9a59d; --faint: #8d8981;
-  --sun: #f2c08f; --gold: #e3c486; --on-sun: #1d1e22;
+  --sun: #ffa51f; --gold: #e3c486; --on-sun: #1d1e22;
   --fill: rgba(239, 237, 233, .10); --fill2: rgba(239, 237, 233, .06);
   --edge: 20px; --top: calc(env(safe-area-inset-top, 0px) + 16px); --bot: calc(env(safe-area-inset-bottom, 0px) + 16px);
   --ease: cubic-bezier(.32, .72, 0, 1); --spring: cubic-bezier(.22, 1, .36, 1);
-  --glow: 242 192 143;
+  --glow: 255 165 31;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -32,7 +33,8 @@ h1, h2, p { margin: 0; }
 #sun { position: fixed; left: var(--sx, 50%); top: var(--sy, 46%); width: 620px; height: 620px; margin: -310px 0 0 -310px; pointer-events: none;
   transition: transform .8s var(--ease), opacity .8s ease, left 1.6s var(--ease), top 1.6s var(--ease); }
 /* Through the day the glow moves across the sky (set in main.js); check-ins bring it back to the middle. Once the day is done it dims. */
-.in-flow #sun { left: 50%; top: 46%; }
+#sun { opacity: 0; }
+.in-flow #sun { left: 50%; top: 46%; opacity: 1; }
 .day-done:not(.in-flow) #sun { opacity: .6; }
 #sun i { position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(circle, rgb(var(--glow) / .32) 0, rgb(var(--glow) / .11) 150px, rgb(var(--glow) / 0) 310px);
@@ -65,17 +67,17 @@ h1, h2, p { margin: 0; }
 /* Level (alex 2026-11-17): "Level 3" in gold and a gold bar under Your days. "Next pack at level 4" fades in when
    the bar is nearly full. The row fades out slowly while the card is rated, and back in once it settles. */
 .lv-row { display: flex; align-items: center; gap: 12px; width: 100%; transition: opacity .8s ease; }
-.lv-num { font-size: 15px; font-weight: 600; color: var(--gold); white-space: nowrap; }
+.lv-num { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .lv-track { position: relative; flex: 1; }
 .lv-bar { position: relative; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .1); overflow: hidden; }
-.lv-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--gold); box-shadow: 0 0 10px rgb(227 196 134 / .45); transition: width 1s var(--ease); }
+.lv-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--ink); box-shadow: none; transition: width 1s var(--ease); }
 .lv-next { font-size: 13px; color: var(--dim); white-space: nowrap; max-width: 0; margin-left: -12px; opacity: 0; overflow: hidden; transition: opacity 1.2s ease, max-width 1.2s var(--ease), margin-left 1.2s var(--ease); }
 .lv-next.on { max-width: 200px; margin-left: 0; opacity: 1; }
 /* While the bar slides, only its end brightens a little (alex 2026-11-17: no circle), then fades back. */
-.lv-bar i::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 28px; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, rgb(246 226 181 / 0), #f8e8c4); opacity: 0; transition: opacity .5s ease; }
+.lv-bar i::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 28px; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, rgb(255 255 255 / 0), #fff); opacity: 0; transition: opacity .5s ease; }
 .lv-bar i.moving::after { opacity: 1; transition-duration: .2s; }
 /* The points a step gave, rising from the end of the bar and fading. */
-.lv-plus { position: absolute; bottom: 10px; font-size: 15px; font-weight: 600; color: var(--gold); white-space: nowrap; pointer-events: none; translate: -50% 0; opacity: 0; animation: lv-plus 2.2s ease-out .2s both; }
+.lv-plus { position: absolute; bottom: 10px; font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; pointer-events: none; translate: -50% 0; opacity: 0; animation: lv-plus 2.2s ease-out .2s both; }
 @keyframes lv-plus { 0% { opacity: 0; transform: translateY(6px); } 25% { opacity: 1; transform: none; } 70% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-12px); } }
 @media (prefers-reduced-motion: reduce) { .lv-plus { animation: none; opacity: 1; } }
 .in-ask .lv-row { opacity: 0; }
@@ -93,7 +95,7 @@ h1, h2, p { margin: 0; }
 /* Slide the sun across to end your day. */
 .slide { position: relative; height: 60px; border-radius: 30px; background: rgba(239, 237, 233, .10); display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
 .slide-words { padding-left: 44px; font-size: 17px; color: var(--ink2); pointer-events: none; }
-.slide-knob { position: absolute; left: 4px; top: 4px; width: 52px; height: 52px; border-radius: 26px; background: var(--sun); box-shadow: 0 0 24px rgb(242 192 143 / .5); touch-action: none; }
+.slide-knob { position: absolute; left: 4px; top: 4px; width: 52px; height: 52px; border-radius: 26px; background: var(--sun); box-shadow: none; touch-action: none; }
 .slide-knob:active { transform: none; }
 .btn-main.soft { background: rgba(239, 237, 233, .12); color: var(--ink); }
 .btn-quiet { min-height: 44px; color: var(--ink2); font-size: 15px; }
@@ -103,7 +105,7 @@ button:active { transform: scale(.97); }
 .pill[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); font-weight: 600; }
 .pill.outline { background: transparent; box-shadow: inset 0 0 0 1px rgba(239, 237, 233, .2); color: var(--ink2); }
 .pill.outline[aria-pressed="true"] { background: var(--ink); color: var(--on-sun); box-shadow: none; }
-.plus { width: 44px; height: 44px; border-radius: 22px; background: rgb(242 192 143 / .14); color: var(--sun); font-size: 24px; line-height: 1; }
+.plus { width: 44px; height: 44px; border-radius: 22px; background: rgb(255 165 31 / .14); color: var(--sun); font-size: 24px; line-height: 1; }
 .more-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--spring); }
 .more-wrap.open { grid-template-rows: 1fr; }
 .more-wrap > div { overflow: hidden; min-height: 0; }
@@ -216,7 +218,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lifts-row { display: flex; gap: 12px; margin: 0 -16px; padding: 4px 16px 14px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
 .lifts-row::-webkit-scrollbar { display: none; }
 .lifts-card { flex: none; width: 168px; height: 236px; padding: 16px; border-radius: 16px; display: flex; flex-direction: column; scroll-snap-align: start;
-  background: radial-gradient(130% 60% at 50% -10%, rgb(242 192 143 / .22), rgb(242 192 143 / .05) 55%, transparent 78%), linear-gradient(175deg, #303137, #1b1c20);
+  background: radial-gradient(130% 60% at 50% -10%, rgb(255 165 31 / .22), rgb(255 165 31 / .05) 55%, transparent 78%), linear-gradient(175deg, #303137, #1b1c20);
   box-shadow: 0 0 0 1px rgb(227 196 134 / .22), 0 14px 30px rgba(0, 0, 0, .5); }
 .lifts-p { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
 .lifts-p i { width: 10px; height: 10px; border-radius: 3px; }
@@ -236,7 +238,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .slp .read .dot { width: 12px; height: 12px; border-radius: 6px; }
 .slp .read .chev { font-size: 17px; color: var(--dim); }
 .slp-chart { position: relative; height: 220px; }
-.slp-band { position: absolute; top: 16px; height: 182px; border-radius: 10px; background: rgba(242, 192, 143, .09); transition: opacity .5s ease .5s; }
+.slp-band { position: absolute; top: 16px; height: 182px; border-radius: 10px; background: rgba(255, 165, 31, .09); transition: opacity .5s ease .5s; }
 .slp-band-l { position: absolute; top: 0; text-align: center; font-size: 11px; font-weight: 600; color: var(--sun); white-space: nowrap; transition: opacity .5s ease .5s; }
 .slp-7 { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(239, 237, 233, .16); }
 .slp-7l { position: absolute; right: 0; z-index: 1; padding: 0 4px; border-radius: 4px; background: rgba(23, 24, 27, .9); font-size: 11px; color: var(--faint); transition: opacity .3s; pointer-events: none; }
@@ -329,16 +331,15 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .dcard .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .55s var(--card-ease); }
 .dcard.up .in { transform: rotateY(180deg); }
 .dcard .face { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
-/* Back "Rings" (alex 2026-11-13): the sun's glow in quiet rings, a small sun in the middle. */
-.dcard .back { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 6px, rgb(242 192 143 / .10) 6px 7px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
-  box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 2px 4px rgba(0, 0, 0, .35); }
-.dcard .back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
-.dcard.big .back, .home-card .back { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 9px, rgb(242 192 143 / .10) 9px 10px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b); }
+/* Back (alex 2026-11-23, "Marigold slab"): the card back is the brand colour, the eclipse cut into it in black. */
+.dcard .back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
+.dcard .back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.dcard.big .back, .home-card .back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
 /* Face "Sunlit" (alex 2026-11-13): warm light falls on the top edge from the sun, with a fine gold rim. */
 .dcard .front { transform: rotateY(180deg); padding: 8px; display: flex; flex-direction: column; gap: 4px;
-  background: radial-gradient(130% 55% at 50% -8%, rgb(242 192 143 / .26), rgb(242 192 143 / .05) 55%, transparent 75%), linear-gradient(175deg, #2f3036, #1c1d21);
-  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 0 44px rgb(242 192 143 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
-.dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 0 50px rgb(242 192 143 / .35), 0 14px 30px rgba(0, 0, 0, .5); }
+  background: linear-gradient(180deg, #1e1e21 0%, #151517 100%);
+  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 14px 30px rgba(0, 0, 0, .5); }
+.dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
 .ctag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--ink2); }
 .ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .dcard .task { font-size: 15px; font-weight: 600; line-height: 1.25; }
@@ -351,7 +352,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
    were drawn at, so cards fill the same share as the approved mockups (x1.34 on a 430-wide iPhone 15 Pro Max).
    Only the cards scale, words on them included; everything else keeps Apple's sizes. */
 .stage, .big-holder, .mini-deck { zoom: var(--k, 1); }
-.home-card { zoom: calc(var(--k, 1) * 1.376); }   /* 280 wide on alex's phone (alex 2026-11-15) */
+.home-card { zoom: calc(var(--k, 1) * 1.376 * 1.14); }   /* about 320 wide on alex's phone (alex 2026-11-23, new look: a bigger card) */
 /* The hand: three cards, the middle one higher; the deck hides behind it. */
 .stage { position: relative; height: 270px; width: 100%; }
 .stage .hc { position: absolute; left: 50%; top: 56%; margin: -80px 0 0 -54px; transition: transform .45s var(--card-ease); }
@@ -382,7 +383,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
    gold layers between (made in draw.js), so the card has a gold edge when it turns. Lit from above, like the sun. */
 .home-card .face.back { transform: translateZ(1.5px); }
 .home-card .face.front { transform: rotateY(180deg) translateZ(1.5px); }
-.home-card .edge { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; background: linear-gradient(180deg, #f0d6a0, #c9a965 45%, #8a7346); }
+.home-card .edge { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; background: linear-gradient(180deg, #e8961c, #a85f06 60%, #3a2002); }
 .home-card .task { font-size: 17px; }
 /* "I did it" sits on the card's bottom row, beside its size. Soft, never gold. The card is zoomed, so sizes here are 1/1.85 of real. */
 .home-card .card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -404,7 +405,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card.did .why { color: #77746e; }
 .home-card .size.out { opacity: 0; }
 /* What doing it felt like, in gold where the size was. It stays gold once the card is done. */
-.home-card .felt-word { font-size: 9.5px; font-weight: 600; color: var(--gold); white-space: nowrap; transition: opacity .6s ease; }
+.home-card .felt-word { font-size: 9.5px; font-weight: 600; color: var(--ink); white-space: nowrap; transition: opacity .6s ease; }
 .home-card .felt-word.enter { opacity: 0; }
 .home-card .fresh-tick { animation: fill .5s var(--ease) both; }
 .home-card .tick-done { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
@@ -415,21 +416,25 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 /* The back when the day ended without the card: a quiet "Back in the deck for another day". */
 .home-card .back.marked { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 14px; text-align: center; }
 .home-card .back.marked::after { display: none; }
+.home-card .back.marked { background: #e8961c; }
+.home-card .back.marked .done-task { color: #3a2402; }
+.home-card .back.marked .dot { background: #141416; }
+.card-date { position: absolute; left: 11px; top: 10px; font-size: 8.5px; font-weight: 700; letter-spacing: -0.01em; color: rgba(20, 12, 0, .72); }
+.card-sheen { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.card-sheen::before { content: ""; position: absolute; top: -20%; bottom: -20%; width: 45%; left: -60%; transform: skewX(-18deg); background: linear-gradient(90deg, transparent, rgba(255, 240, 215, .22), transparent); }
+.card-sheen.go::before { animation: card-sheen 1.6s cubic-bezier(.45, .05, .25, 1) both; }
+@keyframes card-sheen { to { left: 120%; } }
 .home-card .done-task { font-size: 8px; line-height: 1.35; color: #a9a59d; max-width: 85%; }
-.home-card .dot { width: 10px; height: 10px; border-radius: 50%; background: rgb(242 192 143 / .5); }
+.home-card .dot { width: 10px; height: 10px; border-radius: 50%; background: rgb(255 165 31 / .5); }
 /* A moment: the card lifts a little and glows, then settles. */
 .lifter { transition: translate .8s var(--ease), filter 1s ease; }
-.lifter.on { translate: 0 -12px; filter: drop-shadow(0 0 30px rgb(242 192 143 / .35)); }
-@keyframes sway { 0%, 100% { transform: rotateY(-8deg) rotateZ(-1deg) } 50% { transform: rotateY(8deg) rotateZ(1deg) } }
+.lifter.on { translate: 0 -12px; filter: none; }
+@keyframes sway { 0%, 100% { transform: rotateY(-5deg) rotateZ(-.7deg) } 50% { transform: rotateY(5deg) rotateZ(.7deg) } }
 /* Not done yet: a soft gold edge that breathes with the sun (about 4s in, 5s out). Goes once "I did it" is tapped. */
-.home-card.todo.up .front, .home-card.todo:not(.up) .back, .home-card.todo.blank .front { animation: rim 9s ease-in-out infinite; }
-@keyframes rim { 0%, 100% { box-shadow: 0 0 0 1px rgb(227 196 134 / .35), 0 0 10px rgb(242 192 143 / .15), 0 14px 30px rgba(0, 0, 0, .5) }
-  44% { box-shadow: 0 0 0 1px rgb(227 196 134 / .75), 0 0 18px rgb(242 192 143 / .5), 0 0 44px rgb(242 192 143 / .25), 0 14px 30px rgba(0, 0, 0, .5) } }
-@media (prefers-reduced-motion: reduce) { .home-card.todo.up .front, .home-card.todo:not(.up) .back, .home-card.todo.blank .front { animation: none; box-shadow: 0 0 0 1px rgb(227 196 134 / .6), 0 0 18px rgb(242 192 143 / .4), 0 14px 30px rgba(0, 0, 0, .5); } }
+.home-card.todo.up .front { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 /* Face down, both sides are the back, so turning it never shows a blank face. */
-.home-card.blank .front { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 9px, rgb(242 192 143 / .10) 9px 10px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
-  box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 2px 4px rgba(0, 0, 0, .35); }
-.home-card.blank .front::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
+.home-card.blank .front { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
+.home-card.blank .front::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 @media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } .lifter.on { translate: none; } #sun { transition: none; } }
 
 /* ---------- Choosing pillars and where you're at ---------- */
@@ -447,7 +452,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .mini-deck i { position: absolute; inset: 0; border-radius: 14px; background: linear-gradient(160deg, #3a3b40, #26272b); box-shadow: 0 0 0 1px rgba(239, 237, 233, .08); }
 .mini-deck i:nth-child(1) { transform: translate(6px, 6px); } .mini-deck i:nth-child(2) { transform: translate(3px, 3px); }
 .mini-deck i:nth-child(3) { background: linear-gradient(160deg, #4a4033, #2d2a26); box-shadow: 0 0 0 1px rgb(227 196 134 / .35), 0 12px 30px rgba(0, 0, 0, .45); }
-.mini-deck i:nth-child(3)::after { content: ""; position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 24px rgb(242 192 143 / .6); }
+.mini-deck i:nth-child(3)::after { content: ""; position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: var(--sun); box-shadow: none; }
 .big-count { font-size: 34px; font-weight: 600; text-align: center; }
 
 /* ---------- Going to sleep: bedtime button, sounds, night screen ---------- */
@@ -460,7 +465,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .snd-list { border-radius: 16px; background: var(--fill2); overflow: hidden; }
 .snd-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 0 16px; font-size: 17px; text-align: left; }
 .snd-row + .snd-row { border-top: .5px solid rgba(239, 237, 233, .1); }
-.snd-row[aria-pressed="true"] { background: rgb(242 192 143 / .12); }
+.snd-row[aria-pressed="true"] { background: rgb(255 165 31 / .12); }
 .snd-state { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sun); flex-shrink: 0; }
 .snd-bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; }
 .snd-bars i { width: 3px; height: 8px; border-radius: 1px; background: var(--sun); }
@@ -537,7 +542,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .own-make .card-foot .size { font-size: 11px; line-height: 1.3; }
 .own-pil { display: inline-flex; align-items: center; gap: 8px; }
 .own-pil .sq { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-.own-btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; color: var(--sun); background: rgb(242 192 143 / .14); }
+.own-btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; color: var(--sun); background: rgb(255 165 31 / .14); }
 .own-btn span { font-size: 22px; line-height: 1; }
 .own-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; font-size: 17px; }
 
@@ -555,7 +560,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lp-line { display: flex; align-items: center; gap: 12px; }
 .lp-num { font-size: 22px; font-weight: 600; color: var(--gold); white-space: nowrap; }
 .lp-bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .1); overflow: hidden; }
-.lp-bar i { display: block; height: 100%; border-radius: 3px; background: var(--gold); box-shadow: 0 0 10px rgb(227 196 134 / .45); }
+.lp-bar i { display: block; height: 100%; border-radius: 3px; background: var(--gold); box-shadow: none; }
 .lp-sub { font-size: 15px; color: var(--dim); }
 .lp-path { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .lp-step { position: relative; display: flex; gap: 16px; padding-bottom: 24px; }
@@ -566,7 +571,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lp-step:last-child .lp-rail::after { display: none; }
 .lp-dot { position: relative; z-index: 1; margin-top: 4px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(239, 237, 233, .3); background: var(--sky2); }
 .lp-step.lit .lp-dot { background: var(--gold); border-color: var(--gold); }
-.lp-step.here .lp-dot { width: 20px; height: 20px; margin-top: 2px; background: var(--sun); border-color: var(--sun); box-shadow: 0 0 0 6px rgb(242 192 143 / .15), 0 0 24px rgb(242 192 143 / .6); }
+.lp-step.here .lp-dot { width: 20px; height: 20px; margin-top: 2px; background: var(--sun); border-color: var(--sun); box-shadow: 0 0 0 6px rgb(255 165 31 / .15); }
 .lp-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .lp-n { font-size: 13px; color: var(--dim); }
 .lp-step.here .lp-n { color: var(--gold); font-weight: 600; }
@@ -581,7 +586,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .tip-layer { position: fixed; inset: 0; z-index: 30; opacity: 0; transition: opacity .35s ease; }
 .tip-layer.on { opacity: 1; }
 .tip-layer.out { opacity: 0; pointer-events: none; }
-.tip-hole { position: absolute; padding: 0; background: none; box-shadow: 0 0 0 2000px rgba(8, 9, 10, .66), 0 0 0 2px var(--gold), 0 0 28px rgb(242 192 143 / .55); }
+.tip-hole { position: absolute; padding: 0; background: none; box-shadow: 0 0 0 2000px rgba(8, 9, 10, .66), 0 0 0 2px var(--gold); }
 .tip-box { position: absolute; left: var(--edge); right: var(--edge); max-width: 480px; padding: 16px; border-radius: 16px; background: #1f2024; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); display: flex; flex-direction: column; gap: 8px; }
 .tip-box::before { content: ""; position: absolute; left: var(--ax, 60px); width: 16px; height: 16px; background: #1f2024; transform: rotate(45deg); }
 .tip-box.below::before { top: -7px; }
@@ -954,3 +959,28 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .crumb-replay { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 16px; background: var(--fill2); text-align: left; }
 .crumb-replay .note { text-align: left; }
 @media (prefers-reduced-motion: reduce) { .crumb-pick, .crumb-pick svg, .crumb-unsure { transition: none; } .crumb-pick[aria-pressed="true"] svg { transform: none; } }
+
+/* ---------- Today, new look (alex 2026-11-23) ---------- */
+/* The top bar: the daydeck wordmark in the middle, Cards and Your photos in the corners. */
+.dd-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.dd-head > :first-child { justify-self: start; }
+.dd-right { justify-self: end; display: flex; gap: 8px; }
+.dd-mark { color: var(--ink); display: flex; justify-content: center; }
+.wordmark { display: block; }
+/* Your days fills its row, words left and the week's mood line right; crumbs sit beside it. */
+#home > .peek, #home > .peek-row { align-self: stretch; }
+.peek-row .peek { flex: 1; }
+.peek { justify-content: flex-start; }
+.peek-words { margin-right: auto; white-space: nowrap; }
+.peek svg { flex-shrink: 0; }
+/* No greeting: the words only show for a moment, or as a short hint in the first week. */
+.greet-words { display: none; align-items: center; text-align: center; }
+.greet-words.hint, .greet-words.moment { display: flex; }
+.greet-words.hint:not(.moment) .greet, .greet-words .top-line { display: none; }
+.greet-words.moment .greet { color: var(--sun); }
+/* Buttons you can press look pressable: the same glass as the pill, and a small give when touched. */
+.round, .peek { background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .28), 0 6px 16px rgba(0, 0, 0, .35); }
+.round, .peek, .btn-main, .btn-soft, .did, .add-photo { transition: transform .15s ease, filter .15s ease; }
+.round:active, .peek:active, .btn-main:active, .btn-soft:active, .did:active, .add-photo:active { transform: scale(.96); filter: brightness(1.25); }
+@media (prefers-reduced-motion: reduce) { .round:active, .peek:active, .btn-main:active, .btn-soft:active, .did:active, .add-photo:active { transform: none; } }

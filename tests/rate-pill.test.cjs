@@ -25,8 +25,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check((await pill()) === "hidden", "after “I did it”, the pill is fully hidden (switched off, not just faded) while rating");
   await p.click(".did-ask [aria-expanded]"); await p.waitForTimeout(900);
   check((await pill()) === "hidden", "it stays hidden with “Show more” open");
-  const gap = await p.evaluate(() => document.querySelector("#home .lifeline").getBoundingClientRect().top - [...document.querySelectorAll(".did-ask button")].pop().getBoundingClientRect().bottom);
-  check(gap >= 0, "the open options and “Not now” stay above Lifeline, so it's never covered");
+  // Lifeline is no longer on Today (alex 2026-11-23); the options must still stay on screen, above where the pill was.
+  const gap = await p.evaluate(() => innerHeight - 34 - [...document.querySelectorAll(".did-ask button")].pop().getBoundingClientRect().bottom);
+  check(gap >= 0, "the open options and “Not now” stay on screen");
 
   await p.click(".did-ask .ok"); await p.waitForTimeout(500);
   check((await pill()) === "shown", "pressing Done brings the pill straight back");

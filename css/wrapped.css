@@ -61,8 +61,8 @@
 /* 2 · guess your best day */
 .wr-cd { border-radius: 14px; padding: 0; transition: left .9s var(--spring), top .9s var(--spring), width .9s var(--spring), height .9s var(--spring), border-radius .9s var(--spring), box-shadow .3s; }
 .wr-cd .bk, .wr-cd .fc { position: absolute; inset: 0; border-radius: inherit; }
-.wr-cd .bk { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 7px, rgb(242 192 143 / .10) 7px 8px), radial-gradient(circle at 50% 50%, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
-  box-shadow: 0 0 0 1.5px rgb(227 196 134 / .55), 0 0 30px rgb(242 192 143 / .18), 0 10px 20px rgba(0, 0, 0, .45); }
+.wr-cd .bk { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 7px, rgb(255 165 31 / .10) 7px 8px), radial-gradient(circle at 50% 50%, rgb(255 165 31 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b);
+  box-shadow: 0 0 0 1.5px rgb(227 196 134 / .55), 0 10px 20px rgba(0, 0, 0, .45); }
 .wr-cd .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
 .wr-cd .fc { overflow: hidden; opacity: 0; background: linear-gradient(165deg, color-mix(in srgb, var(--c) 60%, white), var(--c)); color: var(--on-sun); display: flex; flex-direction: column; justify-content: space-between; padding: 10px; font-weight: 700; text-align: left; }
 .wr-cd .fc small { font-size: 13px; } .wr-cd .fc > span { font-size: 15px; }
@@ -88,7 +88,7 @@
 .mc { aspect-ratio: 5/7; border-radius: 7px; background: linear-gradient(175deg, #2f3036, #1c1d21); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 7px 0 5px; font-size: 12px; font-weight: 700; }
 .mc::before { content: ""; width: 14px; height: 14px; border-radius: 7px; background: var(--m); }
 .mc.dim { opacity: .3; } .mc.none { background: none; box-shadow: inset 0 0 0 1.5px rgb(23 24 27 / .25); color: var(--on-sun); } .mc.none::before { background: none; }
-.mc.hi { box-shadow: 0 0 0 1.5px rgb(227 196 134 / .7), 0 0 18px rgb(242 192 143 / .5); }
+.mc.hi { box-shadow: 0 0 0 1.5px rgb(227 196 134 / .7); }
 .wr-easy { display: flex; flex-direction: column; gap: 12px; } .wr-easy-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 1.5px solid rgb(23 24 27 / .15); }
 .wr-easy-row span { font-size: 15px; font-weight: 600; opacity: .7; } .wr-easy-row b { font-size: 22px; font-weight: 700; }
 .wl { font-size: 13px; font-weight: 600; opacity: .7; margin-bottom: 4px; }
@@ -100,7 +100,7 @@
 .wr-grid { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; row-gap: 18px; }
 .wr-mini { position: relative; border-radius: 8px; }
 .wr-mini .bk, .wr-mini .fc { position: absolute; inset: 0; border-radius: inherit; }
-.wr-mini .bk { background: repeating-radial-gradient(circle, transparent 0 5px, rgb(242 192 143 / .12) 5px 6px), linear-gradient(160deg, #2c2e34, #17181b); box-shadow: 0 0 0 1px rgb(227 196 134 / .5); }
+.wr-mini .bk { background: repeating-radial-gradient(circle, transparent 0 5px, rgb(255 165 31 / .12) 5px 6px), linear-gradient(160deg, #2c2e34, #17181b); box-shadow: 0 0 0 1px rgb(227 196 134 / .5); }
 .wr-mini .fc { background: linear-gradient(175deg, #2f3036, #1c1d21); color: var(--ink); padding: 8px; font-size: 12px; font-weight: 600; line-height: 1.2; box-shadow: 0 0 0 1px rgb(227 196 134 / .4); display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 .wr-mini .fc .mt { display: flex; align-items: center; gap: 4px; font-weight: 500; opacity: .8; }
 .wr-mini .fc i { width: 8px; height: 8px; border-radius: 2px; display: block; }
@@ -111,11 +111,11 @@
 .wr-fan .dc { position: absolute; padding: 0; border-radius: 12px; text-align: left; transition: left .55s var(--spring), top .55s var(--spring), rotate .55s var(--spring); }
 .wr-fan .dc.lift { animation: wr-lift .45s var(--spring); } @keyframes wr-lift { 40% { translate: 0 -14px; } }
 .wr-fan .dc .bk, .wr-fan .dc .fc { position: absolute; inset: 0; border-radius: 12px; }
-.wr-fan .dc .bk { background: repeating-radial-gradient(circle, transparent 0 7px, rgb(242 192 143 / .12) 7px 8px), radial-gradient(circle, rgb(242 192 143 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b); box-shadow: 0 0 0 1px rgb(227 196 134 / .5), 0 12px 24px rgba(0, 0, 0, .3); }
+.wr-fan .dc .bk { background: repeating-radial-gradient(circle, transparent 0 7px, rgb(255 165 31 / .12) 7px 8px), radial-gradient(circle, rgb(255 165 31 / .22), transparent 60%), linear-gradient(160deg, #2c2e34, #17181b); box-shadow: 0 0 0 1px rgb(227 196 134 / .5), 0 12px 24px rgba(0, 0, 0, .3); }
 .wr-fan .dc .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--sun); }
-.wr-fan .dc .fc { background: radial-gradient(130% 45% at 50% -8%, rgb(242 192 143 / .26), transparent 70%), linear-gradient(175deg, #2f3036, #1c1d21); color: var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 8px;
+.wr-fan .dc .fc { background: radial-gradient(130% 45% at 50% -8%, rgb(255 165 31 / .26), transparent 70%), linear-gradient(175deg, #2f3036, #1c1d21); color: var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 8px;
   box-shadow: 0 0 0 1px rgb(227 196 134 / .35), 0 12px 24px rgba(0, 0, 0, .3); transition: box-shadow .4s ease; overflow: hidden; }
-.wr-fan .dc.love .fc { box-shadow: 0 0 0 1.5px var(--sun), 0 0 34px rgb(242 192 143 / .45), 0 12px 24px rgba(0, 0, 0, .3); }
+.wr-fan .dc.love .fc { box-shadow: 0 0 0 1.5px var(--sun), 0 12px 24px rgba(0, 0, 0, .3); }
 .wr-fan .tg { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ink2); } .wr-fan .tg i { width: 8px; height: 8px; border-radius: 2px; }
 .wr-fan .tk { font-size: 17px; font-weight: 600; line-height: 1.25; }
 .wr-fan .sub { font-size: 13px; line-height: 1.35; color: var(--ink2); }
@@ -153,7 +153,7 @@
 /* Your days: Your weeks */
 .wr-weeks-row { display: flex; gap: 12px; overflow-x: auto; margin: 0 -4px; padding: 4px; scrollbar-width: none; }
 .wr-week-thumb { flex: 0 0 110px; height: 154px; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left;
-  background: radial-gradient(130% 40% at 50% -8%, rgb(242 192 143 / .24), transparent 70%), linear-gradient(175deg, #2f3036, #1c1d21); box-shadow: 0 0 0 1px rgb(227 196 134 / .45); }
+  background: radial-gradient(130% 40% at 50% -8%, rgb(255 165 31 / .24), transparent 70%), linear-gradient(175deg, #2f3036, #1c1d21); box-shadow: 0 0 0 1px rgb(227 196 134 / .45); }
 .wr-week-thumb .d { font-size: 11px; color: rgb(255 255 255 / .8); } .wr-week-thumb .n { font-size: 15px; font-weight: 700; line-height: 1.15; }
 
 @media (prefers-reduced-motion: reduce) {

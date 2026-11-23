@@ -30,6 +30,7 @@ import * as friends from "./friends.js";
 import * as moments from "./moments.js";
 import * as photoBackup from "./photo-backup.js";
 import * as crumbs from "./crumbs.js";
+import { wordmark } from "./wordmark.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -44,11 +45,12 @@ const home = document.getElementById("home");
 function peek() {
   const ser = moodSeries(store.get().days, "week"), pts = ser.pts.map((p, i) => (p.m == null ? null : [2 + i * 10, 18 - p.m * 2.66])).filter(Boolean);
   const top = mostlyWord(store.get().days, "week");
-  const line = pts.length > 1 ? h("svg", { width: "64", height: "20", viewBox: "0 0 64 20", "aria-hidden": "true" },
+  const line = pts.length > 1 ? h("svg", { width: "84", height: "26", viewBox: "0 0 64 20", "aria-hidden": "true" },
     h("defs", null, h("linearGradient", { id: "sg", x1: "0", y1: "2", x2: "0", y2: "18", gradientUnits: "userSpaceOnUse" }, h("stop", { offset: "0", "stop-color": "#56b56c" }), h("stop", { offset: "0.5", "stop-color": "#bdae8e" }), h("stop", { offset: "1", "stop-color": "#4a4fa8" }))),
     h("path", { d: smoothPath(pts), fill: "none", stroke: "url(#sg)", "stroke-width": "2", "stroke-linecap": "round" })) : null;
-  const btn = h("button.peek", { "aria-label": "Open Your days" }, line,
-    top == null ? h("span", null, "Your days") : h("span", null, "Mostly ", h("span", { style: { color: MOOD_COL[top] } }, moodWord(top)), " this week"), h("span.chev", { "aria-hidden": "true" }, "›"));
+  // Words on the left, the week's mood line on the right (alex 2026-11-23).
+  const btn = h("button.peek", { "aria-label": "Open Your days" },
+    top == null ? h("span.peek-words", null, "Your days") : h("span.peek-words", null, "Mostly ", h("span", { style: { color: MOOD_COL[top] } }, moodWord(top)), " this week"), line, h("span.chev", { "aria-hidden": "true" }, "›"));
   btn.addEventListener("click", () => openDays(btn, () => render()));
   return btn;
 }
@@ -237,8 +239,12 @@ function render(moment) {
   const greet = h("h1.greet", null, mo ? mo[0] : head);
   const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
   let taps = 0, tapT = 0;
-  greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
-  const words = h("div.col.greet-words", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
+  const mark = h("div.dd-mark", null, wordmark(36));
+  mark.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
+  // No greeting or narration on Today (alex 2026-11-23): the card and the button say what's next. The words only show
+  // for a moment ("Card's done.", "Level 4.") and, in the first week, as a short hint.
+  const hint = dayN <= 7 && !!line;
+  const words = h(`div.col.greet-words${hint ? ".hint" : ""}`, { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
   // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept
   // while the card is still to do, so the card doesn't jump when it appears.
   const offer = c && did && !ended && moment !== "did" && photos.offerOK(k);
@@ -254,19 +260,22 @@ function render(moment) {
   // and Settings moves to the You tab. Until then Daydeck looks as it always has.
   const usePill = testOn || levels.isOpen("friends");
   if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
+  // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
+  // Your days with crumbs beside it, then the card in the middle. Lifeline stays in every check-in, draw, Your days and
+  // Friends, so it is one step from here.
+  const cardsOpen = !levels.isOpen || levels.isOpen("library");
+  const settingsBtn = usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render()));
+  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : settingsBtn || h("span");
+  const right = h("div.dd-right", null, cardsOpen ? settingsBtn : null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
   home.replaceChildren(
-    h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
-      words, h("div", { style: { display: "flex", gap: "8px" } },
-        // The card library opens at level 5 (thread "Finalise levels and what they unlock"; moved from 4 for Friends).
-        !levels.isOpen || levels.isOpen("library") ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : null,
-        roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
-        usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render())))),
-    weekRow(),
+    h("div.dd-head", null, left, mark, right),
     levelRow(),
+    weekRow(),
     boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
+    words,
     mid,
-    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
+    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
@@ -279,12 +288,10 @@ function render(moment) {
     words.classList.add("moment"); if (lift && card) card.classList.add("on");
     if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
     momentT = setTimeout(() => {
-      words.classList.remove("moment"); card && card.classList.remove("on");
-      if (greet.textContent !== head || sub.textContent !== after) {
-        const swap = () => { greet.textContent = head; sub.textContent = after; };
-        if (reduceMotion()) return swap();
-        words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
-      }
+      card && card.classList.remove("on");
+      const swap = () => { words.classList.remove("moment"); greet.textContent = head; sub.textContent = after; };
+      if (reduceMotion()) return swap();
+      words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
     }, 3600);
   }
   clearTimeout(momentT);

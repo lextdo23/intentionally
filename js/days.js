@@ -325,7 +325,7 @@ function secHelps(s) {
     }
     // Most lines count good days; "rested" counts rested mornings (Well or Very well) and names its hours in sun.
     const rested = it.measure === "rested", t = it.text("");
-    const lead = rested ? h("p.lead", null, t[0], h("b", { style: { color: "#f2c08f", fontWeight: "600" } }, t[1]), t[2]) : h("p.lead", null, t[0], coloured(it.top), t[1]);
+    const lead = rested ? h("p.lead", null, t[0], h("b", { style: { color: "#ffa51f", fontWeight: "600" } }, t[1]), t[2]) : h("p.lead", null, t[0], coloured(it.top), t[1]);
     card.append(h("div.help", null, lead,
       h("div", { style: { display: "flex", justifyContent: "flex-end" } }, h("span", { style: { textAlign: "right", fontSize: "11px", color: "#8d8981" } }, rested ? "Rested mornings" : "Good days")),
       it.rows.map(([l, ms]) => { const g = rested ? ms.filter((r) => r >= 3).length : goodCount(ms), p = Math.round(g / ms.length * 100);

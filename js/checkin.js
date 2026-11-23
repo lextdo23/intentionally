@@ -73,7 +73,7 @@ export function morning(onDone) {
   const NS = (t, a) => h(t, a);
   const arc = NS("path", { fill: "none", stroke: "#e3c486", "stroke-width": "10", "stroke-linecap": "round" });
   const bHalo = NS("circle", { r: "20", fill: "rgba(217,214,238,0.18)" }), bDot = NS("circle", { r: "13", fill: "#d9d6ee" }), bBite = NS("circle", { r: "11", fill: "#1b1c20" });
-  const wHalo = NS("circle", { r: "18", fill: "rgba(242,192,143,0.35)" }), wDot = NS("circle", { r: "12", fill: "#f2c08f" });
+  const wHalo = NS("circle", { r: "18", fill: "rgba(255,165,31,0.35)" }), wDot = NS("circle", { r: "12", fill: "#ffa51f" });
   const svg = h("svg", { viewBox: "0 0 350 200", role: "img" },
     NS("path", { d: "M 25 185 A 150 150 0 0 1 325 185", fill: "none", stroke: "rgba(239,237,233,0.12)", "stroke-width": "10", "stroke-linecap": "round" }),
     arc, bHalo, bDot, bBite, wHalo, wDot);
@@ -167,7 +167,7 @@ export function evening(onDone) {
   // Making your own card opens at level 3 (alex 2026-11-18). Before that, a day with no card to answer ends at step 2.
   const own = levels.isOpen("own"), N = cid || own ? 3 : 2;
   document.body.classList.add("in-flow");
-  const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
+  const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "255 165 31");
 
   const one = () => {
     at("mood");

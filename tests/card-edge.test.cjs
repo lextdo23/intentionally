@@ -23,7 +23,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const c = document.querySelector(".home-card"), edges = [...c.querySelectorAll(".in > .edge")];
     const z = (el) => new DOMMatrix(getComputedStyle(el).transform).m43;
     return { n: edges.length, min: Math.min(...edges.map(z)), max: Math.max(...edges.map(z)), back: z(c.querySelector(".back")),
-      front: z(c.querySelector(".front")), gold: getComputedStyle(edges[0]).backgroundImage.includes("240, 214, 160"), hidden: edges.every((e) => e.getAttribute("aria-hidden") === "true") };
+      front: z(c.querySelector(".front")), gold: getComputedStyle(edges[0]).backgroundImage.includes("232, 150, 28"), hidden: edges.every((e) => e.getAttribute("aria-hidden") === "true") };
   });
 
   await open({ sleep: { q: 3 }, card: { id: 1 } });
@@ -31,7 +31,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(L.n === 13, `the face-up card has 13 edge layers (${L.n})`);
   check(Math.abs(L.min + 1.5) < 0.01 && Math.abs(L.max - 1.5) < 0.01, "the layers fill the 3 points between the faces");
   check(Math.abs(L.back - 1.5) < 0.01 && Math.abs(L.front + 1.5) < 0.01, "the back sits in front of them and the face behind, so it turns around its middle");
-  check(L.gold, "the edge is gold");
+  check(L.gold, "the edge is marigold card stock (new look, alex 2026-11-23)");
   check(L.hidden, "screen readers skip the edge layers");
   const ok = await p.evaluate(() => { const r = document.querySelector(".home-card .front").getBoundingClientRect(); return r.width > 250 && r.height > 350; });
   check(ok, "face up, the card is still its full size on screen");

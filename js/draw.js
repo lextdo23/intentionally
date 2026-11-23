@@ -11,6 +11,7 @@ import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
 import { pickSteps, needsRepick, repickSteps } from "./pillars.js";
 import * as library from "./library.js";
+import { now } from "./clock.js";
 
 const SIZE = { Tiny: "Tiny", Small: "Small", Bigger: "Bigger" };
 const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms));
@@ -335,6 +336,8 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
     size.replaceWith(foot);
     foot.append(felt && felt.length ? feltEl(felt) : size, tickEl(c));
   }
+  // The Daydeck back carries the day's date in its corner (alex 2026-11-23): Daydeck is a deck of days.
+  if (state === "down") back.append(h("span.card-date", { "aria-hidden": "true" }, new Date(now()).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }).replace(/,/g, "")));
   if (state === "skip") { back.classList.add("marked"); back.append(h("span.dot", { "aria-hidden": "true" }), h("span.done-task", null, "Back in the deck for another day")); }
   if (state === "up") {
     const did = h("button.did", { type: "button", onclick: (e) => { e.stopPropagation(); onDid && onDid(); } }, "I did it");
@@ -451,8 +454,8 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const wrap = pp.el.querySelector(".more-wrap");
   const h0 = ask.offsetHeight, extra = wrap ? wrap.firstChild.scrollHeight + 8 : 0;
   // If the question (or the open "Show more") would reach past where "End your day" was, everything moves up together.
-  // With the bottom pill, "End your day" is inside it (and the pill hides), so the limit is just above Lifeline instead:
-  // crisis support always stays in view and tappable (alex 2026-11-21).
+  // With the bottom pill, "End your day" is inside it (and the pill hides), so the limit is where the pill was. (Lifeline
+  // used to sit on home and set this limit; since alex 2026-11-23 it lives in check-ins, draws, Your days and Friends.)
   const lifeline = document.body.classList.contains("has-pill") && mid.parentElement.querySelector(".lifeline");
   const floor = () => (lifeline ? lifeline.getBoundingClientRect().top - 8 : hide.getBoundingClientRect().bottom);
   const shift = (open) => Math.max(0, Math.round(m.top + top + h0 + (open ? extra : 0) - floor()));
@@ -485,18 +488,9 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
     onPick(list);
     const any = list.length > 0, good = list.some((w) => !HEAVY.includes(w));
     const MOVE = 2200, HOLD = 900, FADE = 1500, ALL = MOVE + HOLD + FADE, WAIT = 260;
-    // The glow: from wherever the breathing edge was, up to its peak as the card lands, hold, then gone.
-    const start = getComputedStyle(front).boxShadow;
+    // A shine sweeps across the card as it lands (alex 2026-11-23: no glow), then it settles into its done look.
     el.classList.remove("todo");
-    const peak = any && good ? "0 0 0 1px rgb(227 196 134 / .6), 0 0 52px rgb(242 192 143 / .5), 0 14px 30px rgba(0, 0, 0, .5)"
-      : any ? "0 0 0 1px rgb(169 185 214 / .4), 0 0 26px rgb(169 185 214 / .22), 0 14px 30px rgba(0, 0, 0, .5)"
-      : "0 0 0 1px rgb(227 196 134 / .4), 0 0 24px rgb(242 192 143 / .22), 0 14px 30px rgba(0, 0, 0, .5)";
-    const end = "0 0 0 1px rgb(227 196 134 / .18), 0 0 0 rgb(242 192 143 / 0), 0 14px 30px rgba(0, 0, 0, .5)";
-    if (!rm) front.animate([
-      { boxShadow: start && start !== "none" ? start : end, offset: 0, easing: "ease-in" },
-      { boxShadow: peak, offset: MOVE / ALL },
-      { boxShadow: peak, offset: (MOVE + HOLD) / ALL, easing: "ease-out" },
-      { boxShadow: end, offset: 1 }], { duration: ALL, delay: WAIT, fill: "both" });
+    if (!rm) { const sh = h("div.card-sheen", { "aria-hidden": "true" }); front.append(sh); setTimeout(() => sh.classList.add("go"), D(WAIT + MOVE * 0.55)); setTimeout(() => sh.remove(), D(WAIT + ALL + 200)); }
     // Home again, all in one move.
     const frames = !any ? [{ transform: at }, { transform: "none" }]
       : [{ transform: at, offset: 0 }, { transform: good ? "translateY(-10px) scale(1.01)" : "translateY(6px) scale(.99)", offset: 0.6 }, { transform: "none", offset: 1 }];

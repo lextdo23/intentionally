@@ -32,7 +32,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     if (!hold) await touch("touchEnd");
   };
   const quiet = async () => { // a spot on the current screen with nothing that moves sideways itself
-    return p.evaluate(() => { const t = document.body.dataset.tab, el = t === "today" ? document.querySelector("#home .top-line, #home .greet") : document.querySelector("#" + t + " h1");
+    return p.evaluate(() => { const t = document.body.dataset.tab, el = t === "today" ? document.querySelector("#home .dd-mark") : document.querySelector("#" + t + " h1");
       const r = el.getBoundingClientRect(); return r.top + r.height / 2; });
   };
 
@@ -72,7 +72,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(await tab() === "friends", "swiping right goes back to Friends");
   await drag(60, 400, y); await p.waitForTimeout(650);
   check(await tab() === "today", "and again to Today");
-  check(await p.$eval("#sun", (e) => getComputedStyle(e).visibility === "visible" && getComputedStyle(e).opacity !== "0"), "the sun is back");
+  check(await p.$eval("#sun", (e) => getComputedStyle(e).opacity === "0"), "the sun glow stays off on Today (it only shows in check-ins, alex 2026-11-23)");
   check(await p.$eval("#home", (e) => e.style.background === "" && getComputedStyle(e).borderTopLeftRadius === "0px"), "and Today is back to normal, square and see-through");
 
   // ---- Up and down still scrolls, and doesn't switch ----
