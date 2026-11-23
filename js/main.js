@@ -95,6 +95,20 @@ function levelRow() {
 }
 
 // A box earned and not opened yet (js/boxes.js): a quiet gold row under the level bar until it's opened.
+// When Today is crowded (a level-up moment, boxes waiting and the recap line at once), the card shrinks just enough
+// that nothing slides under the bottom pill (alex 2026-11-24). An ordinary day keeps the full-size card.
+function fitCard() {
+  const home = document.getElementById("home");
+  home.style.removeProperty("--fit");
+  const card = home.querySelector(".home-mid .home-card");
+  if (!card) return;
+  const floor = home.getBoundingClientRect().bottom - parseFloat(getComputedStyle(home).paddingBottom);
+  const over = Math.max(...[...home.children].map((x) => x.getBoundingClientRect().bottom)) - floor;
+  if (over <= 1) return;
+  const ch = card.getBoundingClientRect().height;
+  if (ch) home.style.setProperty("--fit", Math.max(0.7, (ch - over - 8) / ch).toFixed(3));
+}
+
 function boxRow() {
   const n = boxesWaiting();
   if (!n) return "";
@@ -296,6 +310,7 @@ function render(moment) {
   }
   clearTimeout(momentT);
   if (mo) play(mo[0], mo[1] ? mo[1] : line, true);
+  fitCard();   // after the moment's words are in, before anything is drawn
   tips.soon(mo ? 4200 : 1500);   // a new thing a level opened gets its tip once home is quiet (alex 2026-11-18)
 }
 

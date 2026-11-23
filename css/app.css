@@ -64,7 +64,7 @@ h1, h2, p { margin: 0; }
   border-radius: 22px; background: rgba(239, 237, 233, .08); font-size: 15px; }
 .peek .chev { color: var(--dim); }
 
-/* Level (alex 2026-11-17): "Level 3" in gold and a gold bar under Your days. "Next pack at level 4" fades in when
+/* Level (alex 2026-11-17; white in the new look, 2026-11-23): "Level 3" and its bar. "Next pack at level 4" fades in when
    the bar is nearly full. The row fades out slowly while the card is rated, and back in once it settles. */
 .lv-row { display: flex; align-items: center; gap: 12px; width: 100%; transition: opacity .8s ease; }
 .lv-num { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; }
@@ -353,7 +353,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
    were drawn at, so cards fill the same share as the approved mockups (x1.34 on a 430-wide iPhone 15 Pro Max).
    Only the cards scale, words on them included; everything else keeps Apple's sizes. */
 .stage, .big-holder, .mini-deck { zoom: var(--k, 1); }
-.home-card { zoom: calc(var(--k, 1) * 1.376 * 1.14); }   /* about 320 wide on alex's phone (alex 2026-11-23, new look: a bigger card) */
+.home-card { zoom: calc(var(--k, 1) * 1.376 * 1.14 * var(--fit, 1)); }   /* about 320 wide on alex's phone (alex 2026-11-23, new look: a bigger card) */
 /* The hand: three cards, the middle one higher; the deck hides behind it. */
 .stage { position: relative; height: 270px; width: 100%; }
 .stage .hc { position: absolute; left: 50%; top: 56%; margin: -80px 0 0 -54px; transition: transform .45s var(--card-ease); }
@@ -558,23 +558,23 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lp-page { max-width: 520px; margin: 0 auto; padding: var(--top) var(--edge) calc(var(--bot) + 24px); display: flex; flex-direction: column; gap: 24px; }
 .lp-head { display: flex; flex-direction: column; gap: 8px; }
 .lp-line { display: flex; align-items: center; gap: 12px; }
-.lp-num { font-size: 22px; font-weight: 600; color: var(--gold); white-space: nowrap; }
+.lp-num { font-size: 22px; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .lp-bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(239, 237, 233, .1); overflow: hidden; }
-.lp-bar i { display: block; height: 100%; border-radius: 3px; background: var(--gold); box-shadow: none; }
+.lp-bar i { display: block; height: 100%; border-radius: 3px; background: var(--ink); box-shadow: none; }
 .lp-sub { font-size: 15px; color: var(--dim); }
 .lp-path { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .lp-step { position: relative; display: flex; gap: 16px; padding-bottom: 24px; }
 .lp-step:last-child { padding-bottom: 0; }
 .lp-rail { position: relative; flex: 0 0 20px; display: flex; justify-content: center; }
 .lp-rail::after { content: ""; position: absolute; top: 22px; bottom: -26px; width: 2px; background: rgba(239, 237, 233, .12); }
-.lp-step.lit .lp-rail::after { background: rgb(227 196 134 / .7); }
+.lp-step.lit .lp-rail::after { background: rgba(239, 237, 233, .5); }
 .lp-step:last-child .lp-rail::after { display: none; }
 .lp-dot { position: relative; z-index: 1; margin-top: 4px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(239, 237, 233, .3); background: var(--sky2); }
-.lp-step.lit .lp-dot { background: var(--gold); border-color: var(--gold); }
-.lp-step.here .lp-dot { width: 20px; height: 20px; margin-top: 2px; background: var(--sun); border-color: var(--sun); box-shadow: 0 0 0 6px rgb(255 165 31 / .15); }
+.lp-step.lit .lp-dot { background: var(--ink); border-color: var(--ink); }
+.lp-step.here .lp-dot { width: 20px; height: 20px; margin-top: 2px; background: var(--ink); border-color: var(--ink); box-shadow: 0 0 0 4px var(--sky2), 0 0 0 5.5px rgba(239, 237, 233, .55); }
 .lp-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .lp-n { font-size: 13px; color: var(--dim); }
-.lp-step.here .lp-n { color: var(--gold); font-weight: 600; }
+.lp-step.here .lp-n { color: var(--ink); font-weight: 600; }
 .lp-t { font-size: 17px; font-weight: 600; }
 .lp-d { font-size: 15px; color: var(--ink2); }
 .lp-step.soon .lp-t { color: var(--ink2); font-weight: 500; }
@@ -586,15 +586,17 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .tip-layer { position: fixed; inset: 0; z-index: 30; opacity: 0; transition: opacity .35s ease; }
 .tip-layer.on { opacity: 1; }
 .tip-layer.out { opacity: 0; pointer-events: none; }
-.tip-hole { position: absolute; padding: 0; background: none; box-shadow: 0 0 0 2000px rgba(8, 9, 10, .66), 0 0 0 2px var(--gold); }
-.tip-box { position: absolute; left: var(--edge); right: var(--edge); max-width: 480px; padding: 16px; border-radius: 16px; background: #1f2024; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); display: flex; flex-direction: column; gap: 8px; }
-.tip-box::before { content: ""; position: absolute; left: var(--ax, 60px); width: 16px; height: 16px; background: #1f2024; transform: rotate(45deg); }
+.tip-hole { position: absolute; padding: 0; background: none; box-shadow: 0 0 0 2000px rgba(8, 9, 10, .66), 0 0 0 2px var(--ink); }
+.tip-box { position: absolute; left: var(--edge); right: var(--edge); max-width: 480px; padding: 16px; border-radius: 16px; background: #1c1c1e; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 40px rgba(0, 0, 0, .5); display: flex; flex-direction: column; gap: 8px; }
+.tip-box::before { content: ""; position: absolute; left: var(--ax, 60px); width: 16px; height: 16px; background: #1c1c1e; transform: rotate(45deg); }
 .tip-box.below::before { top: -7px; }
 .tip-box.above::before { bottom: -7px; }
-.tip-k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+.tip-k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--sun); }
 .tip-t { font-size: 17px; font-weight: 600; }
 .tip-d { font-size: 15px; color: var(--ink2); }
-.tip-ok { align-self: flex-end; min-height: 44px; padding: 0 20px; border-radius: 14px; background: var(--fill); font-size: 17px; font-weight: 500; }
+.tip-ok { align-self: flex-end; min-height: 44px; padding: 0 20px; border-radius: 14px; background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .28), 0 6px 16px rgba(0, 0, 0, .35); font-size: 17px; font-weight: 500; transition: transform .15s ease, filter .15s ease; }
+.tip-ok:active { transform: scale(.96); filter: brightness(1.25); }
+@media (prefers-reduced-motion: reduce) { .tip-ok:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tip-layer { transition: none; } }
 
 /* Accounts (js/account.js, alex 2026-11-20): the sign-up screens, the picture picker and "Your account" in Settings. */

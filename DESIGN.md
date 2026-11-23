@@ -21,7 +21,7 @@ Today (home) is the reference screen: when unsure, match it.
    - a switch that's on (alex 2026-11-24), except on the social screens (rule 7).
 
    Anything else that's marigold is a mistake. Only one marigold *button* on a screen.
-4. **White (ink) shows plain facts:** the level row, numbers, counts.
+4. **White (ink) shows plain facts:** the level row and level path, numbers, counts, "boxes are waiting".
 5. **Gold `#e3c486` means only "Got it done"** (one of the three ways an activity felt, next to green "Lifted you" and blue "Took a lot"). Gold used for anything else is left over from the old look: headings, links, the level-up page, the tip outline, the focus outline, card rims, "made by you" words. Each one becomes ink or marigold, whichever job it's doing.
 6. **Pillar tints stay** (`#d9b3a6 #cfc59b #a9c4b5 #a9b9d6 #c4b4c9`), used only for pillar dots and tags. Mood colours stay as they are (`CHART_COL` on dark, `MOOD_COL` on the light recap cards).
 7. **Social screens** (Friends, You, profiles, sharing): no marigold or sun at all. Main buttons are off-white with dark text. Colour comes only from pillar dots, photos and profile pictures.
@@ -58,6 +58,7 @@ Today (home) is the reference screen: when unsure, match it.
 ## 6. Layout
 
 23. **Open, not empty.** Each screen has one clear thing to do, and no space that looks like something's missing.
+23b. **Nothing slides under the pill:** when Today is crowded (a level-up moment, boxes waiting and the recap line at once), the card shrinks just enough to fit (`fitCard` in `js/main.js`); an ordinary day keeps the full-size card.
 24. **Optical centring:** centre a card or block between what's above and below it, as it looks to the eye, not by the numbers.
 25. **The bottom pill is one single pill** (Today · Friends · You plus the screen's main action). Nothing else floats at the bottom.
 26. **Mockups are drawn on alex's phone at real size:** 430 by 932, safe areas 59 top and 34 bottom.
@@ -102,14 +103,14 @@ For each screen, in order:
 | Evening check-in (and Going to sleep) | Done 2026-11-24 | |
 | Card draw, rating and "How did doing it feel?" | Done 2026-11-24 | |
 | Make your own card | Done 2026-11-24 | |
-| Level-up moment and level path | To do | Level numbers, bar and steps in gold (4, 5) |
-| Tips | To do | Tip outline is gold (5); tip box is old charcoal (36) |
+| Level-up moment and level path | Done 2026-11-24 | |
+| Tips | Done 2026-11-24 | |
 | Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5); Day before / Day after are flat soft buttons (12) |
 | Share with your doctor (sheet only; the PDF stays as it is) | To do | |
 | Crumbs sheet | To do | |
 | Weekly recap | To do | Mini cards in old charcoal with gold edges (5) |
 | Your photos | To do | Bottom bar is old charcoal (36); camera background tinted (1); Retake / Pick a photo are flat soft buttons (12) |
-| Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5) |
+| Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |
 | Settings | To do | |
 | Sign-up and Your account | To do | Take photo / Choose photo are flat soft buttons (12) |
 | Choosing pillars (first day) | To do | |
