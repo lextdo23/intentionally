@@ -150,10 +150,10 @@ function swipe() {
   const place = (pos, anim) => {
     // pos: where we are in screens (0 = Today, 1 = Friends, 2 = You; in between while dragging)
     els().forEach((el, i) => { if (!el) return;
-      el.style.transition = anim ? `transform ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none";
+      el.style.transition = anim ? `transform ${anim}ms var(--swipe-ease)` : "none";
       el.style.transform = `translateX(${(i - pos) * W()}px)`; el.style.opacity = "1"; el.style.pointerEvents = "none"; });
     nav.style.setProperty("--i", Math.max(0, Math.min(TABS.length - 1, pos)));
-    bubble.style.transition = anim ? `left ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none";
+    bubble.style.transition = anim ? `left ${anim}ms var(--swipe-ease)` : "none";
   };
   // Today has no background of its own (the sky and sun sit behind it), so while it moves as a screen it gets the
   // sky with the sun's glow painted in where the sun is now.
@@ -203,7 +203,10 @@ function swipe() {
     if ((d.dx < -innerWidth / 2 || v < -0.4) && d.dx < 0) to = d.i + 1;
     if ((d.dx > innerWidth / 2 || v > 0.4) && d.dx > 0) to = d.i - 1;
     to = Math.max(0, Math.min(TABS.length - 1, to));
-    const ms = reduceMotion() ? 0 : Math.round(Math.max(160, Math.min(320, Math.abs((to - (d.i - d.dx / W())) * W()) / Math.max(1.2, Math.abs(v)))));
+        // Settling takes about half a second (alex 2026-11-23: 0.16 to 0.32s felt too quick); a little quicker after a
+    // hard flick so it never feels like it's dragging behind the finger.
+    const left = Math.abs((to - (d.i - d.dx / W())) * W()) / W();   // how much of a screen is left to travel
+    const ms = reduceMotion() ? 0 : Math.round((Math.abs(v) > 1.2 ? 380 : 480) * (0.6 + 0.4 * left));
     place(to, ms);
     setTimeout(() => { if (TABS[to] !== tab) go(TABS[to]); else document.body.classList.add("tab-now"); clear();
       requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("tab-now"))); }, ms);

@@ -719,6 +719,7 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .you-handle { font-size: 15px; color: var(--dim); }
 body.tab-now :is(#home, #sun, .tab-screen) { transition: none !important; }
 body.tab-drag { background: #000; }
+:root { --swipe-ease: cubic-bezier(.2, .8, .2, 1); }
 body.tab-drag #sun { visibility: hidden; }
 body.tab-drag :is(#home, .tab-screen) { border-radius: 46px; overflow: hidden; }
 body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
