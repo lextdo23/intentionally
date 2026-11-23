@@ -110,12 +110,12 @@ For each screen, in order:
 | Your days (charts, What lifts you, What seems to help you) | Done 2026-11-24 | |
 | Share with your doctor (sheet only; the PDF stays as it is) | Done 2026-11-24 | |
 | Crumbs sheet | To do | |
-| Weekly recap | To do | Mini cards in old charcoal with gold edges (5) |
+| Weekly recap | Done 2026-11-24 | |
 | Your photos | Done 2026-11-24 | |
-| Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |
 | Settings | To do | |
 | Sign-up and Your account | To do | |
 | Choosing pillars (first day) | To do | |
 | Sorting thoughts and the sky | To do | |
 | Friends, You, profiles, sharing, reports | To do | |
 | Testers page, privacy and guidelines pages | To do | |
+| Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |

@@ -14,6 +14,7 @@ import { easier } from "./stats.js";
 import * as moments from "./moments.js";
 import * as account from "./account.js";
 import * as levels from "./levels.js";
+import { D as MARK } from "./wordmark.js";
 
 // ---------------- small helpers ----------------
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
@@ -380,7 +381,7 @@ function scrName(ctx, j) {
       h("div.wr-lab.wr-rise", null, "This week was"),
       h("div.wr-big.wr-rise", { style: `--d:.15s;font-size:${big}px` }, N.name),
       h("div.wr-line.wr-rise", { style: "--d:.5s" }, N.line)),
-    ab("", { left: 24, top: 442, width: 382, height: 430 }, moodLine(D.days, { W: 382, H: 430, start: START, seg: SEG })),
+    ab("", { left: 24, top: 442, width: 382, height: 396 }, moodLine(D.days, { W: 382, H: 396, start: START, seg: SEG })),   // day letters clear of "Next: …"
     N.heavy ? ab(".wr-fade.wr-help", "left:0;right:0;top:880px;text-align:center;--d:1.5s", LIFELINE()) : "");
   return { el, auto, full: true, bg: c };
 }
@@ -397,7 +398,7 @@ function moodLine(days, { W, H, start, seg }) {
       svg.append(h("path.wr-seg", { pathLength: "1", d: `M${x0},${y0} C${cx},${y0} ${cx},${y1} ${x1},${y1}`, fill: "none", stroke: INK, "stroke-width": "5", "stroke-linecap": "round", style: `--d:${at(k - 1)}s` })); }
   }
   P.forEach(([x, y, m], k) => {
-    const lastOne = k === P.length - 1, rg = m === 5;
+    const lastOne = k === P.length - 1, rg = m === 5 && !lastOne;   // "really good" at the end sits left of its dot, so it isn't cut off
     svg.append(h("g.wr-popg", { style: `--d:${at(k)}s` }, h("circle", { cx: x, cy: y, r: "11", fill: MC[m], stroke: INK, "stroke-width": "3" })),
       h("text.wr-word", { x: String(rg ? x + 14 : x), y: String(rg ? y + 28 : y - 22), dx: lastOne && !rg ? "11" : "0", "font-size": m === 6 ? "20" : "15", "font-weight": "700",
         "text-anchor": lastOne && !rg ? "end" : rg ? "start" : "middle", fill: INK, style: `--d:${at(k) + 0.05}s` }, word(m)));
@@ -678,7 +679,9 @@ export function posterCanvas(P, moods = true, px = 1080, pics = null, fit = null
 
   // bottom up: Daydeck, we noticed, the facts
   const sub = W(0.75);
-  g.font = F(400, 13); ls("1px"); g.fillStyle = W(0.75); g.textAlign = "center"; g.fillText("DAYDECK", PW / 2, PH - BOT - 44); g.textAlign = "left"; ls("0px");
+  { // the drawn daydeck wordmark (rule 19: never typed in a font), 15 tall, centred
+    const mh = 15, sc = mh / 126; g.save(); g.translate(PW / 2 - (345.59 * sc) / 2 + 8 * sc, PH - BOT - 44 - mh / 2 + 94 * sc); g.scale(sc, sc);
+    g.strokeStyle = W(0.75); g.lineWidth = 13.5; g.lineCap = "butt"; g.lineJoin = "round"; g.stroke(new Path2D(MARK)); g.restore(); }
   let b = PH - BOT - 44 - 28;
   if (P.noticed) {
     g.font = F(600, 13); const lw = g.measureText("We noticed").width + 10;
