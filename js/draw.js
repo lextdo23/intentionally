@@ -316,10 +316,15 @@ function camBtn(k, onCam) {
   b.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); onCam(); });
   return b;
 }
+// The card's thickness, in card points (about 5 on the phone), and one layer every quarter point so the edge looks solid.
+const EDGE = 3, EDGE_LAYERS = EDGE * 4 + 1;
 const feltEl = (felt) => h("span.felt-word", null, felt[0] + (felt.length > 1 ? ` +${felt.length - 1}` : ""));
 export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid, photo, develop = false, turn = false, onCam } = {}) {
   timers.forEach(clearTimeout); timers = [];
   const el = cardEl(id || null, { tag: "div", info: state === "up" || state === "done" }); el.classList.add("home-card");
+  // A gilded edge (alex 2026-11-23, option B): thin gold layers between the two faces, so turning it shows a thickness.
+  const inn = el.querySelector(".in");
+  for (let i = 0; i < EDGE_LAYERS; i++) inn.prepend(h("div.edge", { "aria-hidden": "true", style: { transform: `translateZ(${(-EDGE / 2 + (EDGE * i) / (EDGE_LAYERS - 1)).toFixed(2)}px)` } }));
   if (state === "up" || state === "done") el.classList.add("up");
   const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
   // Done (alex 2026-11-15, "fill the circle, step back"): the card stays face up, a small circle in its pillar's colour

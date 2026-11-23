@@ -377,6 +377,11 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card { width: 150px; height: 210px; animation: sway 11s ease-in-out infinite; }
 .home-card .front { padding: 12px; gap: 6px; border-radius: 16px; }
 .home-card .back { border-radius: 16px; }
+/* A gilded edge (alex 2026-11-23, option B): the back sits half the thickness in front and the face half behind, with
+   gold layers between (made in draw.js), so the card has a gold edge when it turns. Lit from above, like the sun. */
+.home-card .face.back { transform: translateZ(1.5px); }
+.home-card .face.front { transform: rotateY(180deg) translateZ(1.5px); }
+.home-card .edge { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; background: linear-gradient(180deg, #f0d6a0, #c9a965 45%, #8a7346); }
 .home-card .task { font-size: 17px; }
 /* "I did it" sits on the card's bottom row, beside its size. Soft, never gold. The card is zoomed, so sizes here are 1/1.85 of real. */
 .home-card .card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
