@@ -110,7 +110,8 @@ function secMoods(s) {
   const P = ser.pts.map((p, i) => (p.m == null ? null : [X(i), Y(p.m), p.m]));
   const runs = []; let cur = []; P.forEach((p) => { if (p) cur.push(p); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur);
   const hw = Math.max(3, (R - L) / n / 2);
-  const area = runs.map((r) => (r.length > 1 ? `${smoothPath(r)} L ${r[r.length - 1][0].toFixed(1)} 164 L ${r[0][0].toFixed(1)} 164 Z` : `M ${(r[0][0] - hw).toFixed(1)} 164 Q ${r[0][0].toFixed(1)} ${r[0][1] - 6} ${(r[0][0] + hw).toFixed(1)} 164 Z`)).join(" ");
+  // A day on its own (no day either side) is just its dot: a shaded hump under it read as a glitch (alex 2026-11-24).
+  const area = runs.filter((r) => r.length > 1).map((r) => (r.length > 1 ? `${smoothPath(r)} L ${r[r.length - 1][0].toFixed(1)} 164 L ${r[0][0].toFixed(1)} 164 Z` : `M ${(r[0][0] - hw).toFixed(1)} 164 Q ${r[0][0].toFixed(1)} ${r[0][1] - 6} ${(r[0][0] + hw).toFixed(1)} 164 Z`)).join(" ");
   let bridge = ""; for (let i = 1; i < P.length - 1; i++) if (!P[i] && P[i - 1] && P[i + 1]) bridge += `M ${P[i - 1][0].toFixed(1)} ${P[i - 1][1]} L ${P[i + 1][0].toFixed(1)} ${P[i + 1][1]} `;
   const dotR = n === 7 ? 5.5 : n >= 28 && n <= 31 ? 3.5 : 0;
   const svg = h("svg", { viewBox: `0 0 ${W} 170`, role: "img", "aria-label": `Mood line, ${ser.when}` },

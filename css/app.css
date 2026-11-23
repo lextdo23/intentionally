@@ -171,7 +171,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .big-title { font-size: 34px; font-weight: 600; }
 .seg { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--fill2); }
 .seg button { flex: 1; min-height: 40px; border-radius: 10px; font-size: 15px; color: var(--dim); }
-.seg button[aria-selected="true"] { background: rgba(239, 237, 233, .14); color: var(--ink); font-weight: 600; }
+.seg button[aria-selected="true"] { background: var(--ink); color: var(--on-sun); font-weight: 600; }   /* white, like a chosen chip (alex 2026-11-24) */
 .period { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: 0 -10px; }
 .period span { font-size: 17px; font-weight: 600; }
 .period .round { background: none; font-size: 22px; color: var(--ink2); }
