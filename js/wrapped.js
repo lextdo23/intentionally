@@ -1,6 +1,6 @@
 // The weekly wrapped (alex 2026-11-17, thread "Design weekly and monthly wrapped"). Six screens, like a story:
 // 1 the name of your week and its line, 2 guess your best day, 3 something we noticed, 4 what works for you,
-// 5 shape next week (keep one or two ideas), 6 your week on a card (keep it, share it).
+// 5 shape next week (keep one or two ideas), 6 your week on a card (full screen), 7 share it.
 // It's ready on Sunday once the day is ended (or any day after, for last week), and waits on home until opened.
 // Everything is worked out on this phone from what the person noted. Tester data gets choices and numbers only.
 import { h, MOODS, MOOD_COL as MC, dayKey, keyDate, addDays, DAY_NAME, DAY_LETTER, MONTH, reduceMotion, LIFELINE, sleepMins, hoursWords, avg } from "./util.js";
@@ -303,7 +303,7 @@ let open = null;
 export function openWrapped(w, onClose, opts = {}) {
   if (open) return;
   const D = build(w), m = mem();
-  const all = opts.only ? [["next", scrNext]] : [["name", scrName], D.best && ["best", scrBest], D.find && ["find", scrFind], D.works && ["works", scrWorks], ["next", scrNext], ["poster", scrPoster]].filter(Boolean);
+  const all = opts.only ? [["next", scrNext]] : [["name", scrName], D.best && ["best", scrBest], D.find && ["find", scrFind], D.works && ["works", scrWorks], ["next", scrNext], ["poster", scrPoster], ["share", scrShare]].filter(Boolean);
   const host = h("div.wr", { role: "dialog", "aria-modal": "true", "aria-label": "Your week" }), stage = h("div.wr-stage");
   host.append(stage); document.body.append(host); document.body.classList.add("in-wrap");
   const fit = () => host.style.setProperty("--ws", String(Math.min(1, innerWidth / 430, innerHeight / 932)));
@@ -329,7 +329,7 @@ export function openWrapped(w, onClose, opts = {}) {
   function clear() { if (timer) clearTimeout(timer.id); timer = null; }
   function finish(done) {
     clear(); removeEventListener("resize", fit); cur && cur.stop && cur.stop();
-    if (!opts.only) log(done && all[i][0] === "poster" ? "wrap_done" : "wrap_quit", all[i] ? all[i][0] : "");
+    if (!opts.only) log(done && all[i][0] === "share" ? "wrap_done" : "wrap_quit", all[i] ? all[i][0] : "");
     host.classList.add("closing"); setTimeout(() => host.remove(), reduceMotion() ? 0 : 350);
     document.body.classList.remove("in-wrap"); open = null;
     onClose && onClose();
@@ -361,7 +361,7 @@ function chrome(ctx, j, auto) {
     h("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "aria-hidden": "true" }, h("path", { d: "M6 6l12 12M18 6L6 18" })));
   return [bars, x];
 }
-const TEASE = { best: "Next: guess your best day", find: "Next: something we noticed", works: "Next: what works for you", next: "Next: next week", poster: "Next: your week on a card" };
+const TEASE = { best: "Next: guess your best day", find: "Next: something we noticed", works: "Next: what works for you", next: "Next: next week", poster: "Next: your week on a card", share: "Next: share it" };
 const teaser = (ctx, j, d) => { const nx = ctx.screens[j + 1]; return nx && TEASE[nx] ? h("div.wr-ab.wr-next.wr-fade", { style: `--d:${d}s` }, ctx.D.hard && nx === "next" ? "Next: a lighter week" : TEASE[nx]) : null; };
 const ab = (cls, style, ...kids) => h("div.wr-ab" + cls, { style: typeof style === "string" ? style : css(style) }, ...kids);
 
@@ -622,7 +622,7 @@ export function posterData(D) {
     best: b ? { day: dn(b.k), m: b.m } : null, pil: D.pil, card: c && !c.own ? c.text : null,
     noticed: D.find && NOTICED[D.find.kind] ? NOTICED[D.find.kind](D.find) : null };
 }
-const PW = 430, PH = PW * 16 / 9;                                   // the picture's size in points; drawn at 1080 by 1920
+const PW = 430, PH0 = PW * 16 / 9;                                  // the picture's size in points; drawn at 1080 by 1920
 const SYS = `-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif`;
 const hexRgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
 const mix = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",")})`; };
@@ -639,7 +639,10 @@ function wrap(g, text, max) {
   if (cur) out.push(cur); return out;
 }
 // pics: the week's photos (7 pictures or nulls), only when "Show photos when sharing" is on. Off by default.
-export function posterCanvas(P, moods = true, px = 1080, pics = null) {
+// fit: drawn to fill a screen instead (the full-screen slide): { h: height in points, top, bottom: room kept clear for
+// the bars and the hint). The layout runs top down and bottom up, so it fills any height. Shared pictures stay 9 by 16.
+export function posterCanvas(P, moods = true, px = 1080, pics = null, fit = null) {
+  const PH = fit ? fit.h : PH0, TOP = fit ? fit.top : 56, BOT = fit ? fit.bottom : 0;
   const S = px / PW, c = h("canvas", { width: String(px), height: String(Math.round(PH * S)) }), g = c.getContext("2d");
   g.scale(S, S); g.textBaseline = "top";
   const F = (wt, size) => `${wt} ${size}px ${SYS}`, X = 28, CW = PW - 56;
@@ -662,7 +665,7 @@ export function posterCanvas(P, moods = true, px = 1080, pics = null) {
 
   const W = (a) => `rgba(255,255,255,${a})`;
   // top: dates, the name, the week's line
-  let y = 56;
+  let y = TOP;
   g.fillStyle = W(0.85); g.font = F(400, 15); g.fillText(P.dates, X, y); y += 15 + 10;
   const big = P.name.length > 20 ? 42 : 54;
   g.fillStyle = "#fff"; g.font = F(800, big); ls(`${-0.035 * big}px`);
@@ -672,8 +675,8 @@ export function posterCanvas(P, moods = true, px = 1080, pics = null) {
 
   // bottom up: Daydeck, we noticed, the facts
   const sub = W(0.75);
-  g.font = F(400, 13); ls("1px"); g.fillStyle = W(0.75); g.textAlign = "center"; g.fillText("DAYDECK", PW / 2, PH - 44); g.textAlign = "left"; ls("0px");
-  let b = PH - 44 - 28;
+  g.font = F(400, 13); ls("1px"); g.fillStyle = W(0.75); g.textAlign = "center"; g.fillText("DAYDECK", PW / 2, PH - BOT - 44); g.textAlign = "left"; ls("0px");
+  let b = PH - BOT - 44 - 28;
   if (P.noticed) {
     g.font = F(600, 13); const lw = g.measureText("We noticed").width + 10;
     g.font = F(600, 15); const nl = wrap(g, P.noticed, CW - lw);
@@ -741,6 +744,8 @@ function posterView(P, moods, pics) {
   v.className = "wr-pic6"; v.setAttribute("role", "img"); v.setAttribute("aria-label", `${P.name}, ${P.dates}`);
   return v;
 }
+// 6 · the card, full screen (alex 2026-11-23): the week's picture fills the phone, drawn to the screen's shape. Tap for
+// the next slide, where it's shared. Moods always show here; the share slide has the switches.
 function scrPoster(ctx, j) {
   const D = ctx.D, P = posterData(D), m = mem();
   // Every week's card is kept (newest first) the moment it's shown; Done needs no "save" step.
@@ -749,6 +754,15 @@ function scrPoster(ctx, j) {
   if (!m.seen[D.w]) m.n = (m.n || 0) + 1;
   store.save();
   log("wrap_name", D.name.key);
+  const el = h("section.wr-scr.wr-full6");
+  const v = posterCanvas(P, true, 1290, null, { h: 932, top: 124, bottom: 80 });
+  v.className = "wr-pic6full"; v.setAttribute("role", "img"); v.setAttribute("aria-label", `${P.name}, ${P.dates}`);
+  el.append(h("div.wr-ab.wr-pic6fullbox.wr-fadein6", null, v), ...chrome(ctx, j, 0), teaser(ctx, j, 1.6) || "");
+  return { el };
+}
+// 7 · share it: the picture exactly as it will be shared, with the moods and photos switches, Share and Done.
+function scrShare(ctx, j) {
+  const P = posterData(ctx.D);
   const el = h("section.wr-scr");
   let moods = true, withPics = false, pics = null;
   // Photos on the shared card only if the person turns it on (alex 2026-11-18): they're private by default.

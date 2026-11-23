@@ -473,7 +473,7 @@ function drawAll(D) {
   // Weekly wrapped (from 17 Nov): ready vs opened vs finished, where people stop, the guess, what they keep, sharing.
   { const ready = who("wrap_ready"), opened = who("wrap_open"), fin = who("wrap_done");
     const quits = {}; by("wrap_quit").forEach((e) => (quits[e.val || "?"] = (quits[e.val || "?"] || 0) + 1));
-    const SCR = { name: "1 Name of the week", best: "2 Guess your best day", find: "3 Something we noticed", works: "4 What works for you", next: "5 Shape next week", poster: "6 Your week on a card" };
+    const SCR = { name: "1 Name of the week", best: "2 Guess your best day", find: "3 Something we noticed", works: "4 What works for you", next: "5 Shape next week", poster: "6 Your week on a card", share: "7 Share it" };
     const g = {}; by("wrap_guess").forEach((e) => (g[e.val] = (g[e.val] || 0) + 1));
     const keep = {}; by("wrap_keep").forEach((e) => String(e.val || "").split(",").filter(Boolean).forEach((k) => (keep[k] = (keep[k] || 0) + 1)));
     const KEEP = { nudge: "Wind-down nudge", more: "More cards from what worked", try: "Try a rarely drawn pillar", tiny: "Only tiny cards", rest: "A rest day midweek", same: "Keep it as it is" };

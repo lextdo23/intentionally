@@ -124,7 +124,12 @@
 .wr-fan .dc.gone { transition: opacity .5s, translate .6s var(--spring); opacity: 0; translate: 0 60px; pointer-events: none; }
 .wr-fan .dc.kept { transition: left .7s var(--spring), top .7s var(--spring), rotate .7s var(--spring); }
 
-/* 6 · your week on a card: the picture itself, drawn once and shown here as it will be shared */
+/* 6 · your week on a card, full screen (alex 2026-11-23): the picture drawn to the screen's shape, edge to edge */
+.wr-pic6fullbox { inset: 0; }
+.wr-pic6full { display: block; width: 100%; height: 100%; }
+.wr-full6 { color: #fff; }
+.wr-scr.in .wr-fadein6 { animation: wr-full6 .9s var(--spring) both; } @keyframes wr-full6 { from { opacity: 0; transform: scale(1.04); } }
+/* 7 · share it: the picture itself, drawn once and shown here as it will be shared */
 .wr-pic6box { left: 65px; top: 104px; width: 300px; height: 533px; }
 .wr-pic6 { display: block; width: 100%; height: 100%; border-radius: 16px; box-shadow: 0 0 0 1px rgb(255 255 255 / .18), 0 20px 50px rgba(0, 0, 0, .5); }
 .wr-pic6.in-sheet { width: 300px; height: 533px; align-self: center; }
