@@ -64,7 +64,7 @@ const SHAPE = {
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, friend_profile: (v) => v === 0 || v === 1,
-  share: (v) => isObj(v) && ["photo", "card", "own", "rest"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home"].includes(v.from),
+  share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
@@ -403,8 +403,8 @@ function drawAll(D) {
     const k = {}; sh.forEach((e) => (k[e.val.kind] = (k[e.val.kind] || 0) + 1));
     const pct = (f) => (n ? Math.round(100 * sh.filter(f).length / n) + "%" : "–");
     const sees = by("see").filter((e) => e.val === 1).length, from = (w) => opens.filter((e) => e.val === w).length;
-    html += sec("Do people share moments?", "Shares from Share a moment (in the pill) and Share with friends (under a done card). Only what kind of thing was shared, never the words.",
-      opens.length ? bars([["Their photo", k.photo || 0], ["Their card", k.card || 0], ["A card they made", k.own || 0], ["A rest day", k.rest || 0]], n || 1) +
+    html += sec("Do people share moments?", "Shares from Share a moment (in the pill), Share with friends (under a done card) and Share to profile (at the end of the weekly recap). Only what kind of thing was shared, never the words.",
+      opens.length ? bars([["Their photo", k.photo || 0], ["Their card", k.card || 0], ["A card they made", k.own || 0], ["A rest day", k.rest || 0], ["Their week's card (from the recap)", k.week || 0]], n || 1) +
         `<p class="note">Opened ${opens.length} times (${from("pill")} from the pill, ${from("home")} from under the card); shared ${n} (${opens.length ? Math.round(100 * n / opens.length) : 0}% of opens). With a caption: ${pct((e) => e.val.cap)}. With how the day felt: ${pct((e) => e.val.mood)}. From an earlier day: ${pct((e) => e.val.ago > 0)}. "I see you" said ${sees} times. Moments removed: ${by("unshare").length}. Friends' moments hidden: ${by("hide").length}. Grids opened: ${by("grid_open").length}. Friends list opened: ${by("friends_list").length}.</p>`
         : `<p class="sub">Nobody has shared a moment yet.</p>`,
       "many opens but few shares means the share screen asks too much; lots of hides means feeds feel noisy."); }
@@ -473,7 +473,7 @@ function drawAll(D) {
   // Weekly wrapped (from 17 Nov): ready vs opened vs finished, where people stop, the guess, what they keep, sharing.
   { const ready = who("wrap_ready"), opened = who("wrap_open"), fin = who("wrap_done");
     const quits = {}; by("wrap_quit").forEach((e) => (quits[e.val || "?"] = (quits[e.val || "?"] || 0) + 1));
-    const SCR = { name: "1 Name of the week", best: "2 Guess your best day", find: "3 Something we noticed", works: "4 What works for you", next: "5 Shape next week", poster: "6 Your week on a card" };
+    const SCR = { name: "1 Name of the week", best: "2 Guess your best day", find: "3 Something we noticed", works: "4 What works for you", next: "5 Shape next week", poster: "6 Your week on a card", share: "7 Share it" };
     const g = {}; by("wrap_guess").forEach((e) => (g[e.val] = (g[e.val] || 0) + 1));
     const keep = {}; by("wrap_keep").forEach((e) => String(e.val || "").split(",").filter(Boolean).forEach((k) => (keep[k] = (keep[k] || 0) + 1)));
     const KEEP = { nudge: "Wind-down nudge", more: "More cards from what worked", try: "Try a rarely drawn pillar", tiny: "Only tiny cards", rest: "A rest day midweek", same: "Keep it as it is" };
@@ -698,7 +698,7 @@ async function reportsView() {
     const s = r.snap || {}, wrap = document.createElement("div"); wrap.className = "rsnap";
     if (r.moment) {
       if (r.photo) { const im = document.createElement("img"); im.alt = "The reported photo"; im.src = r.photo; wrap.append(im); }
-      else if (s.kind === "photo") { const p = document.createElement("p"); p.className = "note"; p.textContent = "(The photo was let go after review.)"; wrap.append(p); }
+      else if (s.kind === "photo" || s.kind === "week") { const p = document.createElement("p"); p.className = "note"; p.textContent = "(The photo was let go after review.)"; wrap.append(p); }
       if (s.text) { const p = document.createElement("p"); p.className = "rtext"; p.textContent = s.text; wrap.append(p); }
       if (s.kind === "rest") { const p = document.createElement("p"); p.className = "rtext"; p.textContent = "A rest day"; wrap.append(p); }
       if (s.cap) { const p = document.createElement("p"); p.textContent = `Caption: "${s.cap}"`; wrap.append(p); }

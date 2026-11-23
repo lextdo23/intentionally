@@ -186,6 +186,17 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   check((await stranger.get("/a/f/photo?id=" + pm)).status === 404, "someone who isn't a friend can't");
   await mia.post("/a/f/unshare", { id: pm });
   check((await sam.get("/a/f/photo?id=" + pm)).status === 404 && made.Accountsbook.sql.exec("SELECT COUNT(*) AS n FROM mphotos").toArray()[0].n === 0, "removing the moment removes the photo from the service");
+  // A week's card from the weekly recap (alex 2026-11-23): shared to your profile as a clean picture, like a photo.
+  check((await mia.post("/a/f/share", { day: today, item: "week", kind: "week" })).error === "bad_moment", "a week's card needs its picture");
+  check((await mia.post("/a/f/share", { day: today, item: "week", kind: "week", photo: jpeg(exif) })).error === "bad_moment", "a week's card still carrying details is refused");
+  check((await mia.post("/a/f/share", { day: today, item: "12", kind: "week", photo: jpeg() })).error === "bad_moment", "and it can only be a week, not pretend to be a card");
+  r = await mia.post("/a/f/share", { day: today, item: "week", kind: "week", photo: jpeg() });
+  check(r.ok && r.moment.kind === "week" && r.moment.ph === true, "a clean week's card is shared");
+  const wm = r.moment.id;
+  check((await sam.get("/a/f/photo?id=" + wm)).data === jpeg() && (await stranger.get("/a/f/photo?id=" + wm)).status === 404, "friends can see it, others can't");
+  r = await mia.post("/a/f/share", { day: today, item: "week", kind: "week", photo: jpeg() });
+  check(r.ok && r.again && r.moment.id === wm, "sharing the same week again updates it");
+  await mia.post("/a/f/unshare", { id: wm });
 
   // Profile photos (alex 2026-11-22): friends see your photo picture; others see the smile.
   check((await mia.post("/a/f/profile", { pic: "photo" })).error === "bad_photo", "a photo picture needs its photo");

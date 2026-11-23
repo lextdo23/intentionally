@@ -819,6 +819,7 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .mo-tile.photo { padding: 0; aspect-ratio: 5 / 7; background: #18191c; }
 .mo-tile.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .mo-tile.photo.big { min-height: 0; aspect-ratio: 4 / 5; }
+.mo-tile.photo.week.big { aspect-ratio: 9 / 16; }   /* a week's card from the recap shows whole in the feed */
 .mo-cell .mo-tile.photo { aspect-ratio: 1; }
 .mo-pick .mo-tile.photo { aspect-ratio: 1; }
 .mo-tile.big { aspect-ratio: auto; min-height: 220px; padding: 20px; border-radius: 16px; justify-content: center; gap: 12px; }

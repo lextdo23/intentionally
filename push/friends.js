@@ -316,9 +316,10 @@ export const friendMethods = {
   // What a moment may hold. Anything else is dropped; words are tidied like names.
   mClean(body) {
     const day = String(body.day || ""), item = String(body.item || "");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^(card|rest|photo|o\d{1,5}|l[a-z0-9]{10}|\d{1,5})$/.test(item)) return null;
-    const kind = ["card", "own", "rest", "photo"].includes(body.kind) ? body.kind : null;
-    if (!kind || (kind === "photo") !== (item === "photo")) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^(card|rest|photo|week|o\d{1,5}|l[a-z0-9]{10}|\d{1,5})$/.test(item)) return null;
+    // week (alex 2026-11-23): the weekly recap's card, shared to your profile as a picture; day is the week's Monday.
+    const kind = ["card", "own", "rest", "photo", "week"].includes(body.kind) ? body.kind : null;
+    if (!kind || (kind === "photo") !== (item === "photo") || (kind === "week") !== (item === "week")) return null;
     const text = tidyText(body.text, LIMITS.text), pillar = tidyText(body.pillar, 30), cap = tidyText(body.cap, LIMITS.caption);
     if ((kind === "card" || kind === "own") && !text) return null;
     const col = TINTS.includes(body.col) ? body.col : null;
@@ -326,7 +327,7 @@ export const friendMethods = {
     const mood = MOOD_WORDS.includes(body.mood) ? body.mood : null;
     const feel = mood && Array.isArray(body.feel) ? body.feel.map((f) => tidyText(f, 24)).filter(Boolean).slice(0, 6) : [];
     let photo = null;
-    if (kind === "photo") { photo = photoOK(body.photo); if (!photo) return null; }
+    if (kind === "photo" || kind === "week") { photo = photoOK(body.photo); if (!photo) return null; }
     return { day, item, photo, data: { kind, text, pillar, col, status, cap, mood, feel, ph: !!photo } };
   },
   mOut(row, meId, owner, extra = {}) {
