@@ -105,6 +105,7 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - One focal point per card; everything else steps down. A label is never smaller than what it labels.
 - **No keys or legends on charts** (alex 2026-11-22): if a chart needs a key to be understood, it's too confusing. Every part explains itself: words next to marks ("Hard · 5 of 7"), a short line under anything unusual, one meaning per colour.
 - Mockups (alex 2026-11-15): alex's phone is an iPhone 15 Pro Max, 430 x 932 points (safe areas 59 top, 34 bottom). Every phone mockup is drawn in that frame at 1:1 with the app's real sizes; start from `/mnt/project-files/phone-frame/phone-frame.html`. Never draw in a smaller phone, or cards look bigger than they will on the phone.
+- Today's card on home has a gilded edge (alex 2026-11-23, option B on the "Daydeck · Card thickness" canvas): 3 points thick, gold lit from above, made of thin layers between the two faces (`EDGE` in `js/draw.js`, `.home-card .edge` in `css/app.css`; the faces' 1.5px offset is half of `EDGE`). `node tests/card-edge.test.cjs` (SHOTS=1).
 - One 20px left edge; spacing 4 / 8 / 16 / 24 / 40. Corners: sheet 26, card 16, button 14, field 12, chip 10. Buttons that are only an icon are round.
 - Tap targets at least 44px. Respect reduce-motion (stop all motion) and nothing flashes.
 - Voice: comforting at hard moments (worries, reflection, repeats), brief and steady everywhere else.
