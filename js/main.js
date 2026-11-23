@@ -345,7 +345,7 @@ library.finishUnshare();
 // shows without waiting for the next time home redraws (alex 2026-11-21: "it's not showing").
 const acctReady = account.refresh().then(() => { const u = account.user(); if (u && ((u.early && !(store.get().levels || {}).early) || (u.test && !levels.isOpen("months")))) render(); }).catch(() => {});
 
-// Opening Daydeck (alex 2026-11-21, "like other social apps"): a fresh open shows the sun on a blank sky (the splash
+// Opening Daydeck (alex 2026-11-21, "like other social apps"): a fresh open shows the logo on a blank sky (the splash
 // in index.html) while home gets ready behind it, then the splash fades and home rises in. It stays at least a moment,
 // so it never just flickers, and at most about 1.5 seconds, so a slow or missing connection never holds it up.
 const splash = document.getElementById("splash");
