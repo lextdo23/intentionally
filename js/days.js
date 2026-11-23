@@ -2,6 +2,7 @@
 // Slides in from the right like iPhone Settings; "‹ Today" or a swipe in from the left edge goes back.
 import { h, MOODS, CHART_COL as MOOD_COL, moodWord, dayKey, addDays, dayTitle, clock12, hoursWords, sleepMins, smoothPath, reduceMotion, LIFELINE, keyDate, MONTH } from "./util.js";
 import { weeksSection } from "./wrapped.js";
+import { doctorButton } from "./doctor.js";
 import * as store from "./store.js";
 import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, helps, goodCount, moodActivities, lifts, whenWords, KIND_WORD, FELT_KIND } from "./stats.js";
 import { RESTED } from "./words.js";
@@ -75,7 +76,7 @@ function render() {
   el.replaceChildren(h("div.bg"), h("div.scroll", null, h("div.page", null,
     h("div.page-head", null, roundBtn("back", "Back to today", () => closeDays()), h("button.btn-pill", { onclick: arrange }, "Edit")),
     h("h1.big-title", null, "Your days"),
-    h("div.sections", null, fullOrder(s.order).map((k) => ({ A: secMoods, B: secSleep, C: secActs, D: secHelps, E: secLifts }[k])(s)), weeksSection()),
+    h("div.sections", null, fullOrder(s.order).map((k) => ({ A: secMoods, B: secSleep, C: secActs, D: secHelps, E: secLifts }[k])(s)), weeksSection(), doctorButton()),
     LIFELINE())));
   const edge = h("div.edge", { "aria-hidden": "true" }); el.append(edge); edgeSwipe(edge);
 }
