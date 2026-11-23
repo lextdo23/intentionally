@@ -29,6 +29,8 @@ export function connect({ dot, you, go }) { if (dot) dotFn = dot; if (you) redra
 // Ready to share: signed in, ticked 18+, and at least one friend to share with.
 export const canShare = () => !!(account.signedIn() && data && data.me.adult && data.friends.length);
 // After sharing or removing a moment: fresh feed and grids, and show Friends.
+// Shared from somewhere that isn't the Friends tab (the weekly recap): the lists refresh next time, nothing moves.
+export function sharedQuietly() { mine = null; moments.resetFeed(); }
 export async function afterShare() { mine = null; moments.resetFeed(); goTab("friends"); await moments.loadFeed(); again(); }
 
 // Everything the Friends screen needs, from the service. Quietly does nothing without an account.

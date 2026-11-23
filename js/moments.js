@@ -80,10 +80,43 @@ async function photoData(k) {
   return null;
 }
 export function tile(m, { big = false } = {}) {
+  if (m.kind === "week") return h(`div.mo-tile.photo.week${big ? ".big" : ""}`, null, photoImg(m, big ? "full" : "thumb"));
   if (m.kind === "photo") return h(`div.mo-tile.photo${big ? ".big" : ""}`, null, photoImg(m, big ? "full" : "thumb"));
   const dot = m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null;
   if (m.kind === "rest") return h(`div.mo-tile.rest${big ? ".big" : ""}`, null, h("span.mo-moon", null, moon()), h("span.mo-text", null, "Rested"));
   return h(`div.mo-tile${big ? ".big" : ""}`, null, dot, h("span.mo-text", null, m.text), big && m.status ? h("span.mo-status", null, m.status) : null);
+}
+
+// ---------------- Share your week (alex 2026-11-23) ----------------
+// "Share to profile" on the weekly recap's share slide: the week's card goes to friends as a picture, exactly as shown
+// (moods and photos only if those switches are on). canvas is the card drawn at 720 wide. Sharing the same week
+// again updates it. Returns true once shared.
+export async function shareWeek(w, canvas, { moods = true } = {}) {
+  if (!account.signedIn()) { friends.note("Sharing to your profile needs an account. You can sign up in Settings."); return false; }
+  const d = friends.loaded() || await friends.load();
+  if (!d) { friends.note(friends.say({ error: "offline" })); return false; }
+  if (!d.me.adult) { friends.note("Open Friends first to finish setting it up, then share your week."); return false; }
+  const photo = await canvasData(canvas);
+  if (!photo) { friends.note("Your week's card couldn't be shared. Try again in a moment."); return false; }
+  const r = await account.call("/a/f/share", { day: w, item: "week", kind: "week", text: "", pillar: "", status: "", cap: "", photo });
+  if (!r.ok) { friends.note(friends.say(r)); return false; }
+  log("share", { kind: "week", ago: 0, mood: moods ? 1 : 0, cap: 0, again: r.again ? 1 : 0, from: "recap" });
+  friends.sharedQuietly();
+  friends.note(r.again ? "Updated on your profile." : "Shared to your profile. Your friends will see it.");
+  return true;
+}
+// A drawn picture as a small clean JPEG (under the service's limit), nothing but the picture.
+async function canvasData(src) {
+  for (const [w, q] of [[720, 0.82], [720, 0.7], [600, 0.7], [480, 0.66]]) {
+    const c = document.createElement("canvas"); c.width = w; c.height = Math.round(w * src.height / src.width);
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    const b = await new Promise((res) => c.toBlob(res, "image/jpeg", q));
+    const clean = b && await photos.clean(b);
+    if (!clean) continue;
+    const url = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(clean); });
+    if (url && url.length < 440000) return url;
+  }
+  return null;
 }
 
 // ---------------- Share a moment ----------------
@@ -241,7 +274,7 @@ export function feedList(list, { onChange, onPerson } = {}) {
 // ---------------- A profile's grid, and the feed it opens ----------------
 export function grid(list, owner) {
   if (!list.length) return null;
-  return h("div.mo-grid", { role: "list" }, list.map((m, i) => h("button.mo-cell", { type: "button", role: "listitem", "aria-label": `${m.kind === "rest" ? "Rested" : m.text}, ${longDay(m.day)}`, onclick: () => openScroll(list, i, owner) }, tile(m))));
+  return h("div.mo-grid", { role: "list" }, list.map((m, i) => h("button.mo-cell", { type: "button", role: "listitem", "aria-label": `${m.kind === "rest" ? "Rested" : m.kind === "week" ? "Week of" : m.text}, ${longDay(m.day)}`, onclick: () => openScroll(list, i, owner) }, tile(m))));
 }
 function openScroll(list, i, owner) {
   log("grid_open", 1);

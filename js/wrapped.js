@@ -11,6 +11,9 @@ import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
 import * as photos from "./photos.js";
 import { easier } from "./stats.js";
+import * as moments from "./moments.js";
+import * as account from "./account.js";
+import * as levels from "./levels.js";
 
 // ---------------- small helpers ----------------
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
@@ -760,31 +763,41 @@ function scrPoster(ctx, j) {
   el.append(h("div.wr-ab.wr-pic6fullbox.wr-fadein6", null, v), ...chrome(ctx, j, 0), teaser(ctx, j, 1.6) || "");
   return { el };
 }
-// 7 · share it: the picture exactly as it will be shared, with the moods and photos switches, Share and Done.
+// 7 · share it: the picture exactly as it will be shared, the moods and photos switches, Share, Share to profile and
+// Done (alex 2026-11-23). The photos switch is always there; with no photos that week it's off and greyed, and says so.
+// Share to profile only once Friends is open and there's an account: it puts the week's card on your profile.
 function scrShare(ctx, j) {
   const P = posterData(ctx.D);
-  const el = h("section.wr-scr");
-  let moods = true, withPics = false, pics = null;
+  const el = h("section.wr-scr.wr-share");
+  let moods = true, withPics = false, pics = null, shared = false;
   // Photos on the shared card only if the person turns it on (alex 2026-11-18): they're private by default.
   const hasPics = (P.days || []).some((k) => photos.has(k));
-  const box = ab(`.wr-pic6box.wr-flipin${hasPics ? ".two" : ""}`, "--d:.2s", posterView(P, true));
-  const redraw = () => box.replaceChildren(posterView(P, moods, withPics ? pics : null));
+  const box = ab(".wr-pic6box.wr-flipin", "--d:.2s", posterView(P, true));
+  const redraw = () => { box.replaceChildren(posterView(P, moods, withPics ? pics : null)); if (shared) { shared = false; toProfile && (toProfile.textContent = "Update on your profile"); } };
   const sw = h("button.switch", { role: "switch", "aria-checked": "true", "aria-label": "Show moods when sharing" });
-  const row = h(`div.wr-ab.wr-sw.wr-rise${hasPics ? ".two" : ""}`, { style: "--d:1.2s" }, h("span", null, "Show moods when sharing"), sw);
+  const row = h("div.wr-ab.wr-sw.wr-rise", { style: "top:596px;--d:1.2s" }, h("span", null, "Show moods when sharing"), sw);
   row.addEventListener("click", (e) => { e.stopPropagation(); moods = !moods; sw.setAttribute("aria-checked", String(moods)); redraw(); log("wrap_moods", moods ? "on" : "off"); });
-  let row2 = null;
-  if (hasPics) {
-    const sw2 = h("button.switch", { role: "switch", "aria-checked": "false", "aria-label": "Show photos when sharing" });
-    row2 = h("div.wr-ab.wr-sw.wr-sw2.wr-rise", { style: "--d:1.3s" }, h("span", null, "Show photos when sharing"), sw2);
-    row2.addEventListener("click", async (e) => {
-      e.stopPropagation(); withPics = !withPics; sw2.setAttribute("aria-checked", String(withPics));
-      if (withPics && !pics) pics = await weekPics(P.days);
-      redraw(); log("wrap_photos", withPics ? "on" : "off");
-    });
-  }
-  const share = h("button.btn-main.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:736px;--d:1.4s", onclick: (e) => { e.stopPropagation(); sharePoster(P, moods, withPics ? pics : null); } }, "Share");
-  const done = h("button.btn-text.wr-ab.wr-rise", { style: "left:0;right:0;top:796px;--d:1.6s", onclick: (e) => { e.stopPropagation(); ctx.close(); } }, "Done");
-  el.append(...chrome(ctx, j, 0), box, row, row2 || "", share, done);
+  const sw2 = h("button.switch", { role: "switch", "aria-checked": "false", "aria-label": "Show photos when sharing", disabled: hasPics ? null : true });
+  const row2 = h(`div.wr-ab.wr-sw.wr-rise${hasPics ? "" : ".off"}`, { style: "top:644px;--d:1.3s" },
+    h("span.wr-sw-words", null, h("span", null, "Show photos when sharing"), hasPics ? null : h("small", null, "No photos this week")), sw2);
+  row2.addEventListener("click", async (e) => {
+    e.stopPropagation(); if (!hasPics) return;
+    withPics = !withPics; sw2.setAttribute("aria-checked", String(withPics));
+    if (withPics && !pics) pics = await weekPics(P.days);
+    redraw(); log("wrap_photos", withPics ? "on" : "off");
+  });
+  const canProfile = account.signedIn() && levels.isOpen("friends");
+  const share = h("button.btn-main.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:712px;--d:1.4s", onclick: (e) => { e.stopPropagation(); sharePoster(P, moods, withPics ? pics : null); } }, "Share");
+  const toProfile = canProfile ? h("button.btn-main.soft.wr-ab.wr-rise", { style: "left:24px;right:24px;width:auto;top:776px;--d:1.5s" }, "Share to profile") : null;
+  if (toProfile) toProfile.addEventListener("click", async (e) => {
+    e.stopPropagation(); if (toProfile.classList.contains("busy")) return;
+    toProfile.classList.add("busy");
+    const ok = await moments.shareWeek(P.w, posterCanvas(P, moods, 720, withPics ? pics : null), { moods });
+    toProfile.classList.remove("busy");
+    if (ok) { shared = true; toProfile.textContent = "Shared to your profile"; }
+  });
+  const done = h("button.btn-text.wr-ab.wr-rise", { style: `left:0;right:0;top:${canProfile ? 840 : 776}px;--d:1.6s`, onclick: (e) => { e.stopPropagation(); ctx.close(); } }, "Done");
+  el.append(...chrome(ctx, j, 0), box, row, row2, share, toProfile || "", done);
   return { el, canNext: () => false };
 }
 
