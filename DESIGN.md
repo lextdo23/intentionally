@@ -16,7 +16,8 @@ Today (home) is the reference screen: when unsure, match it.
    - one line that needs to catch the eye (the recap line on Today);
    - the logo;
    - a short moment worth noticing ("Level 4.");
-   - the check-in sun: its glow, and on Last night the sun and the bar between the moon and sun (alex 2026-11-24).
+   - the check-in sun: its glow, and on Last night the sun and the bar between the moon and sun (alex 2026-11-24);
+   - the outline on the card you pick from the three, and the light behind today's card (rule 37) (alex 2026-11-24).
 
    Anything else that's marigold is a mistake. Only one marigold *button* on a screen.
 4. **White (ink) shows plain facts:** the level row, numbers, counts.
@@ -27,7 +28,7 @@ Today (home) is the reference screen: when unsure, match it.
 
 ## 2. Light and glow
 
-9. **No glow anywhere** except the sun in check-ins, which still tints with how the day felt. No coloured box-shadows, no drop-shadow halos, no breathing rims.
+9. **No glow anywhere** except two: the sun in check-ins and the card draw (the morning and evening flow; it tints with how the day felt), and the light behind today's card while it waits (rule 37). No other coloured shadows, halos or breathing rims.
 10. **Shadows are plain dark shadows,** only to lift something off the page (a card, the pill, a sheet).
 11. **A finished card gets one shine that sweeps across,** never a glow.
 
@@ -39,6 +40,7 @@ Today (home) is the reference screen: when unsure, match it.
 15. **Corners:** sheet 26, card 16, button 14, field 12, chip 10. Nothing else unless it's a full circle.
 16. **Spacing comes from 4 / 8 / 16 / 24 / 40,** with one 20-point left edge on every screen.
 36. **Sheets that pull up are near-black** (`#141416`, the card face), with a fine light line along the top edge, over the screen dimmed to 62% black (alex 2026-11-24). Small pop-up menus are neutral dark `#1c1c1e` with the same edge. No blue-grey surfaces anywhere. Never glass: a sheet must look the same whatever is behind it.
+37. **The light behind today's card** (alex 2026-11-24, "eclipse corona"): warm light from behind the card, like the sun behind the eclipse in the logo. It only shows while the card waits to be done (face down or face up), and fades as the card goes quiet once it's done. It never pulses on its own: it moves with the card's sway (the edge turning towards the light catches more) and turns with the card when you spin it. Where it comes from follows the day: pale gold from the left in the morning, marigold from above at midday, a deeper orange from the right in the evening. It must stay perfectly smooth: only its layer slides, nothing is redrawn while it moves.
 
 ## 4. Type
 
@@ -48,7 +50,7 @@ Today (home) is the reference screen: when unsure, match it.
 
 ## 5. The Daydeck card
 
-20. **The back is the marigold slab:** solid marigold, the eclipse cut into it in black, the day's date in its corner. The face stays dark and flat.
+20. **The back is the marigold slab:** solid marigold, the eclipse cut into it in black, the day's date in its corner. The face stays dark and flat, with a fine white edge (never gold).
 21. **Card looks (Chrome and others) bring their own material.** The screen around the card stays plain black, so any look can be the hero.
 22. **The card sways gently** (5 degrees, slow). It's never static and never bouncy.
 
@@ -97,8 +99,8 @@ For each screen, in order:
 | Today (home) | Done 2026-11-23 | |
 | Morning check-in | Done 2026-11-24 | |
 | Evening check-in (and Going to sleep) | Done 2026-11-24 | |
-| Card draw, rating and "How did doing it feel?" | To do | Card face rim is gold (5) |
-| Make your own card | To do | "Made by you" words in gold (5) |
+| Card draw, rating and "How did doing it feel?" | Done 2026-11-24 | |
+| Make your own card | To do | "Made by you" words in gold (5); + and button now white (done with check-ins) |
 | Level-up moment and level path | To do | Level numbers, bar and steps in gold (4, 5) |
 | Tips | To do | Tip outline is gold (5); tip box is old charcoal (36) |
 | Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5) |

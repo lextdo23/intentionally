@@ -145,7 +145,7 @@
 .wr-home { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 15px; color: var(--ink2); text-align: left; }
 .wr-home i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .wr-home .chev { color: var(--dim); }
-.wr-home.ready { color: var(--gold); font-weight: 600; } .wr-home.ready .chev { color: var(--gold); }
+.wr-home.ready { color: var(--sun); font-weight: 600; } .wr-home.ready .chev { color: var(--sun); }
 .wr-from { font-size: 13px; font-weight: 600; color: var(--dim); margin-top: 8px; }
 .wr-sheet-sub { font-size: 15px; color: var(--ink2); }
 .wr-sheet-btn { min-height: 52px; border-radius: 14px; font-size: 17px; }

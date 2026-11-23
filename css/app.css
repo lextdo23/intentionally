@@ -91,7 +91,9 @@ h1, h2, p { margin: 0; }
 .btn-text { min-height: 44px; min-width: 44px; padding: 0 4px; color: var(--ink); font-size: 17px; }
 /* Small helpers: round see-through icon buttons, and soft pills when words are needed. Never gold. */
 .round { width: 44px; height: 44px; flex-shrink: 0; border-radius: 22px; background: rgba(239, 237, 233, .12); color: var(--ink); display: flex; align-items: center; justify-content: center; }
-.btn-pill { min-height: 44px; padding: 0 16px; border-radius: 22px; background: rgba(239, 237, 233, .12); font-size: 15px; font-weight: 500; }
+.btn-pill { min-height: 44px; padding: 0 16px; border-radius: 22px; background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .28), 0 6px 16px rgba(0, 0, 0, .35); font-size: 15px; font-weight: 500; transition: transform .15s ease, filter .15s ease; }
+.btn-pill:active { transform: scale(.96); filter: brightness(1.25); }
+@media (prefers-reduced-motion: reduce) { .btn-pill:active { transform: none; } }
 /* Slide the sun across to end your day. */
 .slide { position: relative; height: 60px; border-radius: 30px; background: rgba(239, 237, 233, .10); display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
 .slide-words { padding-left: 44px; font-size: 17px; color: var(--ink2); pointer-events: none; }
@@ -336,11 +338,9 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .dcard .back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
 .dcard .back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 .dcard.big .back, .home-card .back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
-/* Face "Sunlit" (alex 2026-11-13): warm light falls on the top edge from the sun, with a fine gold rim. */
+/* The face: dark card stock with a fine white edge (new look, alex 2026-11-24); the warm light lives behind the card (.glow). */
 .dcard .front { transform: rotateY(180deg); padding: 8px; display: flex; flex-direction: column; gap: 4px;
-  background: linear-gradient(180deg, #1e1e21 0%, #151517 100%);
-  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 14px 30px rgba(0, 0, 0, .5); }
-.dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
+  background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); }
 .ctag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--ink2); }
 .ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .dcard .task { font-size: 15px; font-weight: 600; line-height: 1.25; }
@@ -366,7 +366,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .dcard.big .front > * { flex-shrink: 0; }
 .dcard.big .ctag { font-size: 12px; }
 .dcard.big .task { font-size: 24px; }
-.dcard.big .again { font-size: 12px; color: var(--gold); }
+.dcard.big .again { font-size: 12px; color: var(--ink2); }
 .dcard.big .why { margin-top: auto; font-size: 11px; line-height: 1.4; color: #7a766f; max-width: 88%; }
 .dcard.big .src { font-size: 11px; color: #615e59; margin-top: -8px; }
 .dcard.big .size { margin-top: 0; font-size: 12px; }
@@ -395,7 +395,6 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 /* Done: the card stays face up and steps back; a circle in its pillar's colour fills with a tick. */
 .home-card.did .task { color: #8d8981; }
 .home-card.did .ctag, .home-card.did .size { color: #77746e; }
-.home-card.did .front { box-shadow: 0 0 0 1px rgb(227 196 134 / .18), 0 14px 30px rgba(0, 0, 0, .5); }
 /* Why it helps, on the card's face (alex 2026-11-17, B1): the why line with the study at its end, one quiet pale grey
    block low on the card, empty space above it. Always 11pt on the phone, whatever the card's zoom. */
 .home-card.info .task { font-size: 14px; }
@@ -989,3 +988,23 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .pill { transition: background .2s, color .2s, opacity .2s, transform .15s ease, filter .15s ease; }
 .time:active, .plus:active, .night-btn:active .night-ico, .pill:active, .more-wrap.open .pill:active { transform: scale(.96); filter: brightness(1.25); }
 @media (prefers-reduced-motion: reduce) { .time:active, .plus:active, .night-btn:active .night-ico, .pill:active, .more-wrap.open .pill:active { transform: none; } }
+
+/* The light behind today's card (alex 2026-11-24, "eclipse corona"): warm light from behind, like the sun behind the
+   eclipse in the logo. It sits between the card's faces (js/draw.js), so it sways and turns with the card. Only the
+   layer slides (no repainting), so it stays smooth. It moves with the sway: the edge turning towards the light catches
+   more. --cx/--cy (where the light comes from) and --cc (its colour) follow the time of day. Only while the card waits. */
+.home-card .glow { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity 1.4s ease;
+  --cx: .3; --cy: -1; --cc: 255 165 31;
+  box-shadow: 0 0 0 1px rgb(var(--cc) / .28), calc(var(--cx) * 5px) calc(var(--cy) * 4px) 11px -4px rgb(var(--cc) / .85), calc(var(--cx) * 11px) calc(var(--cy) * 9px) 28px -10px rgb(var(--cc) / .55), 0 14px 30px rgba(0, 0, 0, .5);
+  transform: translateZ(0); will-change: transform, opacity; animation: corona 11s ease-in-out infinite; }
+.home-card.todo .glow { opacity: 1; }
+/* While the light shows, the card's dark shadow comes from the light layer, underneath the warm light (the faces' own
+   shadows would sit on top of it and dim it). */
+.home-card.todo .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08); }
+.home-card.todo .back, .home-card.todo.blank .front { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+@keyframes corona { 0%, 100% { transform: translateZ(0) translate(0, 0) scale(1); } 50% { transform: translateZ(0) translate(calc(var(--cx) * -3px), calc(var(--cy) * -2px)) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .home-card .glow { animation: none; transition: none; } }
+/* Card draw (alex 2026-11-24): card faces have a fine white edge, not gold; the picked card keeps its marigold outline. */
+.dcard .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
+.dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
+.home-card.did .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }

@@ -235,15 +235,7 @@ function big(st, id, { own = false } = {}) {
         const from = id, to = deck.smaller(id, st.ids); if (!to) return;
         id = to; st.ids[st.pick] = to; d.card.smaller = from; store.save(); log("card_smaller", { from, to });
         swap();
-      } }, "Make it smaller") : null,
-      h("button.btn-pill", { onclick: () => {
-        deck.save(id); log("card_save", deck.tid(id));
-        // A fresh card takes its place in the hand, face down.
-        const nu = deck.draw3(d.card.hands.flat().concat(st.ids, deck.mem().saved), k).find((x) => !st.ids.includes(x));
-        if (nu) { st.ids[st.pick] = nu; d.card.hands[d.card.hands.length - 1] = st.ids.slice(); deck.shown([nu], k); }
-        st.up[st.pick] = false; st.pick = null; store.save();
-        hand(st, false);
-      } }, "Save for later")].filter(Boolean));
+      } }, "Make it smaller") : null].filter(Boolean));
   };
   const swap = () => {
     if (reduceMotion()) { fill(face, id, true); draw(); return; }
@@ -326,6 +318,12 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   // A gilded edge (alex 2026-11-23, option B): thin gold layers between the two faces, so turning it shows a thickness.
   const inn = el.querySelector(".in");
   for (let i = 0; i < EDGE_LAYERS; i++) inn.prepend(h("div.edge", { "aria-hidden": "true", style: { transform: `translateZ(${(-EDGE / 2 + (EDGE * i) / (EDGE_LAYERS - 1)).toFixed(2)}px)` } }));
+  // The light behind the card (alex 2026-11-24, "eclipse corona"): warm light from behind, like the sun behind the
+  // eclipse in the logo. It lives between the faces, so it sways and turns with the card; it's only there while the
+  // card waits to be done, then fades as the card goes quiet. Where it comes from follows the day (sunlight).
+  const glow = h("div.glow", { "aria-hidden": "true" });
+  inn.prepend(glow);
+  sunlight(el);
   if (state === "up" || state === "done") el.classList.add("up");
   const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
   // Done (alex 2026-11-15, "fill the circle, step back"): the card stays face up, a small circle in its pillar's colour
@@ -361,9 +359,10 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   // Keep the float and sway going smoothly when home redraws (no jump back to the start).
   const t = performance.now() - T0;
   el.style.animationDelay = `${-(t % 11000)}ms`;
+  glow.style.animationDelay = el.style.animationDelay;   // the light moves exactly with the sway
   // It turns with your finger (alex 2026-11-15); no spinning on its own (alex 2026-11-18). A face-down card shows its back both ways.
   if (state === "down") el.classList.add("blank");
-  // Until today's card is done, a soft gold edge breathes with the sun (alex 2026-11-16, option 3B).
+  // Until today's card is done, the light behind it shows (alex 2026-11-24).
   if (state === "up" || state === "down") el.classList.add("todo");
   if (state !== "skip") spinner(el, state === "down" || pic ? 0 : 180, pic && (develop || turn) ? 180 : null);
   // A long task or why line: the card grows taller to fit, so nothing is cut off.
@@ -372,6 +371,17 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
     if (f.clientHeight && f.scrollHeight > f.clientHeight + 1) el.style.height = `${Math.ceil(210 * f.scrollHeight / f.clientHeight)}px`;
   });
   return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
+}
+// Where the light behind the card comes from, through the day (alex 2026-11-24): pale gold from the left in the
+// morning, marigold from above at midday, a deeper orange from the right in the evening. Smooth, never in steps.
+function sunlight(el) {
+  const d = new Date(now()), hr = d.getHours() + d.getMinutes() / 60;
+  const p = Math.min(1, Math.max(0, (hr - 6) / 15));
+  const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+  const col = p < 0.5 ? mix([255, 190, 80], [255, 165, 31], p * 2) : mix([255, 165, 31], [255, 115, 35], (p - 0.5) * 2);
+  el.style.setProperty("--cx", (-Math.cos(Math.PI * p)).toFixed(3));
+  el.style.setProperty("--cy", (-(0.4 + 0.6 * Math.sin(Math.PI * p))).toFixed(3));
+  el.style.setProperty("--cc", col.join(" "));
 }
 // Drag sideways and the card turns with your finger; let go and it carries on, slowing to rest face up again.
 // It never turns on its own (alex 2026-11-18).
@@ -447,8 +457,15 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const ask = h("div.did-ask", { role: "group", "aria-label": "How did doing it feel?" }, h("p.did-q", null, "How did doing it feel?"), pp.el, upPill, ok, later);
 
   // The card shrinks to half, its top 20px higher; the question sits 20px under it.
-  const m = mid.getBoundingClientRect(), l = lifter.getBoundingClientRect();
-  const top = l.top - m.top - 20 + l.height * 0.5 + 20;
+  // Measured where things sit at rest (offsets ignore movement), so a tap while home is still rising in after a draw
+  // doesn't put the question on top of the card (alex 2026-11-24).
+  // A moment line above ("Your card for today.") goes now, not a second later: when it went mid-question, the space
+  // above closed and the question slid up onto the card.
+  const moment = mid.parentElement && mid.parentElement.querySelector(".greet-words.moment");
+  if (moment) moment.classList.remove("moment");
+  const m = mid.getBoundingClientRect();
+  let lt = 0; for (let e = lifter; e && e !== mid; e = e.offsetParent) lt += e.offsetTop;
+  const top = lt - 20 + lifter.offsetHeight * 0.5 + 20;
   ask.style.top = `${top}px`;
   mid.append(ask);
   const wrap = pp.el.querySelector(".more-wrap");
