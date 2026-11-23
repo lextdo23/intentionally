@@ -18,11 +18,12 @@ Today (home) is the reference screen: when unsure, match it.
    - a short moment worth noticing ("Level 4.");
    - the check-in sun: its glow, and on Last night the sun and the bar between the moon and sun (alex 2026-11-24);
    - the outline on the card you pick from the three, and the light behind today's card (rule 37) (alex 2026-11-24);
-   - a switch that's on (alex 2026-11-24), except on the social screens (rule 7).
+   - a switch that's on (alex 2026-11-24), except on the social screens (rule 7);
+   - the patterns picked out in Your days ("8 hours or more", the 8h+ band) (alex 2026-11-24).
 
    Anything else that's marigold is a mistake. Only one marigold *button* on a screen.
 4. **White (ink) shows plain facts:** the level row and level path, numbers, counts, "boxes are waiting".
-5. **Gold `#e3c486` means only "Got it done"** (one of the three ways an activity felt, next to green "Lifted you" and blue "Took a lot"). Gold used for anything else is left over from the old look: headings, links, the level-up page, the tip outline, the focus outline, card rims, "made by you" words. Each one becomes ink or marigold, whichever job it's doing.
+5. **Gold `#e3c486` means "Got it done"**, and the note under a pillar in Mood and activities where how it felt and how the day went disagree (alex kept it, 2026-11-24) (one of the three ways an activity felt, next to green "Lifted you" and blue "Took a lot"). Gold used for anything else is left over from the old look: headings, links, the level-up page, the tip outline, the focus outline, card rims, "made by you" words. Each one becomes ink or marigold, whichever job it's doing.
 6. **Pillar tints stay** (`#d9b3a6 #cfc59b #a9c4b5 #a9b9d6 #c4b4c9`), used only for pillar dots and tags. Mood colours stay as they are (`CHART_COL` on dark, `MOOD_COL` on the light recap cards).
 7. **Social screens** (Friends, You, profiles, sharing): no marigold or sun at all. Main buttons are off-white with dark text. Colour comes only from pillar dots, photos and profile pictures.
 8. **Colour never works alone.** Anything a colour means is also said in words.
@@ -106,14 +107,14 @@ For each screen, in order:
 | Make your own card | Done 2026-11-24 | |
 | Level-up moment and level path | Done 2026-11-24 | |
 | Tips | Done 2026-11-24 | |
-| Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5); Day before / Day after are flat soft buttons (12) |
-| Share with your doctor (sheet only; the PDF stays as it is) | To do | |
+| Your days (charts, What lifts you, What seems to help you) | Done 2026-11-24 | |
+| Share with your doctor (sheet only; the PDF stays as it is) | Done 2026-11-24 | |
 | Crumbs sheet | To do | |
 | Weekly recap | To do | Mini cards in old charcoal with gold edges (5) |
-| Your photos | To do | Bottom bar is old charcoal (36); camera background tinted (1); Retake / Pick a photo are flat soft buttons (12) |
+| Your photos | To do | Bottom bar is old charcoal (36); camera background tinted (1) |
 | Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |
 | Settings | To do | |
-| Sign-up and Your account | To do | Take photo / Choose photo are flat soft buttons (12) |
+| Sign-up and Your account | To do | |
 | Choosing pillars (first day) | To do | |
 | Sorting thoughts and the sky | To do | |
 | Friends, You, profiles, sharing, reports | To do | |

@@ -87,7 +87,7 @@ h1, h2, p { margin: 0; }
 /* ---------- Buttons ---------- */
 .btn-main { min-height: 52px; border-radius: 26px; background: var(--sun); color: var(--on-sun); font-size: 17px; font-weight: 600; width: 100%; transition: background .3s, color .3s; }
 .btn-main[aria-disabled="true"] { background: rgba(239, 237, 233, .08); color: var(--faint); }
-.btn-soft { min-height: 44px; padding: 0 16px; border-radius: 22px; background: rgba(239, 237, 233, .12); font-size: 15px; font-weight: 500; }
+.btn-soft { min-height: 44px; padding: 0 16px; border-radius: 22px; background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .28), 0 6px 16px rgba(0, 0, 0, .35); font-size: 15px; font-weight: 500; }   /* standalone, so glass (rule 12) */
 .btn-text { min-height: 44px; min-width: 44px; padding: 0 4px; color: var(--ink); font-size: 17px; }
 /* Small helpers: round see-through icon buttons, and soft pills when words are needed. Never gold. */
 .round { width: 44px; height: 44px; flex-shrink: 0; border-radius: 22px; background: rgba(239, 237, 233, .12); color: var(--ink); display: flex; align-items: center; justify-content: center; }
@@ -221,8 +221,8 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .lifts-row { display: flex; gap: 12px; margin: 0 -16px; padding: 4px 16px 14px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none; }
 .lifts-row::-webkit-scrollbar { display: none; }
 .lifts-card { flex: none; width: 168px; height: 236px; padding: 16px; border-radius: 16px; display: flex; flex-direction: column; scroll-snap-align: start;
-  background: radial-gradient(130% 60% at 50% -10%, rgb(255 165 31 / .22), rgb(255 165 31 / .05) 55%, transparent 78%), linear-gradient(175deg, #303137, #1b1c20);
-  box-shadow: 0 0 0 1px rgb(227 196 134 / .22), 0 14px 30px rgba(0, 0, 0, .5); }
+  background: linear-gradient(180deg, #1e1e21 0%, #151517 100%);   /* the same dark face as a deck card (new look) */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 .lifts-p { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
 .lifts-p i { width: 10px; height: 10px; border-radius: 3px; }
 .lifts-t { margin-top: 16px; flex-grow: 1; font-size: 20px; font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; align-self: stretch; }
@@ -234,7 +234,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .slp .lead { min-height: 23px; }
 .slp .lead b { color: var(--sun); font-weight: 600; }
 .slp .more { margin-top: -6px; font-size: 13px; line-height: 1.4; color: var(--dim); }
-.slp .more button { color: var(--gold); font-weight: 600; font-size: 13px; padding: 0; min-height: 0; }
+.slp .more button { color: var(--ink); font-weight: 600; font-size: 13px; padding: 0; min-height: 0; }
 .slp .read { min-height: 48px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; line-height: 1.4; color: var(--faint); }
 .slp .read.first { color: var(--ink2); }
 .slp .read button { min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 14px; border-radius: 12px; background: rgba(239, 237, 233, .07); font-size: 15px; color: var(--ink); }
@@ -253,9 +253,6 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .slp-touch { position: absolute; left: 0; right: 0; top: 20px; height: 176px; touch-action: pan-y; }
 .slp-tick { position: absolute; top: 200px; width: 44px; margin-left: -22px; text-align: center; font-size: 11px; color: var(--faint); white-space: nowrap; }
 .slp-tick.in { color: var(--sun); font-weight: 600; }
-.slp-key { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; color: var(--faint); }
-.slp-key i { width: 10px; height: 10px; border-radius: 5px; }
-.slp-key span:first-child { color: var(--dim); margin-right: 4px; }
 .slp-note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: rgba(239, 237, 233, .05); font-size: 13px; line-height: 1.4; color: var(--ink2); }
 .slp-note svg { flex-shrink: 0; margin-top: 1px; }
 .slp-note b { color: #7ab57a; font-weight: 600; }
@@ -266,7 +263,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .prow .c { width: 64px; text-align: right; font-size: 13px; color: var(--ink2); }
 .help { display: flex; flex-direction: column; gap: 8px; padding: 12px 0 4px; border-bottom: 1px solid rgba(239, 237, 233, .06); }
 .help:last-child { border-bottom: 0; }
-.tag-gold { align-self: flex-start; font-size: 12px; color: var(--gold); }
+.tag-gold { align-self: flex-start; font-size: 12px; color: var(--dim); }   /* "From research": a quiet label (gold only means Got it done) */
 .arrange-row { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 4px 0 16px; border-radius: 16px; background: var(--fill2);
   user-select: none; -webkit-user-select: none; transition: transform .2s ease; }
 .arrange-row.drag { background: rgba(239, 237, 233, .16); box-shadow: 0 8px 24px rgba(0, 0, 0, .4); transition: none; position: relative; z-index: 2; }
@@ -920,8 +917,8 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .fr-guide { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; color: var(--ink2); }
 
 /* Share with your doctor (js/doctor.js): the button at the bottom of Your days, and its sheet. */
-.doc-btn { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(239, 237, 233, .12); text-align: left; color: var(--ink); width: 100%; }
-.doc-btn:active { background: var(--fill2); }
+.doc-btn { display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 14px 16px; border-radius: 16px; border: 0; background: rgba(255, 255, 255, .07); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .28), 0 6px 16px rgba(0, 0, 0, .35); text-align: left; color: var(--ink); width: 100%; transition: transform .15s ease, filter .15s ease; }
+.doc-btn:active { transform: scale(.98); filter: brightness(1.25); }
 .doc-ic { flex: none; width: 40px; height: 40px; border-radius: 50%; background: rgba(239, 237, 233, .08); display: flex; align-items: center; justify-content: center; }
 .doc-ic svg { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .doc-col { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -933,7 +930,7 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .doc-group .doc-row + .doc-row { border-top: 1px solid rgba(239, 237, 233, .06); }
 .doc-set { display: flex; flex-direction: column; gap: 8px; }
 .doc-label { font-size: 13px; color: var(--dim); padding-left: 4px; }
-.doc-date { flex: none; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 0; background: rgba(239, 237, 233, .06); color: var(--gold, #e3c486); font: inherit; font-size: 17px; color-scheme: dark; }
+.doc-date { flex: none; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 0; background: rgba(239, 237, 233, .06); color: var(--ink); font: inherit; font-size: 17px; color-scheme: dark; }
 .doc-field { box-sizing: border-box; width: 100%; min-height: 48px; padding: 12px 16px; border-radius: 12px; border: 0; background: rgba(239, 237, 233, .06); color: var(--ink); font: inherit; font-size: 17px; line-height: 1.35; resize: none; }
 .doc-why { margin: 0; font-size: 13px; line-height: 1.4; color: var(--dim); text-align: center; }
 .sheet .btn-main[aria-disabled="true"] { opacity: .4; }
