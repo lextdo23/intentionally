@@ -90,8 +90,10 @@ function secMoods(s) {
   const seg = h("div.seg", { role: "tablist" }, [["week", "Week"], ["month", "Month"], ["year", "Year"]].map(([v, l]) =>
     h("button", { role: "tab", "aria-selected": String(view === v), onclick: () => { view = v; back = 0; redraw(); log("days_view", v); } }, l)));
   // The real dates: "9 – 15 Nov", "November", "2026". Arrows step back to earlier ones and forward again.
+  // An arrow with nowhere to go is hidden by CSS (.period .round:disabled). Never set visibility: visible on it here:
+  // that beats the page being hidden, so the arrow stayed floating over home after leaving Your days (2026-11-23).
   const max = oldestBack(s.days, view), step = (d) => { back = Math.max(0, Math.min(max, back + d)); redraw(); };
-  const arrow = (d, t, on) => h("button.round", { "aria-label": d > 0 ? `Earlier ${view}` : `Later ${view}`, disabled: !on, style: { visibility: on ? "visible" : "hidden" }, onclick: () => step(d) }, t);
+  const arrow = (d, t, on) => h("button.round", { "aria-label": d > 0 ? `Earlier ${view}` : `Later ${view}`, disabled: !on, onclick: () => step(d) }, t);
   const date = h("div.period", null, arrow(1, "‹", back < max), h("span", { "aria-live": "polite" }, ser.label), arrow(-1, "›", back > 0));
   const top = mostlyWord(s.days, view, back), anyEver = Object.values(s.days).some((d) => d.mood != null);
   // A new period with nothing noted yet says so, so it never reads as lost data (alex 2026-11-16).

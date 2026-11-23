@@ -171,6 +171,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .period span { font-size: 17px; font-weight: 600; }
 .period .round { background: none; font-size: 22px; color: var(--ink2); }
 .period .round:active { background: var(--fill); }
+.period .round:disabled { visibility: hidden; }
 .headline { font-size: 22px; font-weight: 500; line-height: 1.3; padding: 8px 0 4px; }
 .sections { display: flex; flex-direction: column; gap: 24px; }
 .card { padding: 16px; border-radius: 16px; background: rgba(239, 237, 233, .04); display: flex; flex-direction: column; gap: 8px; }
