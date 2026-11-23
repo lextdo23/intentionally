@@ -104,14 +104,14 @@ For each screen, in order:
 | Make your own card | Done 2026-11-24 | |
 | Level-up moment and level path | To do | Level numbers, bar and steps in gold (4, 5) |
 | Tips | To do | Tip outline is gold (5); tip box is old charcoal (36) |
-| Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5) |
+| Your days (charts, What lifts you, What seems to help you) | To do | Some notes and "more" links in gold (5); Day before / Day after are flat soft buttons (12) |
 | Share with your doctor (sheet only; the PDF stays as it is) | To do | |
 | Crumbs sheet | To do | |
 | Weekly recap | To do | Mini cards in old charcoal with gold edges (5) |
-| Your photos | To do | Bottom bar is old charcoal (36); camera background tinted (1) |
+| Your photos | To do | Bottom bar is old charcoal (36); camera background tinted (1); Retake / Pick a photo are flat soft buttons (12) |
 | Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5) |
 | Settings | To do | |
-| Sign-up and Your account | To do | |
+| Sign-up and Your account | To do | Take photo / Choose photo are flat soft buttons (12) |
 | Choosing pillars (first day) | To do | |
 | Sorting thoughts and the sky | To do | |
 | Friends, You, profiles, sharing, reports | To do | |
