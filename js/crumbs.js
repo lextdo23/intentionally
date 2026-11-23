@@ -77,13 +77,14 @@ export function open({ k = dayKey(), t = null, onSaved } = {}) {
   const old = t != null ? ofDay(k).find((c) => c.t === t) : null;
   let f = old ? old.f : null;
   openSheet((panel, close) => {
+    panel.classList.add("crumb-sheet"); if (f != null) panel.classList.add("picked");
     const save = h("button.btn-main", { "aria-disabled": String(f == null) }, old ? "Save" : "Drop a crumb");
     const faces = [0, 1, 2, 3, 4].map((b) => h("button.crumb-pick", { "aria-pressed": String(f === b), "aria-label": FACE_WORD[b], onclick: () => pick(b) },
       face(b, 56), h("span", null, FACE_WORD[b])));
     const unsure = h("button.crumb-unsure", { "aria-pressed": String(f === NOT_SURE), onclick: () => pick(NOT_SURE) }, face(NOT_SURE, 32), h("span", null, "Not sure"));
     const pick = (b) => {
       f = b; faces.forEach((x, i) => x.setAttribute("aria-pressed", String(i === b))); unsure.setAttribute("aria-pressed", String(b === NOT_SURE));
-      save.setAttribute("aria-disabled", "false");
+      save.setAttribute("aria-disabled", "false"); panel.classList.add("picked");
     };
     const note = h("input.crumb-note", { placeholder: "What happened? Optional", "aria-label": "What happened? Optional", maxlength: "140", enterkeyhint: "done", value: old && old.n ? old.n : "" });
     note.addEventListener("keydown", (e) => { if (e.key === "Enter") note.blur(); });

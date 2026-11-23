@@ -921,13 +921,14 @@ body.has-pill:not([data-tab="today"]) #sun { opacity: 0; }
 .peek-row { align-self: flex-start; display: flex; align-items: center; gap: 8px; }
 .crumb-btn { color: var(--ink); }
 .crumb-faces { display: flex; justify-content: space-between; gap: 4px; }
-.crumb-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0; border-radius: 16px; font-size: 13px; color: var(--ink2); transition: background .2s, color .2s; }
+.crumb-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0; font-size: 13px; color: var(--ink2); transition: opacity .2s, color .2s; }
 .crumb-pick svg { transition: transform .2s var(--ease); }
-.crumb-pick[aria-pressed="true"] { background: var(--fill); color: var(--ink); }
-.crumb-pick[aria-pressed="true"] svg { transform: scale(1.08); }
-.crumb-unsure { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 12px; border-radius: 14px; background: var(--fill2); font-size: 15px; text-align: left; transition: background .2s; }
-.crumb-unsure[aria-pressed="true"] { background: var(--fill); box-shadow: inset 0 0 0 1.5px rgba(239, 237, 233, .5); }
-.crumb-pick[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px rgba(239, 237, 233, .5); }
+/* The picked face grows a little and the rest fade back: no outline (alex 2026-11-23). */
+.crumb-pick[aria-pressed="true"] { color: var(--ink); font-weight: 500; }
+.crumb-pick[aria-pressed="true"] svg { transform: scale(1.12); }
+.crumb-sheet.picked .crumb-pick[aria-pressed="false"], .crumb-sheet.picked .crumb-unsure[aria-pressed="false"] { opacity: .4; }
+.crumb-unsure { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 12px; border-radius: 14px; background: var(--fill2); font-size: 15px; text-align: left; transition: opacity .2s; }
+.crumb-unsure[aria-pressed="true"] { font-weight: 500; }
 .crumb-note { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 16px; border-radius: 12px; border: 0; background: var(--fill2); font-size: 17px; }
 .crumb-note::placeholder { color: var(--faint); }
 .crumb-row { display: flex; align-items: center; gap: 12px; min-height: 44px; width: 100%; text-align: left; font-size: 15px; }
