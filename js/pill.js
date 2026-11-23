@@ -3,6 +3,10 @@
 // tab glides the highlight across and slides that screen in. Daydeck always opens on Today. The pill hides during
 // check-ins, cards, sheets and Settings.
 //
+// Moving between tabs (alex 2026-11-23, "like other apps"): tapping a tab shows that screen straight away, with no
+// slide. Swiping sideways on a screen moves whole screens with your finger, side by side with a thin dark line
+// between them; let go past halfway (or flick) to move on, otherwise it springs back.
+//
 // It shows once Friends opens at level 4 (js/levels.js), or in test mode (main.js decides). Until then Daydeck looks
 // as it always has. Friends and your profile on You live in js/friends.js; You also holds Settings.
 import { h, reduceMotion } from "./util.js";
@@ -38,6 +42,7 @@ export function start(today) {
   document.body.append(nav);
   document.body.classList.add("has-pill");
   follow();
+  swipe();
   screens.friends = h("section", { id: "friends", class: "tab-screen", "aria-label": "Friends" });
   screens.you = h("section", { id: "you", class: "tab-screen", "aria-label": "You" });
   document.body.append(screens.friends, screens.you);
@@ -108,11 +113,94 @@ export function go(t, quiet) {
   const was = tab; tab = t;
   if (t === "friends") drawFriends();
   if (t === "you") drawYou();
+  // Straight away, no slide: switch the screens with their movement turned off for a moment.
+  document.body.classList.add("tab-now");
   mark();
+  void document.body.offsetWidth;
+  requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("tab-now")));
   if (t === "today" && was !== "today" && onToday) onToday();
   if (!quiet && was !== t) log("tab", t);
   const s = screens[t];
-  if (s) setTimeout(() => s.querySelector("h1")?.focus({ preventScroll: true }), reduceMotion() ? 0 : 300);
+  if (s) s.querySelector("h1")?.focus({ preventScroll: true });
+}
+
+// ---------------- Swiping between tabs ----------------
+// Screens sit side by side (Today · Friends · You) with a GAP-wide dark line between them. Only starts on a screen
+// that's showing on its own (no check-in, card, sheet or page over it), and never on something that already moves
+// sideways itself (the day card, sliders, rows that scroll across, text boxes), so those work as before.
+const GAP = 4;
+const BUSY = ["booting", "in-flow", "in-ask", "ask-open", "in-acct", "in-settings", "in-wrap", "in-photos", "in-cards", "in-levels", "in-fpage", "in-days", "in-sheet"];
+const free = () => nav && !BUSY.some((c) => document.body.classList.contains(c)) && !document.querySelector(".sheet-host");
+const screenOf = (t) => (t === "today" ? document.getElementById("home") : screens[t]);
+function ownsSideways(el, stopAt) {
+  for (let e = el; e && e !== stopAt && e !== document.body; e = e.parentElement) {
+    if (e.matches("input, textarea, select, [contenteditable], #pill")) return true;
+    const cs = getComputedStyle(e), ta = cs.touchAction;
+    if (ta === "none" || ta.startsWith("pan-y")) return true;
+    if ((cs.overflowX === "auto" || cs.overflowX === "scroll") && e.scrollWidth > e.clientWidth + 1) return true;
+  }
+  return false;
+}
+function swipe() {
+  let s = null;   // { x, y, t, i, on, dx, pts, drawn }
+  const W = () => innerWidth + GAP;
+  const els = () => TABS.map((t) => screenOf(t));
+  const sun = () => document.getElementById("sun");
+  const place = (pos, anim) => {
+    // pos: where we are in screens (0 = Today, 1 = Friends, 2 = You; in between while dragging)
+    els().forEach((el, i) => { if (!el) return;
+      el.style.transition = anim ? `transform ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none";
+      el.style.transform = `translateX(${(i - pos) * W()}px)`; el.style.opacity = "1"; el.style.pointerEvents = "none"; });
+    const sn = sun(); if (sn) { sn.style.transition = anim ? `transform ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none"; sn.style.transform = `translateX(${-pos * W()}px)`; sn.style.opacity = "1"; }
+    nav.style.setProperty("--i", Math.max(0, Math.min(TABS.length - 1, pos)));
+    bubble.style.transition = anim ? `left ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none";
+  };
+  const clear = () => {
+    [...els(), sun(), bubble].forEach((el) => el && ["transition", "transform", "opacity", "pointerEvents"].forEach((k) => (el.style[k] = "")));
+    document.body.classList.remove("tab-drag");
+  };
+  document.addEventListener("touchstart", (e) => {
+    s = null;
+    if (e.touches.length !== 1 || !free()) return;
+    const here = screenOf(tab);
+    if (!here || !here.contains(e.target) || ownsSideways(e.target, here)) return;
+    const p = e.touches[0];
+    s = { x: p.clientX, y: p.clientY, i: TABS.indexOf(tab), on: false, dx: 0, pts: [[performance.now(), p.clientX]], drawn: {} };
+  }, { passive: true, capture: true });
+  document.addEventListener("touchmove", (e) => {
+    if (!s) return;
+    if (e.touches.length !== 1) { if (s.on) end(); s = null; return; }
+    const p = e.touches[0], dx = p.clientX - s.x, dy = p.clientY - s.y;
+    if (!s.on) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dx) < Math.abs(dy) * 1.2 || !e.cancelable) { s = null; return; }   // up and down: let it scroll
+      s.on = true; document.body.classList.add("tab-drag");
+    }
+    e.preventDefault();
+    const t = performance.now(); s.pts.push([t, p.clientX]); s.pts = s.pts.filter((q) => t - q[0] < 100);
+    // Past the first or last screen it only gives a little, then springs back.
+    const n = s.i - dx / W(), edge = n < 0 || n > TABS.length - 1;
+    s.dx = edge ? dx / 3 : dx;
+    const next = TABS[s.i + (dx < 0 ? 1 : -1)];
+    if (next && next !== "today" && !s.drawn[next]) { s.drawn[next] = 1; next === "friends" ? drawFriends() : drawYou(); }
+    place(s.i - s.dx / W());
+  }, { passive: false, capture: true });
+  const end = () => {
+    if (!s || !s.on) { s = null; return; }
+    const d = s; s = null;
+    const now = performance.now(), pts = d.pts.filter((q) => now - q[0] < 100);   // a finger that stopped before letting go isn't a flick
+    const a = pts[0], b = pts[pts.length - 1], v = pts.length > 1 ? (b[1] - a[1]) / Math.max(1, b[0] - a[0]) : 0;   // px per ms
+    let to = d.i;
+    if ((d.dx < -innerWidth / 2 || v < -0.4) && d.dx < 0) to = d.i + 1;
+    if ((d.dx > innerWidth / 2 || v > 0.4) && d.dx > 0) to = d.i - 1;
+    to = Math.max(0, Math.min(TABS.length - 1, to));
+    const ms = reduceMotion() ? 0 : Math.round(Math.max(160, Math.min(320, Math.abs((to - (d.i - d.dx / W())) * W()) / Math.max(1.2, Math.abs(v)))));
+    place(to, ms);
+    setTimeout(() => { if (TABS[to] !== tab) go(TABS[to]); else document.body.classList.add("tab-now"); clear();
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("tab-now"))); }, ms);
+  };
+  document.addEventListener("touchend", end, { capture: true });
+  document.addEventListener("touchcancel", end, { capture: true });
 }
 function mark() {
   const i = TABS.indexOf(tab);
