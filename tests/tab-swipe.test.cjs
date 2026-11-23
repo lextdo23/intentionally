@@ -48,9 +48,10 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- Swiping: screens follow the finger, with a dark line between ----
   let y = await quiet();
   await drag(380, 120, y, { hold: true });
-  const mid = await p.evaluate(() => ({ home: new DOMMatrix(getComputedStyle(document.getElementById("home")).transform).m41, fr: document.getElementById("friends").getBoundingClientRect().left, line: getComputedStyle(document.getElementById("friends")).boxShadow, drag: document.body.classList.contains("tab-drag") }));
+  const mid = await p.evaluate(() => ({ home: new DOMMatrix(getComputedStyle(document.getElementById("home")).transform).m41, fr: document.getElementById("friends").getBoundingClientRect().left, r: getComputedStyle(document.getElementById("friends")).borderTopLeftRadius, hr: getComputedStyle(document.getElementById("home")).borderTopRightRadius, bg: getComputedStyle(document.body).backgroundColor, homeRight: document.getElementById("home").getBoundingClientRect().right, drag: document.body.classList.contains("tab-drag") }));
   check(mid.drag && mid.home < -200 && mid.fr > 100 && mid.fr < 250, "mid-swipe Today moves left with the finger and Friends comes in beside it (" + Math.round(mid.home) + ", " + Math.round(mid.fr) + ")");
-  check(/rgb\(0, 0, 0\)/.test(mid.line), "with a thin dark line between the two screens");
+  check(parseFloat(mid.r) > 30 && parseFloat(mid.hr) > 30, "both look like separate phone screens, with rounded corners");
+  check(mid.bg === "rgb(0, 0, 0)" && mid.fr - mid.homeRight >= 10, "on black, with a gap between them (" + Math.round(mid.fr - mid.homeRight) + "px)");
   if (SHOTS) await p.screenshot({ path: path.join(SHOTS, "mid-swipe.png") });
   await p.waitForTimeout(150); await touch("touchEnd"); await p.waitForTimeout(450);
   check(await tab() === "friends", "letting go past halfway (even after stopping) moves on to Friends");
@@ -71,7 +72,8 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(await tab() === "friends", "swiping right goes back to Friends");
   await drag(60, 400, y); await p.waitForTimeout(450);
   check(await tab() === "today", "and again to Today");
-  check(await p.$eval("#sun", (e) => e.style.transform === "" && getComputedStyle(e).opacity !== "0"), "the sun is back where it was");
+  check(await p.$eval("#sun", (e) => getComputedStyle(e).visibility === "visible" && getComputedStyle(e).opacity !== "0"), "the sun is back");
+  check(await p.$eval("#home", (e) => e.style.background === "" && getComputedStyle(e).borderTopLeftRadius === "0px"), "and Today is back to normal, square and see-through");
 
   // ---- Up and down still scrolls, and doesn't switch ----
   await touch("touchStart", 200, 500); for (let i = 1; i <= 8; i++) { await touch("touchMove", 205, 500 - i * 30); await p.waitForTimeout(16); } await touch("touchEnd");

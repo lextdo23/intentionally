@@ -125,10 +125,11 @@ export function go(t, quiet) {
 }
 
 // ---------------- Swiping between tabs ----------------
-// Screens sit side by side (Today · Friends · You) with a GAP-wide dark line between them. Only starts on a screen
+// Screens sit side by side (Today · Friends · You) like separate phone screens: rounded corners on black, GAP apart
+// (alex 2026-11-23, from Instagram's swipe). The pill stays put on top. Only starts on a screen
 // that's showing on its own (no check-in, card, sheet or page over it), and never on something that already moves
 // sideways itself (the day card, sliders, rows that scroll across, text boxes), so those work as before.
-const GAP = 4;
+const GAP = 12;
 const BUSY = ["booting", "in-flow", "in-ask", "ask-open", "in-acct", "in-settings", "in-wrap", "in-photos", "in-cards", "in-levels", "in-fpage", "in-days", "in-sheet"];
 const free = () => nav && !BUSY.some((c) => document.body.classList.contains(c)) && !document.querySelector(".sheet-host");
 const screenOf = (t) => (t === "today" ? document.getElementById("home") : screens[t]);
@@ -151,12 +152,20 @@ function swipe() {
     els().forEach((el, i) => { if (!el) return;
       el.style.transition = anim ? `transform ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none";
       el.style.transform = `translateX(${(i - pos) * W()}px)`; el.style.opacity = "1"; el.style.pointerEvents = "none"; });
-    const sn = sun(); if (sn) { sn.style.transition = anim ? `transform ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none"; sn.style.transform = `translateX(${-pos * W()}px)`; sn.style.opacity = "1"; }
     nav.style.setProperty("--i", Math.max(0, Math.min(TABS.length - 1, pos)));
     bubble.style.transition = anim ? `left ${anim}ms cubic-bezier(.25, 1, .5, 1)` : "none";
   };
+  // Today has no background of its own (the sky and sun sit behind it), so while it moves as a screen it gets the
+  // sky with the sun's glow painted in where the sun is now.
+  const paintToday = () => {
+    const home = screenOf("today"), sn = sun(); if (!home || !sn) return;
+    const r = sn.getBoundingClientRect(), hr = home.getBoundingClientRect(), o = Number(getComputedStyle(sn).opacity) || 0;
+    const x = r.left + r.width / 2 - hr.left, y = r.top + r.height / 2 - hr.top, g = getComputedStyle(document.documentElement).getPropertyValue("--glow").trim() || "242 192 143";
+    const glow = tab === "today" && o > 0 ? `radial-gradient(circle 310px at ${x}px ${y}px, rgb(${g} / ${(.32 * o).toFixed(3)}) 0, rgb(${g} / ${(.11 * o).toFixed(3)}) 150px, rgb(${g} / 0) 310px), ` : "";
+    home.style.background = glow + "linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 60%, var(--sky3) 100%)";
+  };
   const clear = () => {
-    [...els(), sun(), bubble].forEach((el) => el && ["transition", "transform", "opacity", "pointerEvents"].forEach((k) => (el.style[k] = "")));
+    [...els(), bubble].forEach((el) => el && ["transition", "transform", "opacity", "pointerEvents", "background"].forEach((k) => (el.style[k] = "")));
     document.body.classList.remove("tab-drag");
   };
   document.addEventListener("touchstart", (e) => {
@@ -174,7 +183,7 @@ function swipe() {
     if (!s.on) {
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
       if (Math.abs(dx) < Math.abs(dy) * 1.2 || !e.cancelable) { s = null; return; }   // up and down: let it scroll
-      s.on = true; document.body.classList.add("tab-drag");
+      s.on = true; paintToday(); document.body.classList.add("tab-drag");
     }
     e.preventDefault();
     const t = performance.now(); s.pts.push([t, p.clientX]); s.pts = s.pts.filter((q) => t - q[0] < 100);
