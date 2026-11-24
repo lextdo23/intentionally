@@ -32,7 +32,7 @@ Today (home) is the reference screen: when unsure, match it.
 ## 2. Light and glow
 
 9. **No glow anywhere** except two: the sun in check-ins and the card draw (the morning and evening flow; it tints with how the day felt), and the light behind today's card while it waits (rule 37). No other coloured shadows, halos or breathing rims.
-9b. **That sun's light comes from one real place** (alex 2026-11-24, "A + B"): it rises from the horizon at the bottom of the screen, stays still (no breathing), and carries fine grain so it reads as real light, not a perfect digital blur. Never a soft blob centred behind the words.
+9b. **That sun's light comes from one real place** (alex 2026-11-24, "A + B"): it rises from the horizon at the bottom of the screen, stays still (no breathing), and carries fine grain so it reads as real light, not a perfect digital blur. Never a soft blob centred behind the words, and never on Today, even once the day is done (alex 2026-11-24).
 10. **Shadows are plain dark shadows,** only to lift something off the page (a card, the pill, a sheet).
 11. **A finished card gets one shine that sweeps across,** never a glow.
 

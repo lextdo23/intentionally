@@ -33,10 +33,9 @@ h1, h2, p { margin: 0; }
 /* ---------- The sun: light from one real place (DESIGN.md 39). In check-ins and the card draw it rises from the horizon, still, with fine grain so it reads as real light, not a digital blur. ---------- */
 #sun { position: fixed; left: var(--sx, 50%); top: var(--sy, 46%); width: 620px; height: 620px; margin: -310px 0 0 -310px; pointer-events: none;
   transition: transform .8s var(--ease), opacity .8s ease, left 1.6s var(--ease), top 1.6s var(--ease); }
-/* Through the day the glow moves across the sky (set in main.js); check-ins bring it down to the horizon. Once the day is done it dims. */
+/* Only in check-ins and the card draw, where it rises from the horizon. Never on Today, even once the day is done (alex 2026-11-24). */
 #sun { opacity: 0; }
 .in-flow #sun { left: 50%; top: 100%; opacity: 1; transform: scale(1.6, .9); }
-.day-done:not(.in-flow) #sun { opacity: .6; }
 #sun i { position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(circle, rgb(var(--glow) / .34) 0, rgb(var(--glow) / .12) 140px, rgb(var(--glow) / 0) 310px);
   transition: background 0.4s; }
