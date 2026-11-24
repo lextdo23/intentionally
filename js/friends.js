@@ -400,7 +400,7 @@ function more(p, pg) {
         log(p.hidden ? "unhide" : "hide", 1); p.hidden = !p.hidden; moments.resetFeed(); again();
         note(p.hidden ? `You won't see ${shown(p)}'s moments in your feed. They aren't told.` : `${shown(p)}'s moments are back in your feed.`);
       } }, p.hidden ? "Show their moments" : "Hide their moments"),
-      h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "remove", pg), 300); } }, "Remove friend"),
+      h("button.btn-soft.fr-sheet-btn.danger", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "remove", pg), 300); } }, "Remove friend"),
       h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => openReport({ person: p, pg }), 300); } }, `Report @${p.username}`),
       h("button.btn-soft.fr-sheet-btn.danger", { type: "button", onclick: () => { close("pick"); setTimeout(() => sure(p, "block", pg), 300); } }, `Block @${p.username}`),
       h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));

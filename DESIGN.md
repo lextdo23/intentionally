@@ -18,14 +18,14 @@ Today (home) is the reference screen: when unsure, match it.
    - a short moment worth noticing ("Level 4.");
    - the check-in sun: its glow, and on Last night the sun and the bar between the moon and sun (alex 2026-11-24);
    - the outline on the card you pick from the three, and the light behind today's card (rule 37) (alex 2026-11-24);
-   - a switch that's on (alex 2026-11-24), except on the social screens (rule 7);
+   - a switch that's on (alex 2026-11-24), everywhere, including the social screens;
    - the patterns picked out in Your days ("8 hours or more", the 8h+ band) (alex 2026-11-24).
 
    Anything else that's marigold is a mistake. Only one marigold *button* on a screen.
 4. **White (ink) shows plain facts:** the level row and level path, numbers, counts, "boxes are waiting".
 5. **Gold `#e3c486` means "Got it done"**, and the note under a pillar in Mood and activities where how it felt and how the day went disagree (alex kept it, 2026-11-24) (one of the three ways an activity felt, next to green "Lifted you" and blue "Took a lot"). Gold used for anything else is left over from the old look: headings, links, the level-up page, the tip outline, the focus outline, card rims, "made by you" words. Each one becomes ink or marigold, whichever job it's doing.
 6. **Pillar tints stay** (`#d9b3a6 #cfc59b #a9c4b5 #a9b9d6 #c4b4c9`), used only for pillar dots and tags. Mood colours stay as they are (`CHART_COL` on dark, `MOOD_COL` on the light recap cards).
-7. **Social screens** (Friends, You, profiles, sharing): no marigold or sun at all. Main buttons are off-white with dark text. Colour comes only from pillar dots, photos and profile pictures.
+7. **Social screens** (Friends, You, profiles, sharing): no marigold or sun at all, except a switch that's on (alex 2026-11-24). A pop-up over them has an off-white main button. Main buttons are off-white with dark text. Colour comes only from pillar dots, photos and profile pictures.
 7b. **Warm red `#ff6b5e` (`--warn`) is only for things that can't be undone** (Delete everything, Delete account, Remove friend, Block), always with words that say so (alex 2026-11-24).
 8. **Colour never works alone.** Anything a colour means is also said in words. One exception (alex 2026-11-24): the small mood dot under each photo in Your photos, Week view; the mood word shows when the photo opens.
 
@@ -38,7 +38,7 @@ Today (home) is the reference screen: when unsure, match it.
 
 ## 3. Surfaces and buttons
 
-12. **Glass is for buttons that stand on their own:** round icon buttons, the Your days row, the pill, tiles you tap (like the bedtime and wake-up times). Use the same glass as the pill: `rgba(255,255,255,.07)`, blurred, with a fine light edge and a highlight on top. Rows of choices (word chips, list rows) stay flat soft fills, so they don't look busy (alex 2026-11-24). A chosen chip or tab (Week / Month / Year) is white with dark text. Things you only read are flat, with no glass.
+12. **Glass is for buttons that stand on their own:** round icon buttons, the Your days row, the pill, tiles you tap (like the bedtime and wake-up times). Use the same glass as the pill: `rgba(255,255,255,.07)`, blurred, with a fine light edge and a highlight on top. Rows of choices (word chips, list rows) stay flat soft fills, so they don't look busy (alex 2026-11-24). A chosen chip or tab (Week / Month / Year) is white with dark text. Things you only read are flat, with no glass. **Not too much glass** (alex 2026-11-24): buttons inside a sheet, and buttons repeated down a list or feed (the ••• on each moment), are flat; so are paired buttons like Edit / Add friends.
 13. **Everything pressable gives a little when touched:** shrinks to 96% and brightens. Not when reduce-motion is on.
 14. **Buttons that are only an icon are round.** Everything you tap is at least 44 by 44 points.
 15. **Corners:** sheet 26, card 16, button 14, field 12, chip 10. Nothing else unless it's a full circle.
@@ -118,6 +118,6 @@ For each screen, in order:
 | Settings | Done 2026-11-24 | Regrouped (alex 2026-11-24): you (one row, tap for Your account with the picture big at the top); Your days (pillars, Crumbs); Nudges; Privacy and your data; Support; About; Delete everything |
 | Sign-up and Your account | Done 2026-11-24 | |
 | Choosing pillars (first day) | Done 2026-11-24 | The sun's glow rises from the horizon with grain, no breathing (rule 9b; also check-ins and the card draw); "Your deck" shows marigold slab cards |
-| Friends, You, profiles, sharing, reports | To do | |
+| Friends, You, profiles, sharing, reports | Done 2026-11-24 | Switches on are marigold; sheet and feed buttons flat (less glass); rest-day moment on the dark card face; Remove friend in red; pop-ups over Friends get an off-white button; Lifeline kept on one line; the short message moves to the top while a sheet is up |
 | Testers page, privacy and guidelines pages | To do | |
 | Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |

@@ -294,7 +294,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click('.fr-page:last-child button[aria-label="Show your friends count"]'); await p.waitForTimeout(700);
   check((await mia.get("/a/f")).me.hide === true, "hiding your friends count is saved");
   const swBg = await p.$eval('.fr-page:last-child button[aria-label="Friend requests"]', (e) => getComputedStyle(e).backgroundColor);
-  check(swBg === "rgb(169, 196, 181)", "switches that are on are sage, not orange");
+  check(swBg === "rgb(255, 165, 31)", "switches that are on are marigold (alex 2026-11-24)");
   await shot("12-privacy");
   check((await josh.get("/a/f/person?u=mia.k")).person.friends === null, "Josh no longer sees Mia's friends count");
 
