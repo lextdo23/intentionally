@@ -490,7 +490,7 @@ export function settingsSection(group, linkRow, redraw, syncStatus) {
     if (!armed) { armed = true; del.firstChild.textContent = "Tap again to delete your account"; return; }
     const r = await deleteAccount();
     if (r.ok) redraw(); else del.firstChild.textContent = r.error === "offline" ? "You're offline. Try again later." : "That didn't work. Try again.";
-  } }, h("span.set-label", { style: { color: "#d9b3a6" } }, "Delete account"));
+  } }, h("span.set-label", { style: { color: "var(--warn)" } }, "Delete account"));
   return group("Your account", [head,
     linkRow("Username", u.username || "", { onclick: () => rename(redraw) }),
     h("button.set-row", { onclick: async () => { await signOut(); redraw(); } }, h("span.set-label", null, "Sign out")),

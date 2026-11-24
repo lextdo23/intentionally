@@ -26,6 +26,7 @@ Today (home) is the reference screen: when unsure, match it.
 5. **Gold `#e3c486` means "Got it done"**, and the note under a pillar in Mood and activities where how it felt and how the day went disagree (alex kept it, 2026-11-24) (one of the three ways an activity felt, next to green "Lifted you" and blue "Took a lot"). Gold used for anything else is left over from the old look: headings, links, the level-up page, the tip outline, the focus outline, card rims, "made by you" words. Each one becomes ink or marigold, whichever job it's doing.
 6. **Pillar tints stay** (`#d9b3a6 #cfc59b #a9c4b5 #a9b9d6 #c4b4c9`), used only for pillar dots and tags. Mood colours stay as they are (`CHART_COL` on dark, `MOOD_COL` on the light recap cards).
 7. **Social screens** (Friends, You, profiles, sharing): no marigold or sun at all. Main buttons are off-white with dark text. Colour comes only from pillar dots, photos and profile pictures.
+7b. **Warm red `#ff6b5e` (`--warn`) is only for things that can't be undone** (Delete everything, Delete account, Remove friend, Block), always with words that say so (alex 2026-11-24).
 8. **Colour never works alone.** Anything a colour means is also said in words. One exception (alex 2026-11-24): the small mood dot under each photo in Your photos, Week view; the mood word shows when the photo opens.
 
 ## 2. Light and glow
@@ -109,13 +110,12 @@ For each screen, in order:
 | Tips | Done 2026-11-24 | |
 | Your days (charts, What lifts you, What seems to help you) | Done 2026-11-24 | |
 | Share with your doctor (sheet only; the PDF stays as it is) | Done 2026-11-24 | |
-| Crumbs sheet | To do | |
+| Crumbs sheet | Done 2026-11-24 | |
 | Weekly recap | Done 2026-11-24 | |
 | Your photos | Done 2026-11-24 | |
-| Settings | To do | |
+| Settings | Done 2026-11-24 | |
 | Sign-up and Your account | To do | |
 | Choosing pillars (first day) | To do | |
-| Sorting thoughts and the sky | To do | |
 | Friends, You, profiles, sharing, reports | To do | |
 | Testers page, privacy and guidelines pages | To do | |
 | Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |

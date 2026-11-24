@@ -3,6 +3,7 @@
    Text sizes follow Apple's standard styles (34 / 22 / 20 / 17 / 15 / 13 / 12 / 11), never scaled.
    Spacing 4 / 8 / 16 / 24 / 40. Corners: sheet 26, card 16, button 14 (pills are fully round), field 12. */
 :root {
+  --warn: #ff6b5e;   /* things that can't be undone (alex 2026-11-24) */
   --sky1: #0a0a0b; --sky2: #0a0a0b; --sky3: #0a0a0b;
   --ink: #efede9; --ink2: #cfcac1; --dim: #a9a59d; --faint: #8d8981;
   --sun: #ffa51f; --gold: #e3c486; --on-sun: #1d1e22;
@@ -306,7 +307,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .set-value { font-size: 15px; color: var(--dim); }
 .set-chev { color: var(--faint); }
 .set-foot { margin: 0 16px; font-size: 13px; color: var(--dim); }
-.set-danger { justify-content: center; color: #d9b3a6; }
+.set-danger { justify-content: center; color: var(--warn); }
 
 /* ---------- Test mode ---------- */
 .testbar { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 112px); display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; z-index: 50; }
@@ -813,7 +814,7 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .fr-field-note { margin: -8px 0 0; font-size: 13px; color: var(--dim); }
 .fr-sheet-text { margin: 0; font-size: 15px; color: var(--ink2); text-align: center; }
 .fr-sheet-btn { width: 100%; min-height: 52px; font-size: 17px; }
-.fr-sheet-btn.danger { color: #d9b3a6; }
+.fr-sheet-btn.danger { color: var(--warn); }
 .fr-field:focus, .fr-field:focus-visible { outline: 2px solid rgba(239, 237, 233, .55); outline-offset: 0; }
 
 /* ---- Moments (social step 3, js/moments.js): the share screen, the feed, profile grids. No orange. ---- */
