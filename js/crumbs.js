@@ -125,7 +125,7 @@ export function offer(onDone) {
           h("p.note", { style: { textAlign: "left" } }, "You can turn it off in Settings.")),
         h("button.btn-main", { onclick: () => close("done") }, "Done"));
     } }, "Turn on Crumbs");
-    panel.append(h("div.col", { style: { gap: "8px" } }, face(2, 48),
+    panel.append(h("div.col", { style: { gap: "8px" } }, face(3, 48),   // the Good face: an invitation, not a shrug (alex 2026-11-24)
       h("h2", null, "Hard to remember how your day felt, or to find the words?"),
       h("p", { style: { color: "var(--ink2)" } }, "You're not alone. With Crumbs, you tap how you feel as your day goes, then follow your crumbs back when you end your day.")),
       yes, h("button.btn-quiet", { onclick: () => { log("crumbs_on", "later"); close("later"); } }, "Not now"),
