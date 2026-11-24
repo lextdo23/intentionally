@@ -141,7 +141,7 @@ function drawAll(D) {
   });
   grid += "</div>";
   html += sec("Do people come back?", "Each row is one tester, each square one day since they started. Top half is the morning, bottom half the evening.",
-    `<div class="gridbox">${grid}</div><div class="key"><span><i style="background:var(--ink)"></i>Morning done</span><span><i style="background:var(--cool)"></i>Evening done</span><span><i style="background:var(--faint)"></i>Not that day</span></div>`,
+    `<div class="gridbox">${grid}</div><div class="key"><span><i style="background:var(--sun)"></i>Morning done</span><span><i style="background:var(--cool)"></i>Evening done</span><span><i style="background:var(--faint)"></i>Not that day</span></div>`,
     "look for the day where rows go quiet. That's where people drift off, and the screen to look at first.");
 
   // 2. Where people give up
