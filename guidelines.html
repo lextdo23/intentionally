@@ -9,9 +9,9 @@
 <link rel="icon" href="icons/icon-192.png">
 <style>
 /* Daydeck's Friends guidelines (2026-11-21). Same look as the privacy page: plain words, one calm column. */
-:root{--sky:#24262b;--sky2:#141518;--sky3:#08090a;--ink:#efede9;--ink2:#cfcac1;--dim:#a9a59d;--sun:#f2c08f;--gold:#e3c486;--fill:rgba(239,237,233,.06);color-scheme:dark}
+:root{--sky:#24262b;--sky2:#141518;--sky3:#08090a;--ink:#efede9;--ink2:#cfcac1;--dim:#a9a59d;--fill:rgba(239,237,233,.06);color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:linear-gradient(180deg,var(--sky),var(--sky2) 40%,var(--sky3)) fixed;background-color:var(--sky2);color:var(--ink);
+body{margin:0;background:#0a0a0b;color:var(--ink);
   font:17px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:680px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 16px) 20px calc(env(safe-area-inset-bottom,0px) + 40px);display:flex;flex-direction:column;gap:40px}
 .back{display:inline-flex;align-items:center;gap:4px;min-height:44px;color:var(--ink2);text-decoration:none;font-size:17px}
@@ -23,14 +23,14 @@ ul{padding-left:20px;display:flex;flex-direction:column;gap:8px}
 section{display:flex;flex-direction:column;gap:16px}
 .sub{color:var(--dim);font-size:15px}
 .short{background:var(--fill);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
-.short li::marker{color:var(--gold)}
+.short li::marker{color:var(--dim)}
 .card{background:var(--fill);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
 .card p,.card li{color:var(--ink2)}
-a{color:var(--sun)}
+a{color:var(--ink);text-decoration-color:rgba(239,237,233,.45);text-underline-offset:3px}
 .foot{font-size:15px;color:var(--dim)}
 .rule{display:flex;gap:12px;align-items:flex-start}
 .rule b{display:block;margin-bottom:2px}
-.help{background:rgba(242,192,143,.08);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
+.help{background:var(--fill);box-shadow:inset 0 0 0 1px rgba(239,237,233,.16);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
 </style>
 </head>
 <body>
