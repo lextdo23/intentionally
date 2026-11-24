@@ -120,4 +120,4 @@ For each screen, in order:
 | Choosing pillars (first day) | Done 2026-11-24 | The sun's glow rises from the horizon with grain, no breathing (rule 9b; also check-ins and the card draw); "Your deck" shows marigold slab cards |
 | Friends, You, profiles, sharing, reports | Done 2026-11-24 | Switches on are marigold; sheet and feed buttons flat (less glass); rest-day moment on the dark card face; Remove friend in red; pop-ups over Friends get an off-white button; Lifeline kept on one line; the short message moves to the top while a sheet is up |
 | Testers page, privacy and guidelines pages | Done 2026-11-24 | Plain black instead of the old sky; links in ink, underlined; no old peach. The testers page stays as it is (alex 2026-11-24) |
-| Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |
+| Cards library and boxes | Done 2026-11-24 | The cards are the new cards everywhere: flat dark faces with a fine white edge, and in a box the marigold slab backs. The box itself stays as it was, gold, glow and all (alex 2026-11-24: an exception to rules 1, 5 and 9) |

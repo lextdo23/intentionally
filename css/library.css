@@ -20,10 +20,9 @@
 .lib-empty p { margin: 0; }
 .lib-empty .sub { font-size: 15px; color: var(--ink2); }
 
-/* A card face, small (grid) or big (opened). Same sunlit face as the daily card. */
+/* A card face, small (grid) or big (opened). The same flat dark face as the daily card (new look). */
 .lib-mini, .lib-big { position: relative; display: flex; flex-direction: column; gap: 8px; text-align: left; color: var(--ink); border-radius: 16px;
-  background: radial-gradient(130% 55% at 50% -8%, rgb(255 165 31 / .26), rgb(255 165 31 / .05) 55%, transparent 75%), linear-gradient(175deg, #2f3036, #1c1d21);
-  box-shadow: 0 0 0 1px rgb(227 196 134 / .32), 0 14px 30px rgba(0, 0, 0, .45); }
+  background: #141416; box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 10px 24px rgba(0, 0, 0, .45); }   /* the new card face: flat dark, fine white edge */
 .lib-mini { min-height: 214px; padding: 14px; width: 100%; }
 .lib-mini:active { transform: scale(.98); }
 .lib-mini:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
