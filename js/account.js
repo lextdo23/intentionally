@@ -482,19 +482,33 @@ export function settingsSection(group, linkRow, redraw, syncStatus) {
     return group("Your account", rows, msg);
   }
   const u = user() || {};
-  const head = h("button.set-row.acct-head", { "aria-label": "Change your picture", onclick: () => choosePicture(redraw) },
+  const head = h("button.set-row.acct-head", { "aria-label": "Your account", onclick: () => openAcct() },
     picture(56), h("div.col", { style: { gap: "2px", minWidth: "0" } }, h("span.acct-handle", null, "@" + (u.username || "")), h("span.acct-email", null, u.email || ""),
       (() => { const b = backedUp(syncStatus && syncStatus()); return b ? h("span.acct-backup", null, h("i", { style: { background: b[1] }, "aria-hidden": "true" }), b[0]) : null; })()));
-  let armed = false;
+  let armed = false, closeAcct = null;
   const del = h("button.set-row", { onclick: async () => {
     if (!armed) { armed = true; del.firstChild.textContent = "Tap again to delete your account"; return; }
     const r = await deleteAccount();
-    if (r.ok) redraw(); else del.firstChild.textContent = r.error === "offline" ? "You're offline. Try again later." : "That didn't work. Try again.";
+    if (r.ok) { if (closeAcct) closeAcct("deleted"); redraw(); } else del.firstChild.textContent = r.error === "offline" ? "You're offline. Try again later." : "That didn't work. Try again.";
   } }, h("span.set-label", { style: { color: "var(--warn)" } }, "Delete account"));
-  return group("Your account", [head,
-    linkRow("Username", u.username || "", { onclick: () => rename(redraw) }),
-    h("button.set-row", { onclick: async () => { await signOut(); redraw(); } }, h("span.set-label", null, "Sign out")),
-    del], "Your days back up whenever you're online. Signing out keeps this phone's days; deleting your account erases your backup.");
+  // Settings grouping (alex 2026-11-24): just you at the top, like iPhone's own Settings; the account lives one tap in.
+  function openAcct() { openSheet((panel, close) => {
+    closeAcct = close;
+    const again = () => { close("done"); redraw(); };
+    // Your picture at the top, big; tap it (or Change picture) to change it.
+    const pic = () => { close("pic"); choosePicture(redraw); };
+    panel.append(h("h2", null, "Your account"),
+      h("div.acct-pic-top", null, h("button.acct-pic-btn", { type: "button", "aria-label": "Change your picture", onclick: pic }, picture(96)),
+        h("button.btn-quiet", { type: "button", onclick: pic }, "Change picture")),
+      h("div.set-card", null,
+        linkRow("Username", u.username || "", { onclick: () => { close("name"); rename(redraw); } }),
+        h("div.set-line", { "aria-hidden": "true" }), h("div.set-row", null, h("span.set-label", null, "Email"), h("span.set-value", null, u.email || "")),
+        h("div.set-line", { "aria-hidden": "true" }), h("button.set-row", { onclick: async () => { await signOut(); again(); } }, h("span.set-label", null, "Sign out")),
+        h("div.set-line", { "aria-hidden": "true" }), del),
+      h("p.set-foot", null, "Your days back up whenever you're online. Signing out keeps this phone's days; deleting your account erases your backup."));
+  }, { label: "Your account" }); }
+  head.append(h("span.set-chev", { "aria-hidden": "true", style: { marginLeft: "auto" } }, "›"));
+  return group(null, [head]);
 }
 function rename(redraw) {
   openSheet((panel, close) => {

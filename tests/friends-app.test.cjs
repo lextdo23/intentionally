@@ -288,7 +288,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- Privacy (Settings → Privacy) ----
   await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700);
-  await p.click('#settings button:has-text("Privacy")'); await p.waitForTimeout(700);
+  await p.click('#settings button:has-text("Who can see you")'); await p.waitForTimeout(700);
   check(/Only your friends can see you/.test(await text(".fr-page:last-child")), "Privacy says only friends can see you");
   check(await p.getAttribute('.fr-page:last-child button[aria-label="Share my mood"]', "aria-checked") === "false", "Share my mood is in Privacy, off by default");
   await p.click('.fr-page:last-child button[aria-label="Show your friends count"]'); await p.waitForTimeout(700);

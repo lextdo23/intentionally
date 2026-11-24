@@ -1030,3 +1030,6 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .lv-num.lv-bump { display: inline-block; transform-origin: 0 70%; animation: lv-bump .6s ease-out; }
 @keyframes lv-bump { 40% { transform: scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { .lv-num.lv-bump { animation: none; } }
+/* Your account (Settings → you): the picture big at the top (alex 2026-11-24). */
+.acct-pic-top { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.acct-pic-btn { padding: 0; border-radius: 50%; background: none; }
