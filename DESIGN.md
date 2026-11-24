@@ -32,6 +32,7 @@ Today (home) is the reference screen: when unsure, match it.
 ## 2. Light and glow
 
 9. **No glow anywhere** except two: the sun in check-ins and the card draw (the morning and evening flow; it tints with how the day felt), and the light behind today's card while it waits (rule 37). No other coloured shadows, halos or breathing rims.
+9b. **That sun's light comes from one real place** (alex 2026-11-24, "A + B"): it rises from the horizon at the bottom of the screen, stays still (no breathing), and carries fine grain so it reads as real light, not a perfect digital blur. Never a soft blob centred behind the words.
 10. **Shadows are plain dark shadows,** only to lift something off the page (a card, the pill, a sheet).
 11. **A finished card gets one shine that sweeps across,** never a glow.
 
@@ -116,7 +117,7 @@ For each screen, in order:
 | Your photos | Done 2026-11-24 | |
 | Settings | Done 2026-11-24 | Regrouped (alex 2026-11-24): you (one row, tap for Your account with the picture big at the top); Your days (pillars, Crumbs); Nudges; Privacy and your data; Support; About; Delete everything |
 | Sign-up and Your account | Done 2026-11-24 | |
-| Choosing pillars (first day) | To do | |
+| Choosing pillars (first day) | Done 2026-11-24 | The sun's glow rises from the horizon with grain, no breathing (rule 9b; also check-ins and the card draw); "Your deck" shows marigold slab cards |
 | Friends, You, profiles, sharing, reports | To do | |
 | Testers page, privacy and guidelines pages | To do | |
 | Cards library and boxes | To do | Card faces and box background in old charcoal and gold (1, 5); the boxes line on Today is already white |
