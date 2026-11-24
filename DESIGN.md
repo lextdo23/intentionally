@@ -114,7 +114,7 @@ For each screen, in order:
 | Weekly recap | Done 2026-11-24 | |
 | Your photos | Done 2026-11-24 | |
 | Settings | Done 2026-11-24 | Regrouped (alex 2026-11-24): you (one row, tap for Your account with the picture big at the top); Your days (pillars, Crumbs); Nudges; Privacy and your data; Support; About; Delete everything |
-| Sign-up and Your account | To do | |
+| Sign-up and Your account | Done 2026-11-24 | |
 | Choosing pillars (first day) | To do | |
 | Friends, You, profiles, sharing, reports | To do | |
 | Testers page, privacy and guidelines pages | To do | |
