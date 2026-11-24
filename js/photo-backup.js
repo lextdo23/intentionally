@@ -139,8 +139,9 @@ export function settingsGroup(group) {
   sw.addEventListener("click", () => { if (sw.getAttribute("aria-checked") === "true") turnOff(() => { sw.setAttribute("aria-checked", st().backup === false ? "false" : "true"); foot.textContent = words(); }); else { st().backup = true; st().until = 0; store.save(); sw.setAttribute("aria-checked", "true"); log("photo_backup", "on"); soon(500); foot.textContent = words(); } });
   const words = () => st().backup === false ? "Photos stay on this phone only. If you lose or change phones, they don't come back."
     : c.all ? `${c.up} of ${c.all} photos backed up. Only you can see them; nothing is kept but the picture.` : "Each day's photo backs up to your account. Only you can see them; nothing is kept but the picture.";
-  const foot = h("p.set-foot", null, words());
-  return group("Photos", [h("div.set-row.set-toggle", null, h("span.set-label", null, "Back up my photos"), sw)], foot);
+  const foot = h(group === "parts" ? "span" : "p.set-foot", null, words());   // a span inside Settings' shared note
+  const row = h("div.set-row.set-toggle", null, h("span.set-label", null, "Back up my photos"), sw);
+  return group === "parts" ? { row, foot } : group("Photos", [row], foot);
 }
 function turnOff(done) {
   openSheet((panel, close) => {

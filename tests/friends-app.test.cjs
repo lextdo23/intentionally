@@ -55,7 +55,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // Full days: start your day, the card done, end your day (about 6 points each).
   const daysFull = (n) => { const d = {}; for (let i = 1; i <= n; i++) d[day(i)] = { sleep: { q: 3 }, card: { id: i, done: true }, mood: 4 }; return d; };
   const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep" }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
-  const quiet = () => p.evaluate(() => document.querySelectorAll(".tip-layer, .sheet-host").forEach((e) => e.remove()));
+  const quiet = () => p.evaluate(() => { document.querySelectorAll(".tip-layer, .sheet-host, .lu").forEach((e) => e.remove()); document.body.classList.remove("in-levelup"); });
   const tab = async (t) => { await p.click(`#pill [data-tab="${t}"]`); await p.waitForTimeout(700); };
   const text = (sel) => p.textContent(sel);
 
@@ -66,13 +66,14 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- Level 4 (about day 4 of full days): Friends opens, with its moment and tip ----
   await setDays(4); await p.reload(); await p.waitForTimeout(1500);
-  check(/Level 4/.test(await text(".greet")), "four full days reach level 4");
+  check(/Level 4/.test(await text(".lu-title")), "four full days reach level 4: the level-up moment shows");
   check(!!(await p.$("#pill")), "at level 4 the glass pill appears");
   check(!(await p.$('#home button[aria-label="Cards"]')), "the card library has moved to level 5, so it isn't open yet");
   await p.waitForTimeout(4600);
-  const tip = await p.$(".tip-box");
-  check(tip && /Friends/.test(await tip.textContent()), "a tip points at Friends, once");
+  check(/Friends/.test(await text(".lu-front")) && /Open Friends/.test(await text(".lu-btns")), "its card shows Friends, with Open Friends (in place of the old tip)");
   await shot("1-tip");
+  await p.click(".lu-btns .btn-quiet"); await p.waitForTimeout(2600);
+  check(!(await p.$(".lu")) && !(await p.$(".tip-box")), "Later closes it, and the old pointing tip doesn't follow");
   await quiet();
 
   // Someone who already had the card library open keeps it (nothing is ever taken away).
@@ -287,13 +288,13 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- Privacy (Settings → Privacy) ----
   await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700);
-  await p.click('#settings button:has-text("Privacy")'); await p.waitForTimeout(700);
+  await p.click('#settings button:has-text("Who can see you")'); await p.waitForTimeout(700);
   check(/Only your friends can see you/.test(await text(".fr-page:last-child")), "Privacy says only friends can see you");
   check(await p.getAttribute('.fr-page:last-child button[aria-label="Share my mood"]', "aria-checked") === "false", "Share my mood is in Privacy, off by default");
   await p.click('.fr-page:last-child button[aria-label="Show your friends count"]'); await p.waitForTimeout(700);
   check((await mia.get("/a/f")).me.hide === true, "hiding your friends count is saved");
   const swBg = await p.$eval('.fr-page:last-child button[aria-label="Friend requests"]', (e) => getComputedStyle(e).backgroundColor);
-  check(swBg === "rgb(169, 196, 181)", "switches that are on are sage, not orange");
+  check(swBg === "rgb(255, 165, 31)", "switches that are on are marigold (alex 2026-11-24)");
   await shot("12-privacy");
   check((await josh.get("/a/f/person?u=mia.k")).person.friends === null, "Josh no longer sees Mia's friends count");
 

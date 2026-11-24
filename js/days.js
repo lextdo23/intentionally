@@ -110,7 +110,8 @@ function secMoods(s) {
   const P = ser.pts.map((p, i) => (p.m == null ? null : [X(i), Y(p.m), p.m]));
   const runs = []; let cur = []; P.forEach((p) => { if (p) cur.push(p); else { if (cur.length) runs.push(cur); cur = []; } }); if (cur.length) runs.push(cur);
   const hw = Math.max(3, (R - L) / n / 2);
-  const area = runs.map((r) => (r.length > 1 ? `${smoothPath(r)} L ${r[r.length - 1][0].toFixed(1)} 164 L ${r[0][0].toFixed(1)} 164 Z` : `M ${(r[0][0] - hw).toFixed(1)} 164 Q ${r[0][0].toFixed(1)} ${r[0][1] - 6} ${(r[0][0] + hw).toFixed(1)} 164 Z`)).join(" ");
+  // A day on its own (no day either side) is just its dot: a shaded hump under it read as a glitch (alex 2026-11-24).
+  const area = runs.filter((r) => r.length > 1).map((r) => (r.length > 1 ? `${smoothPath(r)} L ${r[r.length - 1][0].toFixed(1)} 164 L ${r[0][0].toFixed(1)} 164 Z` : `M ${(r[0][0] - hw).toFixed(1)} 164 Q ${r[0][0].toFixed(1)} ${r[0][1] - 6} ${(r[0][0] + hw).toFixed(1)} 164 Z`)).join(" ");
   let bridge = ""; for (let i = 1; i < P.length - 1; i++) if (!P[i] && P[i - 1] && P[i + 1]) bridge += `M ${P[i - 1][0].toFixed(1)} ${P[i - 1][1]} L ${P[i + 1][0].toFixed(1)} ${P[i + 1][1]} `;
   const dotR = n === 7 ? 5.5 : n >= 28 && n <= 31 ? 3.5 : 0;
   const svg = h("svg", { viewBox: `0 0 ${W} 170`, role: "img", "aria-label": `Mood line, ${ser.when}` },
@@ -169,10 +170,10 @@ function secSleep(s) {
   });
   const touch = h("div.slp-touch", { "aria-hidden": "true" }); chart.append(touch);
   const ticks = h("div"); chart.append(ticks);
-  const key = h("div.slp-key", { "aria-hidden": "true" }, h("span", null, "Next day"), h("span", null, "Awful"), ...MOOD_COL.map((c) => h("i", { style: { background: c } })), h("span", null, "Great"));
+  // No key under the chart (alex 2026-11-24, rule 29): the first-time hint explains the colours, and sliding names each night.
   const noteEl = h("p.slp-note", null, h("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "#a9a59d", "stroke-width": "2", "stroke-linecap": "round", "aria-hidden": "true" }, h("circle", { cx: "12", cy: "12", r: "9" }), h("path", { d: "M12 11v5M12 8h.01" })),
     P.left ? h("span", null, h("b", null, P.left === 1 ? "1 more day" : `${P.left} more days`), " and patterns get more reliable.") : h("span", null, `Based on ${P.total} days. Patterns get steadier over time.`));
-  card.append(tabs, lead, more || "", read, chart, key, noteEl);
+  card.append(tabs, lead, more || "", read, chart, noteEl);
 
   // The first time only: what the columns mean, in the hint line. Gone after the first slide or tab switch.
   function firstDone() { if (!s.notes.sleepHint) { s.notes.sleepHint = true; store.save(); } }
@@ -325,7 +326,7 @@ function secHelps(s) {
     }
     // Most lines count good days; "rested" counts rested mornings (Well or Very well) and names its hours in sun.
     const rested = it.measure === "rested", t = it.text("");
-    const lead = rested ? h("p.lead", null, t[0], h("b", { style: { color: "#f2c08f", fontWeight: "600" } }, t[1]), t[2]) : h("p.lead", null, t[0], coloured(it.top), t[1]);
+    const lead = rested ? h("p.lead", null, t[0], h("b", { style: { color: "#ffa51f", fontWeight: "600" } }, t[1]), t[2]) : h("p.lead", null, t[0], coloured(it.top), t[2]);   // t[1] is the slot for the coloured word
     card.append(h("div.help", null, lead,
       h("div", { style: { display: "flex", justifyContent: "flex-end" } }, h("span", { style: { textAlign: "right", fontSize: "11px", color: "#8d8981" } }, rested ? "Rested mornings" : "Good days")),
       it.rows.map(([l, ms]) => { const g = rested ? ms.filter((r) => r >= 3).length : goodCount(ms), p = Math.round(g / ms.length * 100);
@@ -389,7 +390,7 @@ function openDay(k) {
       if (cr.length) parts.push(h("div.col", { style: { gap: "4px" } }, h("span.note", { style: { textAlign: "left" } }, cr.length > 1 ? "Your crumbs" : "Your crumb"),
         cr.map((c) => crumbs.row(c, () => crumbs.open({ k, t: c.t, onSaved: draw })))));
       if (d.rest) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You did"), h("span.chip", { style: { alignSelf: "flex-start" } }, "No card today, on purpose")));
-      else if (d.card && d.card.id && cardOf(d.card.id)) { const c = cardOf(d.card.id); parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "Today's card"),
+      else if (d.card && d.card.id && cardOf(d.card.id)) { const c = cardOf(d.card.id); parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, k === dayKey() ? "Today's card" : "That day's card"),
         d.ph ? dayPhoto(k) : null,
         h("span", null, c.text), d.card.how != null ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, d.card.felt && d.card.felt.length ? d.card.felt.join(", ") : HOW[d.card.how]) : null,
         d.pil && d.pil.length ? h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p))) : null)); }

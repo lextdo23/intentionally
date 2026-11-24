@@ -1,4 +1,6 @@
 // Showing a new thing once, where it lives (alex 2026-11-18, picked "A. A tip that points at it").
+// Since 2026-11-24 a level-up shows its own moment (js/levelup.js) with a card for what opened, and marks the tip as
+// shown; this pointing tip is the fallback for anything opened without that moment.
 // When a level opens something, home dims, the thing stays lit, and a short tip sits beside it with "Got it".
 // Tapping the lit thing opens it straight away. Each tip shows once, never on day one, and never for people who
 // already had everything open. Inside a screen, a small gold "New" tag sits on the new thing until it's first used.
@@ -27,16 +29,18 @@ function waiting() {
   return levels.UNLOCKS.filter((u) => levels.isOpen(u.id) && !m.tips[u.id] && TIP[u.id]);
 }
 
-// "New" tag on something inside a screen, until it's first used. newTag("own") / used("own").
-export function isNew(id) { const m = mem(); return !m.keepAll && levels.isOpen(id) && !(m.used || {})[id]; }
+// Notes that something inside a screen has been used (there's no "New" tag any more: the level-up tip says it, alex 2026-11-24).
+// For the level-up card (js/levelup.js): the longer line about a new thing, marking its tip as shown, and opening it.
+export const tipText = (id) => (TIP[id] ? TIP[id][1] : "");
+export function shown(id) { const m = mem(); if (!m.tips[id]) { m.tips[id] = 1; store.save(); } }
+export function open(id) { const el = TARGET[id] && document.querySelector(TARGET[id]); if (el) el.click(); }
 export function used(id) { const m = mem(); m.used = m.used || {}; if (!m.used[id]) { m.used[id] = 1; store.save(); } }
-export const newTag = () => h("span.new-tag", null, "New");
 
 let layer = null;
 // Show the next waiting tip if home is quiet and its thing is on screen. Returns true if one showed.
 export function next() {
   if (layer || document.querySelector(".sheet-host, .cam, .ph-viewer")) return false;
-  if (["booting", "in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels", "in-days", "in-cards"].some((x) => document.body.classList.contains(x))) return false;
+  if (["booting", "in-levelup", "in-ask", "in-flow", "in-wrap", "in-photos", "in-settings", "in-levels", "in-days", "in-cards"].some((x) => document.body.classList.contains(x))) return false;
   const u = waiting().find((x) => document.querySelector(TARGET[x.id]) && (!READY[x.id] || READY[x.id]()));
   if (!u) return false;
   const el = document.querySelector(TARGET[u.id]), r = el.getBoundingClientRect();

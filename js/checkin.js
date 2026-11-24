@@ -1,6 +1,6 @@
 // The morning sleep check-in and the evening mood + feelings check-in.
 // Transition: the sun stays where it is and grows a little; home fades away; each step's words fade through.
-import { h, dayKey, keyDate, clock12, hoursWords, MOODS, MOOD_COL, LIFELINE } from "./util.js";
+import { h, dayKey, keyDate, clock12, hoursWords, MOODS, CHART_COL, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecent } from "./words.js";
 import { openSheet, pillPicker, roundBtn } from "./ui.js";
@@ -19,7 +19,7 @@ export function begin(onDone) { finish = onDone; track = null; document.body.cla
 
 const flow = () => document.getElementById("flow");
 const dayNum = (k) => Math.floor(keyDate(k).getTime() / 864e5);
-let current = null, finish = null;
+let current = null, finish = null, arcs = 0;
 // Tester mode: which check-in is open, which step, when it started, how times were set.
 let track = null;
 const at = (step) => { if (track) track.step = step; };
@@ -71,12 +71,25 @@ export function morning(onDone) {
     if (which === "bed") o = Math.min(o, off(st.wake) - 30); else o = Math.max(o, off(st.bed) + 30);
     return fromOff(Math.max(0, Math.min(1080, o))); };
   const NS = (t, a) => h(t, a);
-  const arc = NS("path", { fill: "none", stroke: "#e3c486", "stroke-width": "10", "stroke-linecap": "round" });
-  const bHalo = NS("circle", { r: "20", fill: "rgba(217,214,238,0.18)" }), bDot = NS("circle", { r: "13", fill: "#d9d6ee" }), bBite = NS("circle", { r: "11", fill: "#1b1c20" });
-  const wHalo = NS("circle", { r: "18", fill: "rgba(242,192,143,0.35)" }), wDot = NS("circle", { r: "12", fill: "#f2c08f" });
-  const svg = h("svg", { viewBox: "0 0 350 200", role: "img" },
-    NS("path", { d: "M 25 185 A 150 150 0 0 1 325 185", fill: "none", stroke: "rgba(239,237,233,0.12)", "stroke-width": "10", "stroke-linecap": "round" }),
-    arc, bHalo, bDot, bBite, wHalo, wDot);
+  // The bar runs between the moon (bed) and the sun (wake), into both. New look (alex 2026-11-24): marigold bar, and
+  // the moon and sun drawn like little tokens, a flat face with a darker edge underneath (like today's card), a thin
+  // highlight on top and a small shadow. The moon's bite is cut out, so the bar shows through it. Held = lifted a little.
+  let dragging = null;
+  const uid = "arc" + (++arcs);
+  const arc = NS("path", { fill: "none", stroke: "#ffa51f", "stroke-width": "10", "stroke-linecap": "round" });
+  const hl = (r) => h("path", { d: `M ${(-r * .72).toFixed(1)} ${(-r * .45).toFixed(1)} A ${r - 1.2} ${r - 1.2} 0 0 1 ${(r * .72).toFixed(1)} ${(-r * .45).toFixed(1)}`, fill: "none", stroke: "#fff", "stroke-opacity": ".6", "stroke-width": "1.2", "stroke-linecap": "round" });
+  const token = (r, face, edge, mask) => {
+    const body = h("g", mask ? { mask: `url(#${uid}-bite)` } : null, h("circle", { cy: "2.5", r: String(r), fill: edge }), h("circle", { r: String(r), fill: face }), hl(r));
+    return h("g", null, h("g", { filter: `url(#${uid}-lift)` }, body));
+  };
+  const defs = h("defs", null,
+    h("filter", { id: `${uid}-lift`, x: "-60%", y: "-60%", width: "220%", height: "240%" }, h("feDropShadow", { dx: "0", dy: "2", stdDeviation: "1.8", "flood-color": "#000", "flood-opacity": ".6" })),
+    h("mask", { id: `${uid}-bite`, maskUnits: "userSpaceOnUse", x: "-30", y: "-30", width: "60", height: "60" },
+      h("rect", { x: "-30", y: "-30", width: "60", height: "60", fill: "#fff" }), h("circle", { cx: "5", cy: "-4", r: "11", fill: "#000" })));
+  const moon = token(13, "#d9d6ee", "#8f8bb0", true), sun = token(12, "#ffa51f", "#a85f06", false);
+  const svg = h("svg", { viewBox: "0 0 350 200", role: "img" }, defs,
+    h("path", { d: "M 25 185 A 150 150 0 0 1 325 185", fill: "none", stroke: "rgba(239,237,233,0.12)", "stroke-width": "10", "stroke-linecap": "round" }),
+    arc, moon, sun);
   const hrs = h("div.arc-hours");
   const tBed = h("b"), tWake = h("b");
   const toVal = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -84,27 +97,24 @@ export function morning(onDone) {
   const draw = () => {
     const b = pos(st.bed), w = pos(st.wake), large = off(st.wake) - off(st.bed) > 1080 ? 1 : 0;
     arc.setAttribute("d", `M ${b.x.toFixed(1)} ${b.y.toFixed(1)} A 150 150 0 ${large} 1 ${w.x.toFixed(1)} ${w.y.toFixed(1)}`);
-    [bHalo, bDot].forEach((c) => { c.setAttribute("cx", b.x); c.setAttribute("cy", b.y); });
-    bBite.setAttribute("cx", b.x + 5); bBite.setAttribute("cy", b.y - 4);
-    [wHalo, wDot].forEach((c) => { c.setAttribute("cx", w.x); c.setAttribute("cy", w.y); });
+    moon.setAttribute("transform", `translate(${b.x.toFixed(1)} ${b.y.toFixed(1)})${dragging === "bed" ? " scale(1.15)" : ""}`);
+    sun.setAttribute("transform", `translate(${w.x.toFixed(1)} ${w.y.toFixed(1)})${dragging === "wake" ? " scale(1.15)" : ""}`);
     const mins = (st.wake - st.bed + 1440) % 1440;
     hrs.textContent = hoursWords(mins);
     tBed.textContent = clock12(st.bed); tWake.textContent = clock12(st.wake);
     iBed.value = toVal(st.bed); iWake.value = toVal(st.wake);
     svg.setAttribute("aria-label", `Slept from ${clock12(st.bed)} to ${clock12(st.wake)}, ${hoursWords(mins)}`);
   };
-  let dragging = null;
   const pt = (e) => { const r = svg.getBoundingClientRect(); return { x: (e.clientX - r.left) * 350 / r.width, y: (e.clientY - r.top) * 200 / r.height }; };
   const toMin = (p) => { let a = Math.atan2(185 - p.y, 175 - p.x); if (a < 0) a = p.x < 175 ? 0 : Math.PI; return fromOff(Math.round(a / Math.PI * 1080 / 5) * 5); };
   svg.addEventListener("pointerdown", (e) => {
     const p = pt(e), b = pos(st.bed), w = pos(st.wake), db = Math.hypot(p.x - b.x, p.y - b.y), dw = Math.hypot(p.x - w.x, p.y - w.y);
     if (Math.min(db, dw) > 48) return;
     dragging = db < dw ? "bed" : "wake"; try { svg.setPointerCapture(e.pointerId); } catch { /* older browsers */ }
-    (dragging === "bed" ? bHalo : wHalo).setAttribute("r", "26");
     st[dragging] = fit(dragging, toMin(p)); draw(); e.preventDefault(); howSet("drag");
   });
   svg.addEventListener("pointermove", (e) => { if (!dragging) return; st[dragging] = fit(dragging, toMin(pt(e))); draw(); });
-  const up = () => { if (!dragging) return; bHalo.setAttribute("r", "20"); wHalo.setAttribute("r", "18"); dragging = null; };
+  const up = () => { if (!dragging) return; dragging = null; draw(); };
   svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
   const fromInput = (which, inp) => { const [a, b] = inp.value.split(":").map(Number); if (isNaN(a)) return; st[which] = fit(which, a * 60 + Math.round(b / 5) * 5); draw(); };
   iBed.addEventListener("change", () => { howSet("wheel"); fromInput("bed", iBed); }); iWake.addEventListener("change", () => { howSet("wheel"); fromInput("wake", iWake); });
@@ -151,7 +161,7 @@ export function morning(onDone) {
 }
 
 // ---------------- Evening: mood, then feelings ----------------
-const RGB = MOOD_COL.map((c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)));
+const RGB = CHART_COL.map((c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)));
 const mix = (v) => { const f = v / 100 * 6, i = Math.min(5, Math.floor(f)), t = f - i; return RGB[i].map((c, j) => Math.round(c + (RGB[i + 1][j] - c) * t)); };
 const toMood = (v) => Math.min(6, Math.floor(v / 100 * 7));
 
@@ -167,7 +177,7 @@ export function evening(onDone) {
   // Making your own card opens at level 3 (alex 2026-11-18). Before that, a day with no card to answer ends at step 2.
   const own = levels.isOpen("own"), N = cid || own ? 3 : 2;
   document.body.classList.add("in-flow");
-  const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "242 192 143");
+  const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "255 165 31");
 
   const one = () => {
     at("mood");
@@ -207,7 +217,7 @@ export function evening(onDone) {
       noteOnce: () => (s2.notes.feelOwn ? false : (s2.notes.feelOwn = true, store.save(), true)) });
     show(step(
       [roundBtn("back", "Back", one), where(`End your day · 2 of ${N}`), spacer()],
-      [h("span.q2.rise", { style: { color: MOOD_COL[m], fontWeight: "600" } }, MOODS[m]), h("h1.q.rise", null, "What were you feeling?"), h("div.rise", null, pick.el)],
+      [h("span.q2.rise", { style: { color: CHART_COL[m], fontWeight: "600" } }, MOODS[m]), h("h1.q.rise", null, "What were you feeling?"), h("div.rise", null, pick.el)],
       [done, LIFELINE()]));
   };
   const did = !!(cid && had.card.done);

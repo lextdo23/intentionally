@@ -21,6 +21,7 @@ import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
 import { openLevels } from "./path.js";
+import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
 import * as library from "./library.js";
 import * as account from "./account.js";
@@ -30,6 +31,7 @@ import * as friends from "./friends.js";
 import * as moments from "./moments.js";
 import * as photoBackup from "./photo-backup.js";
 import * as crumbs from "./crumbs.js";
+import { wordmark } from "./wordmark.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -44,11 +46,12 @@ const home = document.getElementById("home");
 function peek() {
   const ser = moodSeries(store.get().days, "week"), pts = ser.pts.map((p, i) => (p.m == null ? null : [2 + i * 10, 18 - p.m * 2.66])).filter(Boolean);
   const top = mostlyWord(store.get().days, "week");
-  const line = pts.length > 1 ? h("svg", { width: "64", height: "20", viewBox: "0 0 64 20", "aria-hidden": "true" },
+  const line = pts.length > 1 ? h("svg", { width: "84", height: "26", viewBox: "0 0 64 20", "aria-hidden": "true" },
     h("defs", null, h("linearGradient", { id: "sg", x1: "0", y1: "2", x2: "0", y2: "18", gradientUnits: "userSpaceOnUse" }, h("stop", { offset: "0", "stop-color": "#56b56c" }), h("stop", { offset: "0.5", "stop-color": "#bdae8e" }), h("stop", { offset: "1", "stop-color": "#4a4fa8" }))),
     h("path", { d: smoothPath(pts), fill: "none", stroke: "url(#sg)", "stroke-width": "2", "stroke-linecap": "round" })) : null;
-  const btn = h("button.peek", { "aria-label": "Open Your days" }, line,
-    top == null ? h("span", null, "Your days") : h("span", null, "Mostly ", h("span", { style: { color: MOOD_COL[top] } }, moodWord(top)), " this week"), h("span.chev", { "aria-hidden": "true" }, "›"));
+  // Words on the left, the week's mood line on the right (alex 2026-11-23).
+  const btn = h("button.peek", { "aria-label": "Open Your days" },
+    top == null ? h("span.peek-words", null, "Your days") : h("span.peek-words", null, "Mostly ", h("span", { style: { color: MOOD_COL[top] } }, moodWord(top)), " this week"), line, h("span.chev", { "aria-hidden": "true" }, "›"));
   btn.addEventListener("click", () => openDays(btn, () => render()));
   return btn;
 }
@@ -58,9 +61,11 @@ function peek() {
 // The bar slides from where it was to where it is now; on a new level it fills, then starts again from empty.
 // Showing the gain (alex 2026-11-17): while it slides, only the end of the bar brightens a little (no circle), and a
 // small gold "+1" / "+2" (whatever the step gave) rises from the end of the bar and fades.
-let lvShown = null, lvBack = false;
-function levelRow() {
-  const L = levels.level(), pts = levels.total(), was = lvShown;
+let lvShown = null, lvBack = false, lvHold = null, lvRelease = null;   // lvHold: the bar waits for the level-up moment to close
+function levelRow(lvNew) {
+  const L = levels.level(), pts = levels.total();
+  let was = lvShown;
+  if (lvNew && (!was || was.level >= L.level)) was = { level: L.level - 1, frac: 0.92, pts };   // a fresh open still ticks over
   lvShown = { level: L.level, frac: L.frac, pts };
   const fill = h("i"), bar = h("div.lv-bar", null, fill), track = h("div.lv-track", { "aria-hidden": "true" }, bar);
   const next = h("span.lv-next", null, `Next box at level ${L.level + 1}`);
@@ -81,18 +86,48 @@ function levelRow() {
   // Start from where it was, then slide (after the row has faded back in, if it was hidden for the rating).
   fill.style.transition = "none"; set(was.frac, was.level === L.level && was.frac >= levels.NEAR);
   const wait = row.classList.contains("lv-back") ? 700 : 150;
-  setTimeout(() => {
+  const start = (go) => (lvHold ? lvHold.then(() => setTimeout(go, 150)) : setTimeout(go, wait));
+  start(() => {
     fill.style.transition = ""; glide();
     if (was.level < L.level) {
       set(1, false); plus(1);
-      setTimeout(() => { num.textContent = `Level ${L.level}`; fill.style.transition = "none"; set(0, false);
+      setTimeout(() => { num.textContent = `Level ${L.level}`; num.classList.remove("lv-bump"); void num.offsetWidth; num.classList.add("lv-bump");
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch { /* not on iPhone */ }
+        fill.style.transition = "none"; set(0, false);
         requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = ""; if (L.frac > 0) glide(); set(L.frac, L.frac >= levels.NEAR); })); }, 1100);
     } else { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); }
-  }, wait);
+  });
   return row;
 }
 
 // A box earned and not opened yet (js/boxes.js): a quiet gold row under the level bar until it's opened.
+// The level-up moment, once the splash has gone: the eclipse opens and, if the level opened something, its card
+// is dealt (it takes the place of the pointing tip). Then the bar ticks over.
+function levelUpMoment(lv) {
+  const u = levels.opensAt(lv);
+  if (u) tips.shown(u.id);
+  const go = () => {
+    if (document.body.classList.contains("booting")) return setTimeout(go, 200);
+    levelup.show(lv, u, { text: u ? tips.tipText(u.id) : "", onOpen: (id) => tips.open(id),
+      onDone: () => { const r = lvRelease; lvHold = null; lvRelease = null; r && r(); } });
+  };
+  setTimeout(go, 400);
+}
+
+// When Today is crowded (a level-up moment, boxes waiting and the recap line at once), the card shrinks just enough
+// that nothing slides under the bottom pill (alex 2026-11-24). An ordinary day keeps the full-size card.
+function fitCard() {
+  const home = document.getElementById("home");
+  home.style.removeProperty("--fit");
+  const card = home.querySelector(".home-mid .home-card");
+  if (!card) return;
+  const floor = home.getBoundingClientRect().bottom - parseFloat(getComputedStyle(home).paddingBottom);
+  const over = Math.max(...[...home.children].map((x) => x.getBoundingClientRect().bottom)) - floor;
+  if (over <= 1) return;
+  const ch = card.getBoundingClientRect().height;
+  if (ch) home.style.setProperty("--fit", Math.max(0.7, (ch - over - 8) / ch).toFixed(3));
+}
+
 function boxRow() {
   const n = boxesWaiting();
   if (!n) return "";
@@ -233,12 +268,18 @@ function render(moment) {
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
   if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
   if (lvNew) { log("level", lvNew); const u = levels.opensAt(lvNew); if (u && !(store.get().levels || {}).keepAll) log("unlock", u.id); }
-  const mo = lvNew ? [`Level ${lvNew}.`, null] : moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
+  // A new level gets its own moment (js/levelup.js, alex 2026-11-24); the bar ticks over once it closes.
+  if (lvNew) lvHold = new Promise((r) => (lvRelease = r));
+  const mo = moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
   const greet = h("h1.greet", null, mo ? mo[0] : head);
   const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
   let taps = 0, tapT = 0;
-  greet.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
-  const words = h("div.col.greet-words", { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
+  const mark = h("div.dd-mark", null, wordmark(36));
+  mark.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
+  // No greeting or narration on Today (alex 2026-11-23): the card and the button say what's next. The words only show
+  // for a moment ("Card's done.", "Level 4.") and, in the first week, as a short hint.
+  const hint = dayN <= 7 && !!line;
+  const words = h(`div.col.greet-words${hint ? ".hint" : ""}`, { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
   // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept
   // while the card is still to do, so the card doesn't jump when it appears.
   const offer = c && did && !ended && moment !== "did" && photos.offerOK(k);
@@ -254,19 +295,22 @@ function render(moment) {
   // and Settings moves to the You tab. Until then Daydeck looks as it always has.
   const usePill = testOn || levels.isOpen("friends");
   if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
+  // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
+  // Your days with crumbs beside it, then the card in the middle. Lifeline stays in every check-in, draw, Your days and
+  // Friends, so it is one step from here.
+  const cardsOpen = !levels.isOpen || levels.isOpen("library");
+  const settingsBtn = usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render()));
+  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : settingsBtn || h("span");
+  const right = h("div.dd-right", null, cardsOpen ? settingsBtn : null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
   home.replaceChildren(
-    h("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" } },
-      words, h("div", { style: { display: "flex", gap: "8px" } },
-        // The card library opens at level 5 (thread "Finalise levels and what they unlock"; moved from 4 for Friends).
-        !levels.isOpen || levels.isOpen("library") ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : null,
-        roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())),
-        usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render())))),
+    h("div.dd-head", null, left, mark, right),
+    levelRow(lvNew),
     weekRow(),
-    levelRow(),
     boxRow(),
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
+    words,
     mid,
-    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null, LIFELINE()));
+    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
@@ -279,16 +323,16 @@ function render(moment) {
     words.classList.add("moment"); if (lift && card) card.classList.add("on");
     if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
     momentT = setTimeout(() => {
-      words.classList.remove("moment"); card && card.classList.remove("on");
-      if (greet.textContent !== head || sub.textContent !== after) {
-        const swap = () => { greet.textContent = head; sub.textContent = after; };
-        if (reduceMotion()) return swap();
-        words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
-      }
+      card && card.classList.remove("on");
+      const swap = () => { words.classList.remove("moment"); greet.textContent = head; sub.textContent = after; };
+      if (reduceMotion()) return swap();
+      words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
     }, 3600);
   }
   clearTimeout(momentT);
   if (mo) play(mo[0], mo[1] ? mo[1] : line, true);
+  fitCard();   // after the moment's words are in, before anything is drawn
+  if (lvNew) levelUpMoment(lvNew);
   tips.soon(mo ? 4200 : 1500);   // a new thing a level opened gets its tip once home is quiet (alex 2026-11-18)
 }
 

@@ -63,19 +63,11 @@ function render() {
   const top = el.querySelector(".set-scroll")?.scrollTop || 0;
   el.replaceChildren(h("div.set-scroll", null, h("div.set-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeSettings), h("h1.big-title", null, "Settings")),
-    account.settingsSection(group, linkRow, render, sync.status),   // "Your account": test mode, or anyone signed in
-    photoBackup.settingsGroup(group),   // Photos: back up my photos (signed in only)
-    // Friends' privacy, once Friends is open (the pill shows) and there's an account.
-    account.signedIn() && document.body.classList.contains("has-pill") ? group("Friends", [linkRow("Privacy", "Who can see you", { onclick: friends.openPrivacy })]) : null,
-    group("What matters to you", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars })]),
-    crumbsGroup(),
+    // Grouped by how it's used (alex 2026-11-24): you; your days; nudges; privacy and your data; support; about; delete.
+    account.settingsSection(group, linkRow, render, sync.status),
+    yourDays(),
     nudges(),
-    group("Your data", [
-      linkRow("Save a copy", null, { onclick: saveCopy }),
-      linkRow("Restore from a file", null, { onclick: restore }),
-    ].concat(photos.keys().length ? [linkRow("Save my photos", `${photos.keys().length}`, { onclick: savePhotos })] : []),
-    photos.keys().length ? "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like, with your photos in it too. Save my photos also puts them in your iPhone's Photos." : "Everything stays on this phone, unless you show a card you made to everyone. A copy is a file you keep wherever you like."),
-    h("div.set-card", null, testerRow(() => openTester(render))),
+    privacyData(),
     group("Support", [
       linkRow("Talk to someone", "Lifeline 13 11 14", { href: "tel:131114" }),
       linkRow("Text someone", "0477 13 11 14", { href: "sms:0477131114" }),
@@ -89,7 +81,30 @@ function render() {
   el.querySelector(".set-scroll").scrollTop = top;
 }
 
+// Your days: what matters to you and Crumbs (the things people come back to change).
+function yourDays() {
+  return group("Your days", [linkRow("Your pillars", pillarWords() || "Not chosen yet", { onclick: changePillars }), crumbsRow()],
+    "Crumbs: tap how you feel as your day goes, then follow your crumbs back when you end your day.");
+}
+// Privacy and your data: where your things go.
+function privacyData() {
+  const pb = photoBackup.settingsGroup("parts"), n = photos.keys().length;
+  const rows = [];
+  if (account.signedIn() && document.body.classList.contains("has-pill")) rows.push(linkRow("Who can see you", "Friends", { onclick: friends.openPrivacy }));
+  if (pb) rows.push(pb.row);
+  rows.push(linkRow("Save a copy", null, { onclick: saveCopy }), linkRow("Restore from a file", null, { onclick: restore }));
+  if (n) rows.push(linkRow("Save my photos", `${n}`, { onclick: savePhotos }));
+  rows.push(testerRow(() => openTester(render)));
+  const copy = " A copy is a file you keep wherever you like" + (n ? ", with your photos in it." : ".");
+  const foot = pb ? h("p.set-foot", null, pb.foot, copy) : "Everything stays on this phone, unless you show a card you made to everyone." + copy;
+  return group("Privacy and your data", rows, foot);
+}
 // Crumbs (js/crumbs.js, alex 2026-11-23): off unless chosen. Turning it off keeps crumbs already dropped.
+function crumbsRow() {
+  const sw = h("button.switch", { role: "switch", "aria-checked": String(crumbs.isOn()), "aria-label": "Crumbs" });
+  sw.addEventListener("click", () => { const on = !crumbs.isOn(); crumbs.setOn(on, "settings"); sw.setAttribute("aria-checked", String(on)); });
+  return h("div.set-row.set-toggle", null, h("span.set-label", null, "Crumbs"), sw);
+}
 function crumbsGroup() {
   const sw = h("button.switch", { role: "switch", "aria-checked": String(crumbs.isOn()), "aria-label": "Crumbs" });
   sw.addEventListener("click", () => { const on = !crumbs.isOn(); crumbs.setOn(on, "settings"); sw.setAttribute("aria-checked", String(on)); });
