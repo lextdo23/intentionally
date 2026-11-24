@@ -271,10 +271,9 @@ function stepCode() {
   const take = (t) => { input.value = digits(t); msg.textContent = ""; draw(); if (input.value.length === 6) verify(); };
   input.addEventListener("input", () => take(input.value));
   input.addEventListener("paste", (e) => { const t = e.clipboardData && e.clipboardData.getData("text"); if (t) { e.preventDefault(); take(t); log("signup_paste"); } });
-  const paste = navigator.clipboard && navigator.clipboard.readText ? h("button.acct-paste", { onclick: async () => {
-    try { const t = await navigator.clipboard.readText(); if (digits(t).length === 6) { take(t); log("signup_paste"); } else msg.textContent = "There's no 6-digit code to paste yet."; }
-    catch { input.focus(); }
-  } }, "Paste code") : null;
+  // No "Paste code" button (alex 2026-11-24): iPhone offers the code from Mail above the keyboard, and pasting
+  // into the boxes still works.
+  const paste = null;
   input.addEventListener("focus", draw); input.addEventListener("blur", draw);
   // "Works for 9:42": the code stops working 10 minutes after it was sent.
   const tick = () => {

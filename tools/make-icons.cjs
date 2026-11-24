@@ -8,7 +8,7 @@ const svg = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" h
   <defs><clipPath id="in"><circle cx="50" cy="50" r="27"/></clipPath></defs>
   <rect width="100" height="100" fill="#ffffff"/>
   <circle cx="50" cy="50" r="27" fill="#0a0a0b"/>
-  <circle cx="61.2" cy="50" r="23.1" fill="#ffa51f" clip-path="url(#in)"/>
+  <circle cx="57.98" cy="50" r="19.02" fill="#ffa51f"/>
 </svg>`;
 
 const OUT = [["icons/apple-touch-icon.png", 180], ["icons/icon-192.png", 192], ["icons/icon-512.png", 512], ["icons/icon-maskable-512.png", 512]];

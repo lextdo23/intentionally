@@ -63,7 +63,7 @@
 .wr-cd .bk, .wr-cd .fc { position: absolute; inset: 0; border-radius: inherit; }
 .wr-cd .bk { background: var(--sun);   /* the Daydeck slab (new look) */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 10px 20px rgba(0, 0, 0, .45); }
-.wr-cd .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.wr-cd .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 .wr-cd .fc { overflow: hidden; opacity: 0; background: linear-gradient(165deg, color-mix(in srgb, var(--c) 60%, white), var(--c)); color: var(--on-sun); display: flex; flex-direction: column; justify-content: space-between; padding: 10px; font-weight: 700; text-align: left; }
 .wr-cd .fc small { font-size: 13px; } .wr-cd .fc > span { font-size: 15px; }
 .wr-cd.face .fc { opacity: 1; } .wr-cd.face .bk { opacity: 0; }
@@ -112,7 +112,7 @@
 .wr-fan .dc.lift { animation: wr-lift .45s var(--spring); } @keyframes wr-lift { 40% { translate: 0 -14px; } }
 .wr-fan .dc .bk, .wr-fan .dc .fc { position: absolute; inset: 0; border-radius: 12px; }
 .wr-fan .dc .bk { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 12px 24px rgba(0, 0, 0, .3); }
-.wr-fan .dc .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.wr-fan .dc .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 .wr-fan .dc .fc { background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); color: var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 8px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), 0 12px 24px rgba(0, 0, 0, .3); transition: box-shadow .4s ease; overflow: hidden; }
 .wr-fan .dc.love .fc { box-shadow: 0 0 0 1.5px var(--sun), 0 12px 24px rgba(0, 0, 0, .3); }

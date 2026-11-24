@@ -50,6 +50,7 @@ Today (home) is the reference screen: when unsure, match it.
 
 17. **System font (SF Pro) at Apple's sizes, never scaled with the screen:** large title 34, titles 28 / 22 / 20, body and buttons 17, smaller 15, notes 13, tiny labels 12 / 11. Never below 11 as seen on the phone. (Inside the home card, sizes are drawn smaller and the card is enlarged, so check them on the phone, not in the code.)
 18. **A label is never smaller than what it labels.** Each screen or card has one focal point, and everything else steps down.
+18b. **The logo** (alex 2026-11-24): the eclipse, a dark moon with a whole marigold sun inside it, touching the moon's right edge (sun 70% of the moon's size). On black it has a fine light rim so its round shape reads; on the white app icon the moon is black. The same on the icon, splash, launch pictures, sign-up and card backs.
 19. **Wordmark:** the drawn lowercase "daydeck" (`js/wordmark.js`), in ink on dark, used only at the top of Today and on brand pieces. Never retyped in a font.
 
 ## 5. The Daydeck card

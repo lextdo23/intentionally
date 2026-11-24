@@ -334,7 +334,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .dcard .face { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
 /* Back (alex 2026-11-23, "Marigold slab"): the card back is the brand colour, the eclipse cut into it in black. */
 .dcard .back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
-.dcard .back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.dcard .back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 .dcard.big .back, .home-card .back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
 /* The face: dark card stock with a fine white edge (new look, alex 2026-11-24); the warm light lives behind the card (.glow). */
 .dcard .front { transform: rotateY(180deg); padding: 8px; display: flex; flex-direction: column; gap: 4px;
@@ -432,7 +432,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card.todo.up .front { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 /* Face down, both sides are the back, so turning it never shows a blank face. */
 .home-card.blank .front { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 2px 4px rgba(0, 0, 0, .35); }
-.home-card.blank .front::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.home-card.blank .front::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 @media (prefers-reduced-motion: reduce) { .stage .hc { transition: none !important; } .dcard .in { transition: none !important; } .lifter.on { translate: none; } #sun { transition: none; } }
 
 /* ---------- Choosing pillars and where you're at ---------- */
@@ -613,7 +613,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .acct-msg { margin: 0; min-height: 20px; font-size: 15px; color: var(--ink); text-align: center; }
 .acct-msg:empty { min-height: 0; }
 .acct-msg.ok { color: #a9c4b5; }
-.acct-sun { width: 88px; height: 88px; margin-bottom: 16px; border-radius: 50%; overflow: hidden; background: radial-gradient(circle 37.7px at 62.2px 44px, var(--sun) 37.4px, transparent 37.8px), #2a2b30; }   /* the logo, as on the splash (no glow) */
+.acct-sun { width: 88px; height: 88px; margin-bottom: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(239, 237, 233, .35); background: radial-gradient(circle 31px at 57px 44px, var(--sun) 30.7px, transparent 31.1px), #141416; }   /* the logo (alex 2026-11-24): a whole sun touching the moon's right edge, a fine light rim on black */
 @keyframes acct-breathe { 0%, 100% { transform: scale(1); } 44% { transform: scale(1.08); } }
 .acct-field { width: 100%; min-height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--fill); font-size: 17px; color: var(--ink); }
 .acct-field::placeholder { color: var(--faint); }
@@ -1019,7 +1019,7 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .lu-in { position: absolute; inset: 0; transform-style: preserve-3d; }
 .lu-face { position: absolute; inset: 0; border-radius: 20px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
 .lu-back { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 20px 40px rgba(0, 0, 0, .6); }
-.lu-back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(36.2% 36.2% at 63.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.lu-back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
 .lu-front { transform: rotateY(180deg); background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), 0 20px 40px rgba(0, 0, 0, .6);
   padding: 24px; display: flex; flex-direction: column; gap: 10px; text-align: left; color: var(--ink); }
 .lu-front small { font-size: 15px; color: var(--dim); }
