@@ -15,6 +15,7 @@ import { openSheet, roundBtn } from "./ui.js";
 import { log } from "./tester.js";
 import * as account from "./account.js";
 import * as moments from "./moments.js";
+import * as notify from "./notify.js";
 
 const KEY = "daydeck-friends";
 let local = read();
@@ -43,6 +44,7 @@ const countText = (n) => (n > 9 ? "9+" : String(n));
 function showCount() {
   const n = count();
   dotFn(n);
+  setBadge(n);
   document.querySelectorAll(".fr-bell").forEach((b) => {
     b.setAttribute("aria-label", n ? `Notifications, ${n} new` : "Notifications");
     const c = b.querySelector(".fr-bell-n");
@@ -55,21 +57,90 @@ function bell() {
   return b;
 }
 // The bell's page: requests first (Accept / Not now), then friends' new moments. Opening it marks the moments seen.
-function openNotes() {
+export function openNotes() {
   const fresh = newMoments();
   if (fresh.length) { local.seen = Math.max(local.seen || 0, ...fresh.map((m) => m.at || 0)); keep(); }
   log("notes_open", Math.min(fresh.length + (data ? data.asksYou.length : 0), 50));
   let list = fresh;
-  page("Notifications", () => {
+  page("Notifications", (redraw) => {
     const parts = [];
+    if (pingOffer()) parts.push(pingCard(redraw));
     if (data && data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
     if (list.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New moments"),
       moments.feedList(list, { onPerson: openPerson, onChange: (m, gone) => { if (gone) { list = list.filter((x) => x.id !== gone.id); again(); } } })));
-    if (!parts.length) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
+    if (!list.length && !(data && data.asksYou.length)) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
     return h("div.fr-body", null, parts);
   });
   showCount();
 }
+// ---------------- The number on the app icon (alex 2026-11-25) ----------------
+// The same number as the bell, on the Daydeck icon on the home screen. Nothing else is ever counted there: never
+// cards, check-ins, the weekly recap or levels, so a number never means "you're behind". The iPhone only shows it
+// when Daydeck may send notifications. A copy is kept for the service worker, which adds to it when a friend
+// notification arrives while Daydeck is closed; opening Daydeck puts the real number back.
+let badgeWas = null;
+function setBadge(n) {
+  try {
+    if (!("setAppBadge" in navigator) || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
+    if ("caches" in window) caches.open("nudge-plan").then((c) => c.put("badge", new Response(String(n)))).catch(() => {});
+    if (n && n !== badgeWas) log("badge", Math.min(n, 10));
+    badgeWas = n;
+  } catch { /* no number on the icon: nothing lost */ }
+}
+
+// ---------------- Friend notifications (alex 2026-11-25) ----------------
+// Off until pressed: "Get notified when friends share" at the top of the bell page (shown once, until Turn on or
+// Not now), and "When friends share" in Settings, Notifications. Then a friend's new moment brings "Mia shared a
+// moment" (their name, else @username; never a photo, caption or mood), at most one an hour and never 10pm to 8am.
+// The service keeps this phone's push address with the account for it (push/friends.js); off removes it.
+// On this phone: pings (on or off), pingAsk (the bell page's offer was answered) and pingSub (the address sent).
+export const pingsOn = () => !!local.pings;
+const pingOffer = () => !local.pings && !local.pingAsk && notify.supported() && !notify.needsInstall() && !notify.blocked();
+const tz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { return ""; } };
+export async function setPings(on, from) {
+  if (on) {
+    const sub = await notify.pushSub();
+    if (!sub) { note(notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings app." : SAY.offline); return false; }
+    const r = await account.call("/a/f/pings", { on: true, sub: sub.toJSON(), tz: tz() });
+    if (!r.ok) { note(say(r)); return false; }
+    local.pings = true; local.pingSub = sub.endpoint;
+  } else {
+    const r = await account.call("/a/f/pings", { on: false });
+    if (!r.ok) { note(say(r)); return false; }
+    local.pings = false; delete local.pingSub;
+  }
+  local.pingAsk = 1; keep();
+  log("friend_pings", on ? "on_" + (from || "settings") : "off");
+  return true;
+}
+function pingsLater() { local.pingAsk = 1; keep(); log("friend_pings", "later"); }
+// If the phone's push address changed (iPhone sometimes renews it), tell the service quietly. If notifications were
+// switched off for Daydeck in the phone's Settings, friend notifications are off too.
+async function checkPings() {
+  if (!local.pings) return;
+  if (typeof Notification !== "undefined" && Notification.permission === "denied") { local.pings = false; delete local.pingSub; keep(); account.call("/a/f/pings", { on: false }); return; }
+  const sub = await notify.currentSub();
+  if (!sub || sub.endpoint === local.pingSub) return;
+  const r = await account.call("/a/f/pings", { on: true, sub: sub.toJSON(), tz: tz() });
+  if (r.ok) { local.pingSub = sub.endpoint; keep(); }
+}
+// Signing out: friend notifications stop (the service also stops them once no phone is signed in).
+export async function pingsOffForSignOut() {
+  if (!local.pings) return;
+  await account.call("/a/f/pings", { on: false }).catch(() => {});
+  local.pings = false; delete local.pingSub; delete local.pingAsk; keep();
+}
+account.beforeLeaving(pingsOffForSignOut);
+function pingCard(redraw) {
+  const on = h("button.fr-btn.main", { type: "button", onclick: (e) => busy(e.currentTarget, async () => { if (await setPings(true, "bell")) { note("You'll hear when friends share."); redraw(); } }) }, "Turn on");
+  const later = h("button.fr-btn.soft", { type: "button", onclick: () => { pingsLater(); redraw(); } }, "Not now");
+  return h("section.fr-ping", null,
+    h("h2.fr-ping-title", null, "Get notified when friends share"),
+    h("p.fr-ping-text", null, "At most one an hour, never at night. You'll see their name, never their photo or words."),
+    h("div.fr-ping-btns", null, on, later));
+}
+
 // Coming back to Daydeck: check again now and then, so the number keeps up.
 let lastCheck = 0;
 document.addEventListener("visibilitychange", () => {
@@ -85,7 +156,7 @@ export async function afterShare() { mine = null; moments.resetFeed(); goTab("fr
 
 // Everything the Friends screen needs, from the service. Quietly does nothing without an account.
 export async function load() {
-  if (!account.signedIn()) { data = null; problem = null; dotFn(0); return null; }
+  if (!account.signedIn()) { data = null; problem = null; dotFn(0); setBadge(0); return null; }
   if (loading) return loading;
   loading = (async () => {
     const r = await account.call("/a/f");
@@ -95,6 +166,7 @@ export async function load() {
     if (r.me.adult && r.friends.length) await moments.loadFeed();
     showCount();
     sendPic();
+    checkPings();
     return r;
   })();
   return loading;

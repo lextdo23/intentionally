@@ -125,7 +125,8 @@ function nudges() {
   const say = () => {
     msg.textContent = notify.needsInstall() ? "On iPhone, add Daydeck to your Home Screen first (Share, then Add to Home Screen), then turn these on there."
       : !notify.supported() ? "This browser can't show notifications."
-      : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings app." : "One gentle nudge each, skipped if you've already checked in. Card reminders come at lunch and after work, only if your card isn't done yet. Nothing you wrote is ever shown.";
+      : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings app." : "One gentle nudge each, skipped if you've already checked in. Card reminders come at lunch and after work, only if your card isn't done yet. Nothing you wrote is ever shown."
+        + (friends.loaded() && account.signedIn() ? " When friends share, you'll see their name (at most once an hour, never at night). The number on the Daydeck icon is friend requests and new moments; turn it off in your phone's Settings, Notifications, Daydeck, Badges." : "");
   };
   const row = (key, label) => {
     const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": label });
@@ -154,7 +155,17 @@ function nudges() {
     sw.addEventListener("click", () => { wind.off = true; store.save(); notify.sync(); tester.log("wrap_stop", "nudge"); sw.setAttribute("aria-checked", "false"); sw.disabled = true; });
     return h("div.set-row.set-toggle", null, h("span.set-label", null, "Wind-down nudge"), h("span.time-pill", { style: { opacity: ".7" } }, `until ${DAY_NAME[keyDate(store.get().wrap.plan.end).getDay()]}`), sw);
   };
-  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()].concat(wind ? [windRow()] : []), msg);
+  // Friend notifications (alex 2026-11-25): once Friends is open and ticked 18+. Off until switched on.
+  const fd = friends.loaded(), friendRow = () => {
+    const sw = h("button.switch", { role: "switch", "aria-checked": String(friends.pingsOn()), "aria-label": "When friends share" });
+    sw.addEventListener("click", async () => {
+      const on = !friends.pingsOn(); sw.disabled = true;
+      await friends.setPings(on, "settings");
+      sw.disabled = false; sw.setAttribute("aria-checked", String(friends.pingsOn())); say();
+    });
+    return h("div.set-row.set-toggle", null, h("span.set-label", null, "When friends share"), sw);
+  };
+  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()].concat(wind ? [windRow()] : [], fd && fd.me.adult && account.signedIn() ? [friendRow()] : []), msg);
 }
 
 // A copy of everything, as a file the person keeps, photos included (alex 2026-11-20). Tester details stay out of it.

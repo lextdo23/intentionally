@@ -49,6 +49,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const res = await worker.fetch(new Request("https://svc.example" + u.pathname + u.search, { method: req.method(), headers, body: req.postData() || undefined }), env);
     route.fulfill({ status: res.status, contentType: "application/json", body: await res.text(), headers: { "access-control-allow-origin": "*" } });
   });
+  // The number on the app icon (alex 2026-11-25): notifications allowed, and the icon's number noted instead of shown.
+  await ctx.addInitScript(() => { Object.defineProperty(Notification, "permission", { get: () => "granted" }); window.__badge = []; navigator.setAppBadge = (n) => (window.__badge.push(n), Promise.resolve()); navigator.clearAppBadge = () => (window.__badge.push(0), Promise.resolve()); });
+  const badge = () => p.evaluate(() => window.__badge[window.__badge.length - 1]);
   const p = await ctx.newPage(); const errors = []; p.on("pageerror", (e) => errors.push(e.message));
   const shot = async (n) => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, n + ".png") }); };
   const signIn = (tok, user) => p.evaluate(([tok, user]) => localStorage.setItem("daydeck-account", JSON.stringify({ token: tok, user, pic: { kind: "little", id: "smile" } })), [tok, user]);
@@ -202,14 +205,23 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- Notifications (alex 2026-11-25): a number for requests waiting and friends' new moments, never I see yous ----
   check(await p.$eval('#pill [data-tab="friends"]', (e) => e.dataset.count) === "1", "the pill shows 1 on Friends: Sam's new moment (Mia's own and I see yous don't count)");
   check(await text("#friends .fr-bell .fr-bell-n") === "1", "and the bell at the top of Friends shows the same number");
+  check(await badge() === 1, "the Daydeck icon shows the same number");
   await p.click("#friends .fr-bell"); await p.waitForTimeout(800);
   const np = ".fr-page:last-child";
+  check(/Get notified when friends share/.test(await text(np)) && /never their photo or words/.test(await text(np)), "the bell page offers friend notifications, off until pressed");
+  check(await badge() === 0, "opening the bell clears the number on the icon");
+  await p.click(`${np} .fr-ping .fr-btn.soft`); await p.waitForTimeout(300);
+  check(!(await p.$(`${np} .fr-ping`)), "Not now puts the offer away");
+  await p.focus(`${np} h1`);
   check(/Notifications/.test(await text(np)) && /New moments/.test(await text(np)) && /Slept in, no guilt/.test(await text(np)) && !/Walked to work/.test(await text(np)), "the bell opens Notifications with Sam's new moment, not Mia's own");
   await shot("15b-notifications");
   await p.press(np, "Escape"); await p.waitForTimeout(600);
   check(!(await p.$('#pill [data-tab="friends"][data-count]')) && !(await p.$("#friends .fr-bell-n")), "once seen, the number goes from the pill and the bell");
   await tab("you"); await tab("friends"); await p.waitForTimeout(1200);
   check(!(await p.$('#pill [data-tab="friends"][data-count]')), "and stays gone after looking at Friends again");
+  await p.click("#friends .fr-bell"); await p.waitForTimeout(800);
+  check(!(await p.$(".fr-page:last-child .fr-ping")), "the offer only shows once (Settings keeps the switch)");
+  await p.press(".fr-page:last-child", "Escape"); await p.waitForTimeout(600);
   const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
   await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
   check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");

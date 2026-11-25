@@ -3,15 +3,13 @@
 // itself decides what the ping says. Runs on Cloudflare Workers; setup is in README.md.
 import { DurableObject } from "cloudflare:workers";
 import { accounts } from "./accounts.js";
+import { ping, pushable, vapid, b64u } from "./webpush.js";
 // Accounts live in accounts.js; Cloudflare needs their storage classes shared from here too.
 export { Accounts, Vault } from "./accounts.js";
 
 const DAY = 86400000;
 // The addresses the app is served from. The old GitHub address stays allowed while people move to daydeck.day.
 const APPS = ["https://daydeck.day", "https://www.daydeck.day", "https://lextdo23.github.io"];
-const CONTACT = "https://daydeck.day/";
-// Only the phone makers' own push services, so the service can't be used to call anywhere else.
-const PUSH_HOSTS = [/\.push\.apple\.com$/, /^fcm\.googleapis\.com$/, /\.push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/];
 // A phone that hasn't opened the app for two weeks stops getting the evening question: no nagging.
 const QUIET_AFTER = 14 * DAY;
 // The old Intentionally app's notifications are switched off (alex, 2026-11-15). Only Daydeck marks its plans
@@ -59,15 +57,6 @@ async function route(req, env) {
     if (pathname.startsWith("/l/")) return library(req, env, pathname);
     if (pathname.startsWith("/a/")) return accounts(req, env, pathname, reply);
     return reply({ error: "not found" }, 404);
-  }
-}
-
-function pushable(endpoint) {
-  try {
-    const u = new URL(endpoint);
-    return endpoint.length < 1000 && u.protocol === "https:" && PUSH_HOSTS.some((h) => h.test(u.hostname));
-  } catch {
-    return false;
   }
 }
 
@@ -126,26 +115,7 @@ export class Keys extends DurableObject {
   }
 }
 
-const vapid = (env) => env.KEYS.get(env.KEYS.idFromName("vapid")).get();
-
-// An empty push: no words travel. Returns true when the phone has gone away for good.
-async function ping(env, endpoint) {
-  const k = await vapid(env);
-  const jwt = await sign({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: CONTACT }, k.private);
-  // "high": a "normal" ping can be held back while a phone sits idle (overnight, so mornings), then thrown
-  // away when its hour runs out. These are timed nudges, so they should arrive on time.
-  const res = await fetch(endpoint, { method: "POST", body: "", headers: { TTL: "3600", Urgency: "high", Authorization: `vapid t=${jwt}, k=${k.public}` } });
-  return res.status === 404 || res.status === 410;
-}
-
-async function sign(claims, jwk) {
-  const part = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
-  const data = `${part({ typ: "JWT", alg: "ES256" })}.${part(claims)}`;
-  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  return `${data}.${b64u(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(data)))}`;
-}
-
-const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// Pinging, signing and the shared helpers live in webpush.js.
 
 // ---------------- Tester mode (Daydeck beta) ----------------
 // Testers who joined send the choices and numbers they tapped, under a random code like T-7KQ4, with a secret

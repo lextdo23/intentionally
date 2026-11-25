@@ -1,7 +1,7 @@
 // Keeps Daydeck working offline. Daydeck is the whole site (the old Intentionally app is retired).
 // Bump VERSION whenever any file below changes. (icons/launch-*.png are left out on purpose: the iPhone fetches its one
 // launch picture itself when Daydeck is added to the home screen, so keeping all ten here would only cost space.)
-const VERSION = "d115";
+const VERSION = "d116";
 const FILES = [
   "./", "index.html", "privacy.html", "guidelines.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css", "css/box.css", "css/photos.css", "css/library.css",
   "js/main.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js",
@@ -69,11 +69,30 @@ async function show() {
   });
   return note([t, "sent", kind]);
 }
-self.addEventListener("push", (e) => { e.waitUntil(show()); });
+// Friend notifications (alex 2026-11-25): these carry their own words, sealed for this phone by the service:
+// "Mia shared a moment" and how many moments. Never a photo, caption or mood. The number on the app icon goes up by
+// that many (opening Daydeck puts the real number back: friend requests plus moments not seen yet).
+async function friendNote(w) {
+  await self.registration.showNotification(String(w.title || "").slice(0, 80), { body: "", icon: "icons/icon-192.png", tag: "daydeck-friends", data: { kind: "friends" } });
+  try {
+    if (self.navigator.setAppBadge) {
+      const c = await caches.open("nudge-plan"), r = await c.match("badge"), n = (r ? Number(await r.text()) || 0 : 0) + Math.max(1, Number(w.n) || 1);
+      await c.put("badge", new Response(String(n)));
+      await self.navigator.setAppBadge(n);
+    }
+  } catch { /* no number: the notification still shows */ }
+  return note([Date.now(), "sent", "friends"]);
+}
+self.addEventListener("push", (e) => {
+  let w = null;
+  try { w = e.data ? e.data.json() : null; } catch { w = null; }
+  e.waitUntil(w && w.kind === "friends" && w.title ? friendNote(w) : show());
+});
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const kind = (e.notification.data && e.notification.data.kind) || { "daydeck-am": "am", "daydeck-card": "card", "daydeck-wind": "wind" }[e.notification.tag] || "pm";
   const recap = kind === "recap-mon"; // Monday's opens the recap itself; Sunday's opens home, to end the day
+  const fr = kind === "friends";        // a friend notification opens the bell page on Friends
   // Tells the app a nudge opened it, and which one (counted only for testers who joined tester mode).
-  e.waitUntil(note([Date.now(), "tap", kind]).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1, recap }), open[0].focus()) : self.clients.openWindow(recap ? "./?from=nudge&open=recap" : "./?from=nudge"))));
+  e.waitUntil(note([Date.now(), "tap", kind]).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1, recap, friends: fr }), open[0].focus()) : self.clients.openWindow(recap ? "./?from=nudge&open=recap" : fr ? "./?from=nudge&open=friends" : "./?from=nudge"))));
 });

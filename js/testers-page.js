@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -67,6 +67,7 @@ const SHAPE = {
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1,
+  friend_pings: (v) => ["on_bell", "on_settings", "off", "later"].includes(v), badge: (v) => isInt(v, 1, 10), friend_ping_open: (v) => v == null,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
@@ -408,6 +409,14 @@ function drawAll(D) {
         `<p class="note">Opened ${opens.length} times (${from("pill")} from the pill, ${from("home")} from under the card); shared ${n} (${opens.length ? Math.round(100 * n / opens.length) : 0}% of opens). With a caption: ${pct((e) => e.val.cap)}. With how the day felt: ${pct((e) => e.val.mood)}. From an earlier day: ${pct((e) => e.val.ago > 0)}. "I see you" said ${sees} times. Moments removed: ${by("unshare").length}. Friends' moments hidden: ${by("hide").length}. Grids opened: ${by("grid_open").length}. Friends list opened: ${by("friends_list").length}.</p>`
         : `<p class="sub">Nobody has shared a moment yet.</p>`,
       "many opens but few shares means the share screen asks too much; lots of hides means feeds feel noisy."); }
+  // Friend notifications and the number on the icon (alex 2026-11-25): only choices and counts, never names.
+  { const fp = (v) => new Set(by("friend_pings").filter((e) => e.val === v).map((e) => e.code)).size, who = (n) => new Set(by(n).map((e) => e.code)).size;
+    const b = by("badge").map((e) => e.val), mid = b.length ? b.slice().sort((x, y) => x - y)[Math.floor(b.length / 2)] : 0;
+    html += sec("Do friend notifications help?", "Who turned on \"Get notified when friends share\", from the bell page or Settings, and how big the number on the Daydeck icon gets. Never whose names were in them.",
+      by("friend_pings").length || b.length ? bars([["Turned it on from the bell page", fp("on_bell")], ["Turned it on in Settings", fp("on_settings")], ["Said not now", fp("later")], ["Turned it off", fp("off")], ["Opened Daydeck from one", who("friend_ping_open")]]) +
+        `<p class="note">The number on the icon was shown ${b.length} times (to ${who("badge")} testers); usually ${mid}${b.some((x) => x >= 10) ? ", sometimes 10 or more" : ""}.</p>`
+        : `<p class="sub">Nobody has been offered friend notifications yet.</p>`,
+      "lots of 'not now' is fine. If people turn it on and then off, the pings may feel like too much. A number that's often big may feel like homework."); }
 
   // Which pillars and mindsets
   const lastPick = {}; by("pick_pillars").forEach((e) => (lastPick[e.code] = e.val || []));
