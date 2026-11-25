@@ -24,8 +24,58 @@ function keep() { try { localStorage.setItem(KEY, JSON.stringify(local)); } catc
 let data = null, loading = null, problem = null, dotFn = () => {}, redrawYou = () => {}, goTab = () => {}, mine = null;
 let fScreen = null;
 export const loaded = () => data;
-// The pill hands over: how to show the small dot on Friends (no counts, alex 2026-11-20) and how to redraw You.
+// The pill hands over: how to show the number on Friends and how to redraw You.
 export function connect({ dot, you, go }) { if (dot) dotFn = dot; if (you) redrawYou = you; if (go) goTab = go; }
+
+// ---------------- Notifications (alex 2026-11-25) ----------------
+// A number on Friends in the pill and on the bell at the top of Friends: friend requests waiting, plus friends'
+// moments shared since you last opened the bell. Never "I see you"s (those stay uncounted). What you've seen is
+// kept on this phone as the newest moment's time from the service, so the phone's own clock never matters.
+const newMoments = () => {
+  const list = moments.cachedFeed();
+  if (!list) return [];
+  const theirs = list.filter((m) => !m.mine);
+  if (local.seen == null) { local.seen = theirs.reduce((a, m) => Math.max(a, m.at || 0), 0); keep(); }   // first time: start from nothing new
+  return theirs.filter((m) => (m.at || 0) > local.seen);
+};
+export const count = () => (data && data.me.adult ? data.asksYou.length + newMoments().length : 0);
+const countText = (n) => (n > 9 ? "9+" : String(n));
+function showCount() {
+  const n = count();
+  dotFn(n);
+  document.querySelectorAll(".fr-bell").forEach((b) => {
+    b.setAttribute("aria-label", n ? `Notifications, ${n} new` : "Notifications");
+    const c = b.querySelector(".fr-bell-n");
+    if (n && c) c.textContent = countText(n); else if (n) b.append(h("span.fr-bell-n", { "aria-hidden": "true" }, countText(n))); else if (c) c.remove();
+  });
+}
+function bell() {
+  const b = h("button.round.fr-bell", { type: "button", "aria-label": "Notifications", onclick: openNotes }, ICON.bell());
+  setTimeout(showCount, 0);
+  return b;
+}
+// The bell's page: requests first (Accept / Not now), then friends' new moments. Opening it marks the moments seen.
+function openNotes() {
+  const fresh = newMoments();
+  if (fresh.length) { local.seen = Math.max(local.seen || 0, ...fresh.map((m) => m.at || 0)); keep(); }
+  log("notes_open", Math.min(fresh.length + (data ? data.asksYou.length : 0), 50));
+  let list = fresh;
+  page("Notifications", () => {
+    const parts = [];
+    if (data && data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
+    if (list.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New moments"),
+      moments.feedList(list, { onPerson: openPerson, onChange: (m, gone) => { if (gone) { list = list.filter((x) => x.id !== gone.id); again(); } } })));
+    if (!parts.length) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
+    return h("div.fr-body", null, parts);
+  });
+  showCount();
+}
+// Coming back to Daydeck: check again now and then, so the number keeps up.
+let lastCheck = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !data || !account.signedIn() || Date.now() - lastCheck < 120000) return;
+  load();
+});
 // Ready to share: signed in, ticked 18+, and at least one friend to share with.
 export const canShare = () => !!(account.signedIn() && data && data.me.adult && data.friends.length);
 // After sharing or removing a moment: fresh feed and grids, and show Friends.
@@ -35,14 +85,15 @@ export async function afterShare() { mine = null; moments.resetFeed(); goTab("fr
 
 // Everything the Friends screen needs, from the service. Quietly does nothing without an account.
 export async function load() {
-  if (!account.signedIn()) { data = null; problem = null; dotFn(false); return null; }
+  if (!account.signedIn()) { data = null; problem = null; dotFn(0); return null; }
   if (loading) return loading;
   loading = (async () => {
     const r = await account.call("/a/f");
     loading = null;
     if (!r.ok || !r.me) { problem = r.error || "offline"; return null; }
-    data = r; problem = null;
-    dotFn(r.asksYou.length > 0);
+    data = r; problem = null; lastCheck = Date.now();
+    if (r.me.adult && r.friends.length) await moments.loadFeed();
+    showCount();
     sendPic();
     return r;
   })();
@@ -64,7 +115,7 @@ function sendPic() {
   const ph = id === "photo" ? account.photoPic() : null;
   account.call("/a/f/profile", ph ? { pic: "photo", photo: ph } : { pic: id }).then((r) => { if (r.ok) { local.pic = k; keep(); if (data) data.me.pic = id; } });
 }
-const again = async () => { await load(); if (data && data.me.adult) { await moments.loadFeed(); if (account.user()) mine = await moments.loadOf(account.user().username); } if (fScreen && fScreen.isConnected) drawFriends(fScreen); redrawYou(); pages.forEach((p) => p.refresh && p.refresh()); };
+const again = async () => { await load(); if (data && data.me.adult) { if (!moments.cachedFeed()) await moments.loadFeed(); if (account.user()) mine = await moments.loadOf(account.user().username); } if (fScreen && fScreen.isConnected) drawFriends(fScreen); redrawYou(); pages.forEach((p) => p.refresh && p.refresh()); };
 
 // An invite link someone opened (…/?add=…): kept until there's an account to use it with.
 export function noteInvite(t) { if (/^[A-Za-z0-9_-]{20,64}$/.test(t)) { local.join = t; keep(); } }
@@ -83,6 +134,7 @@ const ICON = {
   more: () => svg(22, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }),
   link: () => svg(20, [["path", { d: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.2 1.2" }], ["path", { d: "M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.2-1.2" }]]),
   lock: () => svg(15, [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]),
+  bell: () => svg(22, [["path", { d: "M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z" }], ["path", { d: "M10 20.5a2.2 2.2 0 0 0 4 0" }]]),
   tick: () => svg(18, [["path", { d: "M5 12.5l4.5 4.5L19 7.5" }]], { "stroke-width": "2.4" }),
 };
 const iconBtn = (icon, label, onclick) => h("button.round", { type: "button", "aria-label": label, onclick }, icon());
@@ -138,7 +190,7 @@ export function drawFriends(screen, fresh) {
   fScreen = screen;
   const ready = account.signedIn() && data && data.me.adult;
   screen.replaceChildren(
-    h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "Friends"), ready ? iconBtn(ICON.add, "Add friends", openAdd) : null),
+    h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "Friends"), ready ? h("div.tab-head-btns", null, bell(), iconBtn(ICON.add, "Add friends", openAdd)) : null),
     body(), h("div.fr-life", null, LIFELINE()));
   if (account.signedIn() && !data && !loading && !problem) again();
   else if (fresh && data && data.me.adult) again();
@@ -579,5 +631,5 @@ function openBlocked(back) {
 account.onAccount((what) => {
   if (what === "pic") { sendPic(); return; }
   data = null; problem = null;
-  if (what === "out") { dotFn(false); closeAll(); } else { useInvite().then(() => again()); }
+  if (what === "out") { dotFn(0); closeAll(); } else { useInvite().then(() => again()); }
 });

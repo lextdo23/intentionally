@@ -50,7 +50,7 @@ export function start(today) {
   screens.friends = h("section", { id: "friends", class: "tab-screen", "aria-label": "Friends" });
   screens.you = h("section", { id: "you", class: "tab-screen", "aria-label": "You" });
   document.body.append(screens.friends, screens.you);
-  friends.connect({ go: (t) => go(t), dot: (on) => nav && nav.querySelector('[data-tab="friends"]').classList.toggle("dot", !!on), you: () => { if (!nav) return; if (tab === "you") drawYou(); mark(); } });
+  friends.connect({ go: (t) => go(t), dot: (n) => { if (!nav) return; const b = nav.querySelector('[data-tab="friends"]'); n = friendsOpen ? +n || 0 : 0; b.classList.toggle("dot", n > 0); if (n) b.dataset.count = n > 9 ? "9+" : String(n); else delete b.dataset.count; b.setAttribute("aria-label", friendsOpen ? (n ? `${LABEL.friends}, ${n} new` : LABEL.friends) : notYetLabel("friends")); }, you: () => { if (!nav) return; if (tab === "you") drawYou(); mark(); } });
   mark();
 }
 
