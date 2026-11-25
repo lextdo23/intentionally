@@ -63,7 +63,7 @@ const SHAPE = {
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
-  friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, notes_open: (v) => Number.isInteger(v) && v >= 0 && v <= 50, friend_profile: (v) => v === 0 || v === 1,
+  friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, notes_open: (v) => Number.isInteger(v) && v >= 0 && v <= 50, friend_profile: (v) => v === 0 || v === 1, common_open: (v) => v === 1,
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1,
@@ -395,7 +395,7 @@ function drawAll(D) {
     const quiet = {}; by("friend_set").forEach((e) => { for (const [k, v] of Object.entries(e.val || {})) if (v === 0) quiet[k] = (quiet[k] || 0) + 1; });
     html += sec("Do people add friends?", "Friends opens at level 4. Only what people do is counted: never names, usernames or what they type.",
       adults ? bars([["Requests sent", f.ask || 0], ["Accepted", f.accept || 0], ["Not now", f.decline || 0], ["Invite links shared", f.invite || 0], ["Invite links opened", f.join || 0], ["Removed a friend", f.remove || 0], ["Blocked someone", f.block || 0]]) +
-        `<p class="note">${adults} ticked "I'm 18 or over"; ${askers} have reached out to someone. Profiles edited: ${P.length} (${P.filter((v) => v.name).length} with a name, ${P.filter((v) => v.season).length} with a This season line). Turned requests off: ${quiet.requests || 0}. Hid their friends count: ${quiet.count || 0}.</p>`
+        `<p class="note">${adults} ticked "I'm 18 or over"; ${askers} have reached out to someone. Profiles edited: ${P.length} (${P.filter((v) => v.name).length} with a name, ${P.filter((v) => v.season).length} with a This season line). Turned requests off: ${quiet.requests || 0}. Hid their friends: ${quiet.count || 0}. Opened "Friends you both have": ${by("common_open").length}.</p>`
         : `<p class="sub">Nobody has opened Friends yet.</p>`,
       "lots of ticks but few requests means adding friends is too hard, or people aren't sure who to add. Blocks are worth a look if they climb."); }
   // Moments (social step 3): what kind of thing, and whether words or a mood came with it. Never the words.

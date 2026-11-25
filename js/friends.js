@@ -155,9 +155,48 @@ export const pic = (p, size) => {
   face(p).then((src) => { if (src) el.replaceChildren(h("img", { src, alt: "", draggable: "false" })); });
   return el;
 };
+// Friends in common (alex 2026-11-25, option A): "Friends with Sam, Priya and 1 other", names first, up to three
+// small faces, never a number on its own. Nothing at all when there are none.
+function commonWords(p) {
+  const names = (p.common || []).map(shown), n = p.commonN || names.length;
+  if (!n || !names.length) return null;
+  const b = (x) => h("b", null, x);
+  if (n === 1) return ["Friends with ", b(names[0])];
+  if (n === 2 && names.length >= 2) return ["Friends with ", b(names[0]), " and ", b(names[1])];
+  const rest = n - 2;
+  return ["Friends with ", b(names[0]), ", ", b(names[1] || ""), ` and ${rest} ${rest === 1 ? "other" : "others"}`];
+}
+const commonFaces = (p, size) => h("span.fr-common-faces", { "aria-hidden": "true" }, (p.common || []).slice(0, 3).map((c) => pic(c, size)));
+// On a profile: tap the line for the full page of everyone you both know.
+function commonLine(p) {
+  const words = commonWords(p);
+  if (!words) return null;
+  return h("button.fr-common", { type: "button", onclick: () => openCommon(p) }, commonFaces(p, 26), h("span.fr-common-words", null, words), h("span.set-chev", { "aria-hidden": "true" }, "›"));
+}
+// In a list (a search result, a request): a quieter line under the @username.
+const commonSmall = (p) => { const words = commonWords(p); return words ? h("span.fr-common-small", null, commonFaces(p, 18), h("span", null, words)) : null; };
+// The full page: everyone you and they both know, A to Z. Tap one for their profile.
+export function openCommon(p) {
+  let people = null, err = "";
+  log("common_open", 1);
+  const pg = page("Friends you both have", () => {
+    if (err) return h("p.fr-msg", null, err);
+    if (!people) return h("div.tab-empty", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" }));
+    const n = people.length, first = (p.name || "").split(" ")[0] || "@" + p.username;
+    if (!n) return h("p.fr-note.left", null, "No friends in common right now.");
+    return h("div.fr-stack", null,
+      h("p.fr-field-note", null, `You and ${first} are both friends with ${n === 1 ? "this person" : `these ${n}`}.`),
+      h("div.fr-list", null, people.map((c) => row(c, h("span.set-chev", { "aria-hidden": "true" }, "›"), () => openPerson(c.username)))),
+      h("p.fr-foot", null, "Only your own friends show here."));
+  }, { label: "Friends you both have" });
+  account.call("/a/f/common?u=" + encodeURIComponent(p.username)).then((r) => {
+    if (r.ok && Array.isArray(r.people)) people = r.people; else err = say(r);
+    pg.refresh();
+  });
+}
 // A person in a list: picture, name and @username, with whatever goes on the right.
 function row(p, right, open) {
-  const who = h("div.fr-who", null, h("span.fr-name", null, shown(p)), h("span.fr-handle", null, "@" + p.username + (p.season ? " · " + p.season : "")));
+  const who = h("div.fr-who", null, h("span.fr-name", null, shown(p)), h("span.fr-handle", null, "@" + p.username + (p.season ? " · " + p.season : "")), commonSmall(p));
   const main = open ? h("button.fr-open", { type: "button", "aria-label": `${shown(p)}, @${p.username}`, onclick: open }, pic(p, 48), who) : h("div.fr-open", null, pic(p, 48), who);
   return h("div.fr-row", null, main, right ? h("div.fr-right", null, right) : null);
 }
@@ -427,6 +466,7 @@ function profileBody(p, isMe, close, list) {
         // Your own friends count opens your friends list, with search (alex 2026-11-21).
         ? h("button.fr-count", { type: "button", onclick: openFriendsList, "aria-label": `${p.friends} ${p.friends === 1 ? "friend" : "friends"}. See your friends` }, h("b", null, String(p.friends)), p.friends === 1 ? " friend" : " friends")
         : h("span", null, h("b", null, String(p.friends)), p.friends === 1 ? " friend" : " friends")] : null))),
+    mine ? null : commonLine(p),
     p.season ? h("p.fr-season", null, h("span.fr-dim", null, "This season · "), p.season) : null,
   ];
   if (!mine && p.state !== "friends") {
@@ -551,7 +591,7 @@ export function youTop(friendsOpen) {
   if (!u) return null;
   if (!data && !loading && !problem) again();
   const me = data ? data.me : { username: u.username, name: "", season: "", friends: null };
-  // Your own friends count always shows to you; "Show your friends count" only hides it from others.
+  // Your own friends count always shows to you; "Show my friends" only hides it from others.
   const p = { ...me, username: u.username, friends: friendsOpen && data ? me.friends : null };
   if (data && data.me.adult && mine == null) moments.loadOf(u.username).then((m) => { if (m) { mine = m; redrawYou(); } });
   const top = profileBody({ ...p, state: "you" }, true, () => {}, data && data.me.adult ? mine : []);
@@ -603,7 +643,7 @@ export function openPrivacy() {
       h("div.fr-lock", null, ICON.lock(), h("span", null, "Only your friends can see you on Daydeck, and only the moments you choose to share.")),
       h("div.fr-group", null,
         switchRow("Share my mood", "Start each share with how the day felt. You can still turn it off each time.", moments.moodOn(), async (on) => { moments.setMood(on); log("friend_set", { mood: on ? 1 : 0 }); return true; }),
-        switchRow("Show your friends count", "Shown on your profile.", !data.me.hide, async (on) => {
+        switchRow("Show my friends", "Your friends count, and you as a friend in common. Off: neither shows, to anyone.", !data.me.hide, async (on) => {
           const r = await account.call("/a/f/profile", { hide: !on }); if (!r.ok) { note(say(r)); return false; }
           data.me.hide = !on; log("friend_set", { count: on ? 1 : 0 }); redrawYou(); return true;
         }),
