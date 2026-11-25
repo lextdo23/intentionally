@@ -1,0 +1,7 @@
+{ "pillar": "Self", "splits": [
+ { "card": 437, "missed": ["grace", "priya", "kiara", "hannah", "ruby"], "why": "\"Like your uni's\" only helps students, and five of the six aren't at uni.", "fix": "Name a free online course anyone can do." },
+ { "card": 436, "missed": ["grace", "priya", "hannah"], "why": "On Kinder to myself, forgiving yourself for putting things off only fits people who put things off. It's also close to Work #508.", "fix": "Leave it on Work and study only, or make it about any slip." },
+ { "card": 441, "missed": ["sam"], "why": "Five of the eight Okay in my body cards back up their point with studies of women only (#421, #424, #425, #441, #442). To a trans man, the why lines say these cards aren't for him.", "fix": "Where a study of all genders exists, use it. Otherwise, keep the takeaway first and say \"people\"." },
+ { "card": 423, "missed": ["ava"], "why": "\"Walk\" and \"a bush track\" leave out a wheelchair user.", "fix": "\"Spend 20 minutes somewhere green\"." },
+ { "card": 434, "missed": ["tom", "cooper", "ben"], "why": "\"Picture something upsetting like a film scene\" is hard to follow. They weren't sure what they were meant to picture or why.", "fix": "\"Think of something that upset you, and replay it as if you're watching a film of it. Write why it hurt\"." }
+]}

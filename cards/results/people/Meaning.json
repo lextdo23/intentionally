@@ -1,0 +1,8 @@
+{ "pillar": "Meaning", "splits": [
+ { "card": 494, "missed": ["jarrah", "omar", "sione", "jas"], "why": "\"An old ship list\" assumes a European migrant past. For an Aboriginal or refugee family, records can be missing or painful.", "fix": "Name records that fit more families, or keep it with a different example." },
+ { "card": 497, "missed": ["jarrah"], "why": "\"From back home\" assumes your family came from somewhere else. For Jarrah, home is here.", "fix": "\"a song your parents or grandparents loved\"." },
+ { "card": 493, "missed": ["jarrah"], "why": "\"Like a museum\" leaves out going on Country, or to a place of worship or a cultural centre.", "fix": "\"like a cultural centre, a place of worship, or on Country\"." },
+ { "card": 475, "missed": ["ellie", "jack", "matt"], "why": "\"Imagine you're leaving in a month\" isn't clear: leaving where?", "fix": "\"Imagine you're moving away in a month\"." },
+ { "card": 482, "missed": ["rosa"], "why": "Working six days, including the weekend, this card isn't hers.", "fix": "\"On your next day off\"." },
+ { "card": 480, "missed": ["ellie"], "why": "Working from home, there's no route to work.", "fix": "Fine; the \"go somewhere new\" part still works." }
+]}

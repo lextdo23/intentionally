@@ -1,0 +1,8 @@
+{ "pillar": "Family", "splits": [
+ { "card": 39, "missed": ["minh", "sione", "omar", "cooper"], "why": "They live with their family, so there's no \"next visit or call\"; the hard talks happen at dinner.", "fix": "\"at your next family visit, call or dinner\"." },
+ { "card": 377, "missed": ["minh", "sione", "omar", "cooper"], "why": "Same as #39: a limit for a \"visit\" doesn't fit someone living at home.", "fix": "\"Decide one limit for the next hard family moment\"." },
+ { "card": 48, "missed": ["fatima", "kiara", "omar"], "why": "They live with their parents, so calling a parent for ten minutes doesn't make sense.", "fix": "Keep it for Just moved out only, or \"call or sit down with\"." },
+ { "card": 59, "missed": ["fatima", "kiara", "omar"], "why": "A visit or video call is for family you don't live with.", "fix": "Keep it for Just moved out only." },
+ { "card": 46, "missed": ["fatima", "omar"], "why": "Living at home, a dish that \"reminds you of home\" doesn't land; this is an everyone card.", "fix": "Move to Just moved out, or reword to \"cook a family dish with or for them\"." },
+ { "card": 60, "missed": ["aanya", "lily"], "why": "Family overseas or hours away can't come over.", "fix": "Fine as one card of nine; note it for people whose family is far away." }
+]}

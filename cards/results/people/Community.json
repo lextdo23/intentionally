@@ -1,0 +1,4 @@
+{ "pillar": "Community", "splits": [
+ { "card": 393, "missed": ["lena", "sam", "eva"], "why": "On \"Find my people\" (people like me, my scene), backing a sports team doesn't fit unless sport is your thing.", "fix": "Keep it for Part of something only." },
+ { "card": 396, "missed": ["lena", "eva", "ethan", "ava"], "why": "Same on Find my people; and netball reads as not for a wheelchair user.", "fix": "Keep it for Part of something, and add \"or a wheelchair or all-abilities league\" or \"any social team\"." }
+]}

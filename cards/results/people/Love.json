@@ -1,0 +1,5 @@
+{ "pillar": "Love", "splits": [
+ { "card": 76, "missed": ["tom", "chloe", "bella", "ollie", "ben", "marcus", "matt"], "why": "On \"I'd like to meet someone\", writing to someone you already love doesn't lead anywhere near meeting a partner (rule C2).", "fix": "Take \"I'd like to meet someone\" off this card; keep it for the other two." },
+ { "card": 383, "missed": ["tom", "ben", "matt"], "why": "\"Someone you'd love to hear from\" reads like a friend; the dating point (aiming high) only shows in the why line.", "fix": "Say it's a dating match: \"Message a match who feels out of your league\"." },
+ { "card": 66, "missed": ["bella", "ben"], "why": "Assumes dating apps. Four of the nine meet-someone cards are app cards (#66, #67, #381, #383), which don't speak to people who'd rather meet in person.", "fix": "Fine card; consider one more in-person card in place of an app one." }
+]}
