@@ -43,6 +43,20 @@ const BADDAYS = [day("T-JUNK", { mood: 2, feel: "a string, not a list" }), { cod
     line: [...document.querySelectorAll("#out .note")].map((n) => n.textContent).find((t) => /own words/.test(t)) || "" }));
   check(!d.planted && d.imgs === 0 && d.pwn === 0, "text sent in place of a number never becomes part of the page");
   check(/own words 0 times/.test(d.line), "only real numbers are counted (" + d.line.slice(0, 60) + "…)");
+  // "Do people do their card?" (alex 2026-11-25): one square a day per tester, read from the day records; odd card shapes never break it.
+  const kOf = (t) => { const d = new Date(t - 4 * 3600e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const K = (i) => kOf(now - (5 - i) * 864e5), CT = { ...T("T-CARD"), started: K(0) };
+  const cardDays = [{ card: { hands: [[1, 2, 3]], id: 1, done: true } }, { card: { hands: [[1, 2, 3]], id: 2 } }, { card: { hands: [[1, 2, 3]] } }, { rest: true, card: { hands: [[4, 5, 6]] } },
+    { card: { hands: [[1]], id: 0, done: true, how: 3 } }, { card: "junk" }].map((data, i) => ({ code: "T-CARD", day: K(i), data: JSON.stringify(data) }));
+  check(await show({ at: now, testers: [CT], days: cardDays, events: [] }) === null, "the card grid shows without errors");
+  const cg = await p.evaluate(() => { const s = [...document.querySelectorAll("#out section")].find((x) => /Do people do their card/.test(x.textContent));
+    return s ? { cells: [...s.querySelectorAll("button.c1")].map((c) => ["done", "kept", "drew", "rest"].find((k) => c.classList.contains(k)) || "-"), tot: s.querySelector(".tot").textContent } : null; });
+  check(cg && cg.cells.join(",") === "done,kept,drew,rest,done,-", "each day shows did it, kept, drew, rest day or nothing (" + (cg && cg.cells.join(",")) + ")");
+  check(cg && cg.tot === "2 of 3", "beside the tester: days they did their card out of days they kept one (" + (cg && cg.tot) + ")");
+  await p.click("button.c1.kept");
+  check(/Kept a card, didn't do it/.test(await p.evaluate(() => document.querySelector(".cread").textContent)), "tapping a square says which day it was and what happened");
+  if (process.env.SHOTS) { await p.setViewportSize({ width: 430, height: 932 }); await p.evaluate(() => [...document.querySelectorAll("#out section")].find((x) => /Do people do their card/.test(x.textContent)).scrollIntoView());
+    await p.screenshot({ path: "card-grid.png" }); }
   check(await p.evaluate(() => /of 60 places used/.test(document.getElementById("out").textContent)), "the Testers tab shows how many of the 60 places are used");
   check(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await b.close(); server.close(); done();

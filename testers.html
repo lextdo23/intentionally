@@ -37,6 +37,12 @@ section{display:flex;flex-direction:column;gap:16px}
 .cell{width:16px;height:16px;border-radius:4px;display:grid;grid-template-rows:1fr 1fr;overflow:hidden;background:var(--faint)}
 .cell.none{background:transparent}
 .cell .on.a{background:var(--sun)}.cell .on.p{background:var(--cool)}
+.grid .tot{font-size:12px;padding-right:8px;white-space:nowrap;font-variant-numeric:tabular-nums}.grid .tot span{color:var(--dim)}
+button.c1{border:0;padding:0;min-height:0;width:16px;height:16px;border-radius:4px;cursor:pointer;display:block;position:relative;font:inherit;color:inherit}
+.c1.done{background:var(--ok)}.c1.kept{background:transparent;box-shadow:inset 0 0 0 2px var(--ok)}.c1.rest{background:transparent;box-shadow:inset 0 0 0 2px var(--cool)}
+.c1.drew::after,.key i.dot::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--dim)}.key i.dot{background:var(--faint);position:relative}.key i.dot::after{inset:4px}
+.c1.sel{outline:2px solid var(--ink);outline-offset:1px}
+.cread{font-size:15px;min-height:22px}.cread b{font-weight:600}
 .key{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--dim)}
 .key i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
 .bars{display:flex;flex-direction:column;gap:8px}
