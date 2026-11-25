@@ -731,10 +731,12 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 /* ---- Friends (social step 2, js/friends.js). No sun or orange here: main buttons off-white with dark text,
    switches in sage; colour only in pictures (alex 2026-11-20). ---- */
 /* The notifications number (alex 2026-11-25): marigold with dark text, like switches that are on. */
-.pill-tab.dot::after { content: attr(data-count); position: absolute; top: 6px; right: 6px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--sun); color: var(--on-sun); font-size: 11.5px; font-weight: 700; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.pill-tab.dot::after { content: attr(data-count); position: absolute; left: 30px; top: 9px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--sun); color: var(--on-sun); font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+/* After looking at Friends and moving on (alex 2026-11-25): just a small dot until something new comes in. */
+.pill-tab.dot.quiet::after { content: ""; min-width: 0; width: 8px; height: 8px; padding: 0; left: 35px; top: 13px; border-radius: 50%; }
 .tab-head-btns { display: flex; gap: 8px; }
 .fr-bell { position: relative; }
-.fr-bell-n { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--sun); color: var(--on-sun); font-size: 11.5px; font-weight: 700; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.fr-bell-n { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: var(--sun); color: var(--on-sun); font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
 .pill-tab { position: relative; }
 .fr-main, .fr-page .btn-main:not(.soft) { background: #efede9; color: #1d1e22; }
 .fr-main[aria-disabled="true"] { background: rgba(239, 237, 233, .08); color: var(--faint); }
