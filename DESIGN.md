@@ -40,6 +40,7 @@ Today (home) is the reference screen: when unsure, match it.
 
 12. **Glass is for buttons that stand on their own:** round icon buttons, the Your days row, the pill, tiles you tap (like the bedtime and wake-up times). Use the same glass as the pill: `rgba(255,255,255,.07)`, blurred, with a fine light edge and a highlight on top. Rows of choices (word chips, list rows) stay flat soft fills, so they don't look busy (alex 2026-11-24). A chosen chip or tab (Week / Month / Year) is white with dark text. Things you only read are flat, with no glass. **Not too much glass** (alex 2026-11-24): buttons inside a sheet, and buttons repeated down a list or feed (the ••• on each moment), are flat; so are paired buttons like Edit / Add friends.
 13. **Everything pressable gives a little when touched:** shrinks to 96% and brightens. Not when reduce-motion is on.
+13b. **Buttons that stand for the same choice are the same size, whatever they say** (alex 2026-11-25): "Use" and "In use", "Add", "Asked" and "Friends", "Accept" and "Not now". A button never grows or shrinks when its words change; the status that replaces a button (like "Asked") takes the button's size too.
 14. **Buttons that are only an icon are round.** Everything you tap is at least 44 by 44 points.
 15. **Corners:** sheet 26, card 16, button 14, field 12, chip 10. Nothing else unless it's a full circle.
 16. **Spacing comes from 4 / 8 / 16 / 24 / 40,** with one 20-point left edge on every screen.

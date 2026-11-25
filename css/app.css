@@ -753,10 +753,11 @@ body.tab-drag, body.tab-drag * { user-select: none; -webkit-user-select: none; }
 .fr-handle.big { font-size: 15px; white-space: normal; }
 .fr-handle.big b { color: var(--ink); font-weight: 600; }
 .fr-right { display: flex; gap: 8px; flex-shrink: 0; }
-.fr-btn { min-height: 44px; padding: 0 16px; border-radius: 14px; font-size: 15px; font-weight: 600; }
+.fr-btn { flex: none; width: 96px; min-height: 44px; padding: 0 8px; border-radius: 14px; font-size: 15px; font-weight: 600; white-space: nowrap; }   /* one size whatever it says (alex 2026-11-25, DESIGN.md rule 13b) */
 .fr-btn.soft { background: rgba(239, 237, 233, .10); color: var(--ink); }
 .fr-btn.main { background: #efede9; color: #1d1e22; }
-.fr-chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 10px; background: rgba(239, 237, 233, .08); font-size: 13px; color: var(--ink2); }
+.fr-chip { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 96px; min-height: 44px; padding: 0 8px; border-radius: 14px; background: rgba(239, 237, 233, .08); font-size: 15px; font-weight: 600; color: var(--ink2); white-space: nowrap; }   /* the same size as the button it replaces ("Add" → "Asked" → "Friends"), so nothing jumps */
+.fr-chip.two { white-space: normal; font-size: 13px; line-height: 1.2; text-align: center; }
 .fr-note { margin: 0; font-size: 15px; color: var(--dim); text-align: center; }
 .fr-note.left { text-align: left; }
 .fr-start { padding-top: 24px; }
