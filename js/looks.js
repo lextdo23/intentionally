@@ -12,6 +12,9 @@ import * as store from "./store.js";
 import { log } from "./tester.js";
 
 export const RANKS = { open: ["Open edition", 3], special: ["Special edition", 4], rare: ["Rare edition", 5], master: ["Masterpiece", 8] };
+// A NEW LOOK IS NOT DONE UNTIL IT HAS ITS FEED CARD (alex 2026-11-25): every look gets its own special treatment for a
+// card shared on Friends (like Chrome's chrome edges or a Softies frog peeking over the card), designed with alex.
+// See "Card looks" in CLAUDE.md.
 // In rolodex order: quickest to open first. col: the light and glow ("r g b"); edge: the card's thickness, light to dark.
 export const LOOKS = [
   { id: "cherry", name: "Cherry Coquette", rank: "open", kind: "art", backs: 1, col: "244 160 190", edge: ["#f9d2df", "#eaa9bf", "#cd839e"] },
