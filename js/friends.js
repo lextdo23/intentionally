@@ -1,5 +1,5 @@
 // Friends (social stage 1, step 2; alex 2026-11-20, CLAUDE.md "Social"). Friends only, seen and supported, never
-// measured. Lives in the Friends tab of the glass pill (js/pill.js), which opens at level 4 (js/levels.js).
+// measured. Lives in the Friends tab of the glass pill (js/pill.js), which opens at level 3 (js/levels.js).
 //
 // Here: the Friends tab (requests, your friends, a calm start when there are none), Add friends (by exact
 // @username or an invite link, plus the "Friend requests" switch), a friend's profile (picture, name, @username,

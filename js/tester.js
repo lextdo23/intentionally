@@ -39,7 +39,7 @@ export function inviteDue() {
   const s = store.get(), tt = s.tester || {};
   if (on() || needsAsk() || tt.left || tt.removed || testAccount() || s.test.on) return false;
   if ((s.seen || {}).testInvite >= INVITE) return false;
-  return Object.values(s.days || {}).some((d) => d && d.mood != null);
+  return Object.values(s.days || {}).filter((d) => d && d.mood != null).length >= 2;   // after the second evening (alex 2026-11-25)
 }
 export function inviteSeen() { const s = store.get(); s.seen = s.seen || {}; s.seen.testInvite = INVITE; store.save(); }
 export function agreeAgain() { t().consent = CONSENT; store.save(); log("consent_again", CONSENT); send(true); }

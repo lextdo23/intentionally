@@ -1,5 +1,5 @@
 // The glass pill (js/pill.js, social stage 1 step 1; alex 2026-11-20): Today · Friends · You beside the main action,
-// there from day one, with Friends as a dashed ring until level 4 (alex 2026-11-25). Made-up data only. SHOTS=1 saves a picture of each tab.
+// there from day one, with Friends as a dashed ring until level 3 (alex 2026-11-25). Made-up data only. SHOTS=1 saves a picture of each tab.
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
 const { serve, checker } = require("./helpers.cjs");
@@ -18,25 +18,25 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const days = {}; for (let i = 1; i < 6; i++) days[day(i)] = { mood: 3, sleep: { q: 3 } };
   days[day(0)] = { sleep: { q: 3 }, card: { id: 1 } };
   await p.goto(server.url);
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, levels: { seen: 3 } })), days);
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, levels: { seen: 2, l1: 0 } })), days);
 
   // ---- Before Friends opens (alex 2026-11-25): the pill is there from day one, Friends waits as a dashed ring ----
   await p.reload(); await p.waitForTimeout(1500);
   const NY = '#pill [data-tab="friends"].not-yet';
-  check(!!(await p.$("#pill")), "the pill is there before Friends opens, so home never rearranges at level 4");
+  check(!!(await p.$("#pill")), "the pill is there before Friends opens, so home never rearranges when it opens");
   check(!!(await p.$(NY + " .ny-ring")), "Friends sits in the pill as an empty dashed ring");
-  check(/opens at level 4/.test(await p.getAttribute('#pill [data-tab="friends"]', "aria-label")), "and says when it opens to screen readers");
+  check(/opens at level 3/.test(await p.getAttribute('#pill [data-tab="friends"]', "aria-label")), "and says when it opens to screen readers");
   check(!(await p.$('#home button[aria-label="Settings"]')), "Settings lives on You from day one, not on home");
   check(!!(await p.$("#home .dd-head .round.not-yet .ny-ring")), "the card library waits in its corner as a dashed ring too");
   await p.click(NY); await p.waitForTimeout(400);
   const nyText = await p.textContent(".ny-box").catch(() => "");
-  check(/Friends opens at level 4\./.test(nyText) && /Start and end your days to get there\./.test(nyText), "tapping it says when Friends opens and what gets you there");
+  check(/Friends opens at level 3\./.test(nyText) && /Start and end your days to get there\./.test(nyText), "tapping it says when Friends opens and what gets you there");
   check(!/\d+ (points|days?) to go/.test(nyText), "never a countdown");
   check(await p.evaluate(() => document.body.dataset.tab) === "today", "and you stay on Today");
   await p.waitForTimeout(3900);
   check(!(await p.$(".ny-layer")), "the bubble fades by itself");
   await p.click("#home .dd-head .round.not-yet"); await p.waitForTimeout(400);
-  check(/Card library opens at level 5\./.test(await p.textContent(".ny-box").catch(() => "")), "the card library's ring says level 5");
+  check(/Cards and Looks shelf opens at level 5\./.test(await p.textContent(".ny-box").catch(() => "")), "the Cards ring says level 5");
   await p.mouse.click(215, 500); await p.waitForTimeout(400);
   check(!(await p.$(".ny-layer")), "a tap anywhere closes the bubble");
   await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(500);

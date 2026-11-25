@@ -7,8 +7,9 @@ import * as store from "./store.js";
 // Points for each thing, once a day. A rest day counts as drawing and doing the card: resting was the plan.
 export const POINTS = { setup: 1, morning: 1, draw: 1, card: 2, evening: 2, made: 1, photo: 1 };
 
-// Curve B: 4, 7, 10, 13, 16, 19, then 20 for every level after that.
-export const need = (lv) => Math.min(4 + 3 * (lv - 1), 20);
+// Curve B: 4, 7, 10, 13, 16, 19, then 20 for every level after that. Level 1 takes 6 (alex 2026-11-25), so a full first
+// day reaches level 2 as the day is ended (not when the card is done), and a full second day reaches level 3 the same way.
+export const need = (lv) => (lv === 1 ? 6 : Math.min(4 + 3 * (lv - 1), 20));
 
 // "Next box at level N" shows once the bar is this full (about one good day away).
 export const NEAR = 0.8;
@@ -47,8 +48,17 @@ export function startOver(st = store.get()) {
   store.save();
   return true;
 }
+// Level 1 went from 4 points to 6 (alex 2026-11-25). People already past level 1 get those 2 points back, once, so
+// nobody's level goes down; people still at level 1 (and everyone new) take the new 6.
+export function sixToStart(st = store.get()) {
+  const m = (st.levels = st.levels || {});
+  if (m.l1 != null) return;
+  m.l1 = (m.seen || 1) >= 2 ? 2 : 0;
+  store.save();
+}
 export function total(st = store.get()) {
-  return Math.max(0, earned(st) - ((st.levels || {}).base || 0));
+  const m = st.levels || {};
+  return Math.max(0, earned(st) - (m.base || 0) + (m.l1 || 0));
 }
 
 // { level, into: points into this level, need: points this level takes, frac: 0 to 1 }
@@ -73,18 +83,28 @@ export function newLevel() {
   return null;
 }
 
-// ---------- What each level opens (alex 2026-11-18, thread "Finalise levels and what they unlock") ----------
-// Day one is the basics only, so nothing extra lands at once. Photos, Going to sleep, "What's been on your mind?",
-// support, rest days, pillars and settings are never levelled. The card library thread checks isOpen("library").
+// ---------- What each level opens (alex 2026-11-25, thread "Rework levels and what unlocks when") ----------
+// Day one is the basics only. Your days opens as the first day ends, Friends as the second ends, then the weekly recap
+// is announced (it still comes on Sunday, from day 7: this is so there's something to look forward to), then Cards,
+// then making your own card (it adds a step to End your day, so it waits until the evening is a habit). Photos, Going
+// to sleep, "What's been on your mind?", support, rest days, pillars and settings are never levelled.
 export const BASICS = { name: "Your daily card", line: "Start your day, your card, a photo, End your day" };
 export const UNLOCKS = [
   { level: 2, id: "days", name: "Your days", line: "See how your days have felt, and what seems to help." },
-  { level: 3, id: "own", name: "Make your own card", line: "At the end of your day, add something else you did." },
-  // Friends opens within about 4 days of use (alex 2026-11-20), so the card library moved to 5.
-  // Month and Year on Your days are always open (alex 2026-11-23), so they're no longer a level.
-  { level: 4, id: "friends", name: "Friends", line: "Add a few friends and cheer each other on." },
-  { level: 5, id: "library", name: "Card library", line: "Every card in Daydeck, to look through." },
+  { level: 3, id: "friends", name: "Friends", line: "Add a few friends and cheer each other on." },
+  { level: 4, id: "recap", name: "Weekly recap", line: "Every Sunday, once you end your day, a look back at your week." },
+  { level: 5, id: "library", name: "Cards and Looks shelf", line: "Collect card looks, and look through every card in Daydeck." },
+  { level: 6, id: "own", name: "Make your own card", line: "At the end of your day, add something else you did." },
 ];
+// The weekly recap's first Sunday (the first one from day 7), in words, until a recap has been seen; else "".
+export function firstRecap(st = store.get()) {
+  if (!st.started || Object.keys((st.wrap || {}).seen || {}).length) return "";
+  const d = new Date(st.started + "T12:00"); d.setDate(d.getDate() + 6);
+  while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" });
+}
+// Someone who came through a friend's invite link gets Friends straight away, whatever their level (alex 2026-11-25).
+export function openInvited() { const m = mem(); if (!m.invited) { m.invited = 1; store.save(); } }
 // Anything already opened for someone stays open when its level moves (nothing is ever taken away): its tip
 // showed, so they've had it.
 // (Keeping things open for people from before was dropped: everyone starts again, alex 2026-11-19. keepAll stays false.)
@@ -93,7 +113,7 @@ const early = new Set();
 export function openEarly(ids) { ids.forEach((id) => early.add(id)); }
 export function isOpen(id) {
   const u = UNLOCKS.find((x) => x.id === id);
-  if (!u || mem().keepAll || early.has(id)) return true;
+  if (!u || mem().keepAll || early.has(id) || (id === "friends" && mem().invited)) return true;
   return level().level >= u.level || !!(mem().tips || {})[id];
 }
 // What opened at this level (for the level-up moment), or null.

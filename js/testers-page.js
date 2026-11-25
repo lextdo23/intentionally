@@ -57,7 +57,7 @@ const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 const isNum = Number.isFinite, isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isArray(x);
 // What each level opens (same ids as UNLOCKS in levels.js).
-const UNLOCK_NAMES = [["days", "Your days"], ["own", "Own card"], ["friends", "Friends"], ["library", "Card library"], ["months", "Month and Year"]];
+const UNLOCK_NAMES = [["days", "Your days"], ["friends", "Friends"], ["recap", "Weekly recap"], ["library", "Cards"], ["own", "Own card"], ["months", "Month and Year"]];
 const SHAPE = {
   level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), locked_tap: (v) => UNLOCK_NAMES.some(([id]) => id === v), unlock_act: (v) => isObj(v) && UNLOCK_NAMES.some(([id]) => id === v.id) && (v.open === 0 || v.open === 1), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),

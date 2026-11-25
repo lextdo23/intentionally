@@ -7,7 +7,7 @@ import { h, reduceMotion } from "./util.js";
 import { log } from "./tester.js";
 
 const NS = "http://www.w3.org/2000/svg";
-const OPEN = { days: "Open Your days", friends: "Open Friends", library: "Open the card library" };   // own: it's for tonight
+const OPEN = { days: "Open Your days", friends: "Open Friends", library: "Open Cards" };   // own: it's for tonight; recap: it comes on Sunday ("Okay")
 let n = 0;
 
 // show(level, unlock, { text, onOpen(id), onDone() }): unlock is levels.opensAt(level) or null; text its longer line.
