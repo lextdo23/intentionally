@@ -1014,8 +1014,10 @@ body.has-pill:not([data-tab="today"]) .sheet .btn-main:not(.soft) { background: 
    eclipse in the logo. It sits between the card's faces (js/draw.js), so it sways and turns with the card. Only the
    layer slides (no repainting), so it stays smooth. It moves with the sway: the edge turning towards the light catches
    more. --cx/--cy (where the light comes from) and --cc (its colour) follow the time of day. Only while the card waits. */
+/* The defaults sit on the card, not the light, so the time of day (sunlight in js/draw.js) and a card look's colour,
+   both set on the card, reach the light. (They used to be set on the light itself, which kept it marigold.) */
+.home-card { --cx: .3; --cy: -1; --cc: 255 165 31; }
 .home-card .glow { position: absolute; inset: 0; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity 1.4s ease;
-  --cx: .3; --cy: -1; --cc: 255 165 31;
   box-shadow: 0 0 0 1px rgb(var(--cc) / .28), calc(var(--cx) * 5px) calc(var(--cy) * 4px) 11px -4px rgb(var(--cc) / .85), calc(var(--cx) * 11px) calc(var(--cy) * 9px) 28px -10px rgb(var(--cc) / .55), 0 14px 30px rgba(0, 0, 0, .5);
   transform: translateZ(0); will-change: transform, opacity; animation: corona 11s ease-in-out infinite; }
 .home-card.todo .glow { opacity: 1; }
