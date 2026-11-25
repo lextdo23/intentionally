@@ -311,21 +311,21 @@ function camBtn(k, onCam) {
 }
 // The card's thickness, in card points (about 5 on the phone), and one layer every quarter point so the edge looks solid.
 const EDGE = 3, EDGE_LAYERS = EDGE * 4 + 1;
-// The liquid edge (alex 2026-11-25, "Liquid edge" on the Daydeck card skins page): while the card waits, two drops of
-// light flow round its edge in the colour of the light behind it, one lap every 14 seconds. Each drop has a slightly
+// The liquid edge (alex 2026-11-25, "Liquid edge" on the Daydeck card skins page; made subtler the same day): while the
+// card waits, one faint drop of light flows round its edge in the colour of the light behind it, one lap every 14 seconds. It has a slightly
 // fuller, rounder head in the direction it's moving and a tail that thins and fades behind it. Drawn as one SVG per
 // side of the card: many faint layers of the same rounded outline, each dashed so its piece ends at the same head
 // point, short and wide near the head, long and thin towards the tail. Where more layers overlap the light is
 // stronger, so the drop fades and thins smoothly with no steps. Each layer's dash starts at its tail (a dash pattern
 // that started with an empty dash would leave a stray round dot), and all slide together (flowLiquid).
-const DROP = Array.from({ length: 48 }, (_, i) => { const t = i / 47; return [+(0.3 + 27 * Math.pow(t, 1.35)).toFixed(2), +(0.6 + 6.4 * Math.pow(1 - t, 1.6)).toFixed(2)]; });
-const HEAD = 30;   // where every layer's piece ends, on an edge 100 long (two drops: the dash pattern repeats every 50)
+const DROP = Array.from({ length: 48 }, (_, i) => { const t = i / 47; return [+(0.3 + 27 * Math.pow(t, 1.35)).toFixed(2), +(0.4 + 3.8 * Math.pow(1 - t, 1.6)).toFixed(2)]; });
+const HEAD = 30;   // where every layer's piece ends, on an edge 100 long (one drop: the dash pattern repeats once a lap)
 function liquidEl(w = 150, hh = 210) {
   const r = 16, d = `M${w / 2} 0 H${w - r} A${r} ${r} 0 0 1 ${w} ${r} V${hh - r} A${r} ${r} 0 0 1 ${w - r} ${hh} H${r} A${r} ${r} 0 0 1 0 ${hh - r} V${r} A${r} ${r} 0 0 1 ${r} 0 Z`;
-  const layer = (l, sw, cls = "") => `<path${cls} d="${d}" pathLength="100" stroke-dasharray="${l} ${50 - l}" stroke-dashoffset="${l - HEAD}" data-o="${l - HEAD}" stroke-width="${sw}"/>`;
+  const layer = (l, sw, cls = "") => `<path${cls} d="${d}" pathLength="100" stroke-dasharray="${l} ${100 - l}" stroke-dashoffset="${l - HEAD}" data-o="${l - HEAD}" stroke-width="${sw}"/>`;
   const paths = DROP.map(([l, sw]) => layer(l, sw)).join("");
   // The head catches the light: a small paler core, just behind the front of each drop.
-  const core = Array.from({ length: 16 }, (_, i) => layer(+(0.3 + 0.22 * i).toFixed(2), +(2.6 - 0.11 * i).toFixed(2), ' class="hd"')).join("");
+  const core = Array.from({ length: 16 }, (_, i) => layer(+(0.3 + 0.22 * i).toFixed(2), +(1.6 - 0.07 * i).toFixed(2), ' class="hd"')).join("");
   const svg = `<svg viewBox="0 0 ${w} ${hh}" aria-hidden="true">${paths}${core}</svg>`;
   const side = (cls) => { const e = h("div.liq" + cls); e.innerHTML = svg; return e; };
   return [side(".bk"), side(".fr")];
