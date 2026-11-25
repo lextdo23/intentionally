@@ -683,7 +683,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .pill-act { flex: 1; display: flex; margin-left: 6px; min-width: 0; }
 .pill-act:empty { display: none; }
 #pill .pill-act > button { flex: 1; min-height: 54px; height: 54px; border-radius: 27px; padding: 0 14px; white-space: nowrap; transition: background-color .35s ease, color .35s ease; }
-body:not([data-tab="today"]) #pill .pill-act > .btn-main { background: #efede9; color: #1d1e22; }
+/* The pill's main button stays marigold on every tab, "Share a moment" included (alex 2026-11-25). */
 #pill.dragging .pill-bubble { transition: none; }
 #pill { touch-action: none; }
 body.has-pill #home { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); }

@@ -95,10 +95,10 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(700);
   check(await p.$eval("#pill", (e) => getComputedStyle(e).opacity) === "1", "and comes back after");
 
-  // ---- The pill keeps its shape on every tab (no jump), and the action turns off-white off Today ----
+  // ---- The pill keeps its shape on every tab (no jump), and its action stays marigold on every tab (alex 2026-11-25) ----
   const w = await p.$eval("#pill", (e) => Math.round(e.getBoundingClientRect().width));
   const bg = await p.$eval("#pill .pill-act > button", (e) => getComputedStyle(e).backgroundColor);
-  check(/239, 237, 233/.test(bg), "on the social tabs the action is off-white, never orange");
+  check(/255, 165, 31/.test(bg), "on the social tabs the action stays marigold, like everywhere");
 
   // ---- Press and slide: the highlight follows your finger ----
   const box = async (t) => p.$eval(`#pill [data-tab="${t}"]`, (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
