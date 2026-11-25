@@ -101,6 +101,10 @@ families were warm"). [people, alex]
 
 D5. **Only what the study did and found, nothing made up.** No numbers the paper doesn't give. [Claude, second look]
 
+D5b. **A few studies: just say "Studies show".** When a paper has only a handful of studies (two to five), don't
+   count them ("In four studies…"); write "Studies show…". The count adds nothing for the reader and is easy to get
+   wrong. A big number that is the point, like a review of 146 studies, can stay. (alex, 25 Nov 2026) [checker]
+
 D6. **Search for the study; don't rely on memory.** For each mindset, search for research on what it wants and what
 stops it. Check each study against the paper, its abstract, or a reliable write-up, and record which (`chk`).
 Prefer a single trial that tested the exact task over a broad review. [Claude] *Why: checking caught "40 vs 50

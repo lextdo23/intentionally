@@ -1,0 +1,6 @@
+{ "pillar": "Community", "checked": "2026-11-25",
+  "note": "All 14 why lines read against their study, as checked in the Community review (19 Nov). No wording problems found.",
+  "cards": [
+  { "card": 401, "verdict": "better", "note": "Uses the same Reysen and Plante finding as #400 (feeling part of a fan group), but the card is about going to an in-person event. Koefler and Gabriel 2024 (#389, togetherness at gigs) fits an in-person card better." },
+  { "card": 400, "verdict": "ok", "note": "Checked against an abstract summary only in the review. A 2026 paper; worth a look at the full abstract when it's easy to reach." }
+]}

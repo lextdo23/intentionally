@@ -1,0 +1,6 @@
+{ "pillar": "Rest", "checked": "2026-11-25",
+  "note": "All 22 why lines read against their study. Re-read today: the greyscale study (news write-up). Drake 2013 couldn't be reached today (PubMed page empty); the note below is from the Rest review and widely reported details. The rest were checked in the Rest review (19 Nov).",
+  "cards": [
+  { "card": 407, "verdict": "fix", "chk": "write-up (CNN, via Click2Houston)", "link": "https://www.click2houston.com/tech/2020/06/11/try-this-smartphone-hack-and-other-tricks-to-reduce-your-screen-time/", "note": "The study reported \"nearly 40 minutes\" less a day; \"about 39\" isn't in what I could read, and Play #560 says 40 for the same study. Use \"nearly 40 minutes\" on both. (The paper is Holte and Ferraro 2020, The Social Science Journal.)" },
+  { "card": 186, "verdict": "fix", "note": "Drake 2013 gave a strong caffeine pill (400 mg, about four coffees), not a coffee. Say \"A strong dose of caffeine 6 hours before bed cost over an hour of sleep, and people didn't notice.\" Re-check the dose against the paper before changing." }
+]}

@@ -29,6 +29,7 @@ const WORDS = [
   ["step", /\breconnect\b|\bbe more\b|\btry to be\b/i, "C1", "warning", "may be open-ended"],
   ["step", /\bone small change\b|\bsomething new\b(?! like)/i, "C1", "warning", "doesn't name the actual thing"],
   ["step", /\bbuy\b|\bpurchase\b|\bsubscri|\bcheap\b|\$\d|\bpay for\b/i, "C6", "warning", "may need something bought"],
+  ["why", /\b(two|three|four|five|2|3|4|5) (studies|experiments|trials)\b/i, "D5b", "problem", 'counts a few studies (say "Studies show" instead)'],
   ["step", /\byou should\b|\byou must\b|\bstreak\b|\btarget\b/i, "E3", "warning", "may sound like pressure"],
   ["any", /\bweight|\bweigh-in|\bcalorie|\bdiet\b|\bslim\b|\bfat\b|\bappearance\b|\bhow you look\b|\bmirror\b/i, "E2", "self", "mentions weight, food or looks"],
 ];
@@ -41,7 +42,7 @@ function wordChecks(c) {
   const add = (level, rule, msg) => out.push({ level, rule, msg });
   const forTxt = Array.isArray(c.for) ? c.for.join(" ") : c.for;
   for (const [where, re, rule, level, msg] of WORDS) {
-    const t = where === "step" ? c.card : where === "for" ? forTxt : `${c.card} ${c.why}`;
+    const t = where === "step" ? c.card : where === "for" ? forTxt : where === "why" ? c.why : `${c.card} ${c.why}`;
     if (!re.test(t)) continue;
     if (level === "self") { if (c.pillar === "Self") add("problem", rule, msg + " on a Self card"); else add("warning", rule, msg); }
     else add(level, rule, msg);

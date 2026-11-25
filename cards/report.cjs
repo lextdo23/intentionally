@@ -12,6 +12,8 @@ const people = JSON.parse(fs.readFileSync(path.join(__dirname, "people.json"), "
 const who = Object.fromEntries(people.map((p) => [p.id, p]));
 const dir = path.join(__dirname, "results", "people");
 const sims = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"))) : [];
+const sdir = path.join(__dirname, "results", "studies");
+const studies = fs.existsSync(sdir) ? fs.readdirSync(sdir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(fs.readFileSync(path.join(sdir, f), "utf8"))) : [];
 const byN = Object.fromEntries(check.cards.map((c) => [c.n, c]));
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const ORDER = ["Friends", "Family", "Love", "Community", "Move", "Rest", "Work and study", "Play and create", "Meaning", "Self"];
@@ -47,6 +49,17 @@ const simHtml = ORDER.map((pl) => {
       <p>${esc(s.why)}</p><p class="fix"><b>Idea:</b> ${esc(s.fix)}</p></div></article>`; }).join("")
     : `<p class="quiet">Every card made sense to everyone who'd be dealt it.</p>`;
   return `<section class="pillar"><h3><i style="background:${TINT[pl]}"></i>${esc(pl)} <span>${list.length} of ${cards.length} cards split</span></h3>${body}</section>`;
+}).join("");
+
+// Studies (cards/results/studies/<Pillar>.json: only the cards with something to say; the rest matched their study)
+const VERDICT = { fix: ["To fix", "The why line or source says something the study didn't, or names it wrong."], better: ["A better study would help", "The why line is true, but the study was on a different group (only women, over-60s, teens) or didn't test this exact task or mindset."], unchecked: ["Couldn't check", "Only the title or a book could be found."] };
+const sItems = studies.flatMap((s) => s.cards.map((x) => ({ ...x, pillar: s.pillar })));
+const sCount = (v) => sItems.filter((x) => x.verdict === v).length;
+const studyHtml = Object.entries(VERDICT).map(([v, [title, what]]) => {
+  const list = sItems.filter((x) => x.verdict === v).sort((a, b) => ORDER.indexOf(a.pillar) - ORDER.indexOf(b.pillar));
+  if (!list.length) return "";
+  return `<section class="pillar"><h3>${title} <span>${list.length}</span></h3><p class="note">${what}</p>${list.map((x) => { const c = byN[x.card]; if (!c) return "";
+    return `<article class="split">${cardFace(c)}<div class="said"><p>${esc(x.note)}</p>${x.link ? `<p class="note">Checked: <a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.chk || "source")}</a></p>` : ""}</div></article>`; }).join("")}</section>`;
 }).join("");
 
 // Counts
@@ -112,6 +125,7 @@ td.n { text-align: right; padding-right: 0; }
 <ul class="sum">
   <li><b>Fit:</b> every card fits the hand, the kept card and today's card on home. The bigger home card has about ${fitRows[2].mid} letters to spare, but the hand of three is the tightest place for ${tight} of ${check.cards.length} cards, with a middle of ${fitRows[0].mid} spare, so steps can't get much longer unless the hand changes. What lifts you cuts off ${fitRows[3].bad} cards.</li>
   <li><b>Pretend people:</b> ${splits.length} cards made sense to some of the people who picked that mindset but not to others, because of something in their life (shifts, a wheelchair, living at home, no desk, culture). Each one is below with who it missed and an idea.</li>
+  ${studies.length ? `<li><b>Studies:</b> every why line read again against its study. ${sCount("fix")} need a fix to say only what the study found, ${sCount("better")} would be better with a closer study (people more like ours, or one that tested this exact task), and ${sCount("unchecked")} couldn't be checked. The rest match.</li>` : ""}
   <li><b>Not enough cards:</b> ${thin.length} mindsets have fewer than 8 cards of their own or are missing a size (all in Rest and Community, plus one in Self).</li>
   <li><b>Look-alikes:</b> ${pairs.length} pairs of cards are very alike, mostly across pillars. They only both show for someone who picked both pillars.</li>
 </ul>
@@ -121,6 +135,12 @@ td.n { text-align: right; padding-right: 0; }
   <p class="lead">Each mindset has 6 or 7 people who picked it, with different lives. They read each card as part of a hand of three, asking only "does this make sense for the pillar and mindset I chose?" (not "could I do it today"). These are Claude playing those people: good at spotting cards that assume something about someone's life, but not a stand-in for real testers.</p>
   ${simHtml}
 </section>
+
+${studies.length ? `<section>
+  <h2>Studies, read again</h2>
+  <p class="lead">Each card's why line read against its study (the paper, its abstract, or a news write-up when the paper was locked), asking: does it say only what the study did and found, and were the people in it like ours? Only cards with something to change are shown.</p>
+  ${studyHtml}
+</section>` : ""}
 
 <section>
   <h2>Fit on today's card sizes</h2>
