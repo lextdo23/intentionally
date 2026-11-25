@@ -1,0 +1,1066 @@
+{
+  "about": "Pretend people for the card check (cards/README.md, step 4). Made up, aged 18 to 30, in Australia, built to be a real mix: work and study, where they live, money, moods, culture, faith, sexuality and gender, health. Each one picked pillars and mindsets like they would in the app (mindsets use the card bank's names). Every mindset has at least 6 people, who share the mindset but not the rest of their life. They read cards to say whether each one makes sense for the mindset they chose, not whether they could do it today.",
+  "people": [
+    {
+      "id": "mia",
+      "name": "Mia",
+      "age": 24,
+      "life": "Junior marketing coordinator in Melbourne, share house, burnt out, long hours at a laptop, a flat few months",
+      "picked": {
+        "Rest": [
+          "I'm exhausted",
+          "Can't switch off"
+        ],
+        "Work and study": [
+          "Too much on my plate"
+        ],
+        "Friends": [
+          "See them more"
+        ],
+        "Move": [
+          "Sit too much",
+          "Starting and stopping"
+        ]
+      }
+    },
+    {
+      "id": "josh",
+      "name": "Josh",
+      "age": 19,
+      "life": "First-year uni student in Brisbane, lives at home with parents, part-time at a supermarket, a bit lost",
+      "picked": {
+        "Friends": [
+          "Meet new people (incl. starting from scratch)"
+        ],
+        "Work and study": [
+          "Putting things off",
+          "Right path"
+        ],
+        "Rest": [
+          "On my phone too late"
+        ],
+        "Play and create": [
+          "Scroll less"
+        ],
+        "Self": [
+          "Working out who I am"
+        ]
+      }
+    },
+    {
+      "id": "priya",
+      "name": "Priya",
+      "age": 29,
+      "life": "Nurse on rotating night shifts in Adelaide, lives with partner, also helps care for her dad",
+      "picked": {
+        "Rest": [
+          "Better sleep",
+          "I'm exhausted"
+        ],
+        "Love": [
+          "In a relationship"
+        ],
+        "Family": [
+          "It's complicated"
+        ],
+        "Self": [
+          "Kinder to myself"
+        ]
+      }
+    },
+    {
+      "id": "tom",
+      "name": "Tom",
+      "age": 27,
+      "life": "FIFO mine worker in WA, two weeks on, one off, lives alone in Perth between swings, doesn't talk much about feelings",
+      "picked": {
+        "Friends": [
+          "See them more",
+          "I feel lonely"
+        ],
+        "Move": [
+          "Already train"
+        ],
+        "Self": [
+          "Understand my feelings"
+        ],
+        "Love": [
+          "I'd like to meet someone"
+        ],
+        "Play and create": [
+          "Old hobby"
+        ]
+      }
+    },
+    {
+      "id": "lena",
+      "name": "Lena",
+      "age": 22,
+      "life": "Casual hospo and a TAFE design course in Sydney, has ADHD, queer, share house, money is tight",
+      "picked": {
+        "Play and create": [
+          "Make something",
+          "New hobby"
+        ],
+        "Work and study": [
+          "Putting things off"
+        ],
+        "Community": [
+          "Find my people"
+        ],
+        "Self": [
+          "Working out who I am"
+        ],
+        "Friends": [
+          "Deeper friendships"
+        ]
+      }
+    },
+    {
+      "id": "sione",
+      "name": "Sione",
+      "age": 26,
+      "life": "Tongan-Australian warehouse supervisor in Logan, lives with his big family, church every Sunday, lots of family duties",
+      "picked": {
+        "Family": [
+          "It's complicated"
+        ],
+        "Meaning": [
+          "Connect with my heritage",
+          "Work out my values"
+        ],
+        "Move": [
+          "Starting and stopping"
+        ],
+        "Rest": [
+          "I'm exhausted"
+        ]
+      }
+    },
+    {
+      "id": "grace",
+      "name": "Grace",
+      "age": 30,
+      "life": "New mum on parental leave in Canberra, lives with husband and 5-month-old, sleep in pieces, misses her old self",
+      "picked": {
+        "Self": [
+          "Kinder to myself",
+          "Okay in my body"
+        ],
+        "Friends": [
+          "I feel lonely"
+        ],
+        "Rest": [
+          "I'm exhausted"
+        ],
+        "Play and create": [
+          "Old hobby"
+        ],
+        "Move": [
+          "Start moving"
+        ]
+      }
+    },
+    {
+      "id": "aanya",
+      "name": "Aanya",
+      "age": 21,
+      "life": "International student from India studying IT in Melbourne, lives with three other students, works delivery, family far away",
+      "picked": {
+        "Friends": [
+          "Meet new people (incl. starting from scratch)"
+        ],
+        "Community": [
+          "Just moved"
+        ],
+        "Family": [
+          "Just moved out"
+        ],
+        "Work and study": [
+          "Looking for work"
+        ],
+        "Self": [
+          "More confident"
+        ]
+      }
+    },
+    {
+      "id": "jarrah",
+      "name": "Jarrah",
+      "age": 23,
+      "life": "Aboriginal (Wiradjuri) apprentice electrician in Dubbo, lives with his nan, plays footy, close mob",
+      "picked": {
+        "Move": [
+          "Already train"
+        ],
+        "Meaning": [
+          "Connect with my heritage"
+        ],
+        "Work and study": [
+          "Move forward"
+        ],
+        "Friends": [
+          "Deeper friendships"
+        ],
+        "Community": [
+          "Part of something"
+        ]
+      }
+    },
+    {
+      "id": "chloe",
+      "name": "Chloe",
+      "age": 25,
+      "life": "Primary school teacher in a country town in Victoria, moved there for work a year ago, knows almost no one, no partner",
+      "picked": {
+        "Community": [
+          "Just moved",
+          "Part of something"
+        ],
+        "Friends": [
+          "Meet new people (incl. starting from scratch)"
+        ],
+        "Love": [
+          "I'd like to meet someone"
+        ],
+        "Family": [
+          "Just moved out"
+        ],
+        "Meaning": [
+          "Breath away"
+        ]
+      }
+    },
+    {
+      "id": "minh",
+      "name": "Minh",
+      "age": 20,
+      "life": "Vietnamese-Australian commerce student in Sydney, lives with strict parents, family expects a lot, games online at night",
+      "picked": {
+        "Family": [
+          "It's complicated"
+        ],
+        "Work and study": [
+          "Right path",
+          "Too much on my plate"
+        ],
+        "Rest": [
+          "On my phone too late"
+        ],
+        "Self": [
+          "Compare myself to others"
+        ]
+      }
+    },
+    {
+      "id": "ellie",
+      "name": "Ellie",
+      "age": 28,
+      "life": "Works from home in software in Hobart, lives alone, introvert, good job but days feel the same",
+      "picked": {
+        "Meaning": [
+          "Days on repeat",
+          "Breath away"
+        ],
+        "Friends": [
+          "I feel lonely"
+        ],
+        "Move": [
+          "Sit too much"
+        ],
+        "Play and create": [
+          "New hobby"
+        ]
+      }
+    },
+    {
+      "id": "sam",
+      "name": "Sam",
+      "age": 24,
+      "life": "Trans man, barista and part-time uni in Brisbane, not out to his parents in Toowoomba, share house with friends",
+      "picked": {
+        "Self": [
+          "Working out who I am",
+          "Okay in my body"
+        ],
+        "Family": [
+          "It's complicated"
+        ],
+        "Community": [
+          "Find my people"
+        ],
+        "Friends": [
+          "Deeper friendships"
+        ]
+      }
+    },
+    {
+      "id": "fatima",
+      "name": "Fatima",
+      "age": 23,
+      "life": "Lebanese-Australian Muslim pharmacy student in western Sydney, wears hijab, doesn't drink, lives with family, close sisters",
+      "picked": {
+        "Work and study": [
+          "Too much on my plate",
+          "Move forward"
+        ],
+        "Self": [
+          "More confident"
+        ],
+        "Family": [
+          "Be closer"
+        ],
+        "Meaning": [
+          "Work out my values"
+        ]
+      }
+    },
+    {
+      "id": "ryan",
+      "name": "Ryan",
+      "age": 26,
+      "life": "Out of work for 4 months after a retail job ended, lives back with mum in Geelong, no car, low",
+      "picked": {
+        "Work and study": [
+          "Looking for work"
+        ],
+        "Self": [
+          "More confident",
+          "Compare myself to others"
+        ],
+        "Move": [
+          "Start moving"
+        ],
+        "Rest": [
+          "Better sleep"
+        ]
+      }
+    },
+    {
+      "id": "zoe",
+      "name": "Zoe",
+      "age": 19,
+      "life": "Gap year, lives at a uni residential college in Perth now, big social scene, anxious under it, drinks most weekends",
+      "picked": {
+        "Friends": [
+          "Deeper friendships"
+        ],
+        "Self": [
+          "Compare myself to others",
+          "Understand my feelings"
+        ],
+        "Rest": [
+          "On my phone too late"
+        ],
+        "Play and create": [
+          "Laughs and play",
+          "Scroll less"
+        ]
+      }
+    },
+    {
+      "id": "daniel",
+      "name": "Daniel",
+      "age": 29,
+      "life": "Lawyer at a big firm in Sydney, 60-hour weeks, engaged, has money but no time",
+      "picked": {
+        "Work and study": [
+          "Too much on my plate",
+          "Right path"
+        ],
+        "Love": [
+          "In a relationship"
+        ],
+        "Rest": [
+          "Can't switch off"
+        ],
+        "Play and create": [
+          "Old hobby"
+        ],
+        "Move": [
+          "Sit too much"
+        ]
+      }
+    },
+    {
+      "id": "kiara",
+      "name": "Kiara",
+      "age": 22,
+      "life": "Retail worker in a regional Queensland town, just got out of a 3-year relationship, moved back with her parents",
+      "picked": {
+        "Love": [
+          "Just had a break-up"
+        ],
+        "Self": [
+          "Kinder to myself"
+        ],
+        "Friends": [
+          "See them more"
+        ],
+        "Family": [
+          "Be closer"
+        ]
+      }
+    },
+    {
+      "id": "wei",
+      "name": "Wei",
+      "age": 25,
+      "life": "Chinese-Australian PhD student in chemistry in Melbourne, lab hours, lives with partner, quiet and thoughtful",
+      "picked": {
+        "Work and study": [
+          "Putting things off",
+          "Right path"
+        ],
+        "Meaning": [
+          "Work out my values"
+        ],
+        "Love": [
+          "In a relationship"
+        ],
+        "Move": [
+          "Find something I enjoy"
+        ]
+      }
+    },
+    {
+      "id": "bella",
+      "name": "Bella",
+      "age": 27,
+      "life": "Hairdresser in Darwin, chatty, single and happy enough, money is okay, loves the outdoors",
+      "picked": {
+        "Play and create": [
+          "Laughs and play",
+          "Make something"
+        ],
+        "Move": [
+          "Find something I enjoy"
+        ],
+        "Love": [
+          "I'd like to meet someone"
+        ],
+        "Meaning": [
+          "Breath away"
+        ]
+      }
+    },
+    {
+      "id": "noah",
+      "name": "Noah",
+      "age": 18,
+      "life": "Just finished Year 12 in Adelaide, started a hospitality job, lives with parents, most school friends moved interstate",
+      "picked": {
+        "Friends": [
+          "See them more",
+          "I feel lonely"
+        ],
+        "Work and study": [
+          "Right path"
+        ],
+        "Play and create": [
+          "Scroll less",
+          "New hobby"
+        ],
+        "Move": [
+          "Start moving"
+        ]
+      }
+    },
+    {
+      "id": "ava",
+      "name": "Ava",
+      "age": 30,
+      "life": "Wheelchair user, accountant in Brisbane, lives with her girlfriend, sharp humour, tired of things not being accessible",
+      "picked": {
+        "Love": [
+          "In a relationship"
+        ],
+        "Move": [
+          "Find something I enjoy"
+        ],
+        "Community": [
+          "Part of something"
+        ],
+        "Self": [
+          "Okay in my body"
+        ]
+      }
+    },
+    {
+      "id": "liam",
+      "name": "Liam",
+      "age": 21,
+      "life": "Apprentice chef who moved to Cairns from Brisbane for the job, split shifts, finishes late, share house with other hospo workers",
+      "picked": {
+        "Rest": [
+          "Better sleep",
+          "Can't switch off"
+        ],
+        "Move": [
+          "Starting and stopping"
+        ],
+        "Friends": [
+          "See them more"
+        ],
+        "Play and create": [
+          "Old hobby"
+        ],
+        "Family": [
+          "Just moved out"
+        ]
+      }
+    },
+    {
+      "id": "maya",
+      "name": "Maya",
+      "age": 24,
+      "life": "Social worker in Newcastle, autistic, lives alone with a cat, finds groups draining but wants to belong",
+      "picked": {
+        "Community": [
+          "Find my people",
+          "Part of something"
+        ],
+        "Self": [
+          "Understand my feelings"
+        ],
+        "Rest": [
+          "I'm exhausted"
+        ],
+        "Meaning": [
+          "Days on repeat"
+        ],
+        "Love": [
+          "Just had a break-up"
+        ]
+      }
+    },
+    {
+      "id": "jack",
+      "name": "Jack",
+      "age": 25,
+      "life": "Plumber in Ballarat, plays local cricket, partner is pregnant, doesn't see his uni-going school mates any more",
+      "picked": {
+        "Friends": [
+          "Deeper friendships",
+          "See them more"
+        ],
+        "Love": [
+          "In a relationship"
+        ],
+        "Move": [
+          "Already train"
+        ],
+        "Meaning": [
+          "Days on repeat"
+        ]
+      }
+    },
+    {
+      "id": "isabel",
+      "name": "Isabel",
+      "age": 20,
+      "life": "Filipino-Australian nursing student in Perth, lives with parents and grandma, church choir, works aged care weekends",
+      "picked": {
+        "Meaning": [
+          "Connect with my heritage"
+        ],
+        "Work and study": [
+          "Too much on my plate"
+        ],
+        "Self": [
+          "More confident",
+          "Working out who I am"
+        ],
+        "Play and create": [
+          "Make something"
+        ]
+      }
+    },
+    {
+      "id": "ollie",
+      "name": "Ollie",
+      "age": 23,
+      "life": "Gay man who just moved from Wagga to Sydney for a grad job, share house with strangers, out to everyone",
+      "picked": {
+        "Community": [
+          "Just moved",
+          "Find my people"
+        ],
+        "Love": [
+          "I'd like to meet someone"
+        ],
+        "Family": [
+          "Just moved out"
+        ],
+        "Friends": [
+          "Meet new people (incl. starting from scratch)"
+        ],
+        "Move": [
+          "Already train"
+        ]
+      }
+    },
+    {
+      "id": "hannah",
+      "name": "Hannah",
+      "age": 26,
+      "life": "Has long COVID and chronic fatigue, working 3 days a week in admin from home in Wollongong, lives with partner",
+      "picked": {
+        "Rest": [
+          "I'm exhausted"
+        ],
+        "Move": [
+          "Start moving"
+        ],
+        "Self": [
+          "Kinder to myself",
+          "Okay in my body"
+        ],
+        "Play and create": [
+          "New hobby"
+        ]
+      }
+    },
+    {
+      "id": "kai",
+      "name": "Kai",
+      "age": 22,
+      "life": "Engineering student in Townsville, surfs, lives in a share house, cruisy but procrastinates badly",
+      "picked": {
+        "Work and study": [
+          "Putting things off"
+        ],
+        "Move": [
+          "Already train"
+        ],
+        "Meaning": [
+          "Breath away"
+        ],
+        "Play and create": [
+          "Laughs and play"
+        ]
+      }
+    },
+    {
+      "id": "rosa",
+      "name": "Rosa",
+      "age": 28,
+      "life": "Greek-Australian café owner in Melbourne's north, works 6 days, close big family who are always around",
+      "picked": {
+        "Family": [
+          "Be closer"
+        ],
+        "Meaning": [
+          "Connect with my heritage",
+          "Days on repeat"
+        ],
+        "Rest": [
+          "Can't switch off"
+        ],
+        "Love": [
+          "Just had a break-up"
+        ]
+      }
+    },
+    {
+      "id": "ethan",
+      "name": "Ethan",
+      "age": 19,
+      "life": "TAFE carpentry student in Launceston, quiet, gets anxious in groups, lives with dad, games a lot",
+      "picked": {
+        "Friends": [
+          "Meet new people (incl. starting from scratch)"
+        ],
+        "Self": [
+          "More confident"
+        ],
+        "Play and create": [
+          "Scroll less",
+          "Make something"
+        ],
+        "Community": [
+          "Find my people"
+        ],
+        "Work and study": [
+          "Putting things off"
+        ]
+      }
+    },
+    {
+      "id": "nina",
+      "name": "Nina",
+      "age": 27,
+      "life": "Moved from Sydney to her partner's hometown in regional SA, works remote in HR, homesick for her family",
+      "picked": {
+        "Family": [
+          "Just moved out",
+          "Be closer"
+        ],
+        "Community": [
+          "Just moved"
+        ],
+        "Love": [
+          "In a relationship"
+        ],
+        "Meaning": [
+          "Breath away"
+        ]
+      }
+    },
+    {
+      "id": "ben",
+      "name": "Ben",
+      "age": 24,
+      "life": "Postie in Melbourne's outer suburbs, walks all day, loves music, single, recently stopped drinking",
+      "picked": {
+        "Love": [
+          "I'd like to meet someone",
+          "Just had a break-up"
+        ],
+        "Play and create": [
+          "Old hobby"
+        ],
+        "Rest": [
+          "Better sleep"
+        ],
+        "Self": [
+          "Understand my feelings"
+        ]
+      }
+    },
+    {
+      "id": "amira",
+      "name": "Amira",
+      "age": 25,
+      "life": "Somali-Australian Muslim youth worker in Melbourne, lives with mum and siblings, very social, community is everything",
+      "picked": {
+        "Community": [
+          "Part of something"
+        ],
+        "Self": [
+          "Working out who I am"
+        ],
+        "Meaning": [
+          "Work out my values"
+        ],
+        "Move": [
+          "Find something I enjoy"
+        ]
+      }
+    },
+    {
+      "id": "luke",
+      "name": "Luke",
+      "age": 29,
+      "life": "Divorced at 28, sales rep who drives all day around regional NSW, shared care of a 4-year-old",
+      "picked": {
+        "Love": [
+          "Just had a break-up"
+        ],
+        "Friends": [
+          "I feel lonely"
+        ],
+        "Move": [
+          "Starting and stopping",
+          "Sit too much"
+        ],
+        "Rest": [
+          "Better sleep"
+        ],
+        "Play and create": [
+          "Laughs and play"
+        ]
+      }
+    },
+    {
+      "id": "sophie",
+      "name": "Sophie",
+      "age": 21,
+      "life": "Psychology student in Canberra, perfectionist, high achiever, recovering from an eating disorder, lives in a share house",
+      "picked": {
+        "Self": [
+          "Kinder to myself",
+          "Okay in my body"
+        ],
+        "Work and study": [
+          "Too much on my plate"
+        ],
+        "Rest": [
+          "Can't switch off"
+        ],
+        "Friends": [
+          "Deeper friendships"
+        ]
+      }
+    },
+    {
+      "id": "marcus",
+      "name": "Marcus",
+      "age": 26,
+      "life": "Bartender and aspiring musician in Brisbane, works nights, sleeps till noon, flat broke but happy-ish",
+      "picked": {
+        "Play and create": [
+          "Make something",
+          "Laughs and play"
+        ],
+        "Work and study": [
+          "Right path",
+          "Looking for work"
+        ],
+        "Rest": [
+          "On my phone too late"
+        ],
+        "Love": [
+          "I'd like to meet someone"
+        ]
+      }
+    },
+    {
+      "id": "tara",
+      "name": "Tara",
+      "age": 23,
+      "life": "Graduate accountant in Perth, lives with boyfriend, good on paper, spends evenings scrolling, feels flat",
+      "picked": {
+        "Play and create": [
+          "Scroll less",
+          "New hobby"
+        ],
+        "Meaning": [
+          "Days on repeat"
+        ],
+        "Move": [
+          "Sit too much",
+          "Starting and stopping"
+        ],
+        "Self": [
+          "Compare myself to others",
+          "Okay in my body"
+        ],
+        "Rest": [
+          "On my phone too late"
+        ]
+      }
+    },
+    {
+      "id": "harry",
+      "name": "Harry",
+      "age": 20,
+      "life": "Uni student with depression in Sydney, lives on campus, skipping classes, family in the country, on a low week",
+      "picked": {
+        "Work and study": [
+          "Putting things off"
+        ],
+        "Rest": [
+          "I'm exhausted",
+          "On my phone too late"
+        ],
+        "Friends": [
+          "I feel lonely"
+        ],
+        "Self": [
+          "Understand my feelings"
+        ]
+      }
+    },
+    {
+      "id": "jas",
+      "name": "Jas",
+      "age": 28,
+      "life": "Sikh Punjabi-Australian taxi and rideshare driver in Melbourne, married, shifts at odd hours, wants more than driving",
+      "picked": {
+        "Work and study": [
+          "Move forward",
+          "Looking for work"
+        ],
+        "Move": [
+          "Sit too much"
+        ],
+        "Family": [
+          "Be closer"
+        ],
+        "Meaning": [
+          "Connect with my heritage"
+        ]
+      }
+    },
+    {
+      "id": "eva",
+      "name": "Eva",
+      "age": 25,
+      "life": "Nonbinary artist and disability support worker in Hobart, lives with two housemates, not sure who they are yet",
+      "picked": {
+        "Self": [
+          "Working out who I am",
+          "Compare myself to others"
+        ],
+        "Play and create": [
+          "Make something"
+        ],
+        "Community": [
+          "Find my people"
+        ],
+        "Meaning": [
+          "Work out my values"
+        ],
+        "Move": [
+          "Find something I enjoy"
+        ]
+      }
+    },
+    {
+      "id": "matt",
+      "name": "Matt",
+      "age": 30,
+      "life": "Mining engineer who moved to Mackay for work last year, earns well, gym every day, recently realised he is not happy in the job",
+      "picked": {
+        "Work and study": [
+          "Right path",
+          "Move forward"
+        ],
+        "Move": [
+          "Already train"
+        ],
+        "Meaning": [
+          "Work out my values"
+        ],
+        "Love": [
+          "I'd like to meet someone"
+        ],
+        "Community": [
+          "Just moved"
+        ]
+      }
+    },
+    {
+      "id": "lily",
+      "name": "Lily",
+      "age": 18,
+      "life": "First year of uni, moved from a farm in WA to Perth, lives in a student hostel, homesick, on a good week",
+      "picked": {
+        "Family": [
+          "Just moved out"
+        ],
+        "Community": [
+          "Just moved",
+          "Part of something"
+        ],
+        "Friends": [
+          "Meet new people (incl. starting from scratch)"
+        ],
+        "Move": [
+          "Start moving"
+        ]
+      }
+    },
+    {
+      "id": "omar",
+      "name": "Omar",
+      "age": 27,
+      "life": "Afghan-Australian refugee background, works in IT support in Adelaide, lives with his parents and siblings, tight money",
+      "picked": {
+        "Family": [
+          "Be closer",
+          "It's complicated"
+        ],
+        "Work and study": [
+          "Looking for work"
+        ],
+        "Meaning": [
+          "Connect with my heritage"
+        ],
+        "Move": [
+          "Start moving"
+        ]
+      }
+    },
+    {
+      "id": "ruby",
+      "name": "Ruby",
+      "age": 22,
+      "life": "Childcare worker in Sunshine Coast, bubbly but people-pleaser, lives with her partner of 4 years",
+      "picked": {
+        "Self": [
+          "More confident",
+          "Kinder to myself"
+        ],
+        "Love": [
+          "In a relationship"
+        ],
+        "Play and create": [
+          "Laughs and play"
+        ],
+        "Rest": [
+          "Better sleep"
+        ],
+        "Work and study": [
+          "Move forward"
+        ]
+      }
+    },
+    {
+      "id": "dev",
+      "name": "Dev",
+      "age": 24,
+      "life": "Junior data analyst in Sydney, feels behind everyone on Instagram, lives with parents to save for a house",
+      "picked": {
+        "Self": [
+          "Compare myself to others"
+        ],
+        "Work and study": [
+          "Move forward"
+        ],
+        "Play and create": [
+          "New hobby",
+          "Scroll less"
+        ],
+        "Move": [
+          "Starting and stopping"
+        ]
+      }
+    },
+    {
+      "id": "pip",
+      "name": "Pip",
+      "age": 26,
+      "life": "Vet nurse in rural Tasmania, lots of time outside with animals, partner works away, few people around",
+      "picked": {
+        "Friends": [
+          "I feel lonely"
+        ],
+        "Meaning": [
+          "Breath away",
+          "Days on repeat"
+        ],
+        "Love": [
+          "Just had a break-up"
+        ],
+        "Play and create": [
+          "Old hobby"
+        ]
+      }
+    },
+    {
+      "id": "cooper",
+      "name": "Cooper",
+      "age": 21,
+      "life": "Labourer and uni dropout in Gold Coast, lots of mates, big drinker, hasn't thought about feelings much, good week, clashes with his dad, still lives at home",
+      "picked": {
+        "Self": [
+          "Understand my feelings"
+        ],
+        "Work and study": [
+          "Looking for work"
+        ],
+        "Move": [
+          "Find something I enjoy"
+        ],
+        "Rest": [
+          "Can't switch off"
+        ],
+        "Family": [
+          "It's complicated"
+        ]
+      }
+    }
+  ]
+}
