@@ -99,9 +99,17 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- A request waiting: the small dot, then Accept ----
   await josh.post("/a/f/ask", { username: "mia.k" });
   await p.reload(); await p.waitForTimeout(1500); await quiet();
+  await shot("4a-number");
   check(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot")), "a waiting request shows as a number on Friends");
   await tab("friends");
   check(/Friend requests/.test(await text("#friends")) && /Josh/.test(await text("#friends")), "Josh's request shows at the top of Friends");
+  await tab("today");
+  check(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot") && e.classList.contains("quiet")), "after looking at Friends and moving on, the number becomes a small dot");
+  await shot("4b-dot");
+  await p.reload(); await p.waitForTimeout(1500); await quiet();
+  check(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("quiet")), "and stays a small dot after reopening, until something new comes in");
+  await tab("friends");
+  check(!(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("quiet"))), "back on Friends it shows the number again");
   await shot("4-request");
   await p.click('#friends .fr-btn.main'); await p.waitForTimeout(900);
   check(/Josh/.test(await text("#friends .fr-faces-row")) && /Nothing shared yet/.test(await text("#friends")), "accepted: Josh is in the row of friends' faces, and the feed waits for a moment");
