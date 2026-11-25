@@ -20,7 +20,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.goto(server.url);
   await p.evaluate((days) => {
     localStorage.setItem("daydeck-account", JSON.stringify({ skip: 1 }));
-    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" }, levels: { seen: 3 } }));
+    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, levels: { seen: 3 } }));
   }, days);
 
   // ---- A fresh open: the splash first, home hidden behind it ----

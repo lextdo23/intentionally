@@ -22,7 +22,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const days = {};
     for (let i = 1; i < 6; i++) days[day(i)] = { mood: 3, feel: ["calm"], sleep, card: { id: 1, done: true, how: 3, felt: ["Enjoyed it"] }, pil: [] };
     days[day(0)] = { sleep, card: { id: 2, done: true, how: 3, felt: ["Enjoyed it"] } };
-    return { v: 1, started: day(5), days, seen: { note: "sleep" }, levels: { reset: 2, base: 33, seen: 2, tips: { days: 1 } }, notes: { sleepHint: 1, feelOwn: 1 }, ...extra };
+    return { v: 1, started: day(5), days, seen: { note: "sleep", testInvite: 1 }, levels: { reset: 2, base: 33, seen: 2, tips: { days: 1 } }, notes: { sleepHint: 1, feelOwn: 1 }, ...extra };
   };
   const load = async (state) => { await p.goto(server.url); await p.evaluate((s) => localStorage.setItem("daydeck", JSON.stringify(s)), state); await p.reload(); await p.waitForTimeout(1800);
     await p.evaluate(() => document.querySelectorAll(".tip-layer, .sheet-host").forEach((e) => e.remove())); };

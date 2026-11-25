@@ -54,7 +54,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const signIn = (tok, user) => p.evaluate(([tok, user]) => localStorage.setItem("daydeck-account", JSON.stringify({ token: tok, user, pic: { kind: "little", id: "smile" } })), [tok, user]);
   // Full days: start your day, the card done, end your day (about 6 points each).
   const daysFull = (n) => { const d = {}; for (let i = 1; i <= n; i++) d[day(i)] = { sleep: { q: 3 }, card: { id: i, done: true }, mood: 4 }; return d; };
-  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep" }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
+  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep", testInvite: 1 }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
   const quiet = () => p.evaluate(() => { document.querySelectorAll(".tip-layer, .sheet-host, .lu").forEach((e) => e.remove()); document.body.classList.remove("in-levelup"); });
   const tab = async (t) => { await p.click(`#pill [data-tab="${t}"]`); await p.waitForTimeout(700); };
   const text = (sel) => p.textContent(sel);

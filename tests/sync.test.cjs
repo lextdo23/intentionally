@@ -47,7 +47,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- Phone A: someone already using Daydeck signs up. Their days go up. ----
   const daysA = { [day(3)]: { mood: 2, feel: ["tired"] }, [day(2)]: { mood: 4, note: "made-up words", ph: { w: 1 } }, [day(1)]: { mood: 5 } };
-  const A = await phone(tokA, { v: 1, started: day(3), days: daysA, pillars: ["Move", "Rest", "Friends"], seen: { note: "sleep" }, notify: { morning: "08:00" }, tester: { on: false, code: "T-ABCD", queue: [] }, test: { offset: 0 } });
+  const A = await phone(tokA, { v: 1, started: day(3), days: daysA, pillars: ["Move", "Rest", "Friends"], seen: { note: "sleep", testInvite: 1 }, notify: { morning: "08:00" }, tester: { on: false, code: "T-ABCD", queue: [] }, test: { offset: 0 } });
   let v = vault();
   check(v.data && v.data.items["d:" + day(3)] && v.data.items["d:" + day(1)].v.mood === 5, "the days on a phone go up to the backup on their own");
   check(v.data && JSON.stringify(v.data.items["k:pillars"].v) === '["Move","Rest","Friends"]', "pillars go up too");
@@ -55,7 +55,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(v.data && v.data.items["d:" + day(2)].v.note === "made-up words" && !("ph" in v.data.items["d:" + day(2)].v), "a day's words go up, but its photo note stays on the phone (photos aren't backed up yet)");
 
   // ---- Phone B: a new phone signs in. The days come back; its empty starting data doesn't win. ----
-  const B = await phone(tokB, { v: 1, started: null, days: {}, seen: { note: "sleep" }, test: { offset: 0 } });
+  const B = await phone(tokB, { v: 1, started: null, days: {}, seen: { note: "sleep", testInvite: 1 }, test: { offset: 0 } });
   let sb = await S(B);
   check(sb.days[day(3)] && sb.days[day(3)].mood === 2 && sb.days[day(1)].mood === 5, "a new phone gets the days back");
   check(JSON.stringify(sb.pillars) === '["Move","Rest","Friends"]', "and the pillars, without the new phone's blank start overwriting them");

@@ -18,7 +18,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const days = {}; for (let i = 1; i < 6; i++) days[day(i)] = { mood: 3, sleep: { q: 3 } };
   days[day(0)] = { sleep: { q: 3 }, card: { id: 1 } };
   await p.goto(server.url);
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" }, levels: { seen: 3 } })), days);
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, levels: { seen: 3 } })), days);
 
   // ---- Not in test mode: no pill, everything as before ----
   await p.reload(); await p.waitForTimeout(1500);

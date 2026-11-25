@@ -351,7 +351,7 @@ function testBar() {
   if (!testOn) return;
   const st = store.get();
   let armed = false;
-  const clear = h("button", { onclick: () => { if (!armed) { armed = true; clear.textContent = "Tap again to clear"; return; } store.reset(); setOffsetDays(0); render(); } }, "Start again");
+  const clear = h("button", { onclick: () => { if (!armed) { armed = true; clear.textContent = "Tap again to clear"; return; } store.reset({ keepTester: true }); setOffsetDays(0); render(); } }, "Start again");
   document.body.append(h("div.testbar", null,
     h("button", { onclick: () => { Object.assign(st.days, makeSample(60)); if (!st.started) st.started = Object.keys(st.days).sort()[0]; store.save(); render(); } }, "Fill 2 months"),
     h("button", { onclick: () => { if (!wrapped.testOpen(() => render())) alertLine(); } }, "Wrapped"),
@@ -402,7 +402,17 @@ photoBackup.start(() => render());   // photos go up to the account's private st
 // A tester invite link goes first; the sign-up waits for the next open.
 // Each waits until the splash has gone and home has settled, so nothing pops up while Daydeck is opening.
 const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
+const viaLink = new URLSearchParams(location.search).has("tester");
+// Waits for a clear screen (a level-up moment, a tip or another sheet goes first), then shows the invite once.
+function inviteWhenFree(tries = 0) {
+  const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer, .lu");
+  if (busy) { if (tries < 120) setTimeout(() => inviteWhenFree(tries + 1), 1000); return; }
+  if (!tester.inviteDue()) return;
+  tester.inviteSeen(); openTester(() => render());
+}
 if (tester.needsAsk()) booted.then(() => setTimeout(() => askAgain(() => render()), 300));
+// The one-time "Help shape Daydeck" invite goes before anything else (alex 2026-11-25). The invite link opens it below.
+else if (!viaLink && tester.inviteDue()) booted.then(() => setTimeout(inviteWhenFree, 300));
 else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
@@ -410,7 +420,7 @@ else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.sea
   if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
   friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
-if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(openTester, 200)); }
+if (viaLink) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(() => { tester.inviteSeen(); openTester(); }, 200)); }
 // Monday's "Weekly recap ready" notification opens the recap itself (if it's still waiting), from a fresh open or
 // when Daydeck was already open. Sunday's opens home as usual, so the person can end their day.
 function openRecap() { const w = wrapped.readyWeek(); if (w) { log("wrap_from_nudge"); wrapped.openWrapped(w, () => render()); } }
