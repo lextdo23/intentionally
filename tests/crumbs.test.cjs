@@ -28,7 +28,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     await p.evaluate(() => document.querySelectorAll(".tip-layer, .sheet-host").forEach((e) => e.remove())); };
   const data = () => p.evaluate(() => JSON.parse(localStorage.getItem("daydeck")));
   const endDay = async (mood) => {
-    await p.click("#home button.btn-main"); await p.waitForTimeout(700);
+    await p.click("#pill .pill-act button.btn-main"); await p.waitForTimeout(700);
     await p.$eval('#flow input[type=range]', (r, v) => { r.value = String(v); r.dispatchEvent(new Event("input", { bubbles: true })); }, mood);
   };
   const finish = async () => {
@@ -107,12 +107,12 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(s.days[day(0)].mood === 6 && (s.days[day(0)].crumbs || []).length === 2, "the evening mood is saved as usual, and the crumbs stay");
 
   // ---- Settings ----
-  await p.click('#home button[aria-label="Settings"]'); await p.waitForTimeout(700);
+  await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(400); await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700);
   const sw = await p.$('#settings button.switch[aria-label="Crumbs"]');
   check(!!sw && (await sw.getAttribute("aria-checked")) === "true", "Settings has a Crumbs switch, on");
   await shot("7-settings");
   await sw.click(); await p.waitForTimeout(200);
-  await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(800);
+  await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(800); await p.click('#pill [data-tab="today"]'); await p.waitForTimeout(400);
   s = await data();
   check(s.crumbs.on === false && !(await p.$("#home .crumb-btn")), "switching it off takes the button away");
   check((s.days[day(0)].crumbs || []).length === 2, "and keeps the crumbs already dropped");

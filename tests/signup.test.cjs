@@ -135,7 +135,7 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
   // ---- Settings: Your account ----
   await p.evaluate(() => document.querySelector(".tip-layer")?.remove());
-  await p.click('button[aria-label="Settings"]'); await p.waitForTimeout(800);
+  await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(400); await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(800);
   const setText = await p.textContent("#settings");
   await p.click("#settings .acct-head"); await p.waitForTimeout(700);
   const acctText = await p.textContent(".sheet-host");

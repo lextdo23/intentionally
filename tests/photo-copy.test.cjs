@@ -25,7 +25,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; const g = c.getContext("2d"); g.fillStyle = "#e08a3c"; g.fillRect(0, 0, c.width, c.height);
     await ph.save(k, c, { src: "lib" });
   }, day(1));
-  const openSettings = async () => { if (await p.$("#settings")) return; await p.click('button[aria-label="Settings"]'); await p.waitForTimeout(700); };
+  const openSettings = async () => { if (await p.$("#settings")) return; await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(400); await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700); };
   const tapRow = async (text) => p.evaluate((t) => [...document.querySelectorAll("#settings button")].find((x) => x.textContent.trim().startsWith(t))?.click(), text);
 
   await openSettings();

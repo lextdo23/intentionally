@@ -18,7 +18,7 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/launch.test.cjs        (opening: the splash, then home; coming back: just as it was)
     node tests/test-account.test.cjs  (alex's test accounts: everything open, nothing in tester data)
     node tests/recap-nudge.test.cjs   (weekly recap notifications: Sunday's heads-up and Monday's catch-up, their times and words)
-    node tests/pill.test.cjs          (the glass pill: Today, Friends, You; test mode only for now)
+    node tests/pill.test.cjs          (the glass pill: Today, Friends, You; there from day one, Friends a dashed ring until level 4)
     node tests/sync.test.cjs          (backup and sync: two pretend phones and the real backup service)
     node tests/accounts.test.cjs      (sign up, Face ID sign in, backup, rename, delete: the whole account journey)
     node tests/origins.test.cjs       (the notifications service answers daydeck.day, and nobody else)
