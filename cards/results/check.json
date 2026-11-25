@@ -1,5 +1,5 @@
 {
- "made": "2026-11-25T04:39:36.841Z",
+ "made": "2026-11-25T05:01:49.664Z",
  "source": "live cards",
  "cards": [
   {
@@ -5300,6 +5300,11 @@
    "why": "It's nicer than you expect. In four studies, workouts were more enjoyable than people had predicted.",
    "src": "Ruby, Dunn and colleagues, 2011",
    "issues": [
+    {
+     "level": "problem",
+     "rule": "D5b",
+     "msg": "counts a few studies (say \"Studies show\" instead)"
+    },
     {
      "level": "warning",
      "rule": "F1",
