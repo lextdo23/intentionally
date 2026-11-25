@@ -435,7 +435,19 @@ if (new URLSearchParams(location.search).get("open") === "recap") {
   const u = new URL(location.href); u.searchParams.delete("open"); history.replaceState(null, "", u.pathname + u.search);
   booted.then(() => setTimeout(openRecap, 300));
 }
-if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.recap) setTimeout(openRecap, 300); });
+// A friend notification ("Mia shared a moment") opens Friends and its bell page, fresh.
+async function openFriendNews() {
+  if (!pill.friendsOn()) return;
+  log("friend_ping_open");
+  pill.go("friends", true);
+  await friends.load();
+  friends.closeAll(); friends.openNotes();
+}
+if (new URLSearchParams(location.search).get("open") === "friends") {
+  const u = new URL(location.href); u.searchParams.delete("open"); history.replaceState(null, "", u.pathname + u.search);
+  booted.then(() => setTimeout(openFriendNews, 300));
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.recap) setTimeout(openRecap, 300); if (e.data && e.data.friends) setTimeout(openFriendNews, 300); });
 
 // Coming back to Daydeck (alex 2026-11-21): it shows just as it was left, with no redraw and no reload. Home only
 // redraws if what it shows has moved on (a new day, or morning turned to afternoon), and never mid-way through

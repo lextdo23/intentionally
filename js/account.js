@@ -445,11 +445,18 @@ export async function signIn() {
   else log("signin", r.error || "failed");
   return r;
 }
+// Things to tidy on the service while still signed in, just before signing out or deleting the account
+// (friend notifications, js/friends.js).
+const leaving = [];
+export const beforeLeaving = (f) => leaving.push(f);
+const tidyUp = async () => { for (const f of leaving) { try { await f(); } catch { /* the service tidies up itself too */ } } };
 export async function signOut() {
+  await tidyUp();
   await api("/a/signout", {});
   forgetSignIn(); log("signout");
 }
 export async function deleteAccount() {
+  await tidyUp();
   const r = await api("/a/delete", {});
   if (r.ok) { forgetSignIn(); log("account_delete"); }
   return r;

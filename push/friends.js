@@ -21,8 +21,18 @@
 // deleted; the person reported is never told who reported them. A moment reported by three different people is held
 // back from feeds until alex looks. alex can keep it, remove the moment, or pause the account's sharing. Reviewed
 // reports (and their copies) are deleted after 90 days.
+// Friend notifications (alex 2026-11-25): off until someone presses "Turn on". Then, when a friend shares, their
+// phone gets "Mia shared a moment" (the friend's chosen name, else their @username; never a photo, caption or mood).
+// At most one an hour (several friends in that hour make one: "Mia and 2 others shared moments"), and none between
+// 10pm and 8am where that phone is: the night's wait for one at 8am. Kept for it: the phone's push address and its
+// two keys (so only that phone can read the words), its time zone, and when it was last pinged. Switching it off,
+// signing out or deleting the account removes them.
+
+import { ping, pushable } from "./webpush.js";
 
 const DAY = 86400000;
+const HOUR = 3600000;
+export const PINGS = { gap: HOUR, quietFrom: 22, quietTo: 8, ttl: 6 * HOUR };
 export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, feedMax: 100, profileMax: 120, text: 200, caption: 280, photo: 450000, face: 60000 };
 const PICS = ["flower", "smile", "frog", "cat", "bunny", "bear", "chick", "sprout"];
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
@@ -64,7 +74,8 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, reporter TEXT, who TEXT, moment TEXT, why TEXT, note TEXT, snap TEXT, photo TEXT, at INTEGER, state TEXT, done INTEGER);
     CREATE TABLE IF NOT EXISTS mheld (moment TEXT PRIMARY KEY, at INTEGER);
     CREATE TABLE IF NOT EXISTS paused (user TEXT PRIMARY KEY, at INTEGER);
-    CREATE TABLE IF NOT EXISTS mailed (k TEXT PRIMARY KEY, at INTEGER);`);
+    CREATE TABLE IF NOT EXISTS mailed (k TEXT PRIMARY KEY, at INTEGER);
+    CREATE TABLE IF NOT EXISTS fpings (user TEXT PRIMARY KEY, sub TEXT, tz TEXT, pend TEXT, last INTEGER, due INTEGER);`);
 }
 
 // Words typed for a name or "This season": plain text only, with invisible characters and line breaks taken out.
@@ -98,6 +109,7 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/report": return out(b.rReport(token, body));
     case "GET /a/f/photo": return out(b.mPhoto(token, q.get("id") || ""));
     case "GET /a/f/face": return out(b.fFace(token, q.get("u") || ""));
+    case "POST /a/f/pings": return out(b.pSet(token, body));
     case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
   }
   return null;
@@ -369,6 +381,7 @@ export const friendMethods = {
     // Sharing the same thing again updates it (and brings it back to the top), keeping its "I see you"s.
     this.sql.exec("INSERT OR REPLACE INTO moments (id, owner, day, item, data, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, m.day, m.item, JSON.stringify(m.data), t);
     if (m.photo) this.sql.exec("INSERT OR REPLACE INTO mphotos (moment, data) VALUES (?, ?)", id, m.photo);
+    if (!had) await this.pQueue(me.id, id);   // a new moment, not an update: friends who asked get told (in time)
     return { ok: true, moment: this.mOut(this.one("SELECT * FROM moments WHERE id = ?", id), me.id, me), again: !!had };
   },
   async mUnshare(token, id) {
@@ -497,5 +510,74 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM mheld WHERE moment NOT IN (SELECT id FROM moments)");
     this.sql.exec("DELETE FROM paused WHERE user = ?", id);
     this.sql.exec("DELETE FROM reports WHERE reporter = ? OR who = ?", id, id);
+    this.sql.exec("DELETE FROM fpings WHERE user = ?", id);
+  },
+
+  // ---------------- Friend notifications ----------------
+  // Turn on (with this phone's push address, its keys and time zone) or off. One phone per account: the latest wins.
+  async pSet(token, body) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u;
+    if (!body || body.on !== true) { this.sql.exec("DELETE FROM fpings WHERE user = ?", me.id); return { ok: true, on: false }; }
+    const sub = body.sub || {}, keys = sub.keys || {}, key = /^[A-Za-z0-9_-]{16,120}$/;
+    if (!pushable(sub.endpoint) || !key.test(String(keys.p256dh || "")) || !key.test(String(keys.auth || ""))) return { error: "bad_sub" };
+    let tz = String(body.tz || "").slice(0, 60);
+    try { new Intl.DateTimeFormat("en-AU", { timeZone: tz }); } catch { tz = ""; }
+    const had = this.one("SELECT * FROM fpings WHERE user = ?", me.id);   // already on: keep what's waiting
+    this.sql.exec("INSERT OR REPLACE INTO fpings (user, sub, tz, pend, last, due) VALUES (?, ?, ?, ?, ?, ?)", me.id,
+      JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } }), tz || "Australia/Sydney", had ? had.pend : "[]", had ? had.last : 0, had ? had.due : null);
+    return { ok: true, on: true };
+  },
+  // When this phone may next be pinged: an hour after the last one, and never in its night (10pm to 8am).
+  pDue(row, t = Date.now()) {
+    t = Math.max(t, (row.last || 0) + PINGS.gap);
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-AU", { timeZone: row.tz || "Australia/Sydney", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" })
+      .formatToParts(new Date(t)).map((x) => [x.type, Number(x.value)]));
+    const h = parts.hour % 24, past = (parts.minute * 60 + parts.second) * 1000;
+    if (h >= PINGS.quietFrom) return t + (24 - h + PINGS.quietTo) * HOUR - past;
+    if (h < PINGS.quietTo) return t + (PINGS.quietTo - h) * HOUR - past;
+    return t;
+  },
+  // A new moment (not an edit): every friend who turned notifications on (and hasn't hidden this person) gets told
+  // about it, in time. Each phone keeps the list of moments waiting to be told (at most 50).
+  async pQueue(ownerId, momentId) {
+    const rows = this.rows(`SELECT f.* FROM fpings f WHERE f.user IN (SELECT b FROM pals WHERE a = ?) AND f.user NOT IN (SELECT owner FROM hides WHERE who = ?)`, ownerId, ownerId);
+    for (const r of rows) {
+      const pend = JSON.parse(r.pend || "[]").concat(momentId).slice(-50);
+      this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
+    }
+    await this.pWake();
+  },
+  async pWake() {
+    const next = this.one("SELECT MIN(due) AS t FROM fpings WHERE due IS NOT NULL");
+    if (next && next.t && this.ctx && this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(next.t);
+  },
+  // The waiting moments still worth telling: still there, still a friend's, not hidden, paused or held back by reports.
+  pNews(row) {
+    const ids = JSON.parse(row.pend || "[]");
+    const moms = ids.length ? this.rows(`SELECT owner, at FROM moments WHERE id IN (${ids.map(() => "?").join(",")}) AND owner IN (SELECT b FROM pals WHERE a = ?) AND owner NOT IN (SELECT who FROM hides WHERE owner = ?)
+      AND owner NOT IN (SELECT user FROM paused) AND id NOT IN (SELECT moment FROM mheld) ORDER BY at DESC`, ...ids, row.user, row.user) : [];
+    const people = [...new Set(moms.map((m) => m.owner))].map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean);
+    return { moments: moms.length, names: people.map((u) => this.fProf(u.id).name || "@" + u.name) };
+  },
+  // The words: "Mia shared a moment", "Mia shared 3 moments", "Mia and Josh shared moments", "Mia and 2 others shared moments".
+  pWords(news) {
+    const [a, b] = news.names, n = news.names.length;
+    if (n === 1) return news.moments > 1 ? `${a} shared ${news.moments} moments` : `${a} shared a moment`;
+    if (n === 2) return `${a} and ${b} shared moments`;
+    return `${a} and ${n - 1} others shared moments`;
+  },
+  async alarm() {
+    const now = Date.now();
+    for (const row of this.rows("SELECT * FROM fpings WHERE due IS NOT NULL AND due <= ?", now + 30000)) {
+      const news = this.pNews(row);
+      if (!news.names.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
+      const sub = JSON.parse(row.sub);
+      let gone = false;
+      try { gone = await ping(this.env, sub.endpoint, { kind: "friends", title: this.pWords(news), n: news.moments }, sub.keys, PINGS.ttl / 1000); } catch { /* tried again with the next moment */ }
+      if (gone) this.sql.exec("DELETE FROM fpings WHERE user = ?", row.user);
+      else this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]', last = ? WHERE user = ?", now, row.user);
+    }
+    await this.pWake();
   },
 };

@@ -465,7 +465,14 @@ export class Accounts extends DurableObject {
     this.sql.exec("UPDATE users SET name = ?, name_l = ?, name_at = ? WHERE id = ?", n, n, t, u.id);
     return { ok: true, user: await this.publicUser({ ...u, name: n, name_at: t }) };
   }
-  async signOut(token) { if (token) this.sql.exec("DELETE FROM sessions WHERE hash = ?", await hash(token)); return { ok: true }; }
+  async signOut(token) {
+    if (!token) return { ok: true };
+    const s = this.one("SELECT user FROM sessions WHERE hash = ?", await hash(token));
+    this.sql.exec("DELETE FROM sessions WHERE hash = ?", await hash(token));
+    // Signed out everywhere: friend notifications stop too (the app also switches them off before signing out).
+    if (s && !this.one("SELECT 1 AS x FROM sessions WHERE user = ?", s.user)) this.sql.exec("DELETE FROM fpings WHERE user = ?", s.user);
+    return { ok: true };
+  }
   // Delete the account: everything about it goes. The name stays held for a while so nobody can pose as them.
   async remove(token) {
     const u = await this.sessionUser(token);

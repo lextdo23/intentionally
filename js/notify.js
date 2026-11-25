@@ -16,18 +16,29 @@ export const needsInstall = () => /iPhone|iPad|iPod/.test(navigator.userAgent) &
 
 export function prefs() { const s = store.get(); s.notify = Object.assign(defaults(), s.notify || {}); return s.notify; }
 
-// Asks permission (must come straight from a tap), then signs up for pings.
-export async function enable() {
-  if (!supported()) return false;
-  if (await Notification.requestPermission() !== "granted") return false;
+// Asks permission (must come straight from a tap), then signs this phone up for pings. Returns the sign-up, or null.
+// Also used by friend notifications (js/friends.js), which hand it to the service with the account.
+export async function pushSub() {
+  if (!supported()) return null;
+  if (await Notification.requestPermission() !== "granted") return null;
   try {
     const reg = await navigator.serviceWorker.ready;
-    if (!await reg.pushManager.getSubscription()) {
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
       const { key } = await (await fetch(`${SERVICE}/key`)).json();
-      await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(key) });
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(key) });
     }
-    sent = ""; await sync(); return true;
-  } catch { return false; }
+    return sub;
+  } catch { return null; }
+}
+// This phone's sign-up for pings, if it already has one (never asks).
+export async function currentSub() {
+  if (!supported() || Notification.permission !== "granted") return null;
+  try { return await (await navigator.serviceWorker.ready).pushManager.getSubscription(); } catch { return null; }
+}
+export async function enable() {
+  if (!await pushSub()) return false;
+  sent = ""; await sync(); return true;
 }
 
 // The next time the clock reads hh:mm, skipped if the check-in for that nudge's own day is already done.
