@@ -9,6 +9,7 @@ import * as boxes from "./boxes.js";
 import * as photos from "./photos.js";
 import { log, on as testerOn } from "./tester.js";
 import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
+import { bubble } from "./path.js";
 import { pickSteps, needsRepick, repickSteps } from "./pillars.js";
 import * as library from "./library.js";
 import { now } from "./clock.js";
@@ -19,7 +20,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms));
 // Is a card still to draw today? Not on a rest day, and not once one is kept.
 export function cardDue(k = dayKey()) {
   const d = store.get().days[k] || {};
-  return !d.rest && !(d.card && d.card.id) && d.mood == null && deck.deck().length >= 3;
+  return !d.rest && !(d.card && d.card.id) && d.mood == null && deck.dealable(k).length >= 3;
 }
 
 // One card's two faces. big = the full card with why it helps.
@@ -118,15 +119,24 @@ function hand(st, dealIn) {
     d.card.extra = (d.card.extra || 0) + 1; store.save(); extraDraw.replaceWith(again); redraw();
   } }, "Use your extra draw");
   const outOfDraws = () => (boxes.extras().draw > 0 ? extraDraw : lastLine);
-  let armed = false;
+  // Rest day (alex 2026-11-25): a moon in the top corner, so the bottom keeps only Keep / Draw again / Not for me.
+  // It asks first in a bubble, so a stray tap never uses the week's rest day.
   const weekRest = deck.restLeft(k), boxRest = !weekRest && boxes.extras().rest > 0;
-  const restWords = boxRest ? "Use your extra rest day, no card" : "Make today a rest day, no card";
-  const rest = weekRest || boxRest ? h("button.btn-quiet", { onclick: () => {
-    if (!armed) { armed = true; rest.textContent = "Tap again for a rest day, no card"; setTimeout(() => { armed = false; rest.textContent = restWords; }, 4000); return; }
+  const restNow = () => {
     if (boxRest && !boxes.useExtra("rest")) return;
     const dd = store.day(k); dd.rest = true; if (boxRest) dd.restExtra = true; deck.passed(st.ids); store.save(); log("card_rest", boxRest ? "extra" : null); close(true);
-  } }, restWords) : null;
+  };
+  const rest = weekRest || boxRest ? roundBtn("moon", "Make today a rest day", () => {
+    log("rest_ask");
+    bubble(rest, "Rest day?", boxRest ? " No card today. This uses your extra rest day." : " No card today. One rest day a week.", "Make today a rest day ›", restNow);
+  }) : null;
   const pickOwn = boxes.extras().pick > 0 ? h("button.btn-quiet", { onclick: () => pickMine((id) => big(st, id, { own: true })) }, "Pick my own") : null;
+
+  // Not for me (alex 2026-11-25): beside Draw again. Pick a card, then a reason; it's never dealt again and a new card
+  // takes its place. The line under the cards says so, with Undo.
+  const nfm = h("button.btn-quiet", { "aria-disabled": "true", onclick: () => notForMe() }, "Not for me");
+  const row = h("div.draw-row");
+  let undoT = null;
 
   let order = [], handEls = [], busy = false, z = 60;
   const els = Array.from({ length: N }, () => { const e = cardEl(null); e.classList.add("hc"); stage.append(e); return e; });
@@ -163,7 +173,7 @@ function hand(st, dealIn) {
     if (!e.classList.contains("up")) { e.classList.add("up"); st.up[j] = true; fill(e, st.ids[j]); log("card_turn", deck.tid(st.ids[j])); say(); return; }
     if (!allUp()) { hint.textContent = "Turn the other cards over first"; return; }
     st.pick = j; handEls.forEach((x, i) => x.classList.toggle("sel", i === j)); apply();
-    keep.setAttribute("aria-disabled", "false"); say();
+    keep.setAttribute("aria-disabled", "false"); nfm.setAttribute("aria-disabled", "false"); say();
   }));
 
   // Draw again, as one flowing move.
@@ -175,6 +185,7 @@ function hand(st, dealIn) {
     d.card.hands.push(ids); deck.shown(ids, k); store.save();
     log("card_redraw", ids.map(deck.tid));
     if (d.card.hands.length >= allowed()) again.replaceWith(outOfDraws());
+    nfm.setAttribute("aria-disabled", "true");
     const at = (ms, fn) => setTimeout(fn, reduceMotion() ? 0 : ms);
     // 0s: turn face down and fold into exactly one card, keeping whatever was on top on top
     const byZ = handEls.slice().sort((a, b) => (+a.style.zIndex) - (+b.style.zIndex));
@@ -197,9 +208,47 @@ function hand(st, dealIn) {
     });
   };
 
-  const foot = [keep, d.card.hands.length >= allowed() ? outOfDraws() : again, pickOwn, rest, LIFELINE()];
+  const notForMe = () => {
+    if (busy) return;
+    if (st.pick == null) { hint.textContent = allUp() ? "Tap the card that's not for you first" : "Turn over all three cards"; return; }
+    const j = st.pick, id = st.ids[j], c = deck.card(id);
+    if (c.own || c.lib) { hint.textContent = "Cards you add yourself stay yours"; return; }
+    log("nfm_open", deck.tid(id));
+    openSheet((panel, shut) => {
+      panel.append(
+        h("div.col", { style: { gap: "4px" } }, h("h2", null, "Not for you?"), h("p.sub", null, "Tell us why, and we won't deal it to you again.")),
+        h("p.nfm-q", null, `“${c.text}”`),
+        h("div.nfm-reasons", null, ...deck.NOT_FOR_ME.map(([r, words]) => h("button.pill.outline", { onclick: () => { shut("pick"); setTimeout(() => swap(j, id, r), 200); } }, words))),
+        h("p.note", null, "Only this phone knows."),
+        h("button.btn-quiet", { onclick: () => shut("keep") }, "Keep it"));
+    }, { label: "Not for you?" });
+  };
+  const swap = (j, id, r) => {
+    const grew = r === "already" && !deck.mem().grow[deck.card(id).pillar];
+    const to = deck.swapFor(id, st.ids, k);
+    deck.notForMe(id, r, k);
+    const hd = d.card.hands[d.card.hands.length - 1];
+    if (to) { st.ids[j] = to; hd[hd.indexOf(id)] = to; deck.shown([to], k); }
+    store.save();
+    log("card_never", { id: deck.tid(id), r: deck.NOT_FOR_ME.findIndex((x) => x[0] === r) });
+    const e = handEls[j];
+    st.pick = null; handEls.forEach((x) => x.classList.remove("sel")); apply();
+    keep.setAttribute("aria-disabled", "true"); nfm.setAttribute("aria-disabled", "true");
+    if (to) fill(e, to); else { e.classList.remove("up"); e.style.visibility = "hidden"; }
+    const undo = h("button.nfm-undo", { onclick: () => {
+      clearTimeout(undoT);
+      deck.undoNotForMe(id, grew);
+      if (to) { st.ids[j] = id; hd[hd.indexOf(to)] = id; } else e.style.visibility = "";
+      store.save(); fill(e, id); e.classList.add("up"); log("card_never_undo", deck.tid(id)); say();
+    } }, "Undo");
+    hint.replaceChildren(r === "notnow" ? "Got it. That one will rest for a while." : "Got it. You won't see that one again.", undo);
+    clearTimeout(undoT); undoT = setTimeout(() => { if (hint.contains(undo)) say(); }, 8000);
+  };
+
+  row.append(d.card.hands.length >= allowed() ? outOfDraws() : again, nfm);
+  const foot = [keep, row, pickOwn];
   show(step(
-    [roundBtn("close", "Not now", () => { log("card_later"); close(false); }), where("Today's card"), spacer()],
+    [roundBtn("close", "Not now", () => { log("card_later"); close(false); }), where("Today's card"), rest || spacer()],
     [h("h1.q.rise", null, "Pick one for today"), h("div.rise", null, stage), h("div.rise", null, hint), testerOn() ? h("p.note.rise", null, "Testers: thumbs up if a card fits your pillar and where you're at with it. One go per card.") : null],
     foot));
   if (dealIn && !reduceMotion()) { pile(); requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => deal(false), 260))); }

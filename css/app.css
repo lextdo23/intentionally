@@ -1043,7 +1043,7 @@ body.has-pill:not([data-tab="today"]) .sheet .btn-main:not(.soft) { background: 
 @media (prefers-reduced-motion: reduce) { .home-card .liq { transition: none; } }   /* the drops themselves stay still (flowLiquid in js/draw.js) */
 /* Card draw (alex 2026-11-24): card faces have a fine white edge, not gold; the picked card keeps its marigold outline. */
 .dcard .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
-.dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
+.dcard.sel .front { box-shadow: 0 0 0 1px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
 .home-card.did .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 /* The level-up moment (js/levelup.js, alex 2026-11-24): the eclipse opens, then the card for what opened. */
 .lu { position: fixed; inset: 0; z-index: 50; }
@@ -1101,3 +1101,12 @@ body.has-pill:not([data-tab="today"]) .sheet .btn-main:not(.soft) { background: 
 .fr-common-small .fr-common-faces .pic + .pic { margin-left: -6px; }
 .fr-common-small { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--ink2); min-width: 0; }
 .fr-common-small > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Not for me (alex 2026-11-25): beside Draw again in the morning hand, a sheet of one-tap reasons, then Undo. */
+.draw-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
+.draw-row .btn-quiet { padding: 0 14px; }
+.draw-row .btn-quiet[aria-disabled="true"] { opacity: .45; }
+.nfm-q { font-size: 15px; color: var(--ink2); padding: 12px 14px; border-radius: 12px; background: rgba(239, 237, 233, .06); }
+.nfm-reasons { display: flex; flex-direction: column; gap: 8px; }
+.nfm-reasons .pill { display: flex; align-items: center; width: 100%; justify-content: flex-start; text-align: left; }
+.nfm-undo { color: var(--ink); font-weight: 600; margin-left: 6px; min-height: 44px; padding: 0 6px; }

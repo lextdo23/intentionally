@@ -136,6 +136,7 @@ export function pillPicker(opts) {
 const ICON = {
   back: [["path", { d: "M15 18l-6-6 6-6" }]],
   close: [["path", { d: "M6 6l12 12M18 6L6 18" }]],
+  moon: [["path", { d: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" }]],
   // A small fanned hand of three cards (alex 2026-11-23), so it reads as a deck.
   cards: [["rect", { x: "7.75", y: "4", width: "8.5", height: "12.5", rx: "1.8", transform: "rotate(-16 12 20)", fill: "#1c1c1f" }], ["rect", { x: "7.75", y: "4", width: "8.5", height: "12.5", rx: "1.8", transform: "rotate(16 12 20)", fill: "#1c1c1f" }], ["rect", { x: "7.75", y: "3", width: "8.5", height: "12.5", rx: "1.8", fill: "#1c1c1f" }]],
   photos: [["rect", { x: "3.5", y: "5", width: "17", height: "14", rx: "3" }], ["circle", { cx: "9", cy: "10", r: "1.7" }], ["path", { d: "M20.5 15.5l-4.5-4.5-8.5 8" }]],

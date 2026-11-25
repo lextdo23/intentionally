@@ -64,7 +64,7 @@ export const notYet = (id, k = dayKey()) => { const f = boxFrom(id); return !!f 
 
 export function mem() {
   const s = store.get();
-  return (s.cards = Object.assign({ seen: {}, passed: {}, done: {}, loved: {}, less: {}, last: {}, saved: [], thumbs: {} }, s.cards || {}));
+  return (s.cards = Object.assign({ seen: {}, passed: {}, done: {}, loved: {}, less: {}, last: {}, saved: [], thumbs: {}, never: {}, grow: {} }, s.cards || {}));
 }
 const dayN = (k) => Math.floor(keyDate(k).getTime() / 864e5);
 export function dayOfUse(k = dayKey()) { const st = store.get().started; return st ? dayN(k) - dayN(st) + 1 : 1; }
@@ -74,6 +74,31 @@ export function planItems(k = dayKey()) {
   const p = store.get().wrap && store.get().wrap.plan;
   if (!p || k < p.start || k > p.end) return [];
   return p.items.filter((it) => !it.off);
+}
+
+// "Not for me" in the morning hand (alex 2026-11-25): the card isn't dealt again. "Not where I'm at right now" only
+// rests it for 8 weeks. "I already do this" also leans that pillar toward its bigger cards. Kept on the phone only.
+export const NOT_FOR_ME = [["life", "It doesn't fit my life"], ["cant", "I can't do this one"], ["already", "I already do this"], ["notnow", "Not where I'm at right now"]];
+const REST_WEEKS = 8;
+export function hidden(id, k = dayKey()) {
+  const x = mem().never[id];
+  return !!x && (x.r !== "notnow" || dayN(k) - x.n < REST_WEEKS * 7);
+}
+// The cards that can be dealt today.
+export function dealable(k = dayKey()) { return deck().filter((id) => !notYet(id, k) && !hidden(id, k)); }
+export function notForMe(id, r, k = dayKey()) {
+  const m = mem(); m.never[id] = { r, n: dayN(k) };
+  if (r === "already") m.grow[card(id).pillar] = 1;
+  m.saved = m.saved.filter((x) => x !== id);
+}
+export function undoNotForMe(id, pillarGrew) { const m = mem(); delete m.never[id]; if (pillarGrew) delete m.grow[card(id).pillar]; }
+// One card in place of a card that's not for you: the same pillar if it can be, and never a second bigger card.
+export function swapFor(id, hand, k = dayKey()) {
+  const c = card(id), others = hand.filter((x) => x !== id);
+  const ok = dealable(k).filter((x) => !hand.includes(x) && !(card(x).size === "Bigger" && others.some((o) => card(o).size === "Bigger")));
+  const same = ok.filter((x) => card(x).pillar === c.pillar), from = same.length ? same : ok;
+  if (!from.length) return null;
+  return pick(from, from.map((x) => weight(x, k)));
 }
 
 // How likely each card is to be drawn today. Never predicts: it's mostly random, leaning gently.
@@ -87,6 +112,7 @@ function weight(id, k) {
   else w = 2;
   if (m.last[id] != null && n - m.last[id] < 3) w *= 0.15;    // not the same faces two mornings running
   if (c.size === "Bigger") w *= d <= 3 ? 0.3 : 0.8;           // first days: mostly tiny and small
+  if (c.size === "Bigger" && m.grow[c.pillar]) w *= 2.5;       // "I already do this": more bigger cards in that pillar
   if (planItems(k).some((it) => (it.kind === "more" || it.kind === "try") && it.pillar === c.pillar)) w *= 2.5;   // "More Friends cards"
   if (boxFrom(id) && !m.seen[id]) w *= 3;                    // a box's new card comes up soon after it joins
   return w;
@@ -96,7 +122,7 @@ const pick = (ids, ws) => { let t = ws.reduce((a, b) => a + b, 0), r = Math.rand
 // Three different cards. At most one bigger card, and never two from the same pillar if it can be helped.
 export function draw3(exclude = [], k = dayKey()) {
   const m = mem(), out = [];
-  let all = deck().filter((id) => !exclude.includes(id) && !notYet(id, k));
+  let all = dealable(k).filter((id) => !exclude.includes(id));
   if (planItems(k).some((it) => it.kind === "tiny")) { const t = all.filter((id) => card(id).size === "Tiny"); if (t.length >= 3) all = t; }   // "Only tiny cards"
   const saved = m.saved.find((id) => all.includes(id));
   if (saved) out.push(saved);                                 // a card saved for later comes back first
@@ -111,7 +137,7 @@ export function draw3(exclude = [], k = dayKey()) {
 
 // A tiny card from the same pillar, for "Make it smaller".
 export function smaller(id, exclude = []) {
-  const c = card(id), opts = deck().filter((x) => x !== id && !exclude.includes(x) && !notYet(x) && card(x).pillar === c.pillar && card(x).size === "Tiny");
+  const c = card(id), opts = dealable().filter((x) => x !== id && !exclude.includes(x) && card(x).pillar === c.pillar && card(x).size === "Tiny");
   if (!opts.length) return null;
   return pick(opts, opts.map((x) => weight(x, dayKey())));
 }

@@ -42,7 +42,7 @@ function bars(rows, max, unit = "") {
   max = max || Math.max(1, ...rows.map((r) => r[1]));
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
-const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
+const GROUP = { "Which cards are \"Not for me\"?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
@@ -76,6 +76,7 @@ const SHAPE = {
   card_felt: (v) => isObj(v) && isNum(v.id) && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)),
   card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
   card_smaller: (v) => isObj(v) && isNum(v.from),
+  card_never: (v) => isObj(v) && isNum(v.id) && isInt(v.r, 0, 3), card_never_undo: isNum, nfm_open: isNum, rest_ask: (v) => v == null,
   own_card: (v) => isObj(v) && typeof v.p === "string" && v.p.length < 30 && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)) && isInt(v.deck, 0, 1),
   pick_mindset: (v) => v == null || (isObj(v) && arrOrNone(v.m)),
   acts_seen: (v) => ["worth", "moment", "both", "lift", "empty"].includes(v), acts_open: (v) => v == null, lifts_view: (v) => v === "any" || v === "harder",
@@ -315,6 +316,20 @@ function drawAll(D) {
         <p class="note">Second reminder</p>${bars([["Sent", s2], ["Tapped", t2], ["Card done after", d2]], Math.max(1, s2))}
         <p class="note">Testers who turned card reminders off</p>${bars([["Turned off", off]], Math.max(1, T))}` : `<p class="sub">No card reminders sent yet. They count once a tester opens the app after one arrives.</p>`,
       "if the second reminder gets done more often than the first, lunch may be too early; if few cards get done after either, the reminder words or times need a rethink.");
+  }
+
+  // Not for me (alex 2026-11-25): beside Draw again. Card numbers and which reason only.
+  {
+    const NFM = ["It doesn't fit my life", "I can't do this one", "I already do this", "Not where I'm at right now"];
+    const nv = by("card_never"), undone = by("card_never_undo").length, per = {};
+    nv.forEach((e) => { const c = (per[e.val.id] = per[e.val.id] || [0, 0, 0, 0]); c[e.val.r]++; });
+    const top = Object.entries(per).filter(([id]) => +id > 0).map(([id, c]) => [+id, c, c.reduce((a, b) => a + b, 0)]).sort((a, b) => b[2] - a[2]);
+    html += sec("Which cards are \"Not for me\"?", "\"Not for me\" sits beside \"Draw again\" in the morning hand: pick a card, then a reason, and it's never dealt to that person again (\"Not where I'm at right now\" rests it for 8 weeks). Only the card number and the reason are sent.",
+      nv.length || by("nfm_open").length ? bars([["Opened \"Not for me\"", by("nfm_open").length], ["Picked a reason", nv.length], ["Pressed Undo", undone], ["Tapped the rest day moon", by("rest_ask").length], ["Then made it a rest day", by("card_rest").length]], Math.max(1, by("nfm_open").length, by("rest_ask").length)) +
+        `<p class="note">Why:</p>` + bars(NFM.map((w, i) => [w, nv.filter((e) => e.val.r === i).length]), Math.max(1, nv.length)) +
+        (top.length ? `<div class="items">${top.slice(0, 25).map(([id, c, n]) => item(name(id), NFM.map((w, i) => c[i] ? `${w} ${c[i]}` : "").filter(Boolean).join(" · "), n > 1 ? `${n} people` : "1 person", true)).join("")}</div>` : "")
+      : `<p class="sub">Nobody has said a card is not for them yet.</p>`,
+      "a card that several people say doesn't fit their life, or that they can't do, is a split the pretend people may have missed: rewrite it or give it a label for About you. Lots of \"I already do this\" means the card is too easy for that mindset.");
   }
 
   html += sec("Which cards need a look?", "How the daily card draw goes, and which cards people pass over, don't get to, or mark as needing work. Only card numbers are sent; the words come from the app's own list.",
