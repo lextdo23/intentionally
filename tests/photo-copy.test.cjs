@@ -16,7 +16,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } }));
   const days = { [day(1)]: { mood: 3, feel: ["calm"] }, [day(0)]: { mood: 2 } };
   await p.goto(server.url);
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" } })), days);
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 } })), days);
   await p.reload(); await p.waitForTimeout(1200);
 
   // A made-up photo on yesterday: a plain orange square.
@@ -25,7 +25,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; const g = c.getContext("2d"); g.fillStyle = "#e08a3c"; g.fillRect(0, 0, c.width, c.height);
     await ph.save(k, c, { src: "lib" });
   }, day(1));
-  const openSettings = async () => { if (await p.$("#settings")) return; await p.click('button[aria-label="Settings"]'); await p.waitForTimeout(700); };
+  const openSettings = async () => { if (await p.$("#settings")) return; await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(400); await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700); };
   const tapRow = async (text) => p.evaluate((t) => [...document.querySelectorAll("#settings button")].find((x) => x.textContent.trim().startsWith(t))?.click(), text);
 
   await openSettings();
@@ -37,7 +37,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // A new phone: nothing on it.
   await p.evaluate(async () => { localStorage.clear(); await (await import("./js/photos.js")).wipe(); });
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" } })), { [day(0)]: {} });
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 } })), { [day(0)]: {} });
   await p.reload(); await p.waitForTimeout(1200);
   check(await p.evaluate(async () => (await import("./js/photos.js")).keys().length) === 0, "the new phone starts with no photos");
 

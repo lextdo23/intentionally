@@ -59,7 +59,7 @@ const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isA
 // What each level opens (same ids as UNLOCKS in levels.js).
 const UNLOCK_NAMES = [["days", "Your days"], ["own", "Own card"], ["friends", "Friends"], ["library", "Card library"], ["months", "Month and Year"]];
 const SHAPE = {
-  level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), unlock_act: (v) => isObj(v) && UNLOCK_NAMES.some(([id]) => id === v.id) && (v.open === 0 || v.open === 1), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
+  level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), locked_tap: (v) => UNLOCK_NAMES.some(([id]) => id === v), unlock_act: (v) => isObj(v) && UNLOCK_NAMES.some(([id]) => id === v.id) && (v.open === 0 || v.open === 1), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
@@ -80,7 +80,7 @@ const SHAPE = {
   acts_seen: (v) => ["worth", "moment", "both", "lift", "empty"].includes(v), acts_open: (v) => v == null, lifts_view: (v) => v === "any" || v === "harder",
   lifts_seen: (v) => isObj(v) && isInt(v.any, 0, 3) && isInt(v.harder, 0, 3),
   doctor_open: (v) => v == null,
-  crumbs_offer: (v) => v == null, crumb_open: (v) => v == null, crumb_delete: (v) => v == null,
+  crumbs_offer: (v) => v == null, crumb_open: (v) => v == null, crumb_closed_tap: (v) => v == null, crumb_delete: (v) => v == null,
   crumbs_on: (v) => ["offer", "settings", "off", "later"].includes(v), crumbs_seen: (v) => isInt(v, 1, 20),
   crumb_add: (v) => isObj(v) && isInt(v.n, 0, 1), crumb_edit: (v) => isObj(v) && isInt(v.n, 0, 1),
   doctor_made: (v) => isObj(v) && isInt(v.d, 1, 84) && typeof v.p === "string" && /^m?s?a?h?$/.test(v.p) && isInt(v.t, 0, 1) && isInt(v.n, 0, 1),
@@ -269,7 +269,7 @@ function drawAll(D) {
   const added = by("crumb_add").filter((e) => e.val);
   html += sec("Do people use Crumbs?", "Who was offered Crumbs, who turned it on, and who drops crumbs and sees them when ending the day. Never which face or what they wrote.",
     by("crumbs_offer").length || by("crumbs_on").length ? `${bars([["Offered it", who("crumbs_offer")], ["Turned it on from the offer", onFrom("offer")], ["Turned it on in Settings", onFrom("settings")], ["Said not now", onFrom("later")], ["Turned it off", onFrom("off")]], T)}
-     <div style="height:16px"></div>${bars([["Dropped a crumb", who("crumb_add")], ["Saw their crumbs when ending the day", who("crumbs_seen")], ["Changed or removed one", new Set(by("crumb_edit").concat(by("crumb_delete")).map((e) => e.code)).size]], T)}
+     <div style="height:16px"></div>${bars([["Dropped a crumb", who("crumb_add")], ["Saw their crumbs when ending the day", who("crumbs_seen")], ["Changed or removed one", new Set(by("crumb_edit").concat(by("crumb_delete")).map((e) => e.code)).size], ["Tapped it after ending the day (closed)", who("crumb_closed_tap")]], T)}
      <p class="note">Crumbs dropped: ${added.length}. With words: ${added.filter((e) => e.val.n).length}.</p>` : `<p class="sub">Nobody has been offered Crumbs yet.</p>`,
     "lots of 'not now' is fine: it's for people who find ending the day hard. If people turn it on but rarely drop crumbs, the button may be hard to find.");
 
@@ -443,7 +443,7 @@ function drawAll(D) {
     html += sec("How fast do people level up?", "Each tester's level now, and on which day after joining people usually reach a level. Each level brings a box.",
       n ? bars(Object.entries(hist).sort((a, b) => (parseInt(a[0].replace(/\D/g, "")) || 0) - (parseInt(b[0].replace(/\D/g, "")) || 0)), n) +
         `<p class="note">Usually reached: level 2 on ${day(2)}, level 3 on ${day(3)}, level 5 on ${day(5)}, level 10 on ${day(10)}. Planned for a usual week: level 2 on day 1, level 3 by day 3, level 5 by day 8, level 10 by day 28.</p>` +
-        `<p class="note">New things opened by a level (testers who joined after 18 Nov): ${UNLOCK_NAMES.map(([id, nm]) => `${nm} ${new Set(by("unlock").filter((e) => e.val === id).map((e) => e.code)).size}`).join(", ")}. Your levels page opened ${by("levels_open").length} time${by("levels_open").length === 1 ? "" : "s"} by ${who("levels_open")} tester${who("levels_open") === 1 ? "" : "s"}. From the level-up card: opened straight away ${by("unlock_act").filter((e) => e.val && e.val.open === 1).length}, Later ${by("unlock_act").filter((e) => e.val && e.val.open === 0).length}.</p>`
+        `<p class="note">New things opened by a level (testers who joined after 18 Nov): ${UNLOCK_NAMES.map(([id, nm]) => `${nm} ${new Set(by("unlock").filter((e) => e.val === id).map((e) => e.code)).size}`).join(", ")}. Your levels page opened ${by("levels_open").length} time${by("levels_open").length === 1 ? "" : "s"} by ${who("levels_open")} tester${who("levels_open") === 1 ? "" : "s"}. From the level-up card: opened straight away ${by("unlock_act").filter((e) => e.val && e.val.open === 1).length}, Later ${by("unlock_act").filter((e) => e.val && e.val.open === 0).length}. Tapped before it opened (the dashed ring): ${UNLOCK_NAMES.map(([id, nm]) => `${nm} ${by("locked_tap").filter((e) => e.val === id).length} by ${new Set(by("locked_tap").filter((e) => e.val === id).map((e) => e.code)).size}`).join(", ")}.</p>`
       : `<p class="sub">No levels yet. They start counting once a tester opens the new version.</p>`,
       "if people are much slower than planned, boxes feel far away and the points or the curve need easing; much faster and boxes lose their meaning."); }
 

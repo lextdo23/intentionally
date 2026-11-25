@@ -49,7 +49,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p1.goto(server.url);
   await p1.evaluate(([acct, k]) => {
     localStorage.setItem("daydeck-account", acct);
-    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: k, days: { [k]: { sleep: { q: 3 }, card: { id: 3, done: true } } }, pillars: ["Rest", "Move", "Friends"], seen: { note: "sleep" }, ph: { noted: 1 } }));
+    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: k, days: { [k]: { sleep: { q: 3 }, card: { id: 3, done: true } } }, pillars: ["Rest", "Move", "Friends"], seen: { note: "sleep", testInvite: 1 }, ph: { noted: 1 } }));
   }, [acct, day(1)]);
   await p1.reload(); await p1.waitForTimeout(1200);
   await p1.evaluate(async (k) => { const ph = await import("./js/photos.js"); const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; const x = c.getContext("2d"); x.fillStyle = "#3b475c"; x.fillRect(0, 0, c.width, c.height); x.fillStyle = "#f2c08f"; x.beginPath(); x.arc(540, 600, 220, 0, 7); x.fill(); await ph.save(k, c, { src: "lib" }); }, day(1));
@@ -66,7 +66,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p1.waitForTimeout(1000);
   const ph1 = await p1.evaluate((k) => JSON.parse(localStorage.getItem("daydeck")).days[k].ph, day(1));
   check(ph1 && ph1.b === 1 && ph1.v > 0, "the day remembers its photo is backed up");
-  await p1.click('#home button[aria-label="Settings"]'); await p1.waitForTimeout(800);
+  await p1.click('#pill [data-tab="you"]'); await p1.waitForTimeout(400); await p1.click('#you button[aria-label="Settings"]'); await p1.waitForTimeout(800);
   check(/Back up my photos/.test(await p1.textContent("#settings")) && /1 of 1 photos backed up/.test(await p1.textContent("#settings")), "Settings → Photos says how many are backed up");
   await shot(p1, "2-settings");
   await p1.click('#settings button[aria-label="Back to home"]'); await p1.waitForTimeout(500);
@@ -75,7 +75,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- Phone 2: a new phone, same account ----
   const p2 = await phone();
   await p2.goto(server.url);
-  await p2.evaluate((acct) => { localStorage.setItem("daydeck-account", acct); localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: null, days: {}, seen: { note: "sleep" }, ph: { noted: 1, told: 1 } })); }, acct);
+  await p2.evaluate((acct) => { localStorage.setItem("daydeck-account", acct); localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: null, days: {}, seen: { note: "sleep", testInvite: 1 }, ph: { noted: 1, told: 1 } })); }, acct);
   await p2.reload(); await p2.waitForTimeout(6000);
   const ph2 = await p2.evaluate((k) => (JSON.parse(localStorage.getItem("daydeck")).days[k] || {}).ph, day(1));
   check(ph2 && ph2.b === 1, "the new phone's days come back with the note that the photo is backed up");
@@ -93,7 +93,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p1.evaluate(async (k) => { const ph = await import("./js/photos.js"); const c = document.createElement("canvas"); c.width = ph.W; c.height = ph.H; c.getContext("2d").fillRect(0, 0, 10, 10); await ph.save(k, c, { src: "lib" }); }, day(0));
   for (let i = 0; i < 30 && ![...bucket.keys()].some((k) => k.endsWith(day(0) + ".jpg")); i++) await p1.waitForTimeout(500);
   check([...bucket.keys()].some((k) => k.endsWith(day(0) + ".jpg")), "a new photo backs up a few seconds after it's taken");
-  await p1.click('#home button[aria-label="Settings"]'); await p1.waitForTimeout(800);
+  await p1.click('#pill [data-tab="you"]'); await p1.waitForTimeout(400); await p1.click('#you button[aria-label="Settings"]'); await p1.waitForTimeout(800);
   await p1.click('#settings button[aria-label="Back up my photos"]'); await p1.waitForTimeout(600);
   check(/Turn off photo backup/.test(await p1.textContent(".sheet-host")) && /stay on this phone/.test(await p1.textContent(".sheet-host")), "turning it off asks first, and says photos stay on the phone");
   await shot(p1, "4-off");

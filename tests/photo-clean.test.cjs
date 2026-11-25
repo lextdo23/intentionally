@@ -13,7 +13,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } }));
   const days = { [day(2)]: { mood: 3 }, [day(1)]: { mood: 3 }, [day(0)]: { mood: 2 } };
   await p.goto(server.url);
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" } })), days);
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 } })), days);
   await p.reload(); await p.waitForTimeout(800);
 
   const r = await p.evaluate(async ([k0, k1, k2]) => {

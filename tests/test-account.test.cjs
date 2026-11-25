@@ -32,7 +32,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const days = { [day(1)]: { mood: 3, sleep: { q: 3 } } };
   await p.evaluate((days) => {
     localStorage.setItem("daydeck-account", JSON.stringify({ token: "T", user: { username: "alex.test", email: "x@example.com", test: true } }));
-    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days)[0], days, seen: { note: "sleep" }, levels: { seen: 1, reset: 2, base: 0 },
+    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days)[0], days, seen: { note: "sleep", testInvite: 1 }, levels: { seen: 1, reset: 2, base: 0 },
       tester: { on: true, consent: 99, code: "T-TEST", key: "k", queue: [], sent: 0, all: true } }));
   }, days);
   await p.reload(); await p.waitForTimeout(2000);

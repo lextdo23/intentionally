@@ -54,20 +54,20 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const signIn = (tok, user) => p.evaluate(([tok, user]) => localStorage.setItem("daydeck-account", JSON.stringify({ token: tok, user, pic: { kind: "little", id: "smile" } })), [tok, user]);
   // Full days: start your day, the card done, end your day (about 6 points each).
   const daysFull = (n) => { const d = {}; for (let i = 1; i <= n; i++) d[day(i)] = { sleep: { q: 3 }, card: { id: i, done: true }, mood: 4 }; return d; };
-  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep" }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
+  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep", testInvite: 1 }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
   const quiet = () => p.evaluate(() => { document.querySelectorAll(".tip-layer, .sheet-host, .lu").forEach((e) => e.remove()); document.body.classList.remove("in-levelup"); });
   const tab = async (t) => { await p.click(`#pill [data-tab="${t}"]`); await p.waitForTimeout(700); };
   const text = (sel) => p.textContent(sel);
 
-  // ---- Before level 4: Daydeck as it always was ----
+  // ---- Before level 4: the pill is there, Friends waits as a dashed ring (alex 2026-11-25) ----
   await p.goto(server.url);
   await signIn(mia.tok, mia.user); await setDays(2); await p.reload(); await p.waitForTimeout(1500);
-  check(!(await p.$("#pill")) && !!(await p.$('#home button[aria-label="Settings"]')), "before level 4: no pill, Settings on home, as now");
+  check(!!(await p.$('#pill [data-tab="friends"].not-yet')), "before level 4: Friends is a dashed ring in the pill");
 
   // ---- Level 4 (about day 4 of full days): Friends opens, with its moment and tip ----
   await setDays(4); await p.reload(); await p.waitForTimeout(1500);
   check(/Level 4/.test(await text(".lu-title")), "four full days reach level 4: the level-up moment shows");
-  check(!!(await p.$("#pill")), "at level 4 the glass pill appears");
+  check(!!(await p.$("#pill")) && !(await p.$('#pill [data-tab="friends"].not-yet')), "at level 4 Friends opens in the pill");
   check(!(await p.$('#home button[aria-label="Cards"]')), "the card library has moved to level 5, so it isn't open yet");
   await p.waitForTimeout(4600);
   check(/Friends/.test(await text(".lu-front")) && /Open Friends/.test(await text(".lu-btns")), "its card shows Friends, with Open Friends (in place of the old tip)");

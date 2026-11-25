@@ -68,3 +68,46 @@ function body() {
         s.line && s.state !== "soon" && s.state !== "hide" ? h("span.lp-d", null, s.line) : null)))),
     h("p.lp-foot", null, ALWAYS));
 }
+
+// ---------- Not open yet (alex 2026-11-25, "Daydeck · Greyed-out unlocks" canvas) ----------
+// Things a level opens are shown from day one in their real spot (Friends in the pill, Cards in the corner), as an
+// empty dashed ring, so home never rearranges when they open. Tapping one shows a small bubble beside it: what it is,
+// the level, and what gets you there (never a countdown or points to go). It fades by itself; a tap anywhere closes it.
+const RING = (d) => h("svg", { class: "ny-ring", width: d, height: d, viewBox: `0 0 ${d} ${d}`, "aria-hidden": "true" },
+  h("circle", { cx: d / 2, cy: d / 2, r: d / 2 - 1.25, fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-dasharray": "6 4.5", "stroke-linecap": "round" }));
+export const ring = RING;
+export function notYetLabel(id) {
+  const u = levels.UNLOCKS.find((x) => x.id === id);
+  return u ? `${u.name}, opens at level ${u.level}` : "";
+}
+let nyLayer = null, nyT = 0;
+export function notYet(el, id) {
+  const u = levels.UNLOCKS.find((x) => x.id === id);
+  if (!u || !el) return;
+  log("locked_tap", id);
+  bubble(el, `${u.name} opens at level ${u.level}.`, " Start and end your days to get there.", "See your levels ›", () => openLevels(() => {}));
+}
+// The small off-white bubble beside a button that can't be used right now (a level not reached, or Crumbs after the
+// day is ended). bold + rest are its words; more/onMore an optional link under them. Fades after 3.5s or on any tap.
+export function bubble(el, bold, rest, more, onMore) {
+  if (!el) return;
+  closeNotYet(true);
+  const r = el.getBoundingClientRect(), below = r.top + r.height / 2 < innerHeight / 2;
+  const W = 236, edge = 20, left = Math.max(edge, Math.min(innerWidth - edge - W, r.left + r.width / 2 - 70));
+  const link = more ? h("button.ny-more", { type: "button", onclick: (e) => { e.stopPropagation(); closeNotYet(); onMore(); } }, more) : null;
+  const box = h(`div.ny-box.${below ? "below" : "above"}${link ? "" : ".plain"}`, { role: "status" }, h("b", null, bold), rest, link);
+  box.style.left = `${left}px`;
+  box.style.setProperty("--ax", `${Math.round(r.left + r.width / 2 - left - 7)}px`);
+  if (below) box.style.top = `${r.bottom + 12}px`; else box.style.bottom = `${innerHeight - r.top + 12}px`;
+  nyLayer = h("div.ny-layer", { onclick: () => closeNotYet() }, box);
+  document.body.append(nyLayer);
+  requestAnimationFrame(() => nyLayer && nyLayer.classList.add("on"));
+  nyT = setTimeout(() => closeNotYet(), 3500);
+}
+export function closeNotYet(now) {
+  clearTimeout(nyT);
+  if (!nyLayer) return;
+  const l = nyLayer; nyLayer = null;
+  if (now || reduceMotion()) return l.remove();
+  l.classList.remove("on"); setTimeout(() => l.remove(), 220);
+}

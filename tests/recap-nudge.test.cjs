@@ -32,7 +32,7 @@ const week = (mood = 3, sunday = false) => {
       return n.recapTimes(store.get(), when).map((x) => [x.kind, new Date(x.t).toLocaleString("en-AU", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Sydney" })]);
     }, when);
   };
-  const base = (o = {}) => ({ v: 1, started: "2026-11-10", seen: { note: "sleep" }, levels: { seen: 3 }, notify: { am: { on: true, t: "08:00" }, pm: { on: true, t: "21:00" }, card: { on: true } }, days: week(), ...o });
+  const base = (o = {}) => ({ v: 1, started: "2026-11-10", seen: { note: "sleep", testInvite: 1 }, levels: { seen: 3 }, notify: { am: { on: true, t: "08:00" }, pm: { on: true, t: "21:00" }, card: { on: true } }, days: week(), ...o });
   const show = (r) => JSON.stringify(r);
 
   let r = await times(base(), at("2026-11-29T12:00:00"));
@@ -56,7 +56,7 @@ const week = (mood = 3, sunday = false) => {
 
 
   // Home line wording.
-  await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-01-01", seen: { note: "sleep" }, levels: { seen: 3 },
+  await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-01-01", seen: { note: "sleep", testInvite: 1 }, levels: { seen: 3 },
     days: Object.fromEntries(Array.from({ length: 14 }, (_, i) => { const d = new Date(Date.now() - (i + 1) * 864e5 - 4 * 3600e3); return [`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, { mood: 3 }]; })) })));
   await p.reload(); await p.waitForTimeout(2500);
   check(await p.locator(".wr-home.ready").innerText().catch(() => "") .then((t) => t.includes("Your weekly recap is ready")), "home says \"Your weekly recap is ready\"");

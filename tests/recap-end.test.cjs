@@ -29,7 +29,7 @@ const { serve, checker } = require("./helpers.cjs");
     for (let i = -14; i < 7; i++) { const d = new Date(mon); d.setDate(mon.getDate() + i); days[key(d)] = { mood: i >= 0 ? ms[i] : 4, sleep: { q: 3 }, card: i % 2 ? { id: 1 + (i & 7), did: 1, felt: ["Enjoyed it"] } : undefined }; }
     days[key(new Date(mon.getTime() + 2 * 864e5))].ph = { b: 1, v: 1 };
     localStorage.setItem("daydeck-account", JSON.stringify({ token: "made-up-token", user: { username: "alex" } }));
-    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" }, levels: { reset: 2, tips: { days: 1, friends: 1 } } }));
+    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, levels: { reset: 2, tips: { days: 1, friends: 1 } } }));
   });
   await p.reload(); await p.waitForTimeout(2500);
   await p.evaluate(() => document.querySelectorAll(".tip-layer").forEach((x) => x.remove()));

@@ -19,5 +19,7 @@ const listeners = [];
 // Backup (js/sync.js) listens, so changes go up a few seconds after they're made.
 export function onSave(fn) { listeners.push(fn); }
 export function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage full or blocked */ } listeners.forEach((fn) => { try { fn(); } catch { /* never break saving */ } }); }
-export function reset() { state = fresh(); save(); return state; }
+// keepTester: "Start again" in test mode keeps someone testing (alex 2026-11-25: phones were quietly dropping out
+// of testing when reset). Delete everything and Restore don't use it: they deal with tester mode themselves.
+export function reset({ keepTester = false } = {}) { const t = state && state.tester; state = fresh(); if (keepTester && t) state.tester = t; save(); return state; }
 export function day(k) { const s = get(); return (s.days[k] = s.days[k] || {}); }

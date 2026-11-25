@@ -17,7 +17,7 @@ const { serve, checker } = require("./helpers.cjs");
     await p.goto(server.url);
     await p.evaluate(async (lvTo) => {
       const { makeSample } = await import("./js/sample.js"); const L = await import("./js/levels.js"); const days = makeSample(30);
-      const st = { v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep" }, pillars: [{ name: "Rest", mindsets: [] }] };
+      const st = { v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, pillars: [{ name: "Rest", mindsets: [] }] };
       let pts = 0; while (L.level(pts).level < lvTo) pts++; pts += 3;
       st.levels = { reset: 2, base: L.earned(st) - pts, seen: lvTo - 1, opened: lvTo - 1, tips: { days: 1, own: 1, friends: 1, library: lvTo > 5 ? 1 : 0, photos: 1, crumbs: 1 } };
       localStorage.setItem("daydeck", JSON.stringify(st));

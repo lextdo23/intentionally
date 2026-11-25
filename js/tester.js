@@ -30,6 +30,18 @@ export const on = () => !!(t() && t().on && t().consent >= CONSENT) && !testAcco
 export const code = () => t() && t().code;
 // A tester who agreed to an older consent screen: asked again before anything more is sent (js/tester-sheet.js askAgain).
 export const needsAsk = () => !!(t() && t().on && t().code && (t().consent || 0) < CONSENT);
+// The one-time invite (alex 2026-11-25): everyone using Daydeck is asked once whether to help test. People already
+// using it see it on their next open after the update, before any other message; new people once their first day
+// has an evening check-in. Never for a phone that's already testing, someone who stopped on purpose, or alex's test
+// accounts. "Not now" (or closing it) means it never comes back; Settings still has "Help test Daydeck".
+export const INVITE = 1;
+export function inviteDue() {
+  const s = store.get(), tt = s.tester || {};
+  if (on() || needsAsk() || tt.left || tt.removed || testAccount() || s.test.on) return false;
+  if ((s.seen || {}).testInvite >= INVITE) return false;
+  return Object.values(s.days || {}).some((d) => d && d.mood != null);
+}
+export function inviteSeen() { const s = store.get(); s.seen = s.seen || {}; s.seen.testInvite = INVITE; store.save(); }
 export function agreeAgain() { t().consent = CONSENT; store.save(); log("consent_again", CONSENT); send(true); }
 
 // Records one thing that happened. Does nothing unless tester mode is on.

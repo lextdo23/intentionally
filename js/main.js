@@ -10,7 +10,6 @@ import { makeSample } from "./sample.js";
 import { openSheet, roundBtn } from "./ui.js";
 import * as deck from "./deck.js";
 import * as notify from "./notify.js";
-import { openSettings } from "./settings.js";
 import * as tester from "./tester.js";
 import { log } from "./tester.js";
 import { openTester, askAgain } from "./tester-sheet.js";
@@ -20,7 +19,7 @@ import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
-import { openLevels } from "./path.js";
+import { openLevels, notYet, notYetLabel, ring } from "./path.js";
 import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
 import * as library from "./library.js";
@@ -181,9 +180,10 @@ let look = "";
 function lookNow() { const hr = new Date(now()).getHours(); return [dayKey(), greeting(), hr < 15, hr >= 17 || hr < 4].join("|"); }
 
 // The week's peek (Your days opens at level 2) and, once Crumbs is on, its face button beside it (alex 2026-11-23).
-// Crumbs isn't tied to a level: before the peek shows, the button sits in the same spot on its own.
+// Crumbs isn't tied to a level: before the peek shows, the button sits in the same spot on its own. Once the day is
+// ended it shows closed for tonight (alex 2026-11-25), and opens again with the new day.
 function weekRow() {
-  const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render()) : null;
+  const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render(), { closed: ((store.get().days[dayKey()] || {}).mood != null) }) : null;
   if (!cb) return pk || "";
   return h("div.peek-row", null, pk, cb);
 }
@@ -194,6 +194,13 @@ function crumbsWhenFree(tries = 0) {
     if (busy && tries < 40) return crumbsWhenFree(tries + 1);
     if (!busy && crumbs.offerOK()) crumbs.offer(() => render());
   }, tries ? 1500 : 3400);
+}
+
+// A round button for something a level hasn't opened yet: the same spot, an empty dashed ring, and a tap says when.
+function notYetBtn(kind, id) {
+  const b = roundBtn(kind, notYetLabel(id), (e) => notYet(e.currentTarget, id));
+  b.classList.add("not-yet"); b.append(ring(44));
+  return b;
 }
 
 function render(moment) {
@@ -291,17 +298,17 @@ function render(moment) {
   const shareLink = shareOK ? h("button.add-photo.share-link", { onclick: () => moments.openShare({ day: k, item: today.rest ? "rest" : "card", from: "home" }) },
     friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
   const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
-  // The glass pill (social stage 1): once Friends opens at level 4 (or in test mode), the main action moves into it,
-  // and Settings moves to the You tab. Until then Daydeck looks as it always has.
-  const usePill = testOn || levels.isOpen("friends");
-  if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
+  // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
+  // home never rearranges when Friends opens at level 4. Until then Friends is an empty dashed ring in the pill.
+  const friendsOpen = testOn || levels.isOpen("friends");
+  pill.start(() => render()); pill.setFriends(friendsOpen); pill.setAction(main);
   // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
   // Your days with crumbs beside it, then the card in the middle. Lifeline stays in every check-in, draw, Your days and
   // Friends, so it is one step from here.
-  const cardsOpen = !levels.isOpen || levels.isOpen("library");
-  const settingsBtn = usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render()));
-  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : settingsBtn || h("span");
-  const right = h("div.dd-right", null, cardsOpen ? settingsBtn : null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
+  // The card library (level 5) sits in its corner from day one too: an empty dashed ring until it opens.
+  const cardsOpen = testOn || levels.isOpen("library");
+  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : notYetBtn("cards", "library");
+  const right = h("div.dd-right", null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
   home.replaceChildren(
     h("div.dd-head", null, left, mark, right),
     levelRow(lvNew),
@@ -310,7 +317,7 @@ function render(moment) {
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     words,
     mid,
-    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
+    h("div.col", { style: { gap: "4px" } }, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
@@ -351,7 +358,7 @@ function testBar() {
   if (!testOn) return;
   const st = store.get();
   let armed = false;
-  const clear = h("button", { onclick: () => { if (!armed) { armed = true; clear.textContent = "Tap again to clear"; return; } store.reset(); setOffsetDays(0); render(); } }, "Start again");
+  const clear = h("button", { onclick: () => { if (!armed) { armed = true; clear.textContent = "Tap again to clear"; return; } store.reset({ keepTester: true }); setOffsetDays(0); render(); } }, "Start again");
   document.body.append(h("div.testbar", null,
     h("button", { onclick: () => { Object.assign(st.days, makeSample(60)); if (!st.started) st.started = Object.keys(st.days).sort()[0]; store.save(); render(); } }, "Fill 2 months"),
     h("button", { onclick: () => { if (!wrapped.testOpen(() => render())) alertLine(); } }, "Wrapped"),
@@ -402,15 +409,25 @@ photoBackup.start(() => render());   // photos go up to the account's private st
 // A tester invite link goes first; the sign-up waits for the next open.
 // Each waits until the splash has gone and home has settled, so nothing pops up while Daydeck is opening.
 const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
+const viaLink = new URLSearchParams(location.search).has("tester");
+// Waits for a clear screen (a level-up moment, a tip or another sheet goes first), then shows the invite once.
+function inviteWhenFree(tries = 0) {
+  const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer, .lu");
+  if (busy) { if (tries < 120) setTimeout(() => inviteWhenFree(tries + 1), 1000); return; }
+  if (!tester.inviteDue()) return;
+  tester.inviteSeen(); openTester(() => render());
+}
 if (tester.needsAsk()) booted.then(() => setTimeout(() => askAgain(() => render()), 300));
+// The one-time "Help shape Daydeck" invite goes before anything else (alex 2026-11-25). The invite link opens it below.
+else if (!viaLink && tester.inviteDue()) booted.then(() => setTimeout(inviteWhenFree, 300));
 else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
 { const add = new URLSearchParams(location.search).get("add");
   if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
-  friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
+  friends.useInvite().then((r) => { if (r && pill.friendsOn()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
-if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(openTester, 200)); }
+if (viaLink) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(() => { tester.inviteSeen(); openTester(); }, 200)); }
 // Monday's "Weekly recap ready" notification opens the recap itself (if it's still waiting), from a fresh open or
 // when Daydeck was already open. Sunday's opens home as usual, so the person can end their day.
 function openRecap() { const w = wrapped.readyWeek(); if (w) { log("wrap_from_nudge"); wrapped.openWrapped(w, () => render()); } }
