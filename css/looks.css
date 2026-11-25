@@ -1,0 +1,109 @@
+/* Card looks (alex 2026-11-25, "Daydeck · Card looks" canvas; js/looks.js). */
+
+/* One back of a look, filling whatever holds it. Art keeps its own rounded corners (16 on a 150-wide card), so the
+   holder's corners are drawn to the same shape at any size. */
+.lk-back { position: absolute; inset: 0; border-radius: 10.667% / 7.619%; overflow: hidden; }
+.lk-back.lk-art img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.lk-back.lk-chrome { overflow: visible; background: radial-gradient(120% 60% at 20% -10%, rgba(255, 255, 255, .09), transparent 60%), linear-gradient(172deg, #1d1d21 0%, #0e0e10 46%, #08080a 100%); }
+.lk-back.lk-chrome img { position: absolute; left: -5.3%; top: -3.8%; width: 110.7%; height: 107.6%; max-width: none; }
+.lk-back.lk-mono { background: #0f0f10; container-type: inline-size; }
+.lk-back.lk-mono span { position: absolute; left: 8%; top: 5%; font-size: 22cqw; font-weight: 800; line-height: .92; letter-spacing: -.03em; color: #fff; }
+.lk-back.lk-daydeck { background: var(--sun); }
+.lk-back.lk-daydeck::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: #141416; }
+
+/* The hand: one spot per card the look needs, fanned. */
+.lk-hand { display: flex; justify-content: center; align-items: flex-end; gap: 8px; height: calc(var(--w) * 1.75); padding-top: 4px; }
+.lk-spot { position: relative; flex: none; width: var(--w); height: calc(var(--w) * 1.4); transform-origin: 50% 120%; filter: brightness(.82); box-shadow: 0 4px 10px rgba(0, 0, 0, .45); border-radius: 6px; }
+.lk-spot.on { filter: none; box-shadow: 0 0 0 2px var(--ring), 0 6px 14px rgba(0, 0, 0, .45); border-radius: 6px; }
+.lk-spot.empty { filter: none; box-shadow: none; border: 2px dashed rgba(239, 237, 233, .28); box-sizing: border-box; }
+.lk-spot .lk-back { border-radius: 6px; }
+
+/* Full-screen moments: the same 430 x 932 stage as the box, scaled to the phone. */
+.lk-full { position: fixed; inset: 0; z-index: 42; overflow: hidden; background: #0a0a0b; color: var(--ink); --z: 1; --oy: 0px; opacity: 0; transition: opacity .45s ease; }
+.lk-full.on { opacity: 1; }
+.lk-stage { position: absolute; left: 50%; top: var(--oy); width: 430px; height: 932px; margin-left: -215px; transform: scale(var(--z)); transform-origin: 50% 0; }
+.lk-top, .lk-under { position: absolute; left: 20px; right: 20px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.lk-eye { font-size: 15px; font-weight: 600; color: var(--gold); }
+.lk-rank { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+.lk-name { font-size: 22px; font-weight: 600; }
+.lk-count { font-size: 15px; color: var(--ink2); }
+.lk-btns { position: absolute; left: 20px; right: 20px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); display: flex; flex-direction: column; gap: 4px; }
+.lk-note { text-align: center; font-size: 13px; color: var(--dim, #a9a59d); }
+
+/* Pick a look: the rolodex. */
+.lk-halo { position: absolute; left: 50%; top: 416px; width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgb(var(--c, 255 165 31) / .26) 0, rgb(var(--c, 255 165 31) / .09) 160px, transparent 320px); transition: background .5s ease; }
+.lk-roll { position: absolute; left: 0; right: 0; top: 220px; height: 400px; perspective: 1100px; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; }
+.lk-rc { position: absolute; left: 50%; top: 58px; width: 200px; height: 280px; margin-left: -100px; padding: 0; border-radius: 10.667% / 7.619%; background: none;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .55); transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .45s ease, filter .45s ease, box-shadow .45s ease; }
+.lk-rc.mid { box-shadow: 0 0 0 2px var(--ring), 0 0 36px color-mix(in srgb, var(--ring) 45%, transparent), 0 18px 40px rgba(0, 0, 0, .55); }
+.lk-rc img { pointer-events: none; }
+.lk-mini { position: absolute; left: 0; right: 0; top: 192px; height: 54px; z-index: 30; display: flex; justify-content: center; align-items: flex-end; gap: 8px; }
+.lk-mini[hidden] { display: none; }
+.lk-mc { position: relative; flex: none; width: 34px; height: 48px; padding: 0; background: none; border-radius: 6px; transform-origin: 50% 120%; filter: brightness(.78); box-shadow: 0 4px 10px rgba(0, 0, 0, .45);
+  transition: transform .55s cubic-bezier(.2, 1.4, .4, 1), opacity .3s ease, box-shadow .3s ease, filter .3s ease; }
+.lk-mc.on { filter: none; box-shadow: 0 0 0 2px var(--ring), 0 6px 14px rgba(0, 0, 0, .45); }
+.lk-mc .lk-back { border-radius: 6px; }
+.lk-dots { display: flex; gap: 4px; margin-top: 8px; }
+.lk-dots button { width: 22px; height: 22px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.lk-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(239, 237, 233, .22); }
+.lk-dots .on i { background: var(--ink); }
+
+/* A look opens: stack, fan, bloom, ring, shine, words (data-ph 0 to 5). */
+.lk-bloom { position: absolute; left: 50%; top: 430px; width: 700px; height: 700px; margin: -350px 0 0 -350px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgb(var(--c) / .36) 0, rgb(var(--c) / .12) 170px, transparent 350px); opacity: 0; transform: scale(.4); transition: opacity 1.2s ease, transform 1.4s cubic-bezier(.2, .8, .2, 1); }
+.lk-ring { position: absolute; left: 50%; top: 430px; width: 300px; height: 300px; margin: -150px 0 0 -150px; border-radius: 50%; pointer-events: none; opacity: 0; transform: scale(.3);
+  box-shadow: 0 0 0 2px rgb(var(--c) / .7), 0 0 24px rgb(var(--c) / .5); }
+.lk-fan { position: absolute; left: 0; right: 0; top: 290px; height: 300px; padding: 0; background: none; }
+.lk-fc { position: absolute; left: 50%; top: 40px; width: 136px; height: 190px; margin-left: -68px; border-radius: 10.667% / 7.619%; overflow: hidden;
+  transform: var(--from); box-shadow: 0 0 0 2px var(--ring), 0 12px 26px rgba(0, 0, 0, .55); transition: transform .9s cubic-bezier(.2, 1.25, .35, 1) var(--d), box-shadow .8s ease; }
+.lk-fc .lk-back.lk-chrome { overflow: hidden; }
+.lk-sh { position: absolute; top: -10%; bottom: -10%; left: 0; width: 46%; pointer-events: none; transform: translateX(-120%) skewX(-12deg);
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent); }
+.lk-line { position: absolute; left: 40px; right: 40px; margin: 0; text-align: center; font-size: 17px; line-height: 1.4; color: var(--ink2); }
+.lk-late { opacity: 0; transform: translateY(10px); transition: opacity .6s ease, transform .6s ease; }
+.lk-open[data-ph="0"] * { transition: none !important; }
+.lk-open:not([data-ph="0"]) .lk-fc { transform: var(--to); }
+.lk-open:is([data-ph="2"], [data-ph="3"], [data-ph="4"], [data-ph="5"]) .lk-bloom { opacity: 1; transform: scale(1); }
+.lk-open:is([data-ph="2"], [data-ph="3"], [data-ph="4"], [data-ph="5"]) .lk-fc { box-shadow: 0 0 0 2px var(--ring), 0 0 26px color-mix(in srgb, var(--ring) 40%, transparent), 0 12px 26px rgba(0, 0, 0, .55); }
+.lk-open[data-ph="2"] .lk-ring { opacity: .9; transform: scale(2.4); transition: transform 1.6s cubic-bezier(.1, .6, .3, 1), opacity 1.6s ease; }
+.lk-open:is([data-ph="3"], [data-ph="4"], [data-ph="5"]) .lk-ring { opacity: 0; transform: scale(2.4); transition: transform 1.6s cubic-bezier(.1, .6, .3, 1), opacity 1.6s ease; }
+.lk-open:is([data-ph="3"], [data-ph="4"], [data-ph="5"]) .lk-sh { transform: translateX(260%) skewX(-12deg); transition: transform .9s ease var(--d); }
+.lk-open:is([data-ph="4"], [data-ph="5"]) .lk-top.lk-late, .lk-open[data-ph="5"] .lk-late { opacity: 1; transform: none; }
+.lk-open[data-ph="5"] .lk-btns.lk-late { transition-delay: .15s; }
+
+/* In a box: the look card's face, and the hand under its words. */
+.bx-card .fr.lk-face { padding: 0; background: none; border-radius: 10.667% / 7.619%; overflow: visible; }
+.bx-card .fr.lk-face .sheen { border-radius: 10.667% / 7.619%; }
+.bx-cap .lk-hand { margin-top: 6px; }
+.bx-halo2.lk { background: radial-gradient(circle, rgb(var(--lkc) / .5), rgb(var(--lkc) / .2) 30%, transparent 64%); }
+
+/* Today's card in a look: its back, its edge and the light behind it take the look (the date stays on the Daydeck card). */
+.home-card.lk .back::after, .home-card.lk.blank .front::after { display: none; }
+.home-card.lk .back, .home-card.lk.blank .front { background: none; box-shadow: none; }
+.home-card.lk .back > .lk-back, .home-card.lk.blank .front > .lk-back { border-radius: 16px; box-shadow: 0 2px 4px rgba(0, 0, 0, .35); }
+.home-card.lk .card-date { display: none; }
+.home-card.lk .edge { background: var(--lk-edge); }
+
+/* The Looks shelf (Cards › Looks). Every button one size, whatever it says (DESIGN.md 13b). */
+.lk-list { display: flex; flex-direction: column; gap: 8px; }
+.lk-srow { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 16px; background: rgba(239, 237, 233, .06); }
+.lk-thumb { position: relative; flex: none; width: 46px; height: 64px; box-shadow: 0 4px 10px rgba(0, 0, 0, .4); border-radius: 5px; }
+.lk-thumb .lk-back { border-radius: 5px; }
+.lk-thumb .lk-back.lk-chrome { overflow: hidden; }
+.lk-stext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lk-stext .t { font-size: 17px; font-weight: 600; }
+.lk-stext .s { font-size: 13px; color: var(--ink2); }
+.lk-btn { flex: none; width: 96px; min-height: 44px; padding: 0 8px; border-radius: 14px; font-size: 15px; font-weight: 600; white-space: nowrap; background: var(--ink); color: #1d1e22; }
+.lk-btn.in { background: transparent; color: var(--ink2); box-shadow: inset 0 0 0 1.5px rgba(239, 237, 233, .25); }
+.lk-list .lk-btn:not(.in):not([aria-pressed]) { background: rgba(239, 237, 233, .10); color: var(--ink); }
+.lk-coll { padding: 16px; border-radius: 16px; background: rgba(239, 237, 233, .06); display: flex; flex-direction: column; gap: 12px; }
+.lk-chead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lk-chead .t { font-size: 17px; font-weight: 600; }
+.lk-chead .r { font-size: 15px; font-weight: 400; color: var(--ink2); }
+.lk-chead .n { font-size: 15px; font-weight: 600; color: var(--gold); }
+.lk-done { color: var(--ink2); font-size: 15px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lk-full, .lk-full *, .lk-full *::before { transition: none !important; animation: none !important; }
+}

@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
@@ -468,6 +468,20 @@ function drawAll(D) {
         `<p class="note">Used: ${Object.keys(XN).filter((k) => used[k]).map((k) => `${XN[k]} ${used[k]}`).join(", ") || "none yet"}. Furthest into a look: ${Object.entries(looks).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "none yet"}.</p>`
       : `<p class="sub">No boxes yet. They come with each level from level 2.</p>`,
       "lots of boxes kept for later, or opened but never finished, means opening isn't wanted (or takes too long); extras that come but never get used can be swapped out."); }
+
+  // Card looks (alex 2026-11-25): which look people pick to collect (in the first box, after one opens, or on the
+  // shelf), how often they choose later, which looks open, and whether they put them on today's card.
+  { const picks = by("look_pick"), seen = who("look_pick_seen");
+    const names = { cherry: "Cherry bow", mono: "Mono", matcha: "Matcha", mushroom: "Mushroom", pals: "Pals", chrome: "Chrome" };
+    const count = (list) => { const o = {}; list.forEach((e) => { const k = e.val && e.val.l; if (k) o[k] = (o[k] || 0) + 1; }); return o; };
+    const pk = count(picks), op = {}; by("look_open").forEach((e) => (op[e.val] = (op[e.val] || 0) + 1));
+    const used = by("look_use").filter((e) => e.val && e.val.l !== "daydeck"), back = by("look_use").filter((e) => e.val && e.val.l === "daydeck").length;
+    html += sec("Which looks do people collect?", "Which look testers pick to collect (first box, after a look opens, or on the Looks shelf), how often they choose later, which looks they open, and whether they put one on today's card.",
+      seen || picks.length ? bars(Object.keys(names).filter((k) => pk[k]).map((k) => [`${names[k]} picked`, pk[k]]), 0) +
+        `<p class="note">Saw the picker: ${seen} tester${seen === 1 ? "" : "s"}. Chose later: ${by("look_later").length} times. Picked from the first box ${picks.filter((e) => e.val.f === "first").length}, after a look opened ${picks.filter((e) => e.val.f === "next").length}, on the shelf ${picks.filter((e) => e.val.f === "shelf").length}.</p>` +
+        `<p class="note">Opened: ${Object.entries(op).map(([k, n]) => `${esc(names[k] || k)} ${n}`).join(", ") || "none yet"}. Put on today's card: ${used.length} times (straight away ${used.filter((e) => e.val.f === "open").length}, from the shelf ${used.filter((e) => e.val.f === "shelf").length}); back to the Daydeck card ${back}. Not now when one opened: ${by("look_notnow").length}.</p>`
+      : `<p class="sub">No looks picked yet. The first box asks which one to collect.</p>`,
+      "lots of choose later means picking feels like a chore at that moment; looks that open but never go on the card may not suit a daily card; one look picked far more than the rest says which kind of art people want next."); }
 
   // Weekly recap reminders (alex 2026-11-22): Sunday's heads-up ("Weekly recap tonight", before ending the day) and
   // Monday's catch-up ("Weekly recap ready", only if it's still waiting). Sent, tapped, and recaps opened from a tap.
