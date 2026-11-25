@@ -6,17 +6,19 @@
 // Extras and odds (alex): one more draw 45, a rest day 15, Pick my own 10, out of 70. "Send a card" came out of the
 // boxes for good (alex 2026-11-18: sending is a task, not a reward), so its old 30 is shared by the other three in the
 // same proportions (about 64%, 21% and 14%). Pick my own always comes in the 2nd box.
-// No more than 2 unused rest days are kept. Using a look comes later (its own work); for now set cards are collected.
-// Which look's card comes: started looks lean in (no more than 3 on the go), and so does the look you use, but
-// every unfinished look can still come. Nobody is told how it leans beyond "Boxes lean towards looks you seem to like."
+// No more than 2 unused rest days are kept.
+// Looks (alex 2026-11-25, js/looks.js): the look card is always from the look you're collecting. The first box asks
+// which (a rolodex) before it opens; choosing later means that box brings a second extra instead. When the last card
+// of a look comes, Done shows it opening, then asks which look to collect next.
 import { h, dayKey, addDays, reduceMotion } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
 import * as levels from "./levels.js";
 import { LIVE as BANK } from "./cards-data.js";   // only live cards come out of boxes
 import { log } from "./tester.js";
+import * as looks from "./looks.js";
 
-export const LOOKS = [{ id: "chrome", name: "Chrome", art: ["heart", "moon", "sparkle", "spiky", "sun"] }];
+export const LOOKS = looks.LOOKS;
 export const EXTRA = {
   draw: { name: "One more draw", text: "For a morning when none of the three fit. It waits until you need it." },
   rest: { name: "A rest day", text: "One more rest day, for a week that needs it. It waits until you need it." },
@@ -63,16 +65,10 @@ function rollExtra(already) {
   const kinds = Object.keys(ODDS).filter((k) => k !== "rest" || held < MAX_REST);
   return pickW(kinds, kinds.map((k) => ODDS[k]));
 }
-// The next card of a look: never a repeat, never a finished look.
+// The next card of the look you're collecting (backs you don't have yet come first). None picked: no look card.
 function nextPiece() {
-  const b = mem(), have = (L) => b.sets[L.id] || [], using = store.get().look;
-  const open = LOOKS.filter((L) => have(L).length < L.art.length);
-  if (!open.length) return null;
-  const started = open.filter((L) => have(L).length);
-  const pool = started.length >= 3 ? started : open;
-  const L = pickW(pool, pool.map((x) => (have(x).length ? 3 : 1) * (using === x.id ? 2 : 1) * ((b.liked || {})[x.id] ? 2 : 1)));
-  const missing = L.art.map((_, i) => i).filter((i) => !have(L).includes(i));
-  return { look: L.id, i: missing[Math.floor(Math.random() * missing.length)] };
+  const L = looks.wantLook();
+  return L ? { look: L.id, i: looks.nextBack(L) } : null;
 }
 
 // What's in the next box. Decided when the box is shown, kept once it's opened (so closing the app halfway loses nothing).
@@ -121,8 +117,8 @@ const face = (tr, wh, cls) => h("div.bx-f." + cls, { style: Object.assign({ tran
 
 function front(c) {
   if (c.kind === "set") {
-    const L = LOOKS.find((x) => x.id === c.look);
-    return h("div.face.fr.look", null, h("img", { src: `img/${L.id}/${L.art[c.i]}.webp`, alt: `${L.name} card` }), h("div.sheen"));
+    const L = looks.byId(c.look);
+    return h("div.face.fr.lk-face", { role: "img", "aria-label": `${L.name} card` }, looks.backEl(L, c.i), h("div.sheen"));
   }
   if (c.kind === "extra") {
     const e = EXTRA[c.x];
@@ -136,12 +132,20 @@ function front(c) {
 function words(c) {
   if (c.kind === "new") { const p = deck.card(c.id).pillar; return { n: `New for ${p}`, s: "Joins your draws from tomorrow", l: p, ls: "New card" }; }
   if (c.kind === "extra") return { n: EXTRA[c.x].name, s: "Kept for when you need it", l: EXTRA[c.x].name, ls: "Extra" };
-  const L = LOOKS.find((x) => x.id === c.look), got = (mem().sets[L.id] || []).length;
-  return { n: L.name, s: `Card ${got} of ${L.art.length} · a new look for your cards`, l: L.name, ls: `Card ${got} of ${L.art.length}`, dots: [got, L.art.length] };
+  const L = looks.byId(c.look), got = looks.got(L), n = looks.need(L);
+  return { n: `${L.name} · ${looks.rankName(L)}`, s: `${got}/${n} cards`, l: L.name, ls: `${got}/${n} cards`, hand: L };
 }
 
 export function openBox(onDone) {
   if (waiting() < 1) return;
+  // The first box (or any box while no look is picked) asks which look to collect, before it opens.
+  if (looks.needsPick() && !mem().askedFor?.[(store.get().levels || {}).opened || 0]) {
+    const b = mem(); b.askedFor = { [(store.get().levels || {}).opened || 0]: 1 }; store.save();
+    return looks.pickLook("first", () => openBoxNow(onDone));
+  }
+  openBoxNow(onDone);
+}
+function openBoxNow(onDone) {
   const reduce = reduceMotion();
   const wait = (ms) => new Promise((r) => setTimeout(r, reduce ? Math.min(ms, 150) : ms));
   const set = (n, k, v) => n.style.setProperty(k, v);
@@ -160,7 +164,7 @@ export function openBox(onDone) {
   const capN = h("span.n"), capS = h("span.s"), dots = h("div.bx-dots", { hidden: true }), cap = h("div.bx-cap", { "aria-live": "polite" }, capN, capS, dots);
   const hint = h("p.bx-hint", { "aria-live": "polite" }, "Tap the box to open it");
   const later = h("button.btn-quiet", { onclick: () => { if (busy || step > -1) return; log("box_later"); leave(); } }, "Keep it for later");
-  const done = h("button.btn-main", { hidden: true, onclick: () => { log("box_done"); leave(); } }, "Done");
+  const done = h("button.btn-main", { hidden: true, onclick: () => { log("box_done"); leave(opening); } }, "Done");
   root.append(stage, top, cap, hint, h("div.bx-btns", null, done, later));
 
   cuboid(body, 260, 338, 200, { front: "bx-front", back: "bx-dark", left: "bx-shL", right: "bx-shR", bottom: "bx-dark" },
@@ -192,14 +196,18 @@ export function openBox(onDone) {
     });
     cards.slice().reverse().forEach((c) => tilt.append(c));   // the first card sits in front
   };
-  const leave = () => {
+  // A look that this box finished opens after Done (then the next look is picked).
+  let opening = null;
+  const leave = (L) => {
     root.classList.remove("on"); removeEventListener("resize", fit);
-    setTimeout(() => { root.remove(); document.body.classList.remove("in-flow"); onDone && onDone(kept); }, reduce ? 150 : 500);
+    setTimeout(() => { root.remove(); document.body.classList.remove("in-flow"); if (L) looks.afterOpen(L, () => onDone && onDone(kept)); else onDone && onDone(kept); }, reduce ? 150 : 500);
   };
 
   async function open() {
     if (busy || step > -1) return; busy = true;
+    const setItem = items.find((c) => c.kind === "set"), L0 = setItem && looks.byId(setItem.look), wasOpen = L0 && looks.isOpen(L0);
     keepBox(items); kept = true; makeCards();
+    if (L0 && !wasOpen && looks.isOpen(L0)) opening = L0;
     hint.style.opacity = 0; later.hidden = true; top.style.opacity = 0;
     lid.classList.add("open"); beam.classList.add("on");          // the lid swings open on its back hinge, light spills out
     await wait(1700);
@@ -232,6 +240,8 @@ export function openBox(onDone) {
     }
     const c = cards[step], it = items[step], w = words(it);
     if (step === last() && it.kind === "set") {   // the set card: glow builds first, then a slow turn and a shine
+      const lkc = looks.colOf(looks.byId(it.look), it.i);   // the lights take the look's colour
+      for (const el of [halo2, c]) { el.style.setProperty("--lkc", lkc); el.classList.add("lk"); }
       halo2.classList.add("on"); c.classList.add("charge"); place(c, ...UP); amp(c, 0, 1);
       await wait(2400);
       c.classList.add("slow", "up");
@@ -248,6 +258,8 @@ export function openBox(onDone) {
     capN.textContent = w.n; capS.textContent = w.s;
     dots.hidden = !w.dots;
     if (w.dots) dots.replaceChildren(...Array.from({ length: w.dots[1] }, (_, i) => h(i < w.dots[0] ? "i.on" : "i")));
+    cap.querySelector(".lk-hand")?.remove();
+    if (w.hand) cap.append(looks.handEl(w.hand, { newest: true }));
     cap.classList.add("on");
     // its label for the end
     const isBig = step === last(), x = isBig ? 0 : (row[step] || 0), y = isBig ? 726 : 301;

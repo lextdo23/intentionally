@@ -16,6 +16,7 @@ import { roundBtn } from "./ui.js";
 import { log, SERVICE } from "./tester.js";
 import { MINDSETS } from "./pillars.js";
 import { cardEl } from "./draw.js";
+import * as looks from "./looks.js";
 
 const FRESH = 6 * 3600e3;   // the library list is fetched again after six hours (it doesn't need to be live)
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -193,11 +194,11 @@ function draw(keepScroll) {
   if (!page) return;
   const sc = page.querySelector(".ph-scroll") || h("div.ph-scroll");
   const y = sc.scrollTop;
-  const seg = h("div.seg", { role: "tablist", "aria-label": "Cards" }, [["deck", "Your deck"], ["all", "Everyone's"]].map(([k, l]) =>
+  const seg = h("div.seg", { role: "tablist", "aria-label": "Cards" }, [["deck", "Your deck"], ["all", "Everyone's"], ["looks", "Looks"]].map(([k, l]) =>
     h("button", { role: "tab", "aria-selected": String(st.tab === k), onclick: () => { if (st.tab === k) return; st.tab = k; keep(); log("lib_tab", k); draw(); } }, l)));
   sc.replaceChildren(h("div.ph-page.lib-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeCards), h("h1.big-title", null, "Cards")),
-    seg, ...(st.tab === "all" ? everyone() : yours())));
+    seg, ...(st.tab === "all" ? everyone() : st.tab === "looks" ? looks.shelf(() => draw(true)) : yours())));
   if (!sc.isConnected) page.append(sc);
   sc.scrollTop = keepScroll ? y : 0;
 }

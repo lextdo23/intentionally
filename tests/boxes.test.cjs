@@ -38,7 +38,17 @@ const SHOTS = process.env.SHOTS;
   check(/Next box at level/.test(await p.locator(".lv-next").innerText()), "the level row says box, not pack");
 
   async function openOne(tag) {
-    await p.locator(".box-row").click(); await p.waitForTimeout(800); await shot(tag + "-0");
+    await p.locator(".box-row").click(); await p.waitForTimeout(800);
+    // The first box asks which look to collect (alex 2026-11-25): a rolodex; pick Chrome. Later boxes don't ask.
+    const picker = await p.locator(".lk-pick").count();
+    check(tag === "box1" ? picker === 1 : picker === 0, `${tag}: ${tag === "box1" ? "the first box asks which look to collect" : "no picker once a look is picked"}`);
+    if (picker) {
+      await shot(tag + "-pick");
+      await p.getByRole("button", { name: "Show Chrome" }).click(); await p.waitForTimeout(600);
+      check(/Masterpiece/.test(await p.locator(".lk-rank").innerText()) && /0\/8 cards/.test(await p.locator(".lk-pick .lk-count").innerText()), `${tag}: the title shows Chrome's rank and its 0/8 cards`);
+      await p.getByRole("button", { name: "Collect Chrome" }).click(); await p.waitForTimeout(1000);
+    }
+    await shot(tag + "-0");
     check(await p.locator(".bx .bx-front").innerText().then((t) => /A NEW BOX/.test(t) && /4 CARDS INSIDE/.test(t)), `${tag}: the plain box shows, 4 cards inside`);
     await p.locator(".bx-box").click({ force: true }); await p.waitForTimeout(1200); await shot(tag + "-1");
     await p.waitForTimeout(3600); await shot(tag + "-2");
@@ -47,8 +57,9 @@ const SHOTS = process.env.SHOTS;
     for (let i = 0; i < 3; i++) { await tap(); await p.waitForTimeout(2200); await shot(`${tag}-c${i}`); }
     await tap(); await p.waitForTimeout(6200); await shot(tag + "-set");
     const cap = await p.locator(".bx-cap").innerText();
-    check(/Chrome/.test(cap) && /Card \d of 5/.test(cap), `${tag}: the last card is a Chrome card ("${cap.replace(/\s+/g, " ")}")`);
-    check(await p.evaluate(() => { const i = document.querySelector(".bx-card.up .fr.look img"); return !!i && i.complete && i.naturalWidth > 0; }), `${tag}: the Chrome picture loads`);
+    check(/Chrome · Masterpiece/.test(cap) && /\d\/8 cards/.test(cap), `${tag}: the last card is a Chrome card ("${cap.replace(/\s+/g, " ")}")`);
+    check(await p.locator(".bx-cap .lk-spot").count() === 8, `${tag}: one spot for each of Chrome's 8 cards under it`);
+    check(await p.evaluate(() => { const i = document.querySelector(".bx-card.up .fr.lk-face img"); return !!i && i.complete && i.naturalWidth > 0; }), `${tag}: the Chrome picture loads`);
     await tap(); await p.waitForTimeout(1800); await shot(tag + "-end");
     check(await p.locator(".bx .btn-main").isVisible(), `${tag}: Done shows at the end`);
     check(await p.locator(".bx-lab").count() === 4, `${tag}: all four are labelled at the end`);

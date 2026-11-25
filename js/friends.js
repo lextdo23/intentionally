@@ -490,7 +490,7 @@ function stateBtn(p, redraw) {
   if (p.state === "friends") return h("span.fr-chip", null, "Friends");
   if (p.state === "asked") return h("span.fr-chip", null, "Asked");
   if (p.state === "asks_you") return small("Accept", (e) => busy(e.currentTarget, async () => { await answer(p, true); p.state = "friends"; redraw(); }), "main");
-  if (p.closed) return h("span.fr-chip", null, "Not taking requests");
+  if (p.closed) return h("span.fr-chip.two", null, "Not taking requests");   // two short lines, so it keeps the button size
   return small("Add", (e) => busy(e.currentTarget, async () => {
     const r = await account.call("/a/f/ask", { username: p.username });
     if (!r.ok) return note(say(r));
