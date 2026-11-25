@@ -269,7 +269,7 @@ function render(moment) {
   const felt = c && c.felt || [];
   const ph = { photo: k, develop: moment === "photo", turn: turnPh }; turnPh = false;
   if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt, ...ph } : did ? { state: "done", flip: moment === "did", felt, ...ph } : { state: "up", onDid: markDid, onCam: cam, photo: k });
-  else if (!today.rest && !ended && deck.deck().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
+  else if (!today.rest && !ended && deck.dealable().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
 
   // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
