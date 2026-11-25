@@ -487,14 +487,15 @@ function drawAll(D) {
   // Card looks (alex 2026-11-25): which look people pick to collect (in the first box, after one opens, or on the
   // shelf), how often they choose later, which looks open, and whether they put them on today's card.
   { const picks = by("look_pick"), seen = who("look_pick_seen");
-    const names = { cherry: "Cherry bow", mono: "Mono", matcha: "Matcha", mushroom: "Mushroom", pals: "Pals", chrome: "Chrome" };
+    const names = { cherry: "Cherry Coquette", mono: "Mono", matcha: "Matcha", mushroom: "Shrooomy", pals: "Softies Social Club", chrome: "Chrome" };
     const count = (list) => { const o = {}; list.forEach((e) => { const k = e.val && e.val.l; if (k) o[k] = (o[k] || 0) + 1; }); return o; };
     const pk = count(picks), op = {}; by("look_open").forEach((e) => (op[e.val] = (op[e.val] || 0) + 1));
     const used = by("look_use").filter((e) => e.val && e.val.l !== "daydeck"), back = by("look_use").filter((e) => e.val && e.val.l === "daydeck").length;
     html += sec("Which looks do people collect?", "Which look testers pick to collect (first box, after a look opens, or on the Looks shelf), how often they choose later, which looks they open, and whether they put one on today's card.",
       seen || picks.length ? bars(Object.keys(names).filter((k) => pk[k]).map((k) => [`${names[k]} picked`, pk[k]]), 0) +
         `<p class="note">Saw the picker: ${seen} tester${seen === 1 ? "" : "s"}. Chose later: ${by("look_later").length} times. Picked from the first box ${picks.filter((e) => e.val.f === "first").length}, after a look opened ${picks.filter((e) => e.val.f === "next").length}, on the shelf ${picks.filter((e) => e.val.f === "shelf").length}.</p>` +
-        `<p class="note">Opened: ${Object.entries(op).map(([k, n]) => `${esc(names[k] || k)} ${n}`).join(", ") || "none yet"}. Put on today's card: ${used.length} times (straight away ${used.filter((e) => e.val.f === "open").length}, from the shelf ${used.filter((e) => e.val.f === "shelf").length}); back to the Daydeck card ${back}. Not now when one opened: ${by("look_notnow").length}.</p>`
+        `<p class="note">Opened: ${Object.entries(op).map(([k, n]) => `${esc(names[k] || k)} ${n}`).join(", ") || "none yet"}. Put on today's card: ${used.length} times (straight away ${used.filter((e) => e.val.f === "open").length}, from the shelf ${used.filter((e) => e.val.f === "shelf").length}); back to the Daydeck card ${back}. Not now when one opened: ${by("look_notnow").length}.</p>` +
+        `<p class="note">Looked at up close: ${Object.entries(count(by("look_view").map((e) => ({ val: { l: e.val } })))).map(([k, n]) => `${esc(names[k] || k)} ${n}`).join(", ") || "none yet"}. Picked from up close ${picks.filter((e) => e.val.f === "view").length}, put on today's card from up close ${used.filter((e) => e.val.f === "view").length}.</p>`
       : `<p class="sub">No looks picked yet. The first box asks which one to collect.</p>`,
       "lots of choose later means picking feels like a chore at that moment; looks that open but never go on the card may not suit a daily card; one look picked far more than the rest says which kind of art people want next."); }
 
