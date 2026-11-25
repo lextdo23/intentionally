@@ -41,9 +41,13 @@ const newMoments = () => {
 };
 export const count = () => (data && data.me.adult ? data.asksYou.length + newMoments().length : 0);
 const countText = (n) => (n > 9 ? "9+" : String(n));
+// After you've been on Friends and moved on, the pill shows just a small dot for what was there, and the number
+// again only once something new comes in (alex 2026-11-25). The bell keeps the number.
+export function leftTab() { const n = count(); if (n !== local.ack) { local.ack = n; keep(); } showCount(); }
 function showCount() {
   const n = count();
-  dotFn(n);
+  if (local.ack && n < local.ack) { local.ack = n; keep(); }   // something was answered or seen: keep the dot honest
+  dotFn(n, n > 0 && n <= (local.ack || 0));
   setBadge(n);
   document.querySelectorAll(".fr-bell").forEach((b) => {
     b.setAttribute("aria-label", n ? `Notifications, ${n} new` : "Notifications");
