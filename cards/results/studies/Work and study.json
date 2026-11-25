@@ -1,0 +1,7 @@
+{ "pillar": "Work and study", "checked": "2026-11-25",
+  "note": "All 36 why lines read against their study. Re-read today: Owens 2008 (write-up by Pychyl) and McCrea 2008 (full paper). The rest were checked in the Work and study review (19 Nov).",
+  "cards": [
+  { "card": 509, "verdict": "fix", "chk": "full paper", "link": "https://kops.uni-konstanz.de/server/api/core/bitstreams/3b8b10e2-4fff-4cb8-bc49-4d3e2f1a405c/content", "note": "The paper gives no \"8 days\". Across three studies of German uni students, those thinking about how sent back a questionnaire about 6 to 14 days sooner. Say \"Students thinking about how, not why, finished a task days sooner.\"" },
+  { "card": 507, "verdict": "ok", "chk": "write-up (Pychyl, Psychology Today)", "link": "https://www.psychologytoday.com/au/blog/dont-delay/200804/procrastination-strategy-change", "note": "Right: students who picked a time turned up to a study session 61.8% of the time, against 18.4%." },
+  { "card": 520, "verdict": "better", "note": "Brown and Ryan Krane 2000 backs three cards (#520, #521, #525) with the same review. Fine, but a single trial of the exact task would read more clearly (flagged in the Work review)." }
+]}

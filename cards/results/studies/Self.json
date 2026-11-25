@@ -1,0 +1,16 @@
+{ "pillar": "Self", "checked": "2026-11-25",
+  "note": "All 43 why lines read against their study. Re-read today: the York, Washington State, emotion-words and perfectionism studies. The rest were checked in the Self review (19 Nov) and match what each study did and found.",
+  "cards": [
+  { "card": 428, "verdict": "fix", "chk": "York University news release, 30 Apr 2024", "link": "https://www.yorku.ca/news/2024/04/30/social-media-break-has-huge-impact-on-young-womens-body-image-york-u-study/", "note": "The why line matches (66 first-year women, one week off, higher self-esteem and body image). The source should be the paper, not the uni: \"Samson, Mills and Smith, 2024\" (Body Image)." },
+  { "card": 444, "verdict": "fix", "chk": "Washington State University news release, 2 Apr 2025", "link": "https://news.wsu.edu/press-release/2025/04/02/study-suggests-a-new-way-to-curb-social-medias-body-image-toll/", "note": "The source should be \"Willoughby and Couto, 2025\" (Health Communication). Small study: 40 women aged 18 to 24, four days, about fitness posts. Say \"over four days\"; comparing dropped, feeling better about their bodies didn't change." },
+  { "card": 435, "verdict": "fix", "chk": "the paper (Tilburg repository copy)", "link": "https://core.ac.uk/download/489847085.pdf", "note": "120 adults studied 12 emotions, 15 minutes a day for four days. A month later they told apart their unpleasant feelings better; pleasant ones didn't change. Say \"told their low feelings apart better a month later\"." },
+  { "card": 437, "verdict": "ok", "chk": "the paper (Frontiers in Psychology)", "link": "https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2021.751294/pdf", "note": "Norwegian uni students (average age 27), a three-week course of five sessions; less anxious and less low than those waiting. Matches." },
+  { "card": 416, "verdict": "fix", "note": "Amabile and Kramer found small steps forward were the most common thing on people's best days. They didn't compare small and big wins, so \"almost as much as big wins\" goes past what they reported." },
+  { "card": 443, "verdict": "better", "note": "Emmons and McCullough didn't measure comparing. The why line's second sentence is right, but the card sits under \"I compare myself to others\" with a study that didn't test that." },
+  { "card": 421, "verdict": "better", "note": "Women-only study (college women). Fine as written, since it says \"Women\", but men and non-binary people with \"Okay in my body\" get three women-only studies (#421, #441, #442). A study with men too would suit them." },
+  { "card": 441, "verdict": "better", "note": "Same study as #421, women only. Two cards on one study; one could move to a mixed study." },
+  { "card": 442, "verdict": "better", "note": "Women only (see #421)." },
+  { "card": 424, "verdict": "better", "note": "Young women only; the card is for everyone comparing themselves." },
+  { "card": 425, "verdict": "better", "note": "Young women only (see #424)." }
+  ]
+}

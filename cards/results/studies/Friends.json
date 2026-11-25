@@ -1,0 +1,8 @@
+{ "pillar": "Friends", "checked": "2026-11-25",
+  "note": "All 27 why lines read against their study. Boda 2020, Laurenceau 1998 and Roberts and Dunbar 2015 were re-read today (full paper or abstract); the rest were checked against the paper or abstract in the Friends review (19 Nov) and today's wording was compared with those notes.",
+  "cards": [
+  { "card": 16, "verdict": "ok", "chk": "full paper (Scientific Reports 2020)", "link": "https://research.birmingham.ac.uk/files/227376027/s41598-020-59594-z.pdf", "note": "Right: 226 first-year engineering students, random small groups at intro days, more friendships about 2 months later. Worth knowing: the effect faded by about 5 months." },
+  { "card": 22, "verdict": "ok", "chk": "full paper", "link": "https://www.affective-science.org/pubs/1998/LaurenFBPl1998.pdf", "note": "Right: student diaries; closeness came from both people sharing, and sharing feelings mattered more than facts." },
+  { "card": 25, "verdict": "ok", "chk": "full paper", "link": "https://core.ac.uk/download/131226437.pdf", "note": "Right: 30 English school leavers aged 17 to 19 over 18 months; talking (women) or doing things together (men) held friendships up." },
+  { "card": 31, "verdict": "better", "chk": "abstract (Friends review)", "note": "Accurate, but a broad review of liking, not a test of a set of questions. If the card names the 36 questions (the pretend people asked for that), Aron and colleagues 1997 tested them directly, though with strangers (rule D3). Your call." }
+]}

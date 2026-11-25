@@ -1,0 +1,66 @@
+{
+ "pillar": "Family",
+ "checked": "2026-11-25",
+ "note": "All 24 why lines read against their study. Re-read today: Selcuk 2012 (Cornell write-up), Fingerman 2015/16 (full paper), Dreisoerner 2021 (write-up). The rest were checked in the Family review (19 Nov).",
+ "cards": [
+  {
+   "card": 371,
+   "verdict": "fix",
+   "note": "The why line has no study in it, just the takeaway (rule D1). Add Liu 2023: \"People underestimated how much reaching out meant, even to people they were close to.\""
+  },
+  {
+   "card": 37,
+   "verdict": "better",
+   "chk": "abstract (Friends review)",
+   "note": "Liu 2023 is about reaching out to friends and acquaintances, not family (rule D3). Fingerman's daily family study (#48) shows parents' moods lift on days with pleasant contact, which fits a family chat card."
+  },
+  {
+   "card": 38,
+   "verdict": "better",
+   "chk": "abstract",
+   "note": "Kumar and Epley 2018 letters went to anyone who'd helped them, mostly not family (rule D3). Worth looking for a study of thanking a family member."
+  },
+  {
+   "card": 45,
+   "verdict": "better",
+   "chk": "abstract",
+   "note": "Right (148 studies, about 50% better survival), but survival odds are a strange reason for a 20-year-old, and it isn't about chosen family. A study of chosen family or close ties and wellbeing would land better."
+  },
+  {
+   "card": 41,
+   "verdict": "fix",
+   "chk": "write-up (PsyPost)",
+   "link": "https://www.psypost.org/receiving-a-hug-or-engaging-in-self-soothing-touch-reduces-cortisol-levels-following-a-stressful-experience/",
+   "note": "Mostly right: 159 adults, average age 21, self-soothing touch before a stress test lowered the stress hormone. The \"18 to 35\" range isn't confirmed in the write-up; say \"young adults\" unless the paper confirms it."
+  },
+  {
+   "card": 55,
+   "verdict": "ok",
+   "chk": "write-up (Cornell)",
+   "link": "https://news.cornell.edu/node/269151",
+   "note": "Right: in one experiment people looked at a photo of their mum after an upsetting memory and recovered faster. Another used a partner's photo."
+  },
+  {
+   "card": 48,
+   "verdict": "ok",
+   "chk": "full paper",
+   "link": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4807606",
+   "note": "Right: 247 parents aged 45 to 65, 7 days of calls; pleasant contact with grown children went with better daily moods. Published Dec 2015 (issue 2016)."
+  },
+  {
+   "card": 60,
+   "verdict": "ok",
+   "note": "Same study as #48."
+  },
+  {
+   "card": 49,
+   "verdict": "better",
+   "note": "Study is of 14 to 16 year olds (flagged and kept in the Family review). Still worth a study of young adults if one turns up."
+  },
+  {
+   "card": 374,
+   "verdict": "fix",
+   "note": "Balban 2023: every group (breathing and mindfulness) got less anxious; what set long breaths out apart was a better mood. Say \"left people in a better mood\", as Rest #166 does."
+  }
+ ]
+}

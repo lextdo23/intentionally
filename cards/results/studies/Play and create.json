@@ -1,0 +1,7 @@
+{ "pillar": "Play and create", "checked": "2026-11-25",
+  "note": "All 30 why lines read against their study, as checked in the Play and create review (19 to 20 Nov).",
+  "cards": [
+  { "card": 560, "verdict": "fix", "note": "Source should read \"Holte and Ferraro, 2020\". Same study as Rest #407: the write-up says \"nearly 40 minutes\"; use the same words on both cards." },
+  { "card": 542, "verdict": "better", "note": "Fancourt's hobby study followed adults over 50, so it's a poor match for 18 to 30 year olds (rule D3). Worth a study of younger adults." },
+  { "card": 551, "verdict": "ok", "note": "Source is written \"Stacey and Caldwell, 2026 (Kent State)\". Drop \"(Kent State)\" to match the others." }
+]}
