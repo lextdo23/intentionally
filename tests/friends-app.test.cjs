@@ -110,30 +110,42 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await shot("5-friends");
 
   // ---- Josh's profile ----
+  // Priya is friends with Mia and with Josh, so she's a friend they have in common (alex 2026-11-25).
+  const priya = await person("priya.k");
+  await priya.post("/a/f/profile", { adult: true, name: "Priya", pic: "bunny" });
+  for (const x of [mia, josh]) { await priya.post("/a/f/ask", { username: x.user.username }); await x.post("/a/f/answer", { username: "priya.k", yes: true }); }
   await p.click("#friends .fr-face"); await p.waitForTimeout(900);
   const prof = await text(".fr-page:last-child");
-  check(/Josh/.test(prof) && /@josh_r/.test(prof) && /1 friend(?!s)/.test(prof) && /This season/.test(prof) && /Josh's moments/.test(prof), "Josh's profile: name, @username, friends count, This season and his moments");
+  check(/Josh/.test(prof) && /@josh_r/.test(prof) && /2 friends/.test(prof) && /This season/.test(prof) && /Josh's moments/.test(prof), "Josh's profile: name, @username, friends count, This season and his moments");
   check(await p.$eval("#pill", (e) => getComputedStyle(e).opacity) === "0", "the pill steps aside on a full page");
   await shot("6-profile");
+  check(/Friends with Priya/.test(await text(".fr-page:last-child .fr-common")), "a friend's profile says which friends you both have");
+  await p.click(".fr-page:last-child .fr-common"); await p.waitForTimeout(1000);
+  check(/Friends you both have/.test(await text(".fr-page:last-child .fr-page-title")) && /Priya/.test(await text(".fr-page:last-child")) && /@priya\.k/.test(await text(".fr-page:last-child")), "tapping it opens a full page of everyone you both know");
+  await shot("6b-common");
+  await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
   await p.click('.fr-page:last-child button[aria-label="More"]'); await p.waitForTimeout(600);
   check(/Remove friend/.test(await text(".sheet-host")) && /Block @josh_r/.test(await text(".sheet-host")), "••• has Remove friend and Block");
   await shot("7-more");
   await p.click('.sheet-host button:has-text("Remove friend")'); await p.waitForTimeout(700);
   check(/They won't be told/.test(await text(".sheet-host:last-child")), "removing says they won't be told");
   await p.click('.sheet-host:last-child .fr-main'); await p.waitForTimeout(1100);
-  check((await mia.get("/a/f")).friends.length === 0 && !(await p.$(".fr-page.open")), "removed on the service, and back to Friends");
+  check((await mia.get("/a/f")).friends.every((f) => f.username !== "josh_r") && !(await p.$(".fr-page.open")), "removed on the service, and back to Friends");
 
   // ---- Add friends by @username ----
+  await priya.post("/a/f/ask", { username: "sam.w" }); await sam.post("/a/f/answer", { username: "priya.k", yes: true });
   await p.click('#friends button[aria-label="Add friends"]'); await p.waitForTimeout(700);
   await p.fill(".fr-page:last-child .fr-field", "sam"); await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(700);
   check(/No one by that name/.test(await text(".fr-page:last-child")), "part of a name finds nobody");
   await p.fill(".fr-page:last-child .fr-field", "@Sam.W"); await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(700);
   check(/Sam/.test(await text(".fr-page:last-child .fr-found")), "their exact @username finds them (capitals and @ don't matter)");
+  check(/Friends with Priya/.test(await text(".fr-page:last-child .fr-found .fr-common-small")), "a search result says which of your friends they know");
   await shot("8-add");
   await p.click(".fr-page:last-child .fr-found .fr-btn.main"); await p.waitForTimeout(900);
   check(/Asked/.test(await text(".fr-page:last-child .fr-found")) && /Waiting for them/.test(await text(".fr-page:last-child")), "Add sends a request, shown as Asked and under Waiting for them");
   check((await sam.get("/a/f")).asksYou.some((x) => x.username === "mia.k"), "Sam sees Mia's request");
   await shot("9-asked");
+  await mia.post("/a/f/remove", { username: "priya.k" });
   await p.click('.fr-page:last-child button[aria-label="Back"]'); await p.waitForTimeout(600);
 
   // ---- An invite link ----
@@ -314,7 +326,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click('#settings button:has-text("Who can see you")'); await p.waitForTimeout(700);
   check(/Only your friends can see you/.test(await text(".fr-page:last-child")), "Privacy says only friends can see you");
   check(await p.getAttribute('.fr-page:last-child button[aria-label="Share my mood"]', "aria-checked") === "false", "Share my mood is in Privacy, off by default");
-  await p.click('.fr-page:last-child button[aria-label="Show your friends count"]'); await p.waitForTimeout(700);
+  await p.click('.fr-page:last-child button[aria-label="Show my friends"]'); await p.waitForTimeout(700);
   check((await mia.get("/a/f")).me.hide === true, "hiding your friends count is saved");
   const swBg = await p.$eval('.fr-page:last-child button[aria-label="Friend requests"]', (e) => getComputedStyle(e).backgroundColor);
   check(swBg === "rgb(255, 165, 31)", "switches that are on are marigold (alex 2026-11-24)");

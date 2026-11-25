@@ -93,6 +93,7 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/profile": return out(b.fProfile(token, body));
     case "GET /a/f/find": return out(b.fFind(token, q.get("u") || ""));
     case "GET /a/f/person": return out(b.fPerson(token, q.get("u") || ""));
+    case "GET /a/f/common": return out(b.fCommonAll(token, q.get("u") || ""));
     case "POST /a/f/ask": return out(b.fAsk(token, String(body.username || "")));
     case "POST /a/f/answer": return out(b.fAnswer(token, String(body.username || ""), !!body.yes));
     case "POST /a/f/cancel": return out(b.fCancel(token, String(body.username || "")));
@@ -140,6 +141,18 @@ export const friendMethods = {
   fBlocked(a, b) { return !!this.one("SELECT 1 AS x FROM blocks WHERE (owner = ? AND who = ?) OR (owner = ? AND who = ?)", a, b, b, a); },
   fIsPal(a, b) { return !!this.one("SELECT 1 AS x FROM pals WHERE a = ? AND b = ?", a, b); },
   fCount(id) { return this.one("SELECT COUNT(*) AS n FROM pals WHERE a = ?", id).n; },
+  // Friends in common (alex 2026-11-25): only your own friends who are also theirs. Nobody new is ever shown.
+  // Someone with "Show my friends" off is never shown as a friend in common, and their own profile shows none.
+  // Sorted A to Z by what you'd see (name, else @username).
+  fCommon(meId, themId) {
+    if (meId === themId || this.fProf(themId).hide) return [];
+    return this.rows(`SELECT p.b AS id FROM pals p JOIN pals q ON q.a = ? AND q.b = p.b WHERE p.a = ? AND p.b != ? AND p.b != ?
+      AND p.b NOT IN (SELECT user FROM prof WHERE hide = 1)`, themId, meId, meId, themId)
+      .map((r) => this.one("SELECT * FROM users WHERE id = ?", r.id)).filter(Boolean).map((u) => this.fCard(u))
+      .sort((x, y) => (x.name || x.username).localeCompare(y.name || y.username));
+  },
+  // The short form that rides along with a person: up to three to name, and how many in all.
+  fCommonShort(meId, themId) { const all = this.fCommon(meId, themId); return { common: all.slice(0, 3), commonN: all.length }; },
   fState(me, them) {
     if (me === them) return "you";
     if (this.fIsPal(me, them)) return "friends";
@@ -181,7 +194,7 @@ export const friendMethods = {
     const people = (sql, ...a) => this.rows(sql, ...a).map((r) => ({ u: this.one("SELECT * FROM users WHERE id = ?", r.id), at: r.at })).filter((x) => x.u);
     const friends = people("SELECT b AS id, at FROM pals WHERE a = ?", me.id).map((x) => this.fCard(x.u, { season: this.fProf(x.u.id).season || "", since: x.at }))
       .sort((x, y) => (x.name || x.username).localeCompare(y.name || y.username));
-    const asksYou = people("SELECT f AS id, at FROM asks WHERE t = ? ORDER BY at DESC", me.id).map((x) => this.fCard(x.u, { at: x.at }));
+    const asksYou = people("SELECT f AS id, at FROM asks WHERE t = ? ORDER BY at DESC", me.id).map((x) => this.fCard(x.u, { at: x.at, ...this.fCommonShort(me.id, x.u.id) }));
     const asked = people("SELECT t AS id, at FROM asks WHERE f = ? ORDER BY at DESC", me.id).map((x) => this.fCard(x.u, { at: x.at }));
     const blocked = people("SELECT who AS id, at FROM blocks WHERE owner = ? ORDER BY at DESC", me.id).map((x) => ({ username: x.u.name }));
     return { ok: true, me: { ...this.fCard(me), season: p.season || "", adult: !!p.adult, closed: !!p.closed, hide: !!p.hide, friends: friends.length }, friends, asksYou, asked, blocked };
@@ -233,7 +246,7 @@ export const friendMethods = {
     if (!them) return { ok: true, found: false };
     const state = this.fState(me.id, them.id);
     const closed = state === "none" && !!this.fProf(them.id).closed;
-    return { ok: true, found: true, person: this.fCard(them, { state, closed }) };
+    return { ok: true, found: true, person: this.fCard(them, { state, closed, ...this.fCommonShort(me.id, them.id) }) };
   },
 
   // A friend's profile: name, @username, picture, "This season" and how many friends (unless they hid it).
@@ -242,10 +255,18 @@ export const friendMethods = {
     const me = g.u, them = this.fTarget(me, name);
     if (!them) return { error: "not_found", status: 404 };
     const state = this.fState(me.id, them.id), p = this.fProf(them.id);
-    if (state !== "friends" && state !== "you") return { ok: true, person: this.fCard(them, { state }) };
+    const common = this.fCommonShort(me.id, them.id);
+    if (state !== "friends" && state !== "you") return { ok: true, person: this.fCard(them, { state, ...common }) };
     const pal = this.one("SELECT at FROM pals WHERE a = ? AND b = ?", me.id, them.id);
     const hidden = !!this.one("SELECT 1 AS x FROM hides WHERE owner = ? AND who = ?", me.id, them.id);
-    return { ok: true, person: this.fCard(them, { state, season: p.season || "", friends: p.hide ? null : this.fCount(them.id), since: pal ? pal.at : null, hidden }) };
+    return { ok: true, person: this.fCard(them, { state, season: p.season || "", friends: p.hide ? null : this.fCount(them.id), since: pal ? pal.at : null, hidden, ...common }) };
+  },
+  // Everyone you and they both know, for the full page you open by tapping "Friends with …".
+  async fCommonAll(token, name) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, them = this.fTarget(me, name);
+    if (!them) return { error: "not_found", status: 404 };
+    return { ok: true, people: this.fCommon(me.id, them.id).map((c) => ({ ...c, season: this.fProf(this.fByName(c.username).id).season || "" })) };
   },
 
   async fAsk(token, name) {

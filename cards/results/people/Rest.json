@@ -1,0 +1,8 @@
+{ "pillar": "Rest", "splits": [
+ { "card": 180, "missed": ["grace", "sione", "priya", "rosa", "liam", "cooper"], "why": "\"Away from your desk\" assumes a desk job. A new mum, a warehouse worker, a nurse, a café owner, a chef and a labourer don't have one.", "fix": "\"Take a real break today, away from work. Do something calm\"." },
+ { "card": 167, "missed": ["grace", "sione", "priya"], "why": "\"Away from your screen\" assumes screen work.", "fix": "\"Take a 10-minute break, doing nothing much\"." },
+ { "card": 173, "missed": ["priya"], "why": "On rotating night shifts, the same bedtime as last night isn't possible or even wanted.", "fix": "Fine for most; worth one shift-work sleep card in Better sleep." },
+ { "card": 185, "missed": ["priya"], "why": "After a night shift, morning light is what keeps you awake.", "fix": "Same as #173: a shift-work card would cover it." },
+ { "card": 405, "missed": ["rosa", "liam", "cooper"], "why": "Email isn't what keeps a café owner, a chef or a labourer switched on.", "fix": "Keep (it's one of five); a card about switching off from hands-on work would help." },
+ { "card": 409, "missed": ["minh"], "why": "His late-night phone time is games, not social apps.", "fix": "\"on your social or game apps\"." }
+]}

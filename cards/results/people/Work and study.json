@@ -1,0 +1,6 @@
+{ "pillar": "Work and study", "splits": [
+ { "card": 529, "missed": ["aanya", "marcus", "jas", "omar"], "why": "\"A time to get up, two hours of job hunting\" assumes you're out of work. Four of the six are looking for a new job while still working.", "fix": "\"Plan tomorrow: when you'll job hunt, for how long, and a treat after\"." },
+ { "card": 523, "missed": ["daniel", "matt", "marcus"], "why": "\"Free at uni and TAFE\" only helps people who are studying. Workers may have to pay (flagged in the Work review too).", "fix": "Name a free option for workers too, if one exists." },
+ { "card": 506, "missed": ["jas", "ruby"], "why": "On Move forward, \"give the big task two hours\" assumes desk work. A driver and a childcare worker don't have a big task like that.", "fix": "Keep it for Too much on my plate and Putting things off only." },
+ { "card": 517, "missed": ["jas"], "why": "A rideshare driver has no other team or class.", "fix": "Fine as one of eight." }
+]}

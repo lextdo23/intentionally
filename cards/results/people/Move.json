@@ -1,0 +1,7 @@
+{ "pillar": "Move", "splits": [
+ { "card": 133, "missed": ["ellie", "luke", "jas"], "why": "No trip to work or uni: Ellie works from home, and Luke and Jas drive for a living.", "fix": "Add \"or walk to one place you'd usually drive to\"." },
+ { "card": 460, "missed": ["hannah"], "why": "With chronic fatigue, \"a bit out of breath on three days\" sounds like a crash, not a start.", "fix": "Keep; it's one of ten Start moving cards. Worth a note for people with fatigue or illness." },
+ { "card": 136, "missed": ["mia", "tara"], "why": "The task fits, but the why line is a study of men building muscle, which feels off for women coming back (flagged in the Move review too).", "fix": "Find a study of people of any gender getting back into exercise." },
+ { "card": 462, "missed": ["jarrah", "kai", "jack"], "why": "Footy and cricket training and surfing don't allow a show; it reads as a gym-only card.", "fix": "\"a show, podcast or audiobook\" (the study used audiobooks)." },
+ { "card": 459, "missed": ["ava"], "why": "\"Walk or jog\" leaves out a wheelchair user.", "fix": "\"Go out for 15 minutes at a pace you enjoy (walk, jog, ride or push)\"." }
+]}

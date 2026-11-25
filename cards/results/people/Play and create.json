@@ -1,0 +1,5 @@
+{ "pillar": "Play and create", "splits": [
+ { "card": 538, "missed": ["tom", "daniel", "liam", "ben"], "why": "On Old hobby, drawing or painting only fits if art was the old hobby. Ben's was music, and Tom's and Liam's weren't art either.", "fix": "Keep it for Make something only." },
+ { "card": 539, "missed": ["grace", "daniel", "pip"], "why": "On Old hobby, a kids' video game only fits people whose old hobby was gaming.", "fix": "Keep it for Laughs and play, where play is the point." },
+ { "card": 563, "missed": ["marcus", "bella"], "why": "A bartender and a hairdresser work weekends.", "fix": "\"for your next day off\"." }
+]}

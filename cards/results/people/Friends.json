@@ -1,0 +1,9 @@
+{ "pillar": "Friends", "splits": [
+ { "card": 6, "missed": ["chloe"], "why": "Starting from scratch in a new town, there's no one she's clicked with yet.", "fix": "Fine as one of several; the mindset also covers people who have met someone." },
+ { "card": 27, "missed": ["chloe"], "why": "Same as #6: hasn't chatted with anyone a few times yet.", "fix": "Fine as a later card; no change needed unless more start-from-scratch cards are wanted." },
+ { "card": 17, "missed": ["chloe", "aanya"], "why": "A teacher doesn't sit in class, and delivery work has no seat; both only half fit.", "fix": "Add \"or the staffroom\" or name a place that isn't a desk." },
+ { "card": 20, "missed": ["harry", "ellie"], "why": "This card is for everyone, but people who feel lonely often get no invites to say yes to.", "fix": "It isn't a true everyone card (rule B3): move it to See them more and Meet new people." },
+ { "card": 31, "missed": ["tom", "jarrah", "jack"], "why": "It isn't clear what \"get closer questions\" are, and with mates it reads like a date.", "fix": "Name them (the 36 questions) and give one example question." },
+ { "card": 32, "missed": ["liam", "tom"], "why": "Hospo and FIFO workers often work weekends, so \"this weekend\" doesn't fit their week.", "fix": "\"for your next day off\" works for everyone." },
+ { "card": 30, "missed": ["zoe", "noah"], "why": "Living at a residential college or with parents, \"have someone over for food\" isn't really theirs to do.", "fix": "Small: \"have someone over, or share a meal out\"." }
+]}
