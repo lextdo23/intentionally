@@ -4,6 +4,7 @@
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
+import * as looks from "./looks.js";
 import { roundBtn, pillPicker, openSheet } from "./ui.js";
 import * as boxes from "./boxes.js";
 import * as photos from "./photos.js";
@@ -405,6 +406,17 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   sunlight(el);
   if (state === "up" || state === "done") el.classList.add("up");
   const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
+  // A card look in use (alex 2026-11-25, js/looks.js): today's back from the look (a different one each day), and
+  // its edge, the light behind it and the liquid edge in its colour. Not on a card put back for another day.
+  const look = state !== "skip" && (state !== "done" || !photo) ? looks.inUse() : null;
+  if (look) {
+    const i = looks.todayBack(look);
+    el.classList.add("lk", "lk-" + look.kind);
+    el.style.setProperty("--cc", looks.colOf(look, i));
+    el.style.setProperty("--lk-edge", looks.edgeOf(look, i));
+    back.append(looks.backEl(look, i));
+    if (state === "down") el.querySelector(".front").append(looks.backEl(look, i));
+  }
   // Done (alex 2026-11-15, "fill the circle, step back"): the card stays face up, a small circle in its pillar's colour
   // fills with a tick where "I did it" was, and the whole card steps back a little.
   if (state === "done") {
