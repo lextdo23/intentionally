@@ -174,7 +174,7 @@ export function evening(onDone) {
   // today?". Both have "+ Make my own card" under them.
   const answered = !!(had.card && had.card.felt && had.card.felt.length && had.mood == null);   // said on home, after "I did it"
   const cid = had.card && had.card.id && !had.rest && !answered ? had.card.id : null;
-  // Making your own card opens at level 3 (alex 2026-11-18). Before that, a day with no card to answer ends at step 2.
+  // Making your own card opens at level 6 (alex 2026-11-25). Before that, a day with no card to answer ends at step 2.
   const own = levels.isOpen("own"), N = cid || own ? 3 : 2;
   document.body.classList.add("in-flow");
   const tint = () => document.documentElement.style.setProperty("--glow", st.touched ? mix(st.v).join(" ") : "255 165 31");

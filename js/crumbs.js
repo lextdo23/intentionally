@@ -136,7 +136,11 @@ export function row(c, onTap) {
 
 // ---------------- The offer, once ----------------
 // After an evening check-in, once home is quiet. Everyone sees it once (alex 2026-11-23), whatever their level.
-export function offerOK() { const s = store.get(); return !isOn() && !(s.notes && s.notes.crumbsOffer); }
+// Offered after the third evening check-in (alex 2026-11-25), so the first night stays quiet.
+export function offerOK() {
+  const s = store.get();
+  return !isOn() && !(s.notes && s.notes.crumbsOffer) && Object.values(s.days || {}).filter((d) => d && d.mood != null).length >= 3;
+}
 export function offer(onDone) {
   const s = store.get(); s.notes = s.notes || {}; s.notes.crumbsOffer = 1; store.save(); log("crumbs_offer");
   openSheet((panel, close) => {

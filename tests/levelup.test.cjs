@@ -19,7 +19,7 @@ const { serve, checker } = require("./helpers.cjs");
       const { makeSample } = await import("./js/sample.js"); const L = await import("./js/levels.js"); const days = makeSample(30);
       const st = { v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 }, pillars: [{ name: "Rest", mindsets: [] }] };
       let pts = 0; while (L.level(pts).level < lvTo) pts++; pts += 3;
-      st.levels = { reset: 2, base: L.earned(st) - pts, seen: lvTo - 1, opened: lvTo - 1, tips: { days: 1, own: 1, friends: 1, library: lvTo > 5 ? 1 : 0, photos: 1, crumbs: 1 } };
+      st.levels = { reset: 2, base: L.earned(st) - pts, seen: lvTo - 1, opened: lvTo - 1, tips: { days: 1, own: 1, friends: 1, library: lvTo > 5 ? 1 : 0, recap: lvTo > 4 ? 1 : 0, photos: 1, crumbs: 1 } };
       localStorage.setItem("daydeck", JSON.stringify(st));
     }, lvTo);
     await p.reload();
@@ -27,12 +27,12 @@ const { serve, checker } = require("./helpers.cjs");
   };
   const txt = (p, sel) => p.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent : ""; }, sel);
 
-  // Level 5 opens the card library.
+  // Level 5 opens Cards (the Looks shelf).
   let { p, ctx } = await open(5);
   await p.waitForTimeout(2600);
   check(/Level 5/.test(await txt(p, ".lu-title")), "a new level opens with the eclipse and \"Level 5\"");
   await p.waitForTimeout(3200);
-  check(/Card library/.test(await txt(p, ".lu-front")) && /Open the card library/.test(await txt(p, ".lu-btns")) && /Later/.test(await txt(p, ".lu-btns")), "then a card shows what opened, with Open and Later");
+  check(/Cards and Looks shelf/.test(await txt(p, ".lu-front")) && /Open Cards/.test(await txt(p, ".lu-btns")) && /Later/.test(await txt(p, ".lu-btns")), "then a card shows what opened, with Open and Later");
   check(await p.evaluate(() => getComputedStyle(document.getElementById("pill")).visibility === "hidden"), "the bottom pill steps away while it shows");
   await p.click(".lu-btns .btn-quiet"); await p.waitForTimeout(2600);
   check(!(await p.$(".lu")) && !(await p.$(".tip-box")), "Later closes it, and no pointing tip follows");
@@ -44,13 +44,19 @@ const { serve, checker } = require("./helpers.cjs");
   ({ p, ctx } = await open(5));
   await p.waitForTimeout(5800);
   await p.click(".lu-btns .btn-main"); await p.waitForTimeout(1500);
-  check(await p.evaluate(() => document.body.classList.contains("in-cards")), "Open the card library opens it");
+  check(await p.evaluate(() => document.body.classList.contains("in-cards")), "Open Cards opens it");
   await ctx.close();
 
-  // A level that opens nothing: the eclipse, "Level 6", and it closes by itself.
-  ({ p, ctx } = await open(6));
+  // Level 4 tells them about the weekly recap: when the first one comes, and just "Okay" (nothing opens yet).
+  ({ p, ctx } = await open(4));
+  await p.waitForTimeout(5800);
+  check(/Weekly recap/.test(await txt(p, ".lu-front")) && /Your first one is \w+day \d+ \w+/.test(await txt(p, ".lu-front")) && /^Okay$/.test((await txt(p, ".lu-btns")).trim()), "level 4 tells them about the weekly recap and when the first one comes, with just Okay");
+  await ctx.close();
+
+  // A level that opens nothing: the eclipse, "Level 7", and it closes by itself.
+  ({ p, ctx } = await open(7));
   await p.waitForTimeout(2600);
-  check(/Level 6/.test(await txt(p, ".lu-title")) && !(await p.$(".lu-card")), "a level that opens nothing shows just the eclipse and the level");
+  check(/Level 7/.test(await txt(p, ".lu-title")) && !(await p.$(".lu-card")), "a level that opens nothing shows just the eclipse and the level");
   await p.waitForTimeout(3200);
   check(!(await p.$(".lu")), "and closes by itself");
   await ctx.close();

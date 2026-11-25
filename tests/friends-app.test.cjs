@@ -1,5 +1,5 @@
 // Friends in the app (js/friends.js, social step 2; alex 2026-11-20). Runs the real Daydeck service (push/) inside
-// the test, with a pretend iPhone 15 Pro Max as Mia and made-up friends (Josh, Sam). Checks: Friends opens at level 4
+// the test, with a pretend iPhone 15 Pro Max as Mia and made-up friends (Josh, Sam). Checks: Friends opens at level 3
 // (with its tip), the 18+ tick, requests and the small dot, adding by @username, a friend's profile, remove and
 // block, invite links, Edit profile, Privacy, and no orange on the friends screens. SHOTS=1 saves pictures.
 const { chromium } = require("playwright");
@@ -57,21 +57,21 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const signIn = (tok, user) => p.evaluate(([tok, user]) => localStorage.setItem("daydeck-account", JSON.stringify({ token: tok, user, pic: { kind: "little", id: "smile" } })), [tok, user]);
   // Full days: start your day, the card done, end your day (about 6 points each).
   const daysFull = (n) => { const d = {}; for (let i = 1; i <= n; i++) d[day(i)] = { sleep: { q: 3 }, card: { id: i, done: true }, mood: 4 }; return d; };
-  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep", testInvite: 1 }, levels: { reset: 2, base: 0, opened: 9, seen: 3, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
+  const setDays = (n, extra = {}) => p.evaluate(([days, extra]) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, pillars: ["Friends", "Rest", "Move"], focus: ["Friends", "Rest"], seen: { note: "sleep", testInvite: 1 }, levels: { reset: 2, base: 0, opened: 9, seen: 1, l1: 0, tips: { days: 1, own: 1 }, ...extra } })), [daysFull(n), extra]);
   const quiet = () => p.evaluate(() => { document.querySelectorAll(".tip-layer, .sheet-host, .lu").forEach((e) => e.remove()); document.body.classList.remove("in-levelup"); });
   const tab = async (t) => { await p.click(`#pill [data-tab="${t}"]`); await p.waitForTimeout(700); };
   const text = (sel) => p.textContent(sel);
 
-  // ---- Before level 4: the pill is there, Friends waits as a dashed ring (alex 2026-11-25) ----
+  // ---- Before level 3: the pill is there, Friends waits as a dashed ring (alex 2026-11-25) ----
   await p.goto(server.url);
-  await signIn(mia.tok, mia.user); await setDays(2); await p.reload(); await p.waitForTimeout(1500);
-  check(!!(await p.$('#pill [data-tab="friends"].not-yet')), "before level 4: Friends is a dashed ring in the pill");
+  await signIn(mia.tok, mia.user); await setDays(1, { seen: 2 }); await p.reload(); await p.waitForTimeout(1500);
+  check(!!(await p.$('#pill [data-tab="friends"].not-yet')), "before level 3: Friends is a dashed ring in the pill");
 
-  // ---- Level 4 (about day 4 of full days): Friends opens, with its moment and tip ----
-  await setDays(4); await p.reload(); await p.waitForTimeout(1500);
-  check(/Level 4/.test(await text(".lu-title")), "four full days reach level 4: the level-up moment shows");
-  check(!!(await p.$("#pill")) && !(await p.$('#pill [data-tab="friends"].not-yet')), "at level 4 Friends opens in the pill");
-  check(!(await p.$('#home button[aria-label="Cards"]')), "the card library has moved to level 5, so it isn't open yet");
+  // ---- Level 3 (the end of the second full day): Friends opens, with its moment ----
+  await setDays(2, { seen: 2 }); await p.reload(); await p.waitForTimeout(1500);
+  check(/Level 3/.test(await text(".lu-title")), "two full days reach level 3: the level-up moment shows");
+  check(!!(await p.$("#pill")) && !(await p.$('#pill [data-tab="friends"].not-yet')), "at level 3 Friends opens in the pill");
+  check(!(await p.$('#home button[aria-label="Cards"]')), "Cards is at level 5, so it isn't open yet");
   await p.waitForTimeout(4600);
   check(/Friends/.test(await text(".lu-front")) && /Open Friends/.test(await text(".lu-btns")), "its card shows Friends, with Open Friends (in place of the old tip)");
   await shot("1-tip");
@@ -80,8 +80,8 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await quiet();
 
   // Someone who already had the card library open keeps it (nothing is ever taken away).
-  await setDays(4, { tips: { days: 1, own: 1, library: 1 } }); await p.reload(); await p.waitForTimeout(1500); await quiet();
-  check(!!(await p.$('#home button[aria-label="Cards"]')), "someone who already had the card library keeps it after the move to level 5");
+  await setDays(2, { seen: 3, tips: { days: 1, own: 1, library: 1 } }); await p.reload(); await p.waitForTimeout(1500); await quiet();
+  check(!!(await p.$('#home button[aria-label="Cards"]')), "someone who already had Cards keeps it, whatever level it moves to");
 
   // ---- The 18+ tick ----
   await tab("friends");

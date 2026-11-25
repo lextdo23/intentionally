@@ -38,6 +38,7 @@ fitCards(); addEventListener("resize", fitCards);
 
 const s = store.load();
 if (levels.startOver(s)) log("level_reset", levels.level().level);   // once: everyone back to level 1
+levels.sixToStart(s);   // once: level 1 now takes 6 points; nobody already past it goes down
 setOffsetDays(s.test.offset || 0);
 let testOn = new URLSearchParams(location.search).has("test") || !!s.test.on;
 const home = document.getElementById("home");
@@ -299,13 +300,13 @@ function render(moment) {
     friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
   const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
-  // home never rearranges when Friends opens at level 4. Until then Friends is an empty dashed ring in the pill.
+  // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
   const friendsOpen = testOn || levels.isOpen("friends");
   pill.start(() => render()); pill.setFriends(friendsOpen); pill.setAction(main);
   // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
   // Your days with crumbs beside it, then the card in the middle. Lifeline stays in every check-in, draw, Your days and
   // Friends, so it is one step from here.
-  // The card library (level 5) sits in its corner from day one too: an empty dashed ring until it opens.
+  // Cards (level 5) sits in its corner from day one too: an empty dashed ring until it opens.
   const cardsOpen = testOn || levels.isOpen("library");
   const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : notYetBtn("cards", "library");
   const right = h("div.dd-right", null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
@@ -424,7 +425,7 @@ else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() =>
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
 { const add = new URLSearchParams(location.search).get("add");
-  if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
+  if (add) { friends.noteInvite(add); levels.openInvited(); history.replaceState(null, "", location.pathname); }   // Friends opens straight away (alex 2026-11-25)
   friends.useInvite().then((r) => { if (r && pill.friendsOn()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
 if (viaLink) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(() => { tester.inviteSeen(); openTester(); }, 200)); }

@@ -15,7 +15,7 @@ const TIP = {
   days: ["Your days", "See how your days have felt, and what seems to help. It's always here at the top."],
   own: ["Make your own card", "Tonight, when you end your day, you can add something else you did as a card of your own."],
   friends: ["Friends", "Add a few friends and cheer each other on. Only friends see what you choose to share, and only when you choose."],
-  library: ["Card library", "Every card in Daydeck, to look through and add to your deck."],
+  library: ["Cards and Looks shelf", "Collect card looks, and look through every card in Daydeck to add to your deck."],
 };
 
 // Some tips wait for the right moment: making your own card is pointed out only while the day is still open.
@@ -31,7 +31,10 @@ function waiting() {
 
 // Notes that something inside a screen has been used (there's no "New" tag any more: the level-up tip says it, alex 2026-11-24).
 // For the level-up card (js/levelup.js): the longer line about a new thing, marking its tip as shown, and opening it.
-export const tipText = (id) => (TIP[id] ? TIP[id][1] : "");
+// The weekly recap has no pointing tip (nothing to open yet): its level-up card says when the first one comes.
+export const tipText = (id) => id === "recap"
+  ? `Every Sunday, once you end your day, a look back at your week.${levels.firstRecap() ? ` Your first one is ${levels.firstRecap()}.` : ""}`
+  : (TIP[id] ? TIP[id][1] : "");
 export function shown(id) { const m = mem(); if (!m.tips[id]) { m.tips[id] = 1; store.save(); } }
 export function open(id) { const el = TARGET[id] && document.querySelector(TARGET[id]); if (el) el.click(); }
 export function used(id) { const m = mem(); m.used = m.used || {}; if (!m.used[id]) { m.used[id] = 1; store.save(); } }

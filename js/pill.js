@@ -7,7 +7,7 @@
 // slide. Swiping sideways on a screen moves whole screens with your finger, side by side with a thin dark line
 // between them; let go past halfway (or flick) to move on, otherwise it springs back.
 //
-// It shows from day one (alex 2026-11-25), so home never rearranges when Friends opens at level 4 (js/levels.js).
+// It shows from day one (alex 2026-11-25), so home never rearranges when Friends opens at level 3 (js/levels.js).
 // Until then Friends sits in the pill as an empty dashed ring: tapping it says when it opens (path.js notYet), and
 // swiping never lands on it. Friends and your profile on You live in js/friends.js; You also holds Settings.
 import { h, reduceMotion } from "./util.js";

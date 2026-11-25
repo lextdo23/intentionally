@@ -1,12 +1,11 @@
 // Your levels (alex 2026-11-18, picked "a path" because it's the easiest to read): one line down the page, lit up
-// to where you are. The next things are named; after that it says "Something new". Opens from the level row on home.
+// to where you are. Every level that opens something is named, with what it opens (alex 2026-11-25, so people know
+// what's coming); after that it says "Something new". Opens from the level row on home.
 import { h, reduceMotion } from "./util.js";
 import { roundBtn } from "./ui.js";
 import * as levels from "./levels.js";
 import { log } from "./tester.js";
 
-const SHOW_AHEAD = 2;   // name the next two things, then "Something new"
-const ALWAYS = "Always open: Going to sleep, What's been on your mind?, rest days, your pillars and Talk to someone.";
 
 let page = null, onClosedL = null;
 export function openLevels(closed) {
@@ -37,8 +36,8 @@ function edgeSwipe(el) {
 // The steps: level 1 (the basics), every level that opens something, then the next "Something new" levels.
 export function steps(now = levels.level().level) {
   const list = [{ level: 1, ...levels.BASICS }].concat(levels.UNLOCKS.map((u) => ({ level: u.level, name: u.name, line: u.line })));
-  // Past and current steps, then up to SHOW_AHEAD named ones still to come, then one "Something new".
-  const ahead = list.filter((s) => s.level > now).slice(0, SHOW_AHEAD);
+  // Past and current steps, then every named one still to come, then one "Something new".
+  const ahead = list.filter((s) => s.level > now);
   const out = list.filter((s) => s.level <= now).concat(ahead).map((s) => ({ ...s, state: s.level < now ? "lit" : s.level === now ? "here" : "soon" }));
   out.push({ level: Math.max(out[out.length - 1].level, now) + 1, name: "Something new", state: "hide" });
   return out;
@@ -53,6 +52,9 @@ function body() {
     const i = list.findIndex((s) => s.level > lv);
     list.splice(i < 0 ? list.length : i, 0, { level: lv, name: "A box every level", state: "here" });
   }
+  // The weekly recap's step says when the first one comes (alex 2026-11-25), until one has been seen.
+  const first = levels.firstRecap();
+  if (first) list.forEach((s) => { if (s.name === "Weekly recap") s.line += ` Your first one is ${first}.`; });
   const bar = h("div.lp-bar", null, h("i", { style: { width: `${Math.round(L.frac * 1000) / 10}%` } }));
   return h("div.lp-page", null,
     h("div.page-head", null, roundBtn("back", "Back to today", closeLevels)),
@@ -65,8 +67,7 @@ function body() {
       h("span.lp-text", null,
         h("span.lp-n", null, s.state === "here" ? `Level ${s.level} · You're here` : `Level ${s.level}`),
         h("span.lp-t", null, s.name),
-        s.line && s.state !== "soon" && s.state !== "hide" ? h("span.lp-d", null, s.line) : null)))),
-    h("p.lp-foot", null, ALWAYS));
+        s.line && s.state !== "hide" ? h("span.lp-d", null, s.line) : null)))));
 }
 
 // ---------- Not open yet (alex 2026-11-25, "Daydeck · Greyed-out unlocks" canvas) ----------
