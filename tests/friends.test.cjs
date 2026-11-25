@@ -205,6 +205,14 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), pillar: "Friends", col: "#d9b3a6", cap: "Coffee with Sam" });
   check(r.ok && r.moment.ph === true && !("photo" in r.moment), "a clean photo is shared (the feed carries a note, not the picture)");
   const pm = r.moment.id;
+  check(r.moment.text === "", "a photo shared on its own carries no card");
+  // The card behind the photo (alex 2026-11-25): the day's card goes with the photo unless they leave it off.
+  r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), text: "Take a slow walk somewhere new.", pillar: "Health", col: "#a9c4b5", status: "Done" });
+  let seen = (await sam.get("/a/f/feed")).moments.find((x) => x.id === pm);
+  check(r.ok && r.again && seen && seen.text === "Take a slow walk somewhere new." && seen.status === "Done" && seen.ph === true, "a friend sees the card behind the photo");
+  r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), pillar: "Health", col: "#a9c4b5" });
+  seen = (await sam.get("/a/f/feed")).moments.find((x) => x.id === pm);
+  check(r.ok && seen && seen.text === "", "sharing it again with the card left off takes the card away");
   check((await sam.get("/a/f/photo?id=" + pm)).data === jpeg(), "a friend can fetch the photo");
   check((await stranger.get("/a/f/photo?id=" + pm)).status === 404, "someone who isn't a friend can't");
   await mia.post("/a/f/unshare", { id: pm });

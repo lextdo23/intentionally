@@ -245,6 +245,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
   await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
   check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");
+  check(await samPost.locator(".mo-see").evaluate((e) => getComputedStyle(e).color) === "rgb(255, 165, 31)", "once said, I see you turns marigold");
   // Profile photos (alex 2026-11-22): friends see each other's photo pictures
   // Made the way the app makes one: a 240 by 240 square, cleaned (nothing but the picture).
   const facePhoto = (col) => p.evaluate(async (col) => {
@@ -271,6 +272,12 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click(`${sh} .mo-day[data-day="${day(1)}"]`); await p.waitForTimeout(800);
   const firstPick = await p.$eval(`${sh} .mo-pick`, (e) => e.textContent);
   check(/Your photo/.test(firstPick) && await p.getAttribute(`${sh} .mo-pick`, "aria-checked") === "true", "the photo comes first, already picked; the card is there if they'd rather");
+  // The card behind the photo (alex 2026-11-25): one quiet line, with a way to leave it off.
+  check(/Friends can swipe across to see your card/.test(await text(sh)), "sharing a photo says the day's card goes behind it");
+  await p.click(`${sh} .mo-cardline-btn`); await p.waitForTimeout(300);
+  check(/Your card stays private/.test(await text(sh)), "Leave it off keeps the card private");
+  await p.click(`${sh} .mo-cardline-btn`); await p.waitForTimeout(300);
+  check(/Friends can swipe across/.test(await text(sh)), "and Add it back puts it back");
   await shot("18-share-photo");
   await p.click(`${sh} .fr-main`); await p.waitForTimeout(2200);
   const ph = (await sam.get("/a/f/feed")).moments.find((m) => m.kind === "photo");
@@ -280,7 +287,16 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(bytes && !bytes.includes(Buffer.from("Exif")) && !bytes.includes(Buffer.from("http://ns.adobe.com")), "with nothing but the picture (no Exif or other details)");
   await p.waitForTimeout(800);
   check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
-  await shot("19-feed-photo");
+  check(ph && ph.text && ph.status === "Done", "the card goes with the photo to Sam");
+  const car = "#friends .mo-car";
+  check(!!(await p.$(`${car} .mo-dots`)) && !!(await p.$(`${car} .mo-back .dcard.big.up .task`)), "in the feed, the card sits behind the photo, with two dots");
+  check(/Swipe to see your card/.test(await text(car)), "the first one shows how to see it");
+  check(await p.$eval(car, (e) => e.getBoundingClientRect().width) >= 430, "the photo runs wall to wall");
+  await quiet(); await shot("19-feed-photo");
+  await quiet(); await p.click(car); await p.waitForTimeout(700);
+  check(await p.$eval(`${car} .mo-dots span:last-child`, (e) => e.classList.contains("on")) && !(await p.$(`${car} .mo-tip`)), "moving across shows the card, and the tip goes");
+  check(await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-friends")).cardTip === 1), "and the tip never comes back");
+  await shot("19b-feed-card");
 
   // Your friends, A to Z, with search: from the friends count on You
   await quiet(); await tab("you"); await p.waitForTimeout(900);
