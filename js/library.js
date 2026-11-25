@@ -1,5 +1,5 @@
 // The card library (alex 2026-11-18): cards people made, checked by alex, shared with everyone.
-// - "Cards" (the round button on home) has two tabs: Your deck (cards you made, cards you added, and your pillars'
+// - "Cards" (the round button on home) opens on Looks (js/looks.js, alex 2026-11-25), then two more tabs: Your deck (cards you made, cards you added, and your pillars'
 //   cards) and Everyone's (the library: your pillars first, filter by pillar and mindset, Most loved or Newest).
 // - Adding a library card puts it in your morning draws, for its pillar. A card for a pillar you haven't picked is
 //   still added, and comes up once you pick that pillar.
@@ -16,6 +16,7 @@ import { roundBtn } from "./ui.js";
 import { log, SERVICE } from "./tester.js";
 import { MINDSETS } from "./pillars.js";
 import { cardEl } from "./draw.js";
+import * as looks from "./looks.js";
 
 const FRESH = 6 * 3600e3;   // the library list is fetched again after six hours (it doesn't need to be live)
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -167,8 +168,9 @@ function big(c) {
 
 // ---------------- The Cards page ----------------
 let page = null, onClosed = null;
-const st = { tab: "all", pil: "mine", mind: "", sort: "loved" };
-const pref = () => { const p = (store.get().lib || {}).view; if (p) Object.assign(st, p); };
+const st = { tab: "looks", pil: "mine", mind: "", sort: "loved" };
+// Cards always opens on Looks (alex 2026-11-25); only the sort is remembered.
+const pref = () => { const p = (store.get().lib || {}).view; st.tab = "looks"; if (p && p.sort) st.sort = p.sort; };
 const keep = () => { lib().view = { tab: st.tab, sort: st.sort }; store.save(); };
 
 export function openCards(closed) {
@@ -193,11 +195,11 @@ function draw(keepScroll) {
   if (!page) return;
   const sc = page.querySelector(".ph-scroll") || h("div.ph-scroll");
   const y = sc.scrollTop;
-  const seg = h("div.seg", { role: "tablist", "aria-label": "Cards" }, [["deck", "Your deck"], ["all", "Everyone's"]].map(([k, l]) =>
+  const seg = h("div.seg", { role: "tablist", "aria-label": "Cards" }, [["looks", "Looks"], ["deck", "Your deck"], ["all", "Everyone's"]].map(([k, l]) =>
     h("button", { role: "tab", "aria-selected": String(st.tab === k), onclick: () => { if (st.tab === k) return; st.tab = k; keep(); log("lib_tab", k); draw(); } }, l)));
   sc.replaceChildren(h("div.ph-page.lib-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeCards), h("h1.big-title", null, "Cards")),
-    seg, ...(st.tab === "all" ? everyone() : yours())));
+    seg, ...(st.tab === "all" ? everyone() : st.tab === "looks" ? looks.shelf(() => draw(true)) : yours())));
   if (!sc.isConnected) page.append(sc);
   sc.scrollTop = keepScroll ? y : 0;
 }
