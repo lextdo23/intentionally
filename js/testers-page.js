@@ -97,6 +97,14 @@ const PLACES = 60; // same as PLACES in push/worker.js
 // Only a real number counts. Anyone can send the service records, so text where a number belongs must never reach the page.
 const count = (x) => (Number.isFinite(x) && x > 0 ? x : 0);
 
+// Tapping a square in "Do people do their card?" says which day it was (titles don't show on a phone).
+document.addEventListener("click", (e) => {
+  const c = e.target.closest && e.target.closest("button.c1"); if (!c) return;
+  document.querySelectorAll(".cell.sel").forEach((x) => x.classList.remove("sel")); c.classList.add("sel");
+  const r = c.closest("section").querySelector(".cread"), [when, what] = c.dataset.w.split(": ");
+  r.textContent = ""; const b = document.createElement("b"); b.textContent = when; r.append(b, " · " + what);
+});
+
 function render(D) {
   skipped = 0;
   try { drawAll(D); }
@@ -145,6 +153,32 @@ function drawAll(D) {
   html += sec("Do people come back?", "Each row is one tester, each square one day since they started. Top half is the morning, bottom half the evening.",
     `<div class="gridbox">${grid}</div><div class="key"><span><i style="background:var(--sun)"></i>Morning done</span><span><i style="background:var(--cool)"></i>Evening done</span><span><i style="background:var(--faint)"></i>Not that day</span></div>`,
     "look for the day where rows go quiet. That's where people drift off, and the screen to look at first.");
+
+  // 1b. Did they do their card (alex 2026-11-25): same rows as above, one square a day, from the day records the phones already send.
+  const CW = { done: "Did their card", kept: "Kept a card, didn't do it", drew: "Drew, didn't keep one", rest: "Rest day", "": "No card that day" };
+  const cardOf = (d) => { if (d.rest === true) return "rest"; const c = isObj(d.card) ? d.card : null; if (!c) return "";
+    if (c.done === true) return "done"; if (isNum(c.id)) return "kept"; return Array.isArray(c.hands) && c.hands.length ? "drew" : ""; };
+  const ct = { done: 0, kept: 0, rest: 0 };
+  let cg = `<div class="grid" style="grid-template-columns:auto auto repeat(${span},16px);justify-content:start"><span></span><span></span>${Array.from({ length: span }, (_, i) => `<span class="hd">${(i + 1) % 7 === 1 ? i + 1 : ""}</span>`).join("")}`;
+  testers.forEach((t) => {
+    const ds = days[t.code] || {}, start = t.started || keyOf(t.joined), len = dayDiff(start, today) + 1;
+    let row = "", did = 0, kept = 0;
+    for (let i = 0; i < span; i++) {
+      if (i >= len) { row += `<span class="cell none"></span>`; continue; }
+      const k = keyOf(kd(start).getTime() + 4 * 3600e3 + i * 864e5), st = cardOf(ds[k] || {});
+      if (st === "done") did++; if (st === "done" || st === "kept") kept++; if (st === "rest") ct.rest++;
+      const w = `${kd(k).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })} · ${t.code}: ${CW[st]}`;
+      row += `<button type="button" class="cell c1 ${st}" title="${esc(w)}" data-w="${esc(w)}" aria-label="${esc(w)}"></button>`;
+    }
+    ct.done += did; ct.kept += kept;
+    cg += `<span class="lab">${esc(t.code)}</span><span class="tot">${did} <span>of ${kept}</span></span>${row}`;
+  });
+  cg += "</div>";
+  html += sec("Do people do their card?", "Each row is one tester, each square one day since they started. The number beside each tester is days they did their card, out of days they kept one.",
+    `<div class="gridbox">${cg}</div><p class="cread" aria-live="polite"><span class="note">Tap a square to see that day.</span></p>
+     <div class="key"><span><i style="background:var(--ok)"></i>Did it</span><span><i style="box-shadow:inset 0 0 0 2px var(--ok)"></i>Kept, didn't do it</span><span><i class="dot"></i>Drew, didn't keep one</span><span><i style="box-shadow:inset 0 0 0 2px var(--cool)"></i>Rest day</span><span><i style="background:var(--faint)"></i>No card that day</span></div>
+     <p class="note">All testers together</p>${bars([["Days with a card kept", ct.kept], ["Did it", ct.done], ["Kept, didn't do it", ct.kept - ct.done], ["Rest days", ct.rest]], ct.kept)}`,
+    "a row full of rings means someone keeps a card but doesn't get to it. That points at the cards being too big, not at the person.");
 
   // 2. Where people give up
   const quits = (k) => by(k + "_quit").map((e) => e.val);
