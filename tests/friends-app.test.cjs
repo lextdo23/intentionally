@@ -221,6 +221,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Sam said I see you|Sam/.test(await p.getAttribute("#friends .mo-seers", "aria-label")), "Mia sees that Sam said I see you, by name");
   check(!/\b1\b/.test(await text("#friends .mo-acts")), "with no number anywhere");
   check(!/\bnull\b|undefined/.test(await text("#friends")), "no stray null or undefined on screen");
+  check(!!(await p.$('#friends .mo-post .mo-cardface.post .mo-text')), "a card shared on its own shows as a card");
   await shot("15-feed");
   // ---- Notifications (alex 2026-11-25): a number for requests waiting and friends' new moments, never I see yous ----
   check(await p.$eval('#pill [data-tab="friends"]', (e) => e.dataset.count) === "1", "the pill shows 1 on Friends: Sam's new moment (Mia's own and I see yous don't count)");
@@ -289,7 +290,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
   check(ph && ph.text && ph.status === "Done", "the card goes with the photo to Sam");
   const car = "#friends .mo-car";
-  check(!!(await p.$(`${car} .mo-dots`)) && !!(await p.$(`${car} .mo-back .dcard.big.up .task`)), "in the feed, the card sits behind the photo, with two dots");
+  check(!!(await p.$(`${car} .mo-dots`)) && !!(await p.$(`${car} .mo-back .mo-cardface .mo-text`)), "in the feed, the card sits behind the photo, with two dots");
   check(/Swipe to see your card/.test(await text(car)), "the first one shows how to see it");
   check(await p.$eval(car, (e) => e.getBoundingClientRect().width) >= 430, "the photo runs wall to wall");
   await quiet(); await shot("19-feed-photo");

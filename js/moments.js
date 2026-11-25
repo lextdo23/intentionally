@@ -244,13 +244,22 @@ export function post(m, { onChange, onPerson } = {}) {
     more.addEventListener("click", () => moreMenu(m, onChange));
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
-      m.kind === "photo" && m.text ? slides(m) : tile(m, { big: true }),
+      m.kind === "photo" && m.text ? slides(m) : m.kind === "card" || m.kind === "own" ? cardFace(m, ".post") : tile(m, { big: true }),
       h("div.mo-acts", null, see, seers),
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
       m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null].filter(Boolean));   // replaceChildren would print "null"
   };
   draw();
   return el;
+}
+// A shared card's face (alex 2026-11-25): dark card stock with a fine white edge, the pillar at the top, the words in the
+// middle and whose card it is at the bottom. Used for a card shared on its own and for the card behind a photo.
+function cardFace(m, cls = "") {
+  const who = m.mine ? "Your" : `${friends.shown(m.by)}'s`;
+  return h(`div.mo-cardface${cls}`, null,
+    m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : h("span"),
+    h("span.mo-cardwords", null, h("span.mo-text", null, m.text)),
+    h("span.mo-status", null, `${who} card · ${m.status || "Done"}`));
 }
 // A photo with its card behind it (alex 2026-11-25): swipe across (or tap) to slide from the photo to the card and back.
 // Two dots show there's a card. The first time anyone meets one, it nudges to show the card's edge, with a tip, until
@@ -259,12 +268,7 @@ export function post(m, { onChange, onPerson } = {}) {
 const tipOnScreen = () => [...document.querySelectorAll(".mo-tip")].some((t) => t.isConnected && t.offsetParent);
 function slides(m) {
   const who = m.mine ? "Your" : `${friends.shown(m.by)}'s`;
-  // The real Daydeck card, face up: the same card as the morning draw, with the friend's words and pillar (alex 2026-11-25).
-  const real = h("div.dcard.big.up", { "aria-hidden": "true" }, h("div.in", null, h("div.face.back"), h("div.face.front", null,
-    h("span.ctag", null, h("i", { style: { background: m.col || "#a9a59d" } }), m.pillar || "Card"),
-    h("span.task", null, m.text),
-    h("span.size", null, `${who} card · Done`))));
-  const face = h("div.mo-back", null, real);
+  const face = h("div.mo-back", null, cardFace(m));
   const track = h("div.mo-track", null, tile(m, { big: true }), face);
   const dots = h("div.mo-dots", { "aria-hidden": "true" }, h("span.on"), h("span"));
   const wrap = h("div.mo-car", { role: "group", tabindex: "0", "aria-roledescription": "carousel" }, track, dots);
