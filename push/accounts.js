@@ -18,6 +18,8 @@ const CODE_LIFE = 10 * MIN, CODE_TRIES = 5, TICKET_LIFE = 20 * MIN, CHALLENGE_LI
 const SENDS = { gap: MIN, perEmailDay: 5, perPlaceHour: 8, allDay: 90 };   // Resend's free plan allows 100 a day
 const RENAME_EVERY = 30 * DAY, NAME_HELD = 30 * DAY;
 const EARLY_BEFORE = Date.parse("2026-11-21T02:00:00Z");   // 1 pm Sydney, 21 Nov 2026: the people already using Daydeck
+// People alex gave Friends straight away by hand, whatever their level (by username, lowercase). alex 2026-11-25: @erok.
+const EARLY_NAMES = ["erok"];
 // alex's own test accounts (alex 2026-11-22): every feature open whatever the level, and never in tester data.
 // Kept as scrambled emails (hash() of the lowercase email), so the addresses never sit in this public code.
 // Tests can add more with the TEST_ACCOUNTS setting (commas between).
@@ -384,7 +386,7 @@ export class Accounts extends DurableObject {
   async publicUser(u) {
     const tests = TEST_ACCOUNTS.concat(String((this.env && this.env.TEST_ACCOUNTS) || "").split(",").filter(Boolean));
     const test = tests.includes(await hash(String(u.email || "").trim().toLowerCase()));
-    return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE), test };   // tests can set EARLY_BEFORE
+    return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE) || EARLY_NAMES.includes(String(u.name || "").toLowerCase()), test };   // tests can set EARLY_BEFORE
   }
 
   // Finish signing up or getting back in. A passkey is saved if one came (Face ID can be skipped or unavailable;
