@@ -96,7 +96,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- A request waiting: the small dot, then Accept ----
   await josh.post("/a/f/ask", { username: "mia.k" });
   await p.reload(); await p.waitForTimeout(1500); await quiet();
-  check(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot")), "a waiting request shows as a small dot on Friends (no number)");
+  check(await p.$eval('#pill [data-tab="friends"]', (e) => e.classList.contains("dot")), "a waiting request shows as a number on Friends");
   await tab("friends");
   check(/Friend requests/.test(await text("#friends")) && /Josh/.test(await text("#friends")), "Josh's request shows at the top of Friends");
   await shot("4-request");
@@ -199,6 +199,17 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!/\b1\b/.test(await text("#friends .mo-acts")), "with no number anywhere");
   check(!/\bnull\b|undefined/.test(await text("#friends")), "no stray null or undefined on screen");
   await shot("15-feed");
+  // ---- Notifications (alex 2026-11-25): a number for requests waiting and friends' new moments, never I see yous ----
+  check(await p.$eval('#pill [data-tab="friends"]', (e) => e.dataset.count) === "1", "the pill shows 1 on Friends: Sam's new moment (Mia's own and I see yous don't count)");
+  check(await text("#friends .fr-bell .fr-bell-n") === "1", "and the bell at the top of Friends shows the same number");
+  await p.click("#friends .fr-bell"); await p.waitForTimeout(800);
+  const np = ".fr-page:last-child";
+  check(/Notifications/.test(await text(np)) && /New moments/.test(await text(np)) && /Slept in, no guilt/.test(await text(np)) && !/Walked to work/.test(await text(np)), "the bell opens Notifications with Sam's new moment, not Mia's own");
+  await shot("15b-notifications");
+  await p.press(np, "Escape"); await p.waitForTimeout(600);
+  check(!(await p.$('#pill [data-tab="friends"][data-count]')) && !(await p.$("#friends .fr-bell-n")), "once seen, the number goes from the pill and the bell");
+  await tab("you"); await tab("friends"); await p.waitForTimeout(1200);
+  check(!(await p.$('#pill [data-tab="friends"][data-count]')), "and stays gone after looking at Friends again");
   const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
   await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
   check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");
