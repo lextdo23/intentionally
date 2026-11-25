@@ -1080,3 +1080,15 @@ body.has-pill:not([data-tab="today"]) .sheet .btn-main:not(.soft) { background: 
 .ny-box.below::before { top: -6px; }
 .ny-more { display: block; min-height: 44px; padding: 0; background: none; color: #5a5750; font-size: 13px; font-weight: 600; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .ny-box { transition: none; transform: none; } }
+/* Friends in common (alex 2026-11-25, option A): one quiet line under the name, up to three small faces. */
+.fr-common { display: flex; align-items: center; gap: 10px; min-height: 44px; text-align: left; font-size: 15px; color: var(--dim); }
+.fr-common:active { transform: none; opacity: .7; }
+.fr-common-words { flex: 1; min-width: 0; }
+.fr-common b, .fr-common-small b { color: var(--ink); font-weight: 600; }
+.fr-common-small b { color: var(--ink2); }
+.fr-common-faces { display: inline-flex; flex-shrink: 0; }
+.fr-common-faces .pic { box-shadow: 0 0 0 2px var(--sky3, #0a0a0b); }
+.fr-common-faces .pic + .pic { margin-left: -8px; }
+.fr-common-small .fr-common-faces .pic + .pic { margin-left: -6px; }
+.fr-common-small { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--ink2); min-width: 0; }
+.fr-common-small > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

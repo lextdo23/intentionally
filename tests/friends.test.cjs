@@ -96,6 +96,29 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   await sam.post("/a/f/cancel", { username: "josh_r" });
   check((await josh.get("/a/f")).asksYou.length === 0, "a request can be taken back");
 
+  // ---- Friends in common (alex 2026-11-25) ----
+  // Mia is friends with Josh and with Sam; Josh and Sam aren't friends.
+  r = await josh.get("/a/f/find?u=sam");
+  check(r.person.commonN === 1 && r.person.common.length === 1 && r.person.common[0].username === "mia.k", "a search result says which of your friends they know");
+  check(!JSON.stringify(r.person.common).includes("@example.com") && !("season" in r.person.common[0]), "friends in common carry only name, @username and picture");
+  r = await josh.get("/a/f/person?u=sam");
+  check(r.person.state === "none" && r.person.commonN === 1, "so does the profile of someone you're not friends with yet");
+  await sam.post("/a/f/ask", { username: "josh_r" });
+  r = await josh.get("/a/f");
+  check(r.asksYou[0].username === "sam" && r.asksYou[0].commonN === 1 && r.asksYou[0].common[0].username === "mia.k", "and a request waiting for you");
+  r = await josh.get("/a/f/common?u=sam");
+  check(r.ok && r.people.length === 1 && r.people[0].username === "mia.k" && "season" in r.people[0], "the full page lists everyone you both know");
+  check((await stranger.get("/a/f/find?u=sam")).person.commonN === 0, "someone with no friends in common sees none (and nobody new is ever shown)");
+  check((await mia.get("/a/f/person?u=josh_r")).person.commonN === 0, "you never count yourself or them");
+  await mia.post("/a/f/profile", { hide: true });
+  check((await josh.get("/a/f/find?u=sam")).person.commonN === 0 && (await josh.get("/a/f/common?u=sam")).people.length === 0, "someone with Show my friends off is never shown as a friend in common");
+  await mia.post("/a/f/profile", { hide: false });
+  await sam.post("/a/f/profile", { hide: true });
+  check((await josh.get("/a/f/person?u=sam")).person.commonN === 0, "and their own profile shows no friends in common");
+  await sam.post("/a/f/profile", { hide: false });
+  check((await josh.get("/a/f/common?u=nobody_here")).status === 404, "the full page for someone who isn't there finds nothing");
+  await sam.post("/a/f/cancel", { username: "josh_r" });
+
   // ---- Hide friends count ----
   await josh.post("/a/f/profile", { hide: true });
   check((await mia.get("/a/f/person?u=josh_r")).person.friends === null, "a hidden friends count isn't shown");
