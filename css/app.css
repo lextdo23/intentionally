@@ -913,7 +913,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-when { font-size: 13px; color: var(--dim); }
 .mo-more { width: 36px; height: 36px; background: transparent; }
 .mo-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
-.mo-see { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; font-size: 15px; font-weight: 500; color: var(--ink); }
+.mo-see { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; font-size: 15px; font-weight: 400; color: var(--ink); }   /* not bold (alex 2026-11-25) */
 .mo-see[aria-pressed="true"] { color: var(--sun); }   /* "I see you", once said, is marigold (alex 2026-11-25) */
 .mo-dimtext { color: var(--dim); font-weight: 400; }
 .mo-seers { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); min-width: 0; }
