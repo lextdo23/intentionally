@@ -2,24 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- Safety net: only the app's own files and its notification service may run or be reached (see tests/csp.test.cjs).
-       The old app shares its browser storage with Daydeck (/v2/), so no outside code may run here either. -->
+  <!-- Safety net: only Daydeck's own files and its notification service may run or be reached (see tests/csp.test.cjs). -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://intentionally-push.lextdo.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0e0f11">
+  <meta name="theme-color" content="#0a0a0b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Intentionally">
-  <title>Intentionally</title>
+  <meta name="apple-mobile-web-app-title" content="Daydeck">
+  <title>Daydeck</title>
   <link rel="manifest" href="manifest.webmanifest">
   <script src="js/standalone.js"></script>
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=4" sizes="180x180">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/wrapped.css">
+  <link rel="stylesheet" href="css/box.css">
+  <link rel="stylesheet" href="css/photos.css">
+  <link rel="stylesheet" href="css/library.css">
+  <!-- Opening Daydeck (alex 2026-11-21): a fresh open shows the logo on a blank sky, then the app fades in (main.js).
+       The logo (alex 2026-11-23, "eclipse glow"): the app icon's dark circle with the peach one tucked into it, in front
+       of a soft warm glow so the dark circle stands out on the dark sky, like an eclipse.
+       Styled here, not in app.css, so it's there from the very first moment. The phone's own launch pictures
+       (icons/launch-*.png, made by tools/make-launch.cjs) look exactly the same, so the hand-over can't be seen. -->
+  <style>
+    html { background: #0a0a0b; }
+    #splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center;
+      background: #0a0a0b; transition: opacity .55s ease, visibility 0s linear .55s; }
+    #splash > * { grid-area: 1 / 1; border-radius: 50%; transition: transform .7s cubic-bezier(.32, .72, 0, 1); }
+    #splash .logo { width: 112px; height: 112px; overflow: visible; }
+    #splash.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+    #splash.gone > * { transform: scale(1.08); }
+    #splash.now { transition: none; }
+    .booting #home { opacity: 0; transform: translateY(12px); }
+    .booting #pill { opacity: 0; }
+  </style>
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1320x2868.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1290x2796.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1284x2778.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1206x2622.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1179x2556.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1170x2532.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1125x2436.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" href="icons/launch-1242x2688.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="icons/launch-828x1792.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="icons/launch-750x1334.png">
 </head>
-<body>
-  <main id="app" aria-live="polite"></main>
-  <div id="toast" class="toast" role="status" hidden></div>
+<body class="booting">
+  <div id="splash" aria-hidden="true"><svg class="logo" viewBox="0 0 100 100"><defs><clipPath id="splash-in"><circle cx="50" cy="50" r="50"/></clipPath></defs><circle cx="50" cy="50" r="49.15" fill="#141416" stroke="rgba(239,237,233,.35)" stroke-width="1.7"/><circle cx="64.77" cy="50" r="35.23" fill="#ffa51f"/></svg></div>
+  <div id="sun" aria-hidden="true"><i></i></div>
+  <main id="home" class="screen"></main>
+  <div id="dim" aria-hidden="true"></div>
+  <div id="flow"></div>
+  <div id="days" role="region" aria-label="Your days"></div>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

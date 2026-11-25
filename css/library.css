@@ -1,0 +1,65 @@
+/* ---------- The card library: "Cards" (js/library.js), a page that slides in from the right like Your photos ---------- */
+#cards { position: fixed; inset: 0; z-index: 6; background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 30%, var(--sky3) 100%);
+  transform: translateX(100%); transition: transform .42s var(--ease); box-shadow: -12px 0 32px rgba(0, 0, 0, .35); }
+.in-cards #cards { transform: none; }
+.in-cards #home { transform: translateX(-24%); opacity: .4; pointer-events: none; }
+.in-cards #sun { opacity: .3; }
+.lib-page { gap: 16px; }
+.lib-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--edge)); padding: 0 var(--edge); }
+.lib-chips::-webkit-scrollbar { display: none; }
+.lib-chips .pill { flex-shrink: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+.lib-chips .sq { width: 8px; height: 8px; border-radius: 2px; }
+.lib-chips.wrap { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+.lib-chips.wrap .pill { min-height: 36px; white-space: normal; text-align: left; }
+.lib-sortrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 15px; color: var(--ink2); }
+.lib-sort { min-height: 44px; font-size: 15px; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.lib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.lib-sec { display: flex; flex-direction: column; gap: 16px; }
+.lib-sec + .lib-sec { margin-top: 8px; }
+.lib-empty { padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 8px; }
+.lib-empty p { margin: 0; }
+.lib-empty .sub { font-size: 15px; color: var(--ink2); }
+
+/* A card face, small (grid) or big (opened). The same flat dark face as the daily card (new look). */
+.lib-mini, .lib-big { position: relative; display: flex; flex-direction: column; gap: 8px; text-align: left; color: var(--ink); border-radius: 16px;
+  background: #141416; box-shadow: 0 0 0 1px rgba(239, 237, 233, .16), 0 10px 24px rgba(0, 0, 0, .45); }   /* the new card face: flat dark, fine white edge */
+.lib-mini { min-height: 214px; padding: 14px; width: 100%; }
+.lib-mini:active { transform: scale(.98); }
+.lib-mini:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.lib-front { display: contents; }
+.lib-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lib-mini .ctag { font-size: 12px; min-width: 0; overflow: hidden; }
+.lib-mini .ctag i, .lib-big .ctag i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.lib-n { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink2); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.lib-task { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.lib-stamp { font-size: 12px; font-weight: 500; color: var(--gold); }
+.lib-by { margin-top: auto; font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* One card, big: slides up over the page. */
+.lib-view { position: fixed; inset: 0; z-index: 7; display: flex; flex-direction: column; gap: 16px; padding: var(--top) var(--edge) var(--bot);
+  background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 30%, var(--sky3) 100%); opacity: 0; transform: translateY(24px); transition: opacity .28s ease, transform .28s var(--ease); }
+.lib-view.in { opacity: 1; transform: none; }
+.lib-vhead { display: flex; justify-content: space-between; align-items: center; }
+.lib-vhead .where { font-size: 15px; color: var(--dim); }
+.lib-vcard { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.lib-big { width: 280px; height: 395px; max-height: 100%; padding: 24px; gap: 12px; overflow-y: auto; }
+.lib-big .ctag { font-size: 13px; }
+.lib-big .lib-n { font-size: 13px; }
+.lib-big .lib-task { font-size: 24px; }
+.lib-big .lib-stamp, .lib-big .lib-by { font-size: 13px; }
+.lib-vcard .dcard.big { zoom: var(--k, 1); }
+.lib-foot { gap: 8px; align-items: stretch; }
+.lib-said { margin: 0; font-size: 15px; color: var(--ink2); text-align: center; text-wrap: balance; }
+.lib-name { min-height: 52px; padding: 0 16px; border-radius: 12px; border: 0; background: var(--fill); font-size: 17px; color: var(--ink); width: 100%; }
+
+/* The thumbs-up answer under "How did doing it feel?" (library cards only). */
+.lib-up { display: inline-flex; align-items: center; gap: 8px; align-self: center; }
+
+/* Making a card: "Made by <name>" written on the card while "Show it to everyone" is on. The card is zoomed, so sizes
+   are divided by its zoom (like .home-card .why). */
+.own-by { margin-top: auto; display: flex; align-items: baseline; gap: 3px; font-size: calc(13px / (var(--k, 1) * 1.376)); color: var(--ink2); }
+.own-by input { flex: 1; min-width: 0; border: 0; padding: 0 0 1px; background: none; color: var(--ink); font: inherit; border-bottom: 1px dashed rgba(239, 237, 233, .5); border-radius: 0; }
+.own-by input:focus, .own-by input:focus-visible { outline: none; border-bottom-color: var(--gold); }
+.own-by + .card-foot { margin-top: 4px; }
+.own-pub-note { margin: 0; font-size: 13px; color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { #cards, .lib-view { transition: none; } .lib-mini:active { transform: none; } }

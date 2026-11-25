@@ -1,0 +1,163 @@
+/* The weekly wrapped (js/wrapped.js). Drawn on a 430 x 932 stage (alex's phone, 1:1), scaled down to fit smaller
+   screens. Dark evening sky with one coloured card; screen 1 takes the colour of the week's best day.
+   Bigger type here only (alex 2026-11-17). Reduce motion: everything appears without moving. */
+.wr { position: fixed; inset: 0; z-index: 60; overflow: hidden; color: var(--ink); background: linear-gradient(170deg, var(--sky1), var(--sky2) 60%, var(--sky3)); animation: wr-in .35s ease both; }
+.wr::before { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease; background: linear-gradient(170deg, color-mix(in srgb, var(--bg) 78%, white), var(--bg)); }
+.wr.full::before { opacity: 1; }
+.wr.closing { animation: wr-out .35s ease forwards; }
+@keyframes wr-in { from { opacity: 0; } } @keyframes wr-out { to { opacity: 0; } }
+.in-wrap #home { opacity: 0; transition: opacity .3s; }
+.wr-stage { position: absolute; left: 50%; top: 50%; width: 430px; height: 932px; transform: translate(-50%, -50%) scale(var(--ws, 1)); }
+.wr-scr { position: absolute; inset: 0; opacity: 0; transition: opacity .4s ease; }
+.wr-scr.in { opacity: 1; } .wr-scr.out { opacity: 0; pointer-events: none; }
+.wr-ink { color: var(--on-sun); }
+.wr-ab { position: absolute; }
+
+/* top: one bar per screen, and the round close button */
+.wr-bars { position: absolute; left: 24px; right: 80px; top: 71px; display: flex; gap: 4px; }
+.wr-bars span { flex: 1; height: 3px; border-radius: 2px; background: currentColor; opacity: .25; position: relative; overflow: hidden; }
+.wr-bars span.on { opacity: 1; } .wr-bars span.t { opacity: 1; background: rgb(127 127 127 / .35); }
+.wr-bars span.t i { position: absolute; inset: 0; background: currentColor; transform-origin: left; transform: scaleX(0); }
+.wr-bars span.t i.full { transform: none; }
+.wr-bars span.t i.run { animation: wr-fill var(--t, 6s) linear forwards; } @keyframes wr-fill { to { transform: none; } }
+.paused .wr-bars span.t i.run, .paused * { animation-play-state: paused !important; }
+.done .wr-bars span.t i.run { animation: none; transform: none; }
+.wr-x { position: absolute; right: 20px; top: 59px; width: 44px; height: 44px; border-radius: 22px; background: rgb(127 127 127 / .2); color: inherit; display: flex; align-items: center; justify-content: center; }
+
+/* words */
+.wr-lab { font-size: 17px; font-weight: 600; opacity: .75; }
+.wr-textblock { display: flex; flex-direction: column; gap: 16px; }
+.wr-textblock .wr-lab { margin-bottom: -4px; }
+.wr-big { font-size: 56px; font-weight: 800; line-height: .98; letter-spacing: -.03em; text-wrap: balance; }
+.wr-line { font-size: 22px; font-weight: 600; line-height: 1.3; }
+.wr-card .wr-line { margin-top: 8px; }
+.wr-next { left: 0; right: 0; top: 850px; text-align: center; font-size: 15px; opacity: .7; }
+.wr-hint { left: 0; right: 0; text-align: center; font-size: 15px; opacity: .7; transition: opacity .4s; }
+.wr-q { font-size: 52px; font-weight: 800; line-height: .98; letter-spacing: -.03em; transition: opacity .4s; }
+.wr-help .lifeline { color: var(--on-sun); opacity: .8; font-size: 15px; }
+
+/* motion */
+.wr-scr.in .wr-rise { animation: wr-rise .7s var(--spring) both; animation-delay: var(--d, 0s); }
+.wr-scr .wr-rise { opacity: 0; } .wr-scr.in .wr-rise { opacity: 1; }
+@keyframes wr-rise { from { opacity: 0; transform: translateY(16px); } }
+.wr-fade { animation: wr-fadek .8s ease both; animation-delay: var(--d, 0s); } @keyframes wr-fadek { from { opacity: 0; } }
+.wr-fadein { animation: wr-fadek 1s ease both; animation-delay: var(--d, 0s); }
+.wr-pop { animation: wr-popk .5s var(--spring) both; animation-delay: var(--d, 0s); } @keyframes wr-popk { from { opacity: 0; transform: scale(.4); } }
+.wr-popg { transform-box: fill-box; transform-origin: center; animation: wr-popk .5s var(--spring) both; animation-delay: var(--d, 0s); }
+.wr-word { animation: wr-wordk .6s var(--spring) both; animation-delay: var(--d, 0s); } @keyframes wr-wordk { from { opacity: 0; transform: translateY(8px); } }
+.wr-seg { stroke-dasharray: 1; stroke-dashoffset: 1; animation: wr-segk .5s linear forwards; animation-delay: var(--d, 0s); } @keyframes wr-segk { to { stroke-dashoffset: 0; } }
+.wr-draw { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: wr-drawk 1.6s ease-out forwards; animation-delay: var(--d, 0s); } @keyframes wr-drawk { to { stroke-dashoffset: 0; } }
+.wr-grow { transform-origin: left; animation: wr-growk 1.1s var(--spring) both; animation-delay: var(--d, 0s); } @keyframes wr-growk { from { transform: scaleX(0); } }
+.wr-out { animation: wr-outk .3s ease-in forwards; animation-delay: var(--d, 0s); } @keyframes wr-outk { to { transform: scaleX(0); } }
+.wr-in { animation: wr-ink .3s ease-out both; animation-delay: var(--d, 0s); } @keyframes wr-ink { from { transform: scaleX(0); } }
+
+/* the coloured card (screens 3 to 5) */
+.wr-card { border-radius: 16px; color: var(--on-sun); padding: 24px; display: flex; flex-direction: column;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--c) 62%, white), var(--c)); box-shadow: 0 0 0 1.5px rgb(23 24 27 / .3), 0 0 60px color-mix(in srgb, var(--c) 35%, transparent); }
+.wr-pic { margin-top: auto; position: relative; }
+.wr-card .wr-pic:has(.wr-fan) { margin-block: auto; }
+.wr-hint2 { font-size: 17px; opacity: .85; margin-top: 10px; transition: opacity .35s; }
+
+/* 2 · guess your best day */
+.wr-cd { border-radius: 14px; padding: 0; transition: left .9s var(--spring), top .9s var(--spring), width .9s var(--spring), height .9s var(--spring), border-radius .9s var(--spring), box-shadow .3s; }
+.wr-cd .bk, .wr-cd .fc { position: absolute; inset: 0; border-radius: inherit; }
+.wr-cd .bk { background: var(--sun);   /* the Daydeck slab (new look) */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 10px 20px rgba(0, 0, 0, .45); }
+.wr-cd .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.wr-cd .fc { overflow: hidden; opacity: 0; background: linear-gradient(165deg, color-mix(in srgb, var(--c) 60%, white), var(--c)); color: var(--on-sun); display: flex; flex-direction: column; justify-content: space-between; padding: 10px; font-weight: 700; text-align: left; }
+.wr-cd .fc small { font-size: 13px; } .wr-cd .fc > span { font-size: 15px; }
+.wr-cd.face .fc { opacity: 1; } .wr-cd.face .bk { opacity: 0; }
+.wr-cd.fl { animation: wr-flip .5s ease-in-out; } @keyframes wr-flip { 50% { transform: scaleX(0); } }
+.wr-cd.pick { box-shadow: 0 0 0 3px var(--ink), 0 0 0 7px rgb(239 237 233 / .25); }
+.wr-cd .fc em { display: none; font-style: normal; }
+.wr-cd.mini { border-radius: 8px; } .wr-cd.mini .fc { padding: 0; align-items: center; justify-content: center; } .wr-cd.mini .fc small, .wr-cd.mini .fc > span { display: none; } .wr-cd.mini .fc em { display: block; font-size: 12px; }
+.wr-cd .hc { display: none; } .wr-cd.hero .hc { display: flex; flex-direction: column; gap: 4px; }
+.wr-cd.hero .fc, .wr-cd.hero2 .fc { justify-content: flex-start; padding: 24px; box-shadow: 0 0 0 1.5px rgb(23 24 27 / .3), 0 0 60px color-mix(in srgb, var(--c) 35%, transparent); }
+.wr-cd.hero .fc > small, .wr-cd.hero .fc > span, .wr-cd.hero2 .fc > small, .wr-cd.hero2 .fc > span { display: none; }
+.wr-best.done .wr-pre { opacity: 0; pointer-events: none; }
+.wr-pre { transition: opacity .4s; }
+.wr-dl { font-size: 15px; font-weight: 700; text-align: center; }
+.wr-aft { opacity: 0; } .done .wr-aft { animation: wr-rise .7s var(--spring) both; animation-delay: var(--d, 0s); opacity: 1; }
+.hday { font-weight: 800; line-height: 1; letter-spacing: -.03em; } .hmood { font-size: 22px; font-weight: 600; }
+.hline { height: 1.5px; background: rgb(23 24 27 / .2); margin: 20px 0 14px; } .whyh2 { font-size: 15px; font-weight: 600; opacity: .7; margin-bottom: 8px; }
+.hrow { display: flex; gap: 14px; align-items: center; padding: 9px 0; } .hrow .ic { flex: 0 0 44px; height: 44px; border-radius: 22px; background: rgb(23 24 27 / .12); display: flex; align-items: center; justify-content: center; }
+.hrow b { display: block; font-size: 17px; line-height: 1.25; } .hrow span { display: block; font-size: 15px; font-weight: 400; opacity: .8; line-height: 1.3; }
+
+/* 3 · something we noticed */
+.wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; } .wl:not(:first-child) { margin-top: 14px; }
+.mc { aspect-ratio: 5/7; border-radius: 7px; background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 7px 0 5px; font-size: 12px; font-weight: 700; }
+.mc::before { content: ""; width: 14px; height: 14px; border-radius: 7px; background: var(--m); }
+.mc.dim { opacity: .3; } .mc.none { background: none; box-shadow: inset 0 0 0 1.5px rgb(23 24 27 / .25); color: var(--on-sun); } .mc.none::before { background: none; }
+.mc.hi { box-shadow: 0 0 0 1.5px var(--ink); }
+.wr-easy { display: flex; flex-direction: column; gap: 12px; } .wr-easy-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 1.5px solid rgb(23 24 27 / .15); }
+.wr-easy-row span { font-size: 15px; font-weight: 600; opacity: .7; } .wr-easy-row b { font-size: 22px; font-weight: 700; }
+.wl { font-size: 13px; font-weight: 600; opacity: .7; margin-bottom: 4px; }
+.wr-card .bar { height: 56px; border-radius: 12px; background: rgb(23 24 27 / .14); position: relative; overflow: hidden; }
+.wr-card .bar i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 12px; background: var(--on-sun); }
+.wr-card .bar i.base { border-radius: 12px 0 0 12px; } .wr-card .bar i.extra { background: var(--sun); border-radius: 0 12px 12px 0; }
+.bl { display: flex; justify-content: space-between; font-size: 17px; font-weight: 600; margin: 24px 0 8px; }
+.wr-card .tick { font-size: 13px; font-weight: 600; opacity: .7; white-space: nowrap; }
+.wr-grid { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; row-gap: 18px; }
+.wr-mini { position: relative; border-radius: 8px; }
+.wr-mini .bk, .wr-mini .fc { position: absolute; inset: 0; border-radius: inherit; }
+.wr-mini .bk { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+.wr-mini .fc { background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); color: var(--ink); padding: 8px; font-size: 12px; font-weight: 600; line-height: 1.2; box-shadow: 0 0 0 1px rgba(255, 255, 255, .10); display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.wr-mini .fc .mt { display: flex; align-items: center; gap: 4px; font-weight: 500; opacity: .8; }
+.wr-mini .fc i { width: 8px; height: 8px; border-radius: 2px; display: block; }
+.wr-mini .star { position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 11px; background: var(--on-sun); color: var(--sun); font-size: 12px; display: flex; align-items: center; justify-content: center; }
+
+/* 4 and 5 · a fanned hand of real cards (5 by 7), the one on top glows */
+.wr-fan { position: relative; }
+.wr-fan .dc { position: absolute; padding: 0; border-radius: 12px; text-align: left; transition: left .55s var(--spring), top .55s var(--spring), rotate .55s var(--spring); }
+.wr-fan .dc.lift { animation: wr-lift .45s var(--spring); } @keyframes wr-lift { 40% { translate: 0 -14px; } }
+.wr-fan .dc .bk, .wr-fan .dc .fc { position: absolute; inset: 0; border-radius: 12px; }
+.wr-fan .dc .bk { background: var(--sun); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 12px 24px rgba(0, 0, 0, .3); }
+.wr-fan .dc .bk::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.wr-fan .dc .fc { background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); color: var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), 0 12px 24px rgba(0, 0, 0, .3); transition: box-shadow .4s ease; overflow: hidden; }
+.wr-fan .dc.love .fc { box-shadow: 0 0 0 1.5px var(--sun), 0 12px 24px rgba(0, 0, 0, .3); }
+.wr-fan .tg { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ink2); } .wr-fan .tg i { width: 8px; height: 8px; border-radius: 2px; }
+.wr-fan .tk { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.wr-fan .sub { font-size: 13px; line-height: 1.35; color: var(--ink2); }
+.wr-fan .ft { margin-top: auto; font-size: 13px; line-height: 1.35; color: var(--ink2); }
+.wr-fan .dc.one .fc { padding: 18px; } .wr-fan .dc.one .tk { font-size: 22px; } .wr-fan .dc.one .ft { font-size: 15px; } .wr-fan .dc.one .tg { font-size: 13px; }
+.wr-fan .dc.gone { transition: opacity .5s, translate .6s var(--spring); opacity: 0; translate: 0 60px; pointer-events: none; }
+.wr-fan .dc.kept { transition: left .7s var(--spring), top .7s var(--spring), rotate .7s var(--spring); }
+
+/* 6 · your week on a card, full screen (alex 2026-11-23): the picture drawn to the screen's shape, edge to edge */
+.wr-pic6fullbox { inset: 0; }
+.wr-pic6full { display: block; width: 100%; height: 100%; }
+.wr-full6 { color: #fff; }
+.wr-scr.in .wr-fadein6 { animation: wr-full6 .9s var(--spring) both; } @keyframes wr-full6 { from { opacity: 0; transform: scale(1.04); } }
+/* 7 · share it: the picture itself, drawn once and shown here as it will be shared */
+.wr-pic6box { left: 80px; top: 100px; width: 270px; height: 480px; }   /* 9 by 16, with room for both switches and both buttons */
+.wr-pic6 { display: block; width: 100%; height: 100%; border-radius: 16px; box-shadow: 0 0 0 1px rgb(255 255 255 / .18), 0 20px 50px rgba(0, 0, 0, .5); }
+.wr-pic6.in-sheet { width: 300px; height: 533px; align-self: center; }
+.wr-flipin { animation: wr-flipink 1s var(--spring) both; animation-delay: var(--d, 0s); } @keyframes wr-flipink { from { transform: translateY(60px) scale(.6); opacity: 0; } }
+.wr-sw { left: 24px; right: 24px; display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--ink2); min-height: 44px; cursor: pointer; }
+
+.wr-sw-words { display: flex; flex-direction: column; gap: 2px; }
+.wr-sw-words small { font-size: 13px; color: var(--dim); }
+.wr-sw.off { cursor: default; } .wr-sw.off > .wr-sw-words > span { color: var(--faint); } .wr-sw.off .switch { opacity: .4; }
+
+/* home: one quiet line under the level */
+.wr-lines { display: flex; flex-direction: column; gap: 0; width: 100%; margin-top: -8px; }
+.wr-home { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 15px; color: var(--ink2); text-align: left; }
+.wr-home i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.wr-home .chev { color: var(--dim); }
+.wr-home.ready { color: var(--sun); font-weight: 600; } .wr-home.ready .chev { color: var(--sun); }
+.wr-from { font-size: 13px; font-weight: 600; color: var(--dim); margin-top: 8px; }
+.wr-sheet-sub { font-size: 15px; color: var(--ink2); }
+.wr-sheet-btn { min-height: 52px; border-radius: 14px; font-size: 17px; }
+
+/* Your days: Your weeks */
+.wr-weeks-row { display: flex; gap: 12px; overflow-x: auto; margin: 0 -4px; padding: 4px; scrollbar-width: none; }
+.wr-week-thumb { flex: 0 0 110px; height: 154px; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left;
+  background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .10); }
+.wr-week-thumb .d { font-size: 11px; color: rgb(255 255 255 / .8); } .wr-week-thumb .n { font-size: 15px; font-weight: 700; line-height: 1.15; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wr, .wr *, .wr *::before { animation: none !important; transition: none !important; }
+  .wr-scr .wr-rise, .done .wr-aft { opacity: 1; }
+  .wr-seg, .wr-draw { stroke-dashoffset: 0; }
+}

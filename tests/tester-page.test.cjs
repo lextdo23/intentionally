@@ -19,7 +19,7 @@ const BADDAYS = [day("T-JUNK", { mood: 2, feel: "a string, not a list" }), { cod
   const server = await serve(), { check, done } = checker();
   const b = await chromium.launch(), p = await b.newPage(), errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
-  await p.goto(server.url + "v2/testers.html"); await p.waitForFunction(() => window.__render);
+  await p.goto(server.url + "testers.html"); await p.waitForFunction(() => window.__render);
   const look = () => p.evaluate(() => ({ sections: document.querySelectorAll("#out section").length, remove: document.querySelectorAll(".tcard .rm").length,
     status: document.getElementById("status").textContent, pwn: window.__pwn || 0, imgs: document.querySelectorAll("#out img").length }));
   const show = (d) => p.evaluate((d) => { try { window.__render(d); return null; } catch (e) { return e.message; } }, d);

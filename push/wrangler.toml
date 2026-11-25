@@ -16,6 +16,20 @@ class_name = "Keys"
 name = "TESTERS"
 class_name = "Testers"
 
+# Accounts (accounts.js): one shared book of accounts, and one private vault per person.
+[[durable_objects.bindings]]
+name = "ACCOUNTS"
+class_name = "Accounts"
+
+[[durable_objects.bindings]]
+name = "VAULTS"
+class_name = "Vault"
+
+# Photo backup (photos.js): the private R2 bucket alex made in Cloudflare (2026-11-21).
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "daydeck-photos"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Phone", "Keys"]
@@ -23,3 +37,7 @@ new_sqlite_classes = ["Phone", "Keys"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Testers"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Accounts", "Vault"]

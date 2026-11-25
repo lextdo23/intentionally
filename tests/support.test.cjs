@@ -17,7 +17,7 @@ const WANT = [
   const b = await chromium.launch(), ctx = await b.newContext({ viewport: { width: 430, height: 932 } }), p = await ctx.newPage(), errors = [];
   p.on("pageerror", (e) => errors.push(e.message));
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.abort());
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", days: {}, seen: { note: "x" } })));
   await p.reload(); await p.waitForTimeout(800);
   await p.evaluate(async () => (await import("./js/settings.js")).openSettings()); await p.waitForTimeout(600);

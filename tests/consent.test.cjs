@@ -15,7 +15,7 @@ const MUST = [
 const MUST_NOT = ["Only the person making Daydeck can see it", "crisis", "sleep times", "how rested"];
 
 (async () => {
-  const server = await serve(), url = server.url + "v2/";
+  const server = await serve(), url = server.url;
   const b = await chromium.launch(), ctx = await b.newContext({ viewport: { width: 430, height: 932 } }), p = await ctx.newPage();
   const errors = [], calls = [];
   p.on("pageerror", (e) => errors.push(e.message));

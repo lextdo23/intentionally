@@ -1,35 +1,24 @@
-// Notifications: a quiet nudge when a timer's time is up (or it has run for hours), and an optional evening question.
-// FIRST VERSION, NOT FINAL: alex asked to run these as first drafted and come back to the words and design later.
-// The phone works out *when* each one should arrive and tells a small service (push/) only those times.
-// The service sends an empty ping; the service worker here picks the words, so no thought ever leaves the phone.
+// Morning and evening notifications. The phone works out *when* each should arrive and tells the small
+// notification service (push/, shared with the old app) only those times. The service sends an empty ping and
+// the service worker here picks the words, so nothing the person noted ever leaves the phone.
 import * as store from "./store.js";
-import { now, DAY } from "./clock.js";
-import { affirm } from "./affirm.js";
+import { dayKey, keyDate, addDays } from "./util.js";
+import { card as cardOf, dayOfUse } from "./deck.js";
 
-// The service's address. Empty until it has been set up (see push/README.md); until then nothing is sent.
-export const SERVICE = "https://intentionally-push.lextdo.workers.dev";
-
-const STILL = 3 * 3600000;
-// When words of affirmation arrive: up to 10 a day, spread evenly from 9 am to 9 pm (one alone comes at 9 am).
-export const AFFIRM_MAX = 10;
-const affirmTimes = (n) => Array.from({ length: n }, (_, k) => {
-  const m = 9 * 60 + (n > 1 ? Math.round((k * 720) / (n - 1) / 5) * 5 : 0);
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-});
-// How a count reads: "Once a day", "Twice a day", "3 times a day"… (switching words of affirmation off is how none are sent).
-export const oftenWords = (n) => n <= 1 ? "Once a day" : n === 2 ? "Twice a day" : `${n} times a day`;
-// The lengths a timer can be given on the wheel (minutes, 0 = no end).
-export const LENGTHS = [0, 5, 10, 15, 20, 25, 30, 40, 45, 60, 90, 120];
-// "Your hour is", "Your 2 hours are", "Your 25 minutes are": the start of a "time is up" line.
-export const upWords = (m) => m === 60 ? "hour is" : m % 60 === 0 ? `${m / 60} hours are` : `${m} minutes are`;
-
+const SERVICE = "https://intentionally-push.lextdo.workers.dev";
+const DAY = 864e5;
+export const defaults = () => ({ am: { on: false, t: "08:00" }, pm: { on: false, t: "21:00" }, card: { on: true } });
+const HOUR = 36e5;
 export const supported = () => "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
 export const blocked = () => supported() && Notification.permission === "denied";
-const ready = () => supported() && !!SERVICE && Notification.permission === "granted";
+// On iPhone, notifications only work once the app has been added to the Home Screen.
+export const needsInstall = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !matchMedia("(display-mode: standalone)").matches;
 
-// Asks the phone for permission (this has to come straight from a tap), then signs up for pings.
+export function prefs() { const s = store.get(); s.notify = Object.assign(defaults(), s.notify || {}); return s.notify; }
+
+// Asks permission (must come straight from a tap), then signs up for pings.
 export async function enable() {
-  if (!supported() || !SERVICE) return false;
+  if (!supported()) return false;
   if (await Notification.requestPermission() !== "granted") return false;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -37,86 +26,116 @@ export async function enable() {
       const { key } = await (await fetch(`${SERVICE}/key`)).json();
       await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(key) });
     }
-    sent = "";
-    sync();
-    return true;
-  } catch {
-    return false;
-  }
+    sent = ""; await sync(); return true;
+  } catch { return false; }
 }
 
-// What should arrive, and when. These are real times: test mode's pretend days don't move real notifications.
-function plan(s) {
-  const n = s.notify, shift = Date.now() - now(), out = [], r = s.running;
-  if (n.timer && r) {
-    if (r.minutes) out.push({ at: r.start + r.minutes * 60000 + shift, text: `Your ${upWords(r.minutes)} up. Stop when you’re ready, or keep going.` });
-    else out.push({ at: afterQuiet(r.start + STILL + shift, n.quiet), text: "Still going? Your timer has been running for 3 hours." });
-  }
-  if (n.evening) {
-    // Not on an evening a thought has already been left in the sky.
-    const last = Math.max(0, ...s.thoughts.flatMap((t) => t.seen ?? [t.createdAt])) + shift;
-    const at = nextAt(n.evening, Date.now(), last);
-    if (!quiet(at, n.quiet)) out.push({ at, text: "Anything on your mind before bed? Leave it in your sky.", daily: true, kind: "evening" });
-  }
-  // Words of affirmation through the day: each one made from a thought still in their sky (never a heavy one),
-  // a different thought for each time. The thought itself never goes on the lock screen, only the kind line.
-  if (s.affirm !== false && s.affirmDaily > 0) {
-    const mine = s.thoughts.filter((t) => t.status === "active" && !t.heavy && t.kind);
-    affirmTimes(Math.min(AFFIRM_MAX, s.affirmDaily)).forEach((hhmm, k) => {
-      const at = nextAt(hhmm, Date.now(), 0);
-      if (quiet(at, n.quiet)) return;
-      const t = mine.length ? mine[(Math.floor(at / DAY) * AFFIRM_MAX + k) % mine.length] : null;
-      const name = t ? s.pillars.find((p) => p.id === t.pillarId)?.name ?? "" : "";
-      out.push({ at, text: t ? affirm(t.text, t.kind, name) : "Small steps still count.", daily: true, kind: "affirm" });
-    });
+// The next time the clock reads hh:mm, skipped if the check-in for that nudge's own day is already done.
+// (Checking "today" instead broke mornings: a day runs until 4am, so opening the app after midnight saw
+// yesterday's sleep as done and skipped the coming morning's nudge.)
+function nextAt(hhmm, done) {
+  const [h, m] = hhmm.split(":").map(Number), d = new Date();
+  d.setHours(h, m, 0, 0);
+  let t = d.getTime();
+  if (t <= Date.now()) t += DAY;
+  if (done(store.get().days[dayKey(t)] || {})) t += DAY;
+  return t;
+}
+
+// Card reminders (alex 2026-11-17): up to two on a day you kept a card and haven't done it yet. "Lunch and after
+// work": 12:30pm, then 3 hours before your evening nudge. Kept the card after 12:30? Then 3 hours after keeping
+// it, and 3 hours after that. Never within an hour of the evening nudge, never on a rest day, and none at all
+// once the card is done. Only for people who have morning or evening nudges on.
+export function cardTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
+  const n = prefs(), k = dayKey(at), d = s.days[k] || {};
+  if (!n.card.on || !(n.am.on || n.pm.on) || d.rest || !d.card || !d.card.id || (d.card.done && !evenIfDone)) return [];
+  const on = (hhmm) => { const [h, m] = hhmm.split(":").map(Number), x = keyDate(k); x.setHours(h, m, 0, 0); let t = x.getTime(); if (h < 4) t += DAY; return t; };
+  const eve = on(n.pm.on ? n.pm.t : "21:00"), lunch = on("12:30"), kept = d.card.at || at;
+  const times = kept <= lunch ? [lunch, eve - 3 * HOUR] : [kept + 3 * HOUR, kept + 6 * HOUR];
+  return times.filter((t) => t > at && t <= eve - HOUR);
+}
+
+// Wind-down nudge (weekly wrapped, screen 5: "Keep your 11:20 nights"): once a night, 20 minutes before the usual
+// lights out, until the plan's Sunday, then it stops by itself. Skipped on a night you've already ended your day.
+// The service takes four one-off times at most, so it gets the next nights that fit after any card reminders.
+export function windTimes(s = store.get(), at = Date.now()) {
+  const p = s.wrap && s.wrap.plan, it = p && p.items.find((x) => x.kind === "nudge" && !x.off);
+  if (!it) return [];
+  const out = [];
+  for (let k = dayKey(at); k <= p.end && out.length < 4; k = addDays(k, 1)) {
+    if (k < p.start || (s.days[k] && s.days[k].mood != null)) continue;
+    const x = keyDate(k); x.setHours(Math.floor(it.at / 60), it.at % 60, 0, 0);
+    const t = x.getTime() + (it.at < 240 ? DAY : 0);
+    if (t > at) out.push(t);
   }
   return out;
 }
 
-const mins = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
-const at = (t, hhmm) => { const d = new Date(t); d.setHours(0, mins(hhmm), 0, 0); return d.getTime(); };
-
-// The next time the clock reads `hhmm` after `from`, skipping any day that already had something at or after `last`.
-function nextAt(hhmm, from, last) {
-  let t = at(from, hhmm);
-  if (t <= from) t += DAY;
-  if (new Date(last).toDateString() === new Date(t).toDateString()) t += DAY;
-  return t;
+// Weekly recap (alex 2026-11-22). Sunday: "Weekly recap tonight" at the evening nudge time (7pm if evenings are off),
+// unless the day is already ended. Monday: "Weekly recap ready" at the morning nudge time (8am if mornings are off),
+// only while that week's recap still waits on home. Never more than these two for one week, and only when a recap
+// will really be there (from day 7 of use, like js/wrapped.js readyWeek). Only for people with morning or evening
+// nudges on. When it lands on the same minute as the usual nudge, the service sends one ping and it gets these words.
+// evenIfDone keeps the ones no longer needed (marked done) so a ping already on its way stays quiet.
+export function recapTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
+  const n = prefs();
+  if (!(n.am.on || n.pm.on) || !s.started) return [];
+  const seen = (s.wrap && s.wrap.seen) || {}, k = dayKey(at), mon = addDays(k, -((keyDate(k).getDay() + 6) % 7)), out = [];
+  const on = (day, hhmm) => { const [h, m] = hhmm.split(":").map(Number), x = keyDate(day); x.setHours(h, m, 0, 0); return x.getTime() + (h < 4 ? DAY : 0); };
+  for (const w of [addDays(mon, -7), mon]) {
+    const sun = addDays(w, 6), d = s.days[sun] || {};
+    if (dayOfUse(sun) < 7) continue;
+    const noted = Array.from({ length: 7 }, (_, i) => s.days[addDays(w, i)]).some((x) => x && x.mood != null);
+    out.push({ t: on(sun, n.pm.on ? n.pm.t : "19:00"), kind: "recap-sun", done: !!seen[w] || d.mood != null });
+    out.push({ t: on(addDays(w, 7), n.am.on ? n.am.t : "08:00"), kind: "recap-mon", done: !!seen[w] || !noted });
+  }
+  return out.filter((x) => x.t > at && (evenIfDone || !x.done));
 }
 
-function quiet(t, [from, to]) {
-  const m = mins(new Date(t).toTimeString().slice(0, 5)), f = mins(from), e = mins(to);
-  return f < e ? m >= f && m < e : m >= f || m < e;
+// The service worker picks the words for each ping, so it keeps a copy of today's card reminder times and task.
+// Only on this phone: the service still gets times and nothing else.
+// It also knows when the card is done, so a ping that was already on its way when "I did it" was tapped stays quiet.
+async function keepCardPlan(s) {
+  try {
+    const d = s.days[dayKey(Date.now())] || {}, c = d.card && d.card.id ? cardOf(d.card.id) : null, at = cardTimes(s, Date.now(), true);
+    await (await caches.open("nudge-plan")).put("card", new Response(JSON.stringify({ at, task: at.length && c ? c.text : "", done: !!(d.card && d.card.done) })));
+    await (await caches.open("nudge-plan")).put("wind", new Response(JSON.stringify({ at: windTimes(s) })));
+    await (await caches.open("nudge-plan")).put("recap", new Response(JSON.stringify({ at: recapTimes(s, Date.now(), true) })));
+  } catch { /* no copy: a ping then gets the morning or evening words */ }
 }
 
-// Moved to the end of quiet hours if it would land inside them.
-function afterQuiet(t, q) {
-  if (!quiet(t, q)) return t;
-  const end = at(t, q[1]);
-  return end > t ? end : end + DAY;
-}
-
-// Tells the service the times (and leaves the words where the service worker can find them).
-// Called whenever something changes; it only reaches the internet when the times actually changed.
 let sent = "";
 export async function sync() {
-  if (!ready()) return;
-  const items = plan(store.get());
-  const body = { timerAt: items.find((i) => !i.daily)?.at ?? null, eveningAt: items.find((i) => i.kind === "evening")?.at ?? null,
-    dailyAt: items.filter((i) => i.kind === "affirm").map((i) => i.at) };
+  if (!supported() || Notification.permission !== "granted") return;
+  const n = prefs(), times = [];
+  if (n.am.on) times.push(nextAt(n.am.t, (d) => !!d.sleep));
+  if (n.pm.on) times.push(nextAt(n.pm.t, (d) => d.mood != null));
   try {
     const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
     if (!sub) return;
-    await (await caches.open("notify")).put("words", new Response(JSON.stringify(items)));
-    const sig = sub.endpoint + JSON.stringify(body);
+    // The service takes four one-off times at most: the weekly recap first, then card reminders, then wind-down.
+    const once = recapTimes().map((x) => x.t).concat(cardTimes(), windTimes()).slice(0, 4);
+    await keepCardPlan(store.get());
+    const sig = sub.endpoint + times.join(",") + "|" + once.join(",");
     if (sig === sent) return;
-    const res = await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint, ...body }) });
+    const res = await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "daydeck", endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: times, onceAt: once }) });
     if (res.ok) sent = sig;
-  } catch { /* offline: it tries again the next time something changes or the app opens */ }
+  } catch { /* offline: tries again next time the app opens or something changes */ }
 }
-
+// Delete everything: tells the service to forget each of this phone's nudge plans (Daydeck's and the old
+// Intentionally app's, which share this site), then signs the phone out of notifications. If the phone is offline,
+// the sign-out still happens, and the service then deletes the plan itself the first time a ping is refused.
+export async function forget() {
+  sent = "";
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    for (const reg of await navigator.serviceWorker.getRegistrations()) {
+      const sub = reg.pushManager && await reg.pushManager.getSubscription();
+      if (!sub) continue;
+      await fetch(`${SERVICE}/plan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: "daydeck", endpoint: sub.endpoint, timerAt: null, eveningAt: null, dailyAt: [] }) }).catch(() => {});
+      await sub.unsubscribe().catch(() => {});
+    }
+  } catch { /* nothing signed up */ }
+}
 const bytes = (b64u) => Uint8Array.from(atob(b64u.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
-
-store.onChange(() => sync());
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { sent = ""; sync(); } });
-sync();

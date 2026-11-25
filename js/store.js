@@ -1,170 +1,23 @@
-// Everything the app knows lives on this phone, in localStorage, as one small JSON record.
-// Nothing is sent anywhere. Deleting the app (or clearing site data) removes it all.
-import { now } from "./clock.js";
-
-const KEY = "intentionally";
-const SCHEMA = 3;
-
+// Everything lives on this phone, in localStorage under "daydeck". Nothing is sent anywhere.
+const KEY = "daydeck";
+export const SCHEMA = 1;
 const fresh = () => ({
-  schema: SCHEMA,
-  createdAt: now(),
-  name: "",
-  pillars: [],      // { id, name, tint, focus }
-  sessions: [],     // finished timers: { pillarId, start, end, activity?, manual? }
-  running: null,    // the one timer allowed at a time: { pillarId, start, activity?, minutes? (a nudge after this long) }
-  thoughts: [],     // { id, text, kind: "kind"|"worry"|"want", pillarId, status: "active"|"settled"|"let-go",
-                    //   count, seen: [times it came up], x, y, createdAt, helped: [{ text, at }],
-                    //   sortedAt?, unsureAt?, letGoAt? }. pillarId "me" means it's just about you (it circles the sun).
-  season: null,     // { name, startedAt } once seasons have opened up
-  setup: false,     // name, look-back day and Home Screen asked once
-  lookDay: 0,       // the day of the week for the look back (0 Sunday to 6 Saturday)
-  lookShort: null,  // true once someone picks the five-minute look back, so it's remembered
-  weeks: [],        // finished look backs: { from, to, at, feel, wrote, prompt, intention (the one being looked back on), short,
-                    //   notes: [{ id, outcome, helped?, next? }] }
-  intention: null,  // this week's one small thing: { text, pillarId, setAt, did: [times] }
-  learned: {},      // words → struggle, from "What's this most about?" answers, so the same words match next time
-  myHelps: {},      // struggle → helps the person wrote themselves ("Something else"), offered first next time
-  notify: { asked: false, timer: false, evening: null, eveningOffered: false, quiet: ["22:30", "08:00"], len: 0 },
-                    // notifications (js/notify.js): timer nudges on or off, the evening drop's time ("21:30") or null,
-                    //   quiet hours, the timer length picked last (minutes, 0 = no end), and which offers have been made
-  affirm: true,     // words of affirmation: a line answering each thought, made from what they wrote (never for heavy ones)
-  affirmDaily: 1,   // how many a day are sent as notifications (1 to 10; turning words of affirmation off sends none), spread through waking hours
-  unlocked: {},     // features revealed so far, e.g. { seasons: 1730000000000 }
-  tips: {},         // how many times each first-time tip has shown, e.g. { sort: 2 }
-  setupAt: null,    // when set-up finished; the first days' suggestions are timed from it
-  hints: {},        // first-day suggestions already done: { thought, timer, sun, sort } (when each was first done)
-  test: { offsetDays: 0 },
+  v: SCHEMA, started: null,
+  days: {},                         // "2026-11-12": { sleep: {bed, wake, rested, tags}, mood, feel: [], pil: [], rest }
+  sleepTags: { last: {}, own: [] }, // when each tag was last picked (day number), and the person's own words
+  feel: { last: {}, own: [] },      // last[band][word] = day number
+  order: ["A", "B", "E", "C", "D"], hidden: {}, notes: {}, test: { offset: 0 },
 });
-
-let state = load();
-const listeners = new Set();
-
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return fresh();
-    const saved = JSON.parse(raw);
-    // Older saves keep everything they had and gain the new fields with their starting values.
-    return saved.schema <= SCHEMA ? { ...fresh(), ...saved, schema: SCHEMA } : fresh();
-  } catch {
-    return fresh();
-  }
+let state;
+export function load() {
+  try { state = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { state = fresh(); }
+  state = Object.assign(fresh(), state);
+  return state;
 }
-
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private mode or full: keep going in memory */ }
-}
-
-export const get = () => state;
-
-export function update(change) {
-  change(state);
-  save();
-  listeners.forEach((fn) => fn(state));
-}
-
-export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-
-export function reset() {
-  state = fresh();
-  save();
-  listeners.forEach((fn) => fn(state));
-}
-
-export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-
-// Timers: starting one stops whichever was running, so only one ever runs.
-// Anything under a minute is treated as a mis-tap and not kept.
-const MIN_SESSION = 60000;
-
-function finish(s) {
-  const r = s.running;
-  if (!r) return 0;
-  const ms = now() - r.start;
-  if (ms >= MIN_SESSION) s.sessions.push({ pillarId: r.pillarId, start: r.start, end: now(), ...(r.activity && { activity: r.activity }) });
-  s.running = null;
-  return ms;
-}
-
-// Returns how long the stopped timer ran (0 if none), so the screen can say what was logged.
-export function startTimer(pillarId, activity, minutes = 0) {
-  let stopped = 0;
-  update((s) => {
-    stopped = finish(s);
-    s.running = { pillarId, start: now(), ...(activity && { activity }), ...(minutes && { minutes }) };
-  });
-  return stopped;
-}
-
-export function stopTimer() {
-  let stopped = 0;
-  update((s) => { stopped = finish(s); });
-  return stopped;
-}
-
-// For time given without a timer running: ends now (or `daysAgo` days back) and lasts `minutes`.
-export function addTime(pillarId, minutes, daysAgo = 0) {
-  update((s) => {
-    const end = now() - daysAgo * 86400000;
-    s.sessions.push({ pillarId, start: end - minutes * 60000, end, manual: true });
-  });
-}
-
-// Thoughts: each one caught becomes a star. A thought that comes up again joins its star, which grows.
-// `heavy` ("heavy" or "soft") marks a thought that gets quiet care instead of suggestions; it never grows or counts.
-export function addThought(text, kind, spot, id = uid(), heavy = null) {
-  const t = { id, text, kind, pillarId: null, status: "active", count: 1, seen: [now()], ...spot, createdAt: now(), helped: [], ...(heavy && { heavy }) };
-  update((s) => { s.thoughts.push(t); });
-  return t;
-}
-
-export function thoughtCameBack(id) {
-  update((s) => {
-    const t = s.thoughts.find((x) => x.id === id);
-    t.count = (t.count || 1) + 1;
-    (t.seen ??= []).push(now());
-    t.status = "active";
-  });
-}
-
-// Sorting: a thought finds its part of life, waits a while ("not sure yet"), or is let go.
-// Each returns what the thought was like before, so it can be undone.
-export function editThought(id, change) {
-  let before = null;
-  update((s) => {
-    const t = s.thoughts.find((x) => x.id === id);
-    if (!t) return;
-    before = { ...t };
-    change(t);
-  });
-  return before;
-}
-
-export const sortThought = (id, pillarId) => editThought(id, (t) => { t.pillarId = pillarId; t.sortedAt = now(); delete t.unsureAt; });
-export const notSureYet = (id) => editThought(id, (t) => { t.unsureAt = now(); });
-export const letThoughtGo = (id) => editThought(id, (t) => { t.status = "let-go"; t.letGoAt = now(); });
-
-export function restoreThought(before) {
-  update((s) => { const i = s.thoughts.findIndex((x) => x.id === before.id); if (i >= 0) s.thoughts[i] = before; });
-}
-
-export function removeThought(id) {
-  update((s) => { s.thoughts = s.thoughts.filter((t) => t.id !== id); });
-}
-
-// Time given to a pillar since `from`, including a timer that is still running.
-export function timeSince(pillarId, from) {
-  let ms = 0;
-  for (const x of state.sessions) if (x.pillarId === pillarId && x.end > from) ms += x.end - Math.max(x.start, from);
-  const r = state.running;
-  if (r && r.pillarId === pillarId) ms += now() - Math.max(r.start, from);
-  return ms;
-}
-
-// The intention: one small thing for the week, shown on the sky. "Did it" can be tapped as often as it happens.
-export function setIntention(text, pillarId) {
-  update((s) => { s.intention = text ? { text, pillarId, setAt: now(), did: [] } : null; });
-}
-export function didIntention() {
-  update((s) => { s.intention?.did.push(now()); });
-}
+export function get() { return state || load(); }
+const listeners = [];
+// Backup (js/sync.js) listens, so changes go up a few seconds after they're made.
+export function onSave(fn) { listeners.push(fn); }
+export function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage full or blocked */ } listeners.forEach((fn) => { try { fn(); } catch { /* never break saving */ } }); }
+export function reset() { state = fresh(); save(); return state; }
+export function day(k) { const s = get(); return (s.days[k] = s.days[k] || {}); }

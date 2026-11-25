@@ -2,10 +2,14 @@
 // It never sees a thought, a name or a pillar. Each phone tells it only *when* to send a ping, and the phone
 // itself decides what the ping says. Runs on Cloudflare Workers; setup is in README.md.
 import { DurableObject } from "cloudflare:workers";
+import { accounts } from "./accounts.js";
+// Accounts live in accounts.js; Cloudflare needs their storage classes shared from here too.
+export { Accounts, Vault } from "./accounts.js";
 
 const DAY = 86400000;
-const APP = "https://lextdo23.github.io";
-const CONTACT = "https://lextdo23.github.io/intentionally/";
+// The addresses the app is served from. The old GitHub address stays allowed while people move to daydeck.day.
+const APPS = ["https://daydeck.day", "https://www.daydeck.day", "https://lextdo23.github.io"];
+const CONTACT = "https://daydeck.day/";
 // Only the phone makers' own push services, so the service can't be used to call anywhere else.
 const PUSH_HOSTS = [/\.push\.apple\.com$/, /^fcm\.googleapis\.com$/, /\.push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/];
 // A phone that hasn't opened the app for two weeks stops getting the evening question: no nagging.
@@ -17,11 +21,24 @@ const DAYDECK = "daydeck";
 const OLD_OFF = Date.parse("2026-11-17T00:00:00Z");
 const oldApp = (p) => p.app !== DAYDECK && (p.timerAt || p.eveningAt || (p.daily ?? []).length > 2 || Date.now() > OLD_OFF);
 
-const cors = { "Access-Control-Allow-Origin": APP, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
+const cors = { "Access-Control-Allow-Origin": APPS[0], "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
 const reply = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", ...extra } });
 
+// Answers each request with the app address it came from, if that address is one of APPS.
+async function withOrigin(req, res) {
+  const from = req.headers.get("Origin");
+  if (!from || !APPS.includes(from) || from === APPS[0]) return res;
+  const out = new Response(res.body, res);
+  out.headers.set("Access-Control-Allow-Origin", from); out.headers.set("Vary", "Origin");
+  return out;
+}
+
 export default {
-  async fetch(req, env) {
+  async fetch(req, env) { return withOrigin(req, await route(req, env)); },
+};
+
+async function route(req, env) {
+  {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
     const { pathname } = new URL(req.url);
     if (req.method === "GET" && pathname === "/key") return reply({ key: (await vapid(env)).public });
@@ -40,9 +57,10 @@ export default {
     }
     if (pathname.startsWith("/t/")) return testers(req, env, pathname);
     if (pathname.startsWith("/l/")) return library(req, env, pathname);
+    if (pathname.startsWith("/a/")) return accounts(req, env, pathname, reply);
     return reply({ error: "not found" }, 404);
-  },
-};
+  }
+}
 
 function pushable(endpoint) {
   try {
@@ -132,12 +150,22 @@ const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(
 // ---------------- Tester mode (Daydeck beta) ----------------
 // Testers who joined send the choices and numbers they tapped, under a random code like T-7KQ4, with a secret
 // key only their phone knows. Never anything they typed (the app strips it before sending). They can delete
-// it all at any time. Only someone holding TESTER_KEY (a Cloudflare secret) can read it, from v2/testers.html.
+// it all at any time. Only someone holding TESTER_KEY (a Cloudflare secret) can read it, from testers.html.
 const db = (env) => env.TESTERS.get(env.TESTERS.idFromName("all"));
 const CODE = /^T-[A-Z0-9]{4}$/, KEY = /^[0-9a-f]{32}$/, DAYK = /^\d{4}-\d\d-\d\d$/, NAME = /^[a-z_]{1,24}$/;
 const short = (x, n = 30) => (typeof x === "string" ? x.slice(0, n) : "");
 
 async function testers(req, env, path) {
+  // Reports (social step 5): alex reviews them here, behind the same password and lockout as the tester page.
+  if (path === "/t/reports" || path === "/t/report") {
+    const no = await gate(req, env); if (no) return no;
+    const book = env.ACCOUNTS.get(env.ACCOUNTS.idFromName("book"));
+    if (req.method === "GET") return reply(await book.rList());
+    const b = await req.json().catch(() => null);
+    if (!b || typeof b.id !== "string" || typeof b.act !== "string") return reply({ error: "bad request" }, 400);
+    const r = await book.rAct(b.id, b.act);
+    return reply(r, r.error ? 404 : 200);
+  }
   if (req.method === "GET" && path === "/t/all") {
     const no = await gate(req, env); if (no) return no;
     return reply(await db(env).all());
@@ -247,7 +275,7 @@ async function library(req, env, path) {
 
 // Testers alex removed by hand. Their data is deleted when the service starts, and their phones are told to stop.
 const REMOVED = ["T-ACAY"];
-const PLACES = 60; // the most testers at once; also shown on v2/testers.html
+const PLACES = 60; // the most testers at once; also shown on testers.html
 
 // One store for all testers (a beta is 20 to 30 people).
 export class Testers extends DurableObject {

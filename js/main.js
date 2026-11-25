@@ -1,828 +1,451 @@
+// Daydeck (test build). Home: the greeting, a peek at your week, the sun, and one main button.
+import { h, CHART_COL as MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NAME, MONTH, LIFELINE, reduceMotion, clock12 } from "./util.js";
+import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
-import { affirm } from "./affirm.js";
-import { now, weekStart, greeting, formatTotal, formatRunning, setOffsetDays, DAY } from "./clock.js";
-import { renderSky, fitTags, startSpin, planet, shade, sparkle, placeStar, esc, POINTS, zoomTo, zoomNow, runCamera, skyPoint, markTarget } from "./sky.js";
-import { guessKind, findSimilar, cameUp, KIND_LABEL } from "./thoughts.js";
-import * as sort from "./sort.js";
-import * as look from "./lookback.js";
-import { due, times } from "./week.js";
-import { heaviness, guessHome } from "./helps.js";
-import { weekHTML, recordHTML } from "./weekview.js";
+import { morning, evening } from "./checkin.js";
+import { openDraw, cardDue, homeCard, askFelt } from "./draw.js";
+import { openDays } from "./days.js";
+import { moodSeries, mostlyWord } from "./stats.js";
+import { makeSample } from "./sample.js";
+import { openSheet, roundBtn } from "./ui.js";
+import * as deck from "./deck.js";
 import * as notify from "./notify.js";
-import { TINTS, ACTIVITIES } from "./pillars.js";
-import * as welcome from "./welcome.js";
+import { openSettings } from "./settings.js";
+import * as tester from "./tester.js";
+import { log } from "./tester.js";
+import { openTester, askAgain } from "./tester-sheet.js";
+import { goToSleep, notedTonight, moonIcon } from "./sleep.js";
+import * as levels from "./levels.js";
+import * as wrapped from "./wrapped.js";
+import { openBox, waiting as boxesWaiting } from "./boxes.js";
+import * as photos from "./photos.js";
+import { openCamera } from "./camera.js";
+import { openLevels } from "./path.js";
+import * as levelup from "./levelup.js";
+import * as tips from "./tips.js";
+import * as library from "./library.js";
+import * as account from "./account.js";
+import * as sync from "./sync.js";
+import * as pill from "./pill.js";
+import * as friends from "./friends.js";
+import * as moments from "./moments.js";
+import * as photoBackup from "./photo-backup.js";
+import * as crumbs from "./crumbs.js";
+import { wordmark } from "./wordmark.js";
 
-const app = document.getElementById("app");
-const params = new URLSearchParams(location.search);
-let testMode = params.has("test");
-setOffsetDays(store.get().test.offsetDays);
+// Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
+const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
+fitCards(); addEventListener("resize", fitCards);
 
-// Text and controls use Apple's own sizes at every screen width, so the app feels like the phone's other apps.
-// (Only the sky scales to fill the screen.) `zoom` stays at 1; it is kept so text fields and sheets still read it.
-const zoom = 1;
-const fit = () => {
-  // The whole phone screen's height: on iPhone the app's own area can stop short of the bottom edge,
-  // and the sky should still reach it.
-  document.documentElement.style.setProperty("--sh", `${screen.height}px`);
+const s = store.load();
+if (levels.startOver(s)) log("level_reset", levels.level().level);   // once: everyone back to level 1
+setOffsetDays(s.test.offset || 0);
+let testOn = new URLSearchParams(location.search).has("test") || !!s.test.on;
+const home = document.getElementById("home");
+
+function peek() {
+  const ser = moodSeries(store.get().days, "week"), pts = ser.pts.map((p, i) => (p.m == null ? null : [2 + i * 10, 18 - p.m * 2.66])).filter(Boolean);
+  const top = mostlyWord(store.get().days, "week");
+  const line = pts.length > 1 ? h("svg", { width: "84", height: "26", viewBox: "0 0 64 20", "aria-hidden": "true" },
+    h("defs", null, h("linearGradient", { id: "sg", x1: "0", y1: "2", x2: "0", y2: "18", gradientUnits: "userSpaceOnUse" }, h("stop", { offset: "0", "stop-color": "#56b56c" }), h("stop", { offset: "0.5", "stop-color": "#bdae8e" }), h("stop", { offset: "1", "stop-color": "#4a4fa8" }))),
+    h("path", { d: smoothPath(pts), fill: "none", stroke: "url(#sg)", "stroke-width": "2", "stroke-linecap": "round" })) : null;
+  // Words on the left, the week's mood line on the right (alex 2026-11-23).
+  const btn = h("button.peek", { "aria-label": "Open Your days" },
+    top == null ? h("span.peek-words", null, "Your days") : h("span.peek-words", null, "Mostly ", h("span", { style: { color: MOOD_COL[top] } }, moodWord(top)), " this week"), line, h("span.chev", { "aria-hidden": "true" }, "›"));
+  btn.addEventListener("click", () => openDays(btn, () => render()));
+  return btn;
+}
+
+// Level (alex 2026-11-17): "Level 3" in gold and a gold bar under Your days. "Next pack at level 4" fades in once
+// the bar is nearly full. While the card is being rated the row fades out (body.in-ask), and fades back after.
+// The bar slides from where it was to where it is now; on a new level it fills, then starts again from empty.
+// Showing the gain (alex 2026-11-17): while it slides, only the end of the bar brightens a little (no circle), and a
+// small gold "+1" / "+2" (whatever the step gave) rises from the end of the bar and fades.
+let lvShown = null, lvBack = false, lvHold = null, lvRelease = null;   // lvHold: the bar waits for the level-up moment to close
+function levelRow(lvNew) {
+  const L = levels.level(), pts = levels.total();
+  let was = lvShown;
+  if (lvNew && (!was || was.level >= L.level)) was = { level: L.level - 1, frac: 0.92, pts };   // a fresh open still ticks over
+  lvShown = { level: L.level, frac: L.frac, pts };
+  const fill = h("i"), bar = h("div.lv-bar", null, fill), track = h("div.lv-track", { "aria-hidden": "true" }, bar);
+  const next = h("span.lv-next", null, `Next box at level ${L.level + 1}`);
+  const num = h("span.lv-num", null, `Level ${(was && was.level < L.level ? was.level : L.level)}`);
+  // Tapping the row opens Your levels, the path of what each level opens (alex 2026-11-18).
+  const row = h("button.lv-row.lv-tap", { "aria-label": `Level ${L.level}. ${L.frac >= levels.NEAR ? `Next box at level ${L.level + 1}. ` : ""}Your levels`, onclick: () => openLevels(() => render()) }, num, track, next);
+  if (lvBack) { row.classList.add("lv-back"); lvBack = false; }
+  const set = (f, near) => { fill.style.width = `${Math.round(f * 1000) / 10}%`; next.classList.toggle("on", near); };
+  const gain = was ? pts - was.pts : 0;
+  const plus = (at) => {   // "+2" over the end of the bar, rising and fading
+    if (gain <= 0) return;
+    const p = h("span.lv-plus", { style: { left: `${Math.round(at * 1000) / 10}%` } }, `+${gain}`);
+    track.append(p); setTimeout(() => p.remove(), 2600);
+  };
+  const glide = () => { fill.classList.add("moving"); clearTimeout(fill._t); fill._t = setTimeout(() => fill.classList.remove("moving"), 900); };
+  if (!was || (was.level === L.level && was.frac === L.frac)) { set(L.frac, L.frac >= levels.NEAR); return row; }
+  if (reduceMotion()) { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); return row; }
+  // Start from where it was, then slide (after the row has faded back in, if it was hidden for the rating).
+  fill.style.transition = "none"; set(was.frac, was.level === L.level && was.frac >= levels.NEAR);
+  const wait = row.classList.contains("lv-back") ? 700 : 150;
+  const start = (go) => (lvHold ? lvHold.then(() => setTimeout(go, 150)) : setTimeout(go, wait));
+  start(() => {
+    fill.style.transition = ""; glide();
+    if (was.level < L.level) {
+      set(1, false); plus(1);
+      setTimeout(() => { num.textContent = `Level ${L.level}`; num.classList.remove("lv-bump"); void num.offsetWidth; num.classList.add("lv-bump");
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch { /* not on iPhone */ }
+        fill.style.transition = "none"; set(0, false);
+        requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = ""; if (L.frac > 0) glide(); set(L.frac, L.frac >= levels.NEAR); })); }, 1100);
+    } else { set(L.frac, L.frac >= levels.NEAR); plus(L.frac); }
+  });
+  return row;
+}
+
+// A box earned and not opened yet (js/boxes.js): a quiet gold row under the level bar until it's opened.
+// The level-up moment, once the splash has gone: the eclipse opens and, if the level opened something, its card
+// is dealt (it takes the place of the pointing tip). Then the bar ticks over.
+function levelUpMoment(lv) {
+  const u = levels.opensAt(lv);
+  if (u) tips.shown(u.id);
+  const go = () => {
+    if (document.body.classList.contains("booting")) return setTimeout(go, 200);
+    levelup.show(lv, u, { text: u ? tips.tipText(u.id) : "", onOpen: (id) => tips.open(id),
+      onDone: () => { const r = lvRelease; lvHold = null; lvRelease = null; r && r(); } });
+  };
+  setTimeout(go, 400);
+}
+
+// When Today is crowded (a level-up moment, boxes waiting and the recap line at once), the card shrinks just enough
+// that nothing slides under the bottom pill (alex 2026-11-24). An ordinary day keeps the full-size card.
+function fitCard() {
+  const home = document.getElementById("home");
+  home.style.removeProperty("--fit");
+  const card = home.querySelector(".home-mid .home-card");
+  if (!card) return;
+  const floor = home.getBoundingClientRect().bottom - parseFloat(getComputedStyle(home).paddingBottom);
+  const over = Math.max(...[...home.children].map((x) => x.getBoundingClientRect().bottom)) - floor;
+  if (over <= 1) return;
+  const ch = card.getBoundingClientRect().height;
+  if (ch) home.style.setProperty("--fit", Math.max(0.7, (ch - over - 8) / ch).toFixed(3));
+}
+
+function boxRow() {
+  const n = boxesWaiting();
+  if (!n) return "";
+  return h("button.box-row", { onclick: () => openBox(() => render()) }, n > 1 ? `${n} new boxes are waiting` : "A new box is waiting", h("span.chev", { "aria-hidden": "true" }, "›"));
+}
+
+// After each step, home says so in place for a few seconds: the greeting turns gold with what's next, the card lifts
+// and glows, then it all softens back. No separate screen, no confetti (alex 2026-11-15, "words in place").
+const MOMENT = {
+  sleep: ["That's last night.", "Next, your card."],
+  card: ["Your card for today.", "Do your card any time today."],
+  rest: ["Rest day.", "No card today."],
+  did: ["Card's done.", null],
+  end: ["That's today.", null],
+  photo: ["Photo added.", "It's in Your photos."],
 };
-fit();
-addEventListener("resize", fit);
+// Once, quietly: take every extra part out of photos saved before they were cleaned (alex 2026-11-20).
+setTimeout(() => photos.tidy(), 4000);
 
-const ICON = {
-  sort: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="12" cy="19" r="2"/><path d="M6.3 7.6 10.8 17.2M17.7 7.6 13.2 17.2"/></svg>`,
-  record: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11.5A2.5 2.5 0 0 1 19 6.5V20H7.5A2.5 2.5 0 0 1 5 17.5z"/><path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H19"/><path d="M9.5 8.5h5"/></svg>`,
-  star: `<svg viewBox="-12 -12 24 24" aria-hidden="true"><path d="${sparkle(4, 8)}"/></svg>`,
-  stop: `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.5"/></svg>`,
-};
-
-function render() {
-  const s = store.get();
-  if (!s.setup) welcome.show(app, { support: openSupport, done: () => { justBorn = true; } });
-  else renderHome(s);
-  if (testMode) renderTestPanel();
+let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo on its back turns into view
+// The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
+function noteWhenFree(tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer");
+    if (busy && tries < 40) return noteWhenFree(tries + 1);
+    if (!busy) photos.firstNote();
+  }, tries ? 1500 : 3400);
 }
 
-/* ---------- First day: the sky is born (js/welcome.js) ---------- */
+// The sun's glow travels across the sky through the day: low on the left in the morning, high at midday, low on the right at night.
+function placeSun(t, done) {
+  const f = Math.min(1, Math.max(0, (t.getHours() + t.getMinutes() / 60 - 6) / 16)), sun = document.getElementById("sun");
+  sun.style.setProperty("--sx", `${30 + 40 * f}%`);
+  sun.style.setProperty("--sy", `${58 - 20 * Math.sin(Math.PI * f)}%`);
+  document.body.classList.toggle("day-done", !!done);
+}
 
-// Set when set-up has just finished, so the home sky's greeting and dock fade in the first time.
-let justBorn = false;
+// Accounts made before Friends went live for everyone (the people already using Daydeck) get it straight away
+// (alex 2026-11-21). The service says so; once it has, it stays open on this phone.
+function early() {
+  const st = store.get(), u = account.user();
+  if (u && u.early && !(st.levels || {}).early) { st.levels = st.levels || {}; st.levels.early = 1; store.save(); log("friends_early", 1); }
+  if ((st.levels || {}).early) levels.openEarly(["friends"]);
+  // alex's own test accounts (alex 2026-11-22): everything open, whatever the level (the service says which).
+  if (u && u.test) levels.openEarly(levels.UNLOCKS.map((x) => x.id));
+}
 
-/* ---------- The first days: one quiet line under the greeting suggests the next thing ----------
-   Each suggestion stays until it's done, then the next one shows. Three days after set-up they stop for good,
-   done or not. After that, on a day when nothing has happened yet, the line asks one small question;
-   once anything happens that day, it goes quiet again. It never counts or mentions what was missed. */
-const HINT_DAYS = 3;
-const dayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
-const daysSince = (t) => Math.round((dayOf(now()) - dayOf(t)) / DAY);
+// What home would show, in short: the day, the greeting and which main button. Coming back to Daydeck only redraws
+// home when this has changed (a new day, morning turned to afternoon), so otherwise it's just as it was left.
+let look = "";
+function lookNow() { const hr = new Date(now()).getHours(); return [dayKey(), greeting(), hr < 15, hr >= 17 || hr < 4].join("|"); }
 
-function hintLine(s) {
-  const h = s.hints ?? {};
-  if (s.setupAt && daysSince(s.setupAt) < HINT_DAYS) {
-    const loose = s.thoughts.filter((t) => t.status === "active" && !t.pillarId).length;
-    if (daysSince(s.setupAt) >= 1 && !h.timer) return "Welcome back. Tap a planet when you give it time.";
-    if (!h.timer) return "Tap a planet to start a timer, or to add time you gave.";
-    if (!h.sun) return "Tap the sun any time to see your week.";
-    if (!h.thought) return "When something’s on your mind, add it as a star.";
-    if (loose >= 3 && !h.sort) return "A few stars without a home. Sort them when you like.";
-    return null;
+// The week's peek (Your days opens at level 2) and, once Crumbs is on, its face button beside it (alex 2026-11-23).
+// Crumbs isn't tied to a level: before the peek shows, the button sits in the same spot on its own.
+function weekRow() {
+  const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render()) : null;
+  if (!cb) return pk || "";
+  return h("div.peek-row", null, pk, cb);
+}
+// Crumbs is offered once, after an evening check-in, when home is quiet (same wait as the photos note).
+function crumbsWhenFree(tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer");
+    if (busy && tries < 40) return crumbsWhenFree(tries + 1);
+    if (!busy && crumbs.offerOK()) crumbs.offer(() => render());
+  }, tries ? 1500 : 3400);
+}
+
+function render(moment) {
+  early();
+  wrapped.applyPlan();   // a rest day kept for this week arrives on its own
+  const st = store.get(), k = dayKey(), today = st.days[k] || {}, t = new Date(now()), hr = t.getHours();
+  const needAM = !today.sleep, ended = today.mood != null;
+  const dayN = st.started ? Math.round((keyDate(k) - keyDate(st.started)) / 864e5) + 1 : 1;
+  const topLine = `${DAY_NAME[t.getDay()]} ${t.getDate()} ${MONTH[t.getMonth()]}` + (dayN <= 7 ? ` · Day ${dayN} of your first week` : "");
+  const go = (fn, m) => () => fn((saved) => render(saved ? m : null));
+  const c = !today.rest && today.card && today.card.id ? today.card : null;
+  const did = !!(c && (c.done || c.how >= 1));
+  const canDraw = !needAM && !ended && cardDue(k);
+
+  // One main button, always in the same place: Start your day, Draw your card, End your day, then Change today.
+  let main;
+  // Once the day is ended, in the evening the main button's last job is bedtime (alex 2026-11-16).
+  const bedtime = ended && (hr >= 17 || hr < 4);
+  if (bedtime) main = h("button.btn-main.with-ico", { onclick: () => goToSleep(() => render()) }, moonIcon(), h("span", null, "Going to sleep"));
+  else if (ended) main = h("button.btn-main.soft", { onclick: changeToday }, "Change today");
+  else if (needAM && hr < 15) main = h("button.btn-main", { onclick: go(morning, "sleep") }, "Start your day");
+  else if (canDraw && hr < 15) main = h("button.btn-main", { onclick: go(openDraw, "card") }, "Draw your card");
+  else main = h("button.btn-main", { onclick: go(evening, "end") }, "End your day");
+
+  // The line under the greeting says where the day is.
+  let head = ended ? "That's today." : greeting(), line;
+  const noted = notedTonight();
+  if (ended && noted) line = `Sleep noted at ${clock12(Math.round((new Date(noted.at).getHours() * 60 + new Date(noted.at).getMinutes()) / 5) * 5 % 1440)}.`;
+  else if (ended) line = today.rest ? "Nothing else to do." : c && !did ? "" : "A new card tomorrow morning."; // a skipped card already says "Back in the deck for another day"
+  else if (needAM && hr < 15) line = "How did you sleep?";
+  else if (today.rest) line = "No card today.";
+  else if (!c) line = needAM ? "End your day whenever you're ready." : canDraw && hr < 15 ? "Next, your card." : canDraw ? "Tap the card to draw." : "End your day whenever you're ready.";
+  else if (!did) line = dayN <= 7 ? "Done it? Tap “I did it” on your card." : "Do your card any time today.";
+  else line = "Next, end your day tonight.";
+
+  // Today's card sits where the sun is: face down until drawn, face up until done, then turned over with a tick.
+  // "I did it" asks "How did doing it feel?" straight away, on home (alex 2026-11-17). Not now: tonight asks instead.
+  const markDid = () => {
+    const d = store.day(k), p = deck.card(c.id).pillar;
+    d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
+    log("card_did", deck.tid(c.id)); notify.sync();
+    askFelt(card, c.id, { mid, hide: main,
+      onPick: (list) => {
+        const dd = store.day(k);
+        if (list.length) {
+          dd.card.felt = list; dd.card.how = deck.howFromFelt(list);
+          deck.howWent(c.id, dd.card.how); deck.feltWent(c.id, list);
+          log("card_how", { id: deck.tid(c.id), how: dd.card.how });
+          log("card_felt", { id: deck.tid(c.id), f: list.map((w) => deck.FELT.indexOf(w)), home: 1 }); // positions only, never words
+        } else log("card_felt_later", deck.tid(c.id));
+        store.save();
+        play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
+      },
+      onEnd: () => { lvBack = true; turnPh = true; render(); } });
+  };
+  const undo = () => {
+    const d = store.day(k), p = deck.card(c.id).pillar;
+    if (d.card.how != null) deck.unWent(c.id, d.card.how);
+    d.card.done = false; delete d.card.how; delete d.card.felt; d.pil = (d.pil || []).filter((x) => x !== p || deck.madePil(d).includes(x)); store.save();
+    log("card_undo", deck.tid(c.id)); notify.sync(); render();
+  };
+  // A photo of the card (alex 2026-11-18): the camera on the card while doing it, "Add a photo" once it's done.
+  // The photo becomes the back of the card, and the card turns over to it.
+  const cam = () => openCamera(k, { onSaved: () => { const first = !(store.get().ph || {}).noted; render("photo"); if (first) noteWhenFree(); } });
+  let card = null;
+  const felt = c && c.felt || [];
+  const ph = { photo: k, develop: moment === "photo", turn: turnPh }; turnPh = false;
+  if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt, ...ph } : did ? { state: "done", flip: moment === "did", felt, ...ph } : { state: "up", onDid: markDid, onCam: cam, photo: k });
+  else if (!today.rest && !ended && deck.deck().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
+
+  // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
+  const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
+  if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
+  if (lvNew) { log("level", lvNew); const u = levels.opensAt(lvNew); if (u && !(store.get().levels || {}).keepAll) log("unlock", u.id); }
+  // A new level gets its own moment (js/levelup.js, alex 2026-11-24); the bar ticks over once it closes.
+  if (lvNew) lvHold = new Promise((r) => (lvRelease = r));
+  const mo = moment && MOMENT[moment === "card" && today.rest ? "rest" : moment];
+  const greet = h("h1.greet", null, mo ? mo[0] : head);
+  const sub = h("p.greet-line", null, mo && mo[1] ? mo[1] : line);
+  let taps = 0, tapT = 0;
+  const mark = h("div.dd-mark", null, wordmark(36));
+  mark.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
+  // No greeting or narration on Today (alex 2026-11-23): the card and the button say what's next. The words only show
+  // for a moment ("Card's done.", "Level 4.") and, in the first week, as a short hint.
+  const hint = dayN <= 7 && !!line;
+  const words = h(`div.col.greet-words${hint ? ".hint" : ""}`, { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
+  // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept
+  // while the card is still to do, so the card doesn't jump when it appears.
+  const offer = c && did && !ended && moment !== "did" && photos.offerOK(k);
+  if (offer) photos.offered(k);
+  const addPhoto = offer ? h("button.add-photo", { onclick: cam }, photos.camIcon(), "Add a photo") : null;
+  // "Share with friends" (social step 3): quiet, under a done card or a rest day, once there's a friend to share with.
+  // Never a pop-up; the photo offer goes first when both could show.
+  const shareOK = (testOn || levels.isOpen("friends")) && friends.canShare() && (did || today.rest) && moments.canShareDay(k) && !addPhoto;
+  const shareLink = shareOK ? h("button.add-photo.share-link", { onclick: () => moments.openShare({ day: k, item: today.rest ? "rest" : "card", from: "home" }) },
+    friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
+  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
+  // The glass pill (social stage 1): once Friends opens at level 4 (or in test mode), the main action moves into it,
+  // and Settings moves to the You tab. Until then Daydeck looks as it always has.
+  const usePill = testOn || levels.isOpen("friends");
+  if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
+  // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
+  // Your days with crumbs beside it, then the card in the middle. Lifeline stays in every check-in, draw, Your days and
+  // Friends, so it is one step from here.
+  const cardsOpen = !levels.isOpen || levels.isOpen("library");
+  const settingsBtn = usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render()));
+  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : settingsBtn || h("span");
+  const right = h("div.dd-right", null, cardsOpen ? settingsBtn : null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
+  home.replaceChildren(
+    h("div.dd-head", null, left, mark, right),
+    levelRow(lvNew),
+    weekRow(),
+    boxRow(),
+    wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
+    words,
+    mid,
+    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
+  placeSun(t, ended);
+  if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
+  testBar();
+  look = lookNow();
+
+  // A moment: the greeting turns gold with what just happened, then softens back to "head" and "after".
+  function play(big, small, lift, after = line) {
+    clearTimeout(momentT);
+    greet.textContent = big; sub.textContent = small;
+    words.classList.add("moment"); if (lift && card) card.classList.add("on");
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
+    momentT = setTimeout(() => {
+      card && card.classList.remove("on");
+      const swap = () => { words.classList.remove("moment"); greet.textContent = head; sub.textContent = after; };
+      if (reduceMotion()) return swap();
+      words.classList.add("fading"); setTimeout(() => { swap(); words.classList.remove("fading"); }, 400);
+    }, 3600);
   }
-  const today = dayOf(now());
-  const happened = s.running || s.sessions.some((x) => x.end >= today) || s.thoughts.some((t) => (t.seen ?? [t.createdAt]).some((v) => v >= today));
-  return happened ? null : "Anything on your mind?";
+  clearTimeout(momentT);
+  if (mo) play(mo[0], mo[1] ? mo[1] : line, true);
+  fitCard();   // after the moment's words are in, before anything is drawn
+  if (lvNew) levelUpMoment(lvNew);
+  tips.soon(mo ? 4200 : 1500);   // a new thing a level opened gets its tip once home is quiet (alex 2026-11-18)
 }
 
-// Something from the first days has been done, so its suggestion moves on.
-function did(what) {
-  if (store.get().hints?.[what]) return;
-  store.update((s) => { s.hints = { ...s.hints, [what]: now() }; });
+function changeToday() {
+  openSheet((panel, close) => {
+    panel.append(h("h2", null, "Change today"),
+      h("button.btn-soft", { style: { minHeight: "52px" }, onclick: () => { close(); setTimeout(() => morning(() => render()), 300); } }, "Last night's sleep"),
+      h("button.btn-soft", { style: { minHeight: "52px" }, onclick: () => { close(); setTimeout(() => evening(() => render()), 300); } }, "How today felt"));
+  }, { label: "Change today" });
 }
 
-/* ---------- Home: the sky, and the dock with timers and actions ---------- */
-
-// Which timer the screen showed last time, so the running view only animates in when a timer has just started.
-let shownRunning = null, firstHome = true;
-// A thought caught a moment ago, so its star floats up the next time the sky is drawn.
-let arriving = null, arriveFrom = null;
-const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-function renderHome(s) {
-  const active = s.thoughts.filter((t) => t.status === "active").length;
-  const sorting = sort.active() ? sort.view() : null;
-  // The look back, when it's ready: the sun calls on the day and the day after, then waits quietly.
-  const ready = due(s), calling = ready && ready.days <= 1 && !sorting;
-  const sub = sorting && sort.left() ? `${sort.left()} to sort`
-    : ready ? (calling ? "Your week is ready. Tap the sun when you are." : "Your week is still here, whenever you’re ready.")
-    : hintLine(s) ?? (active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear");
-  const mine = s.intention && s.pillars.some((p) => p.id === s.intention.pillarId) ? s.intention : null;
-  const run = s.running && s.pillars.find((p) => p.id === s.running.pillarId);
-  // Opening the app with a timer already running goes straight to the zoomed-in planet.
-  const opening = firstHome; firstHome = false;
-  const fresh = justBorn; justBorn = false;
-  const was = shownRunning, starting = run && was !== run.id && !opening, ending = !run && was;
-  shownRunning = run?.id ?? null;
-  app.innerHTML = `<section class="home ${fresh ? "fresh" : ""} ${run && !starting || ending ? "timing zoomed" : ""} ${sorting ? `sorting sort-${sorting}` : ""} ${ready && !sorting ? "due" : ""}">
-    <div class="sky-wrap">${renderSky({ pillars: s.pillars, thoughts: s.thoughts, runningId: run?.id, runLen: s.running?.minutes, arriving: still() ? null : arriving, from: arriveFrom, labels: s.test.labels !== false,
-      gather: ready && !sorting ? ready.since : null, intent: mine?.pillarId, floor: true })}</div>
-    ${calling ? `<div class="suncall" aria-hidden="true"><i></i><i></i></div>` : ""}
-    ${mine && !sorting ? `<button type="button" class="intent" id="intent"><span class="k">${dotFor(mine.pillarId)}This week</span><span class="i">${esc(mine.text)}</span>${mine.did.length ? `<span class="n">Done ${times(mine.did.length)}</span>` : ""}</button>` : ""}
-    <header class="greet"><h1 id="greet">${greeting()}${s.name ? `, <span>${esc(s.name)}</span>` : ""}</h1><p>${sub}</p></header>
-    ${run ? `<div class="running ${starting ? "enter" : ""}" style="--c:${run.tint}">
-      <p class="rl"><i aria-hidden="true"></i>${esc(run.name)}${s.running.activity ? ` · ${esc(s.running.activity)}` : ""}</p>
-      <p class="big" data-run aria-label="Time so far"></p>
-      ${s.running.minutes ? `<p class="of" data-of="${s.running.minutes}"></p>` : ""}
-      <button type="button" class="stop" id="stop" aria-label="Stop timer">${ICON.stop}</button></div>` : ""}
-    <nav class="dock" aria-label="Actions">
-      <div class="actions">
-        <button type="button" class="side" id="sort"><span class="round">${ICON.sort}</span><span class="lab">Sort</span></button>
-        <button type="button" class="catch" id="catch" aria-label="New thought"><span class="dot">${ICON.star}</span><span class="lab">New thought</span></button>
-        <button type="button" class="side" id="record"><span class="round">${ICON.record}</span><span class="lab">Record</span></button>
-      </div>
-    </nav></section>`;
-  fitTags(app);
-  startSpin(app);
-  tick();
-  // Starting a timer glides into that planet while the greeting and dock slip away; stopping glides back out.
-  if (starting || ending) {
-    const home = app.querySelector(".home");
-    void home.offsetWidth;
-    home.classList.toggle("timing", !!starting);
-    home.classList.toggle("zoomed", !!starting);
-    zoomTo(starting ? run.id : null);
-  } else if (opening) zoomNow(run?.id ?? null);
-  else runCamera();
-  app.querySelector("#stop")?.addEventListener("click", stop);
-  arriving = arriveFrom = null;
-  // Planets in the sky open their card (ideas, adding time by hand); stars open the thought they hold.
-  const tappable = (sel, key, open) => app.querySelectorAll(sel).forEach((el) => {
-    el.addEventListener("click", () => open(el.dataset[key]));
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(el.dataset[key]); } });
-  });
-  // While sorting, tapping a planet (or the sun) gives it the thought instead.
-  tappable("[data-planet]", "planet", (id) => sort.active() ? sort.choose(id) : placing ? placeIt(id) : openPillar(id));
-  tappable("[data-sun]", "sun", (id) => sort.active() ? sort.choose(id) : placing ? placeIt("me") : ready ? openLook() : openYou());
-  if (placing) markTarget(placing.guess);
-  placeHome();
-  app.querySelector("#intent")?.addEventListener("click", openIntention);
-  app.querySelector("#record").addEventListener("click", openRecord);
-  app.querySelector("#sort").addEventListener("click", () => { did("sort"); sort.open(toast); });
-  sort.afterRender();
-  tappable("[data-star]", "star", openStar);
-  app.querySelector("#catch").addEventListener("click", openCatch);
-  let taps = 0;
-  app.querySelector("#greet").addEventListener("click", () => { if (++taps >= 5) { taps = 0; testMode = true; renderTestPanel(); } });
+const alertLine = () => { const g = document.querySelector(".greet-line"); if (g) g.textContent = "Nothing noted last week. Try Fill 2 months."; };
+// Test mode (?test, or tap the greeting 5 times): fill made-up days, move a day forward, start again.
+function testBar() {
+  document.querySelector(".testbar")?.remove();
+  if (!testOn) return;
+  const st = store.get();
+  let armed = false;
+  const clear = h("button", { onclick: () => { if (!armed) { armed = true; clear.textContent = "Tap again to clear"; return; } store.reset(); setOffsetDays(0); render(); } }, "Start again");
+  document.body.append(h("div.testbar", null,
+    h("button", { onclick: () => { Object.assign(st.days, makeSample(60)); if (!st.started) st.started = Object.keys(st.days).sort()[0]; store.save(); render(); } }, "Fill 2 months"),
+    h("button", { onclick: () => { if (!wrapped.testOpen(() => render())) alertLine(); } }, "Wrapped"),
+    h("button", { onclick: () => { st.test.offset = (st.test.offset || 0) + 1; setOffsetDays(st.test.offset); store.save(); render(); } }, "+1 day"),
+    clear,
+    h("button", { onclick: () => account.openSignup(() => render(), { from: "test" }) }, "Sign up"),
+    h("button", { onclick: () => { testOn = false; st.test.on = false; store.save(); render(); } }, "Hide")));
 }
 
-function start(pillarId, activity, minutes = 0) {
-  const before = store.get().running, n = store.get().notify;
-  // The length is remembered first, so starting the timer stays one smooth change on screen.
-  if (n.len !== minutes) store.update((s) => { s.notify.len = minutes; });
-  did("timer");
-  const ran = store.startTimer(pillarId, activity, minutes);
-  if (before && ran >= 60000) toast(`Logged ${formatTotal(ran)} to ${pillarName(before.pillarId)}.`);
-  // The first time a timer is given a length, ask once whether a nudge would help.
-  if (minutes && !n.asked && !n.timer && notify.supported() && !notify.blocked()) setTimeout(() => askTimer(minutes), still() ? 0 : 1200);
+// A one-time note about what's new, for people who already use the app (alex 2026-11-16). New people never see it.
+const NEW_NOTE = "sleep";
+function whatsNew() {
+  const st = store.get();
+  if (document.body.classList.contains("in-flow") || document.querySelector(".sheet-host")) return;
+  log("update_note", NEW_NOTE);
+  openSheet((panel, close) => {
+    panel.append(
+      h("span", { style: { marginTop: "8px" } }, moonIcon("#e3c486", 28)),
+      h("h2", null, "New: Going to sleep"),
+      h("p.update-text", null, "After you end your day, tap Going to sleep. You can play a sound to fall asleep to."),
+      h("p.update-text", null, "In the morning, your sleep check starts from that time, so there's less to fill in."),
+      h("p.update-from", null, "From Alex"),
+      h("button.btn-main", { onclick: () => close("done") }, "Got it"));
+  }, { label: "What's new", onClose: () => { st.seen.note = NEW_NOTE; store.save(); } });
 }
+{ const st = store.get(); st.seen = st.seen || {}; if (!st.started && !st.seen.note) { st.seen.note = NEW_NOTE; store.save(); } }
 
-// The running view eases away first, then the timer stops.
-function stop() {
-  const el = app.querySelector(".running");
-  if (el?.classList.contains("leave")) return;
-  if (!el || still()) return stopped(store.stopTimer());
-  el.classList.add("leave");
-  setTimeout(() => stopped(store.stopTimer()), 200);
-}
-
-function stopped(ms) {
-  const name = pillarName(store.get().sessions.at(-1)?.pillarId);
-  toast(ms >= 60000 ? `Logged ${formatTotal(ms)} to ${name}.` : "Stopped. Under a minute, so it wasn't kept.");
-}
-
-const pillarName = (id) => store.get().pillars.find((p) => p.id === id)?.name ?? "";
-
-// Only the times change every second; the sky is left alone so its motion stays smooth.
-function tick() {
-  const s = store.get(), from = weekStart();
-  app.querySelectorAll("[data-time]").forEach((el) => {
-    const id = el.dataset.time, run = s.running?.pillarId === id;
-    el.textContent = run ? formatRunning(now() - s.running.start) : formatTotal(store.timeSince(id, from));
-  });
-  const big = app.querySelector("[data-run]");
-  if (big && s.running) big.textContent = formatRunning(now() - s.running.start);
-  // A timer given a length: a gold ring closes round the planet, and once the time is reached one quiet line says so.
-  // Nothing stops; the count carries on until it's stopped.
-  const len = s.running?.minutes, done = len ? Math.min(1, (now() - s.running.start) / (len * 60000)) : 0;
-  app.querySelector(".tring [data-fill]")?.setAttribute("stroke-dasharray", `${(done * 100).toFixed(2)} 100`);
-  const of = app.querySelector("[data-of]");
-  if (of) {
-    const up = done >= 1;
-    if (of.dataset.up !== String(up)) {
-      of.dataset.up = String(up);
-      of.classList.toggle("up", up);
-      of.innerHTML = up ? `That’s your ${len === 60 ? "hour" : len % 60 ? `${len} minutes` : `${len / 60} hours`}.<span>Keep going if it feels good.</span>` : `of ${lenLabel(len)}`;
-    }
-  }
-  const sheetTime = document.querySelector("[data-week]");
-  if (sheetTime) sheetTime.textContent = formatTotal(store.timeSince(sheetTime.dataset.week, from));
-}
-setInterval(tick, 1000);
-
-/* ---------- A pillar's card: start a timer, pick an idea, or add time you forgot to track ---------- */
-
-function openPillar(id) {
-  const s = store.get(), i = s.pillars.findIndex((p) => p.id === id), p = s.pillars[i];
-  if (!p) return;
-  const running = s.running?.pillarId === id, ideas = ACTIVITIES[p.name] ?? [];
-  const { sheet, close } = openSheet(`
-    <header class="sh-head">
-      <svg viewBox="-15 -15 30 30" aria-hidden="true">${planet("sheet", i, 11, shade(p))}</svg>
-      <div><h2 id="sheet-title">${esc(p.name)}</h2><p>This week <span data-week="${id}"></span></p></div>
-      ${CLOSE}
-    </header>
-    ${running ? "" : `<p class="nl-k" id="nl-k">How long?</p>
-    <div class="wheel" role="slider" tabindex="0" aria-labelledby="nl-k" aria-valuemin="0" aria-valuemax="${notify.LENGTHS.length - 1}">
-      ${notify.LENGTHS.map((m) => `<div data-len="${m}">${lenLabel(m)}</div>`).join("")}</div>
-    <p class="hint">No end is fine too. The timer keeps counting either way.</p>`}
-    <button type="button" class="primary" data-go>${running ? "Stop timer" : "Start timer"}</button>
-    ${running ? "" : `<button type="button" class="ghost2 gave-btn" data-manual aria-expanded="false">I gave time</button>`}
-    ${ideas.length ? `<h3>Ideas</h3><p class="hint">Tap one to start a timer for it.</p>
-    <div class="chips">${ideas.map((a) => `<button type="button" class="chip" data-idea="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}
-    <form class="manual" hidden>
-      <fieldset><legend>About how long?</legend><div class="chips">${[["A bit", 15], ["Half an hour", 30], ["An hour", 60], ["An evening", 180]].map(([l, m], k) => `<button type="button" class="chip" data-min="${m}" aria-pressed="${k === 2}">${l}</button>`).join("")}</div></fieldset>
-      <fieldset><legend>When?</legend><div class="chips">${["Today", "Yesterday"].map((d, k) => `<button type="button" class="chip" data-ago="${k}" aria-pressed="${k === 0}">${d}</button>`).join("")}</div></fieldset>
-      <button type="submit" class="primary">Add it</button>
-    </form>`, p.tint);
-  startSpin(document.body);
-  tick();
-  const len = wheel(sheet.querySelector(".wheel"), Math.max(0, notify.LENGTHS.indexOf(s.notify.len)));
-  sheet.querySelector("[data-go]").addEventListener("click", () => { const m = len(); close(); running ? stop() : start(id, undefined, m); });
-  sheet.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { const m = len(); close(); start(id, b.dataset.idea, m); }));
-  const form = sheet.querySelector(".manual"), toggle = sheet.querySelector("[data-manual]");
-  toggle?.addEventListener("click", () => {
-    form.hidden = !form.hidden;
-    toggle.setAttribute("aria-expanded", String(!form.hidden));
-    if (!form.hidden) form.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  });
-  form.querySelectorAll(".chips").forEach((g) => g.addEventListener("click", (e) => {
-    const b = e.target.closest(".chip");
-    if (!b) return;
-    g.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
-  }));
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const min = +form.querySelector("[data-min][aria-pressed=true]").dataset.min;
-    const ago = +form.querySelector("[data-ago][aria-pressed=true]").dataset.ago;
-    store.addTime(id, min, ago);
-    did("timer");
-    close();
-    toast(`Added ${formatTotal(min * 60000)} to ${p.name}.`);
-  });
-}
-
-const lenLabel = (m) => !m ? "No end" : m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m % 60}` : `${m / 60} hr`;
-
-// A flick-to-pick wheel of timer lengths, like the iPhone's own timer. Returns a function giving the minutes picked.
-// Positions are worked out as a share of the scroll, so the screen zoom can't throw them off.
-function wheel(el, start) {
-  if (!el) return () => 0;
-  const rows = [...el.children], last = rows.length - 1;
-  const max = () => el.scrollHeight - el.clientHeight;
-  const at = () => Math.max(0, Math.min(last, Math.round(el.scrollTop / (max() || 1) * last)));
-  let shown = -1;
-  const mark = () => {
-    const i = at();
-    if (i === shown) return;
-    shown = i;
-    rows.forEach((r, k) => r.classList.toggle("on", k === i));
-    el.setAttribute("aria-valuenow", String(i));
-    el.setAttribute("aria-valuetext", rows[i].textContent);
-  };
-  const go = (i, smooth) => el.scrollTo({ top: max() * Math.max(0, Math.min(last, i)) / last, behavior: smooth && !still() ? "smooth" : "auto" });
-  el.addEventListener("scroll", mark, { passive: true });
-  el.addEventListener("click", (e) => { const r = e.target.closest("[data-len]"); if (r) go(rows.indexOf(r), true); });
-  el.addEventListener("keydown", (e) => {
-    const d = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1 }[e.key];
-    if (d) { e.preventDefault(); go(at() + d, true); }
-  });
-  requestAnimationFrame(() => { go(start); mark(); });
-  mark();
-  return () => +rows[at()].dataset.len;
-}
-
-// iPhone draws the typing cursor in the wrong place inside zoomed boxes, so text fields undo the zoom
-// and are sized directly instead: same look, cursor where you type.
-function unzoom(el, { font, padY, padX, radius, height }) {
-  const z = zoom;
-  Object.assign(el.style, {
-    zoom: String(1 / z), fontSize: `${font * z}px`, padding: `${padY * z}px ${padX * z}px`, borderRadius: `${radius * z}px`,
-    ...(height && { height: `${height * z}px` }),
-  });
-}
-
-// After the keyboard goes away, iPhone can leave the screen nudged up. Put it back.
-// On the home screen it can also leave the app's area short (a dark strip below, the dock floating above it).
-// Hiding and showing the app in one step, before anything is drawn, makes iPhone measure the full screen again.
-let tallest = innerHeight;
-addEventListener("resize", () => { tallest = Math.max(tallest, innerHeight); });
-const refill = () => {
-  if (document.activeElement?.matches?.("input, textarea") || innerHeight >= tallest - 4) return;
-  app.style.display = "none";
-  void app.offsetHeight;
-  app.style.display = "";
-};
-addEventListener("focusout", () => setTimeout(() => {
-  if (document.activeElement?.matches?.("input, textarea")) return;
-  scrollTo(0, 0);
-  setTimeout(refill, 120);
-}, 60));
-window.visualViewport?.addEventListener("resize", () => setTimeout(refill, 120));
-
-/* ---------- Catching a thought: write it down, and it becomes a star ---------- */
-
-const MAX_THOUGHT = 120;
-const starIcon = (kind, size = 16) => `<svg class="kstar k-${kind}" viewBox="-12 -12 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${sparkle(POINTS[kind], 10)}"/></svg>`;
-
-// A small card at the top of the screen, over the dimmed sky, so the keyboard only ever covers empty space.
-// Just your words, our guess at the kind (tap to change), and a gold button to add it. Closing keeps the draft.
-let draft = "";
-
-function openCatch() {
-  closeSheet();
-  let kind = "kind", chosen = false;
-  const opener = document.activeElement;
-  const back = document.createElement("div");
-  back.className = "sheet-back light";
-  const card = document.createElement("section");
-  card.className = "sheet catchcard";
-  card.setAttribute("role", "dialog");
-  card.setAttribute("aria-modal", "true");
-  card.setAttribute("aria-label", "New thought");
-  document.body.append(back, card);
-  const close = () => { draft = card.querySelector("textarea")?.value ?? ""; closeSheet(); opener?.focus?.(); };
-  back.addEventListener("click", close);
-  card.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  requestAnimationFrame(() => { back.classList.add("in"); card.classList.add("in"); });
-
-  const write = () => {
-    card.innerHTML = `<form class="cc">
-      <label for="thought" class="sr">Your thought</label>
-      <textarea id="thought" rows="2" maxlength="${MAX_THOUGHT}" placeholder="What's on your mind?" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" spellcheck="true"></textarea>
-      <div class="cc-row">
-        <div class="kindpick"></div>
-        <button type="submit" class="send" aria-label="Add to my sky" disabled>${ICON.star}</button>
-      </div>
-      <div class="kfold"><div><div class="klist" role="radiogroup" aria-label="What kind of thought">${["kind", "worry", "want"].map((k) =>
-        `<button type="button" class="kopt k-${k}" role="radio" data-kind="${k}" aria-checked="false" tabindex="-1">${starIcon(k, 14)}${KIND_LABEL[k]}</button>`).join("")}</div></div></div></form>`;
-    const form = card.querySelector("form"), box = card.querySelector("textarea"), go = card.querySelector(".send"), pick = card.querySelector(".kindpick");
-    const fold = card.querySelector(".kfold"), opts = [...card.querySelectorAll(".kopt")];
-    unzoom(box, { font: 20, padY: 0, padX: 0, radius: 0 });
-    // One quiet line: our guess. Tapped, the three kinds unfold underneath; choosing one folds them away.
-    const showGuess = () => {
-      pick.innerHTML = box.value.trim() ? `<button type="button" class="guess" aria-expanded="${fold.classList.contains("open")}" aria-label="Kind: ${KIND_LABEL[kind]}. Tap to change.">${starIcon(kind, 13)}${KIND_LABEL[kind]}<svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>` : "";
-      opts.forEach((o) => o.setAttribute("aria-checked", o.dataset.kind === kind));
-    };
-    const unfold = (open) => {
-      fold.classList.toggle("open", open);
-      opts.forEach((o) => { o.tabIndex = open ? 0 : -1; });
-      pick.querySelector(".guess")?.setAttribute("aria-expanded", open);
-    };
-    pick.addEventListener("click", (e) => { if (e.target.closest(".guess")) unfold(!fold.classList.contains("open")); });
-    fold.addEventListener("click", (e) => {
-      const b = e.target.closest(".kopt");
-      if (!b) return;
-      kind = b.dataset.kind; chosen = true;
-      showGuess();
-      pick.querySelector(".guess")?.setAttribute("aria-expanded", true);
-      // A moment to see the choice land, then fold away and carry on writing.
-      setTimeout(() => { unfold(false); box.focus(); }, 220);
-    });
-    box.value = draft;
-    const changed = () => {
-      go.disabled = !box.value.trim();
-      if (!chosen && box.value.trim()) kind = guessKind(box.value);
-      if (!box.value.trim()) unfold(false);
-      showGuess();
-    };
-    changed();
-    box.addEventListener("input", changed);
-    box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const text = box.value.trim().replace(/\s+/g, " ");
-      if (!text) return;
-      // A heavy thought never joins another star: it lands like any other, quietly.
-      const echo = !heaviness(text) && findSimilar(text, store.get().thoughts);
-      if (echo) return familiar(echo, text);
-      draft = "";
-      launch(go, () => catchIt(text, kind, go));
-    });
-    box.focus();
-  };
-
-  // The same thought has come up before: offer to join it to that star instead of adding a new one.
-  const familiar = (echo, text) => {
-    const settled = echo.status === "settled";
-    card.innerHTML = `<div class="cc">
-      <p class="cc-eyebrow">This feels familiar</p>
-      <blockquote class="cc-quote k-${echo.kind}">${starIcon(echo.kind, 13)}<span>“${esc(echo.text)}”</span></blockquote>
-      <p class="cc-soft">${echo.kind === "worry" ? "That's okay. It coming back just means it matters to you." : settled ? "You've settled this one before." : "Thoughts often come back around."}</p>
-      <div class="cc-choices"><button type="button" class="ghost" data-diff>It's different</button><button type="button" class="pill-gold" data-same>Same thought</button></div></div>`;
-    card.querySelector("[data-same]").focus();
-    card.querySelector("[data-same]").addEventListener("click", () => {
-      draft = "";
-      closeSheet();
-      store.thoughtCameBack(echo.id);
-      toast(settled ? "It's back in your sky. Look at what helped last time when you're ready." : "Added to that star. It's grown a little.");
-    });
-    const diff = card.querySelector("[data-diff]");
-    diff.addEventListener("click", () => { draft = ""; launch(diff, () => catchIt(text, kind, diff)); });
-  };
-
-  write();
-}
-
-// The card lifts away while the new star leaves the button that added it.
-function launch(button, add) {
-  button.classList.add("press");
-  document.querySelectorAll(".sheet, .sheet-back").forEach((el) => { el.classList.add("out"); el.unwatch?.(); });
-  document.activeElement?.blur?.();
-  add();
-  setTimeout(closeSheet, 600);
-}
-
-// No message: the star finding its place in the sky says it.
-function catchIt(text, kind, button) {
-  arriving = store.uid();
-  arriveFrom = null;
-  const svg = document.querySelector("svg.sky"), b = button?.getBoundingClientRect();
-  if (svg && b) {
-    const p = new DOMPoint(b.left + b.width / 2, b.top + b.height / 2).matrixTransform(svg.getScreenCTM().inverse());
-    arriveFrom = { x: p.x, y: p.y };
-  }
-  const heavy = heaviness(text);
-  did("thought");
-  store.addThought(text, kind, placeStar(store.get().thoughts.filter((x) => x.status === "active")), arriving, heavy);
-  if (heavy) setTimeout(() => quietLine(heavy), still() ? 0 : 1800);
-  else setTimeout(() => askHome(arriving ?? store.get().thoughts.at(-1)?.id, text), still() ? 0 : 1900);
-}
-
-/* ---------- Giving a new thought a home: one optional tap, right after it lands ----------
-   The planet it most likely belongs to is softly highlighted. Tapping a planet (or the sun, if it's just about you)
-   sends the star over to circle it; "Not now", or tapping anything else, leaves it floating. A heavy thought is never asked. */
-let placing = null;
-function askHome(id, text) {
-  const s = store.get(), t = s.thoughts.find((x) => x.id === id);
-  if (!t) return;
-  // Kind words can be turned off (setup, or Settings); then there's no line at all.
-  const guess = guessHome(text, s.pillars), line = s.affirm !== false ? affirm(text, t.kind, pillarName(guess)) : "";
-  // Busy (sorting, or a timer running): just the kind line, quietly.
-  if (sort.active() || s.running || t.pillarId) return line && toast(`“${line}”`);
-  closeHome();
-  placing = { id, guess };
-  const el = document.createElement("div");
-  el.className = "placer";
-  el.setAttribute("role", "dialog");
-  el.setAttribute("aria-label", "Where does it belong?");
-  el.innerHTML = `<div class="pl-top">${line ? `<p class="pl-aff">“${esc(line)}”</p>` : ""}<h2>Where does it belong?</h2><p>Tap its planet, or the sun if it’s just about you.</p></div>
-    <button type="button" class="pl-skip" data-skip>Not now</button>`;
-  document.body.append(el);
-  document.querySelector(".home")?.classList.add("placing");
-  requestAnimationFrame(() => el.classList.add("in"));
-  markTarget(placing.guess);
-  el.querySelector("[data-skip]").addEventListener("click", () => closeHome(true));
-}
-function closeHome(after = false) {
-  document.querySelector(".placer")?.remove();
-  document.querySelector(".home")?.classList.remove("placing");
-  markTarget(null);
-  const was = placing; placing = null;
-  if (after && was && eveningMoment()) setTimeout(offerEvening, still() ? 0 : 600);
-}
-function placeIt(pid) {
-  const id = placing?.id;
-  closeHome(true);
-  if (!id) return;
-  did("sort");
-  store.sortThought(id, pid);
-  toast(pid === "me" ? "It’s just about you. It circles the sun." : `It has a place now, by ${pillarName(pid)}.`);
-}
-
-// A heavy thought gets one calm line under the sun: no alarm, no colour, and two ways to answer.
-function quietLine(heavy) {
-  document.querySelector(".hush")?.remove();
-  const el = document.createElement("div");
-  el.className = "hush";
-  el.setAttribute("role", "status");
-  el.innerHTML = heavy === "heavy"
-    ? `<p class="h">That sounds really heavy.</p><p class="s">You don’t have to carry it on your own.</p>
-      <div class="q-row"><button type="button" class="ghost2" data-talk>Talk to someone</button><button type="button" class="q-link" data-ok>I’m okay for now</button></div>`
-    : `<p class="h">Sounds like you need a break.</p><p class="s">If it’s more than that, you can talk to someone any time.</p>
-      <div class="q-row"><button type="button" class="q-link" data-talk>Talk to someone</button><button type="button" class="q-link" data-ok>Okay</button></div>`;
-  document.body.append(el);
-  requestAnimationFrame(() => el.classList.add("in"));
-  const go = () => { el.classList.remove("in"); setTimeout(() => el.remove(), 800); };
-  el.querySelector("[data-talk]").addEventListener("click", () => { go(); openSupport(); });
-  el.querySelector("[data-ok]").addEventListener("click", go);
-}
-
-/* ---------- A star: the thought it holds ---------- */
-
-function openStar(id) {
-  const t = store.get().thoughts.find((x) => x.id === id);
-  if (!t) return;
-  const { sheet, close } = openSheet(`
-    <header class="sh-head star-head"><div><p class="eyebrow k-${t.kind}">${starIcon(t.kind, 14)}${KIND_LABEL[t.kind]}</p></div>${CLOSE}</header>
-    <blockquote class="big-quote" id="sheet-title">“${esc(t.text)}”</blockquote>
-    <p class="meta">${cameUp(t, now())}</p>
-    <p class="hint later">${t.pillarId === "me" ? "Sorted. It's about you." : t.pillarId ? `Sorted into ${esc(pillarName(t.pillarId))}.` : "Not sorted yet. Tap Sort in the dock when you're ready."}</p>
-    <button type="button" class="link" data-remove>Remove this star</button>`);
-  const rm = sheet.querySelector("[data-remove]");
-  rm.addEventListener("click", () => {
-    if (rm.dataset.sure) { close(); store.removeThought(id); return toast("Removed."); }
-    rm.dataset.sure = "1";
-    rm.textContent = "Tap again to remove it for good";
-  });
-}
-
-// A sheet rises from the bottom over a dimmed screen. Tapping outside, the close button or Escape puts it away.
-function openSheet(html, tint) {
-  closeSheet();
-  const opener = document.activeElement;
-  const back = document.createElement("div");
-  back.className = "sheet-back";
-  const sheet = document.createElement("section");
-  sheet.className = "sheet";
-  sheet.setAttribute("role", "dialog");
-  sheet.setAttribute("aria-modal", "true");
-  sheet.setAttribute("aria-labelledby", "sheet-title");
-  if (tint) sheet.style.setProperty("--c", tint);
-  sheet.innerHTML = html;
-  document.body.append(back, sheet);
-  requestAnimationFrame(() => { back.classList.add("in"); sheet.classList.add("in"); });
-  // When the keyboard is up, sit the sheet just above it and let it scroll inside, rather than being pushed off the top.
-  const vv = window.visualViewport;
-  const above = () => {
-    if (!vv) return;
-    const covered = Math.max(0, innerHeight - vv.height - vv.offsetTop);
-    sheet.style.bottom = `${covered / zoom}px`;
-    sheet.style.maxHeight = `${(vv.height - 8) / zoom}px`;
-    sheet.classList.toggle("kb", covered > 80);
-  };
-  above();
-  vv?.addEventListener("resize", above);
-  vv?.addEventListener("scroll", above);
-  sheet.unwatch = () => { vv?.removeEventListener("resize", above); vv?.removeEventListener("scroll", above); };
-  const close = () => { closeSheet(); opener?.focus?.(); };
-  back.addEventListener("click", close);
-  sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) close(); });
-  (sheet.querySelector("[autofocus]") ?? sheet.querySelector("[data-close]"))?.focus();
-  return { sheet, close };
-}
-
-const CLOSE = `<button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
-
-function closeSheet() {
-  document.querySelectorAll(".sheet").forEach((el) => el.unwatch?.());
-  document.querySelectorAll(".sheet, .sheet-back").forEach((el) => el.remove());
-}
-
-/* ---------- The weekly look back, Record, and the week's one small thing ---------- */
-
-const dotFor = (pid) => { const p = store.get().pillars.find((x) => x.id === pid); return p ? `<i style="background:${shade(p)}"></i>` : ""; };
-
-// The sun's call and the intention's words sit over the sky, so they're placed once the sky is on screen.
-function placeHome() {
-  const sun = skyPoint("sun"), call = app.querySelector(".suncall");
-  if (sun && call) Object.assign(call.style, { left: `${sun.x}px`, top: `${sun.y}px` });
-  const words = app.querySelector("#intent"), low = skyPoint("below");
-  if (words && low) words.style.top = `${low.y}px`;
-}
-addEventListener("resize", () => app.querySelector(".home") && placeHome());
-
-// Tapping the sun on any other day: your week so far, and when the look back is.
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-function openYou() {
-  const s = store.get(), from = weekStart();
-  const rows = s.pillars.map((p) => [p, store.timeSince(p.id, from)]).filter(([, ms]) => ms >= 60000);
-  const active = s.thoughts.filter((t) => t.status === "active").length;
-  const look = DAY_NAMES[s.lookDay ?? 0];
-  openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Your week</h2><p>Since Monday</p></div>${CLOSE}</header>
-    <div class="wv-blk">${rows.length ? rows.map(([p, ms]) => `<div class="wv-row">${dotFor(p.id)}${esc(p.name)}<span>${formatTotal(ms)}</span></div>`).join("")
-      : `<p class="you-empty">No time given yet this week. Tap a planet when you start something.</p>`}</div>
-    <p class="you-line">${active ? `${active} star${active === 1 ? "" : "s"} in your sky` : "Your sky is clear"}</p>
-    <p class="you-line">${s.weeks.length ? `Your look back is on <b>${look}</b>.` : `Your first look back is on <b>${look}</b>. It opens Record.`}</p>`);
-  did("sun");
-}
-
-function openLook() {
-  closeSheet();
-  if (sort.active()) sort.close();
-  look.open({ support: openSupport, weekInFull: (from, to) => openWeek(from, to, store.get().intention), record: openRecord, done: render });
-}
-
-function openWeek(from, to, intention, view = "over") {
-  const { sheet } = openSheet(weekHTML(store.get(), from, to, intention, view));
-  sheet.classList.add("wide");
-  // Overview and In depth swap in place; the close button keeps working through the sheet's own listener.
-  sheet.addEventListener("click", (e) => {
-    const b = e.target.closest(".wv-seg [data-v]");
-    if (b) sheet.innerHTML = weekHTML(store.get(), from, to, intention, b.dataset.v);
-  });
-}
-
-function openRecord() {
-  const s = store.get();
-  const { sheet, close } = openSheet(recordHTML(s));
-  sheet.classList.add("wide");
-  sheet.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => { const w = s.weeks[+b.dataset.week]; close(); openWeek(w.from, w.to, w.intention, "deep"); }));
-  sheet.querySelector("[data-support]").addEventListener("click", openSupport);
-  sheet.querySelector("[data-notify]")?.addEventListener("click", () => { close(); openNotify(); });
-}
-
-// Always reachable: free, private lines, open day and night. (The word "crisis" is never on screen.)
-function openSupport() {
-  openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Someone’s there, any time</h2></div>${CLOSE}</header>
-    <p class="sup-s">Free and private. You can just say you’re having a hard time.</p>${look.LINES}
-    <p class="sup-n">This app isn’t therapy. If you’re in danger right now, call 000.</p>`);
-}
-
-// This week's one small thing. "Did it" can be tapped every time it happens.
-function openIntention() {
-  const s = store.get(), it = s.intention, p = s.pillars.find((x) => x.id === it?.pillarId);
-  if (!it) return;
-  const said = () => it.did.length ? `Kept in What helped. Done ${times(it.did.length)} so far.` : "Not yet. There’s time.";
-  const { sheet, close } = openSheet(`<header class="sh-head"><div><p class="eyebrow-i">${p ? `<i style="background:${shade(p)}"></i>${esc(p.name)} · ` : ""}this week</p><h2 id="sheet-title">${esc(it.text)}</h2><p data-said>${said()}</p></div>${CLOSE}</header>
-    <div class="i-row"><button type="button" class="pill-gold" data-did>${it.did.length ? "Did it again" : "Did it"}</button><button type="button" class="ghost" data-close>Not today</button></div>`);
-  sheet.querySelector("[data-did]").addEventListener("click", () => {
-    store.didIntention();
-    close();
-    toast("Nice. That’s kept in What helped.");
-  });
-}
-
-/* ---------- Notifications: a nudge when a timer is up, the evening drop, and their settings ----------
-   FIRST VERSION, NOT FINAL (alex, 29 Oct 2026): built as first drafted; words and design to be revisited. */
-
-const clock = (v) => { const [h, m] = v.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
-const notReady = () => notify.SERVICE ? "Notifications are off for now. You can turn them on any time at the bottom of Record." : "Notifications arrive in an update soon.";
-
-// A small card near the bottom of the screen, over the sky: one question, a gold yes and a quiet no.
-function offer({ title, text, extra = "", yes, no, onYes, onNo }) {
-  document.querySelector(".offer")?.remove();
-  const el = document.createElement("section");
-  el.className = "offer";
-  el.setAttribute("role", "dialog");
-  el.setAttribute("aria-labelledby", "offer-title");
-  el.innerHTML = `<h2 id="offer-title">${esc(title)}</h2><p>${esc(text)}</p>${extra}
-    <button type="button" class="primary" data-yes>${esc(yes)}</button><button type="button" class="of-no" data-no>${esc(no)}</button>`;
-  document.body.append(el);
-  requestAnimationFrame(() => el.classList.add("in"));
-  const go = () => { el.classList.remove("in"); setTimeout(() => el.remove(), still() ? 0 : 300); };
-  el.querySelector("[data-yes]").addEventListener("click", () => { onYes(el); go(); });
-  el.querySelector("[data-no]").addEventListener("click", () => { onNo(); go(); });
-  el.querySelector("[data-yes]").focus();
-  return el;
-}
-
-function askTimer(minutes) {
-  offer({
-    title: `Want a quiet nudge when your ${notify.upWords(minutes)} up?`,
-    text: "Your phone will ask if Intentionally can send notifications. We’ll only send the ones you turn on, and your thoughts never show on your lock screen.",
-    yes: "Yes, nudge me", no: "Not now",
-    onYes: async () => {
-      const ok = await notify.enable();
-      store.update((s) => { s.notify.asked = true; s.notify.timer = ok; });
-      if (!ok) toast(notReady());
-    },
-    onNo: () => store.update((s) => { s.notify.asked = true; }),
-  });
-}
-
-// Offered once, on an evening when a few thoughts have been caught.
-function eveningMoment() {
-  const s = store.get(), n = s.notify;
-  return notify.supported() && !notify.blocked() && !n.eveningOffered && !n.evening && s.thoughts.length >= 3 && new Date(now()).getHours() >= 17;
-}
-
-function offerEvening() {
-  const yes = (v) => `Yes, at ${clock(v || "21:30")}`;
-  const el = offer({
-    title: "Would an evening nudge help?",
-    text: "Once a day, a quiet question before bed: anything on your mind? Skip it whenever you like.",
-    extra: `<label class="of-time"><span>Time</span><input type="time" value="21:30" data-tp></label>`,
-    yes: yes(), no: "No thanks",
-    onYes: async (card) => {
-      const v = card.querySelector("[data-tp]").value || "21:30";
-      const ok = await notify.enable();
-      store.update((s) => { s.notify.eveningOffered = true; if (ok) s.notify.evening = v; });
-      toast(ok ? `Evening drop set for ${clock(v)}.` : notReady());
-    },
-    onNo: () => store.update((s) => { s.notify.eveningOffered = true; }),
-  });
-  const pick = el.querySelector("[data-tp]");
-  pick.addEventListener("input", () => { el.querySelector("[data-yes]").textContent = yes(pick.value); });
-}
-
-function openNotify() {
-  const n = store.get().notify, off = !notify.supported() || notify.blocked() ? "disabled" : "";
-  const { sheet } = openSheet(`<header class="sh-head"><div><h2 id="sheet-title">Settings</h2></div>${CLOSE}</header>
-    <div class="nt-card"><label class="nt-row"><span>Words of affirmation</span><input type="checkbox" class="sw" role="switch" data-aff ${store.get().affirm !== false ? "checked" : ""}></label>
-      <p class="nt-note">Kind lines from your own thoughts, to carry you through the day.</p>
-      <label class="nt-row nt-sub"><span>Sent each day</span><select class="nt-time" data-often>${Array.from({ length: notify.AFFIRM_MAX }, (_, k) => [k + 1, notify.oftenWords(k + 1)]).map(([k, l]) =>
-        `<option value="${k}" ${(store.get().affirmDaily ?? 1) === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
-    <p class="nt-head">Notifications</p>
-    ${!notify.supported() ? `<p class="nt-why">Add Intentionally to your Home Screen first, then open it from there. Your phone only lets Home Screen apps send notifications.</p>`
-      : notify.blocked() ? `<p class="nt-why">Notifications are turned off for Intentionally in your phone’s Settings. Turn them on there, then come back.</p>` : ""}
-    <div class="nt-card"><label class="nt-row"><span>Timer nudges</span><input type="checkbox" class="sw" role="switch" data-n="timer" ${n.timer ? "checked" : ""} ${off}></label>
-      <p class="nt-note">When a timer you gave a length is up, and a check if one has run for 3 hours.</p></div>
-    <div class="nt-card"><label class="nt-row"><span>Evening drop</span><input type="checkbox" class="sw" role="switch" data-n="evening" ${n.evening ? "checked" : ""} ${off}></label>
-      <label class="nt-row nt-sub"><span>Time</span><input type="time" class="nt-time" data-nt="evening" value="${n.evening ?? "21:30"}"></label></div>
-    <div class="nt-card"><p class="nt-row">Quiet hours</p>
-      <label class="nt-row nt-sub"><span>From</span><input type="time" class="nt-time" data-nt="q0" value="${n.quiet[0]}"></label>
-      <label class="nt-row nt-sub"><span>Until</span><input type="time" class="nt-time" data-nt="q1" value="${n.quiet[1]}"></label></div>
-    <p class="nt-foot">Your words never appear on your lock screen. No counts on the app icon, and we’ll never tell you you’ve missed anything.</p>
-    <p class="nt-foot">More will arrive here as the rest of the app opens up.</p>`);
-  sheet.querySelector("[data-aff]").addEventListener("change", (e) => store.update((s) => { s.affirm = e.target.checked; }));
-  sheet.querySelector("[data-often]").addEventListener("change", async (e) => {
-    const k = +e.target.value;
-    if (k && notify.supported() && Notification.permission === "default") await notify.enable();
-    store.update((s) => { s.affirmDaily = k; });
-  });
-  sheet.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("change", async () => {
-    const on = b.checked, k = b.dataset.n;
-    if (on && !await notify.enable()) { b.checked = false; return toast(notReady()); }
-    store.update((s) => {
-      s.notify.asked = true;
-      if (k === "timer") s.notify.timer = on;
-      else { s.notify.eveningOffered = true; s.notify.evening = on ? sheet.querySelector("[data-nt=evening]").value || "21:30" : null; }
-    });
-  }));
-  sheet.querySelectorAll("[data-nt]").forEach((el) => el.addEventListener("change", () => {
-    if (!el.value) return;
-    store.update((s) => {
-      if (el.dataset.nt === "evening") { if (s.notify.evening) s.notify.evening = el.value; }
-      else s.notify.quiet[el.dataset.nt === "q0" ? 0 : 1] = el.value;
-    });
-  }));
-}
-
-/* ---------- Test mode: example data and time travel, for checking weeks and seasons quickly ---------- */
-
-function renderTestPanel() {
-  document.querySelector(".testpanel")?.remove();
-  const s = store.get(), d = new Date(now());
-  const panel = document.createElement("aside");
-  panel.className = "testpanel";
-  panel.setAttribute("aria-label", "Test mode");
-  panel.innerHTML = `<b>Test mode</b><span>Pretend date: ${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}${s.test.offsetDays ? ` (+${s.test.offsetDays} days)` : ""}</span>
-    <div><button data-t="example">Example sky</button><button data-t="day">+1 day</button><button data-t="week">+1 week</button>
-    <button data-t="today">Today</button><button data-t="look">Look back now</button><button data-t="labels" aria-pressed="${s.test.labels !== false}">Thought words: ${s.test.labels !== false ? "on" : "off"}</button><button data-t="reset">Reset all</button><button data-t="close">Close</button></div>`;
-  document.body.append(panel);
-  panel.addEventListener("click", (e) => {
-    const t = e.target.dataset.t;
-    if (!t) return;
-    if (t === "close") { testMode = false; return panel.remove(); }
-    if (t === "reset") { store.reset(); setOffsetDays(0); return; }
-    if (t === "example") return loadExample();
-    if (t === "look") return openLook();
-    // Thought words are on unless turned off here.
-    if (t === "labels") return store.update((x) => { x.test.labels = x.test.labels === false; });
-    const days = t === "today" ? 0 : s.test.offsetDays + (t === "day" ? 1 : 7);
-    setOffsetDays(days);
-    store.update((x) => { x.test.offsetDays = days; });
-  });
-}
-
-function loadExample() {
-  const t0 = now();
-  store.update((s) => {
-    s.setup = true;
-    if (!s.pillars.length) s.pillars = ["Friends", "Health", "Career", "Creativity"].map((name, i) => ({ id: store.uid(), name, tint: TINTS[i], focus: i === 1 || i === 2 }));
-    // Until focus pillars can be chosen, the example sky picks the second and third.
-    if (!s.pillars.some((p) => p.focus)) s.pillars.forEach((p, i) => { p.focus = i === 1 || i === 2; });
-    const [a, b, c, d] = s.pillars;
-    s.sessions.push(
-      { pillarId: a.id, start: t0 - 2 * DAY, end: t0 - 2 * DAY + 70 * 60000 },
-      { pillarId: b.id, start: t0 - DAY, end: t0 - DAY + 25 * 60000 },
-      { pillarId: c.id, start: t0 - 3 * 3600000, end: t0 - 3 * 3600000 + 40 * 60000 },
-    );
-    if (d) s.sessions.push({ pillarId: d.id, start: t0 - 5 * 3600000, end: t0 - 5 * 3600000 + 15 * 60000 });
-    const ex = [["I'm not good enough at work", "worry", 4], ["Call Nan this weekend", "want", 1], ["I handled today well", "kind", 1],
-      ["I never reply fast enough", "worry", 2], ["Start running again", "want", 1], ["Jess made me laugh", "kind", 1], ["What if I can't keep this up", "worry", 1]];
-    // Two of them are already sorted, so they circle their planets.
-    const sorted = { "I'm not good enough at work": c.id, "Start running again": b.id };
-    for (const [text, kind, count] of ex) s.thoughts.push({ id: store.uid(), text, kind, pillarId: sorted[text] ?? null, ...(sorted[text] && { sortedAt: t0 }), status: "active", count, ...placeStar(s.thoughts), createdAt: t0, helped: [] });
-  });
-  toast("Example sky loaded.");
-}
-
-/* ---------- Small shared bits ---------- */
-
-let toastTimer = 0;
-function toast(msg) {
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.remove("out");
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    el.classList.add("out");
-    toastTimer = setTimeout(() => { el.hidden = true; el.classList.remove("out"); }, 250);
-  }, 2600);
-}
-
-store.onChange(render);
 render();
+notify.sync();
+tester.opened();
+// The card library: only phones that have used it check in (cards shared while offline, and how shared cards are going).
+if (store.get().lib) library.refresh();
+library.finishUnshare();
+// Asks the service about this account; if it's one of the early ones (Friends straight away), redraw now so the pill
+// shows without waiting for the next time home redraws (alex 2026-11-21: "it's not showing").
+const acctReady = account.refresh().then(() => { const u = account.user(); if (u && ((u.early && !(store.get().levels || {}).early) || (u.test && !levels.isOpen("months")))) render(); }).catch(() => {});
 
-// Offline support. When a newer version has been published, it is picked up the next time the app opens,
-// and the screen reloads once to show it.
+// Opening Daydeck (alex 2026-11-21, "like other social apps"): a fresh open shows the logo on a blank sky (the splash
+// in index.html) while home gets ready behind it, then the splash fades and home rises in. It stays at least a moment,
+// so it never just flickers, and at most about 1.5 seconds, so a slow or missing connection never holds it up.
+const splash = document.getElementById("splash");
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const booted = Promise.all([wait(Math.max(0, (reduceMotion() ? 300 : 800) - performance.now())), Promise.race([acctReady, wait(1500)])])
+  .then(() => { splash.classList.add("gone"); document.body.classList.remove("booting"); return wait(450); });
+sync.start(() => render());
+photoBackup.start(() => render());   // photos go up to the account's private store, and come back on a new phone   // backup and sync: changes go up quietly, and come in from the account's other phones
+// Accounts (alex 2026-11-20): new people see the sign-up first; people already using the app see it once.
+// A tester invite link goes first; the sign-up waits for the next open.
+// Each waits until the splash has gone and home has settled, so nothing pops up while Daydeck is opening.
+const askAccount = account.shouldAsk() && !new URLSearchParams(location.search).has("tester");
+if (tester.needsAsk()) booted.then(() => setTimeout(() => askAgain(() => render()), 300));
+else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
+else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
+// A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
+{ const add = new URLSearchParams(location.search).get("add");
+  if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
+  friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
+// A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
+if (new URLSearchParams(location.search).has("tester")) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(openTester, 200)); }
+// Monday's "Weekly recap ready" notification opens the recap itself (if it's still waiting), from a fresh open or
+// when Daydeck was already open. Sunday's opens home as usual, so the person can end their day.
+function openRecap() { const w = wrapped.readyWeek(); if (w) { log("wrap_from_nudge"); wrapped.openWrapped(w, () => render()); } }
+if (new URLSearchParams(location.search).get("open") === "recap") {
+  const u = new URL(location.href); u.searchParams.delete("open"); history.replaceState(null, "", u.pathname + u.search);
+  booted.then(() => setTimeout(openRecap, 300));
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.recap) setTimeout(openRecap, 300); });
+
+// Coming back to Daydeck (alex 2026-11-21): it shows just as it was left, with no redraw and no reload. Home only
+// redraws if what it shows has moved on (a new day, or morning turned to afternoon), and never mid-way through
+// something. An update that arrived while Daydeck was open waits: it goes in the next time Daydeck is opened fresh,
+// or when someone comes back after half an hour or more, behind the splash, so it looks like a fresh open.
+// (Real time, not now(): test mode's time travel shouldn't decide how long someone was away.)
+const AWAY_LONG = 30 * 60e3;
+let awayAt = 0, updateWaiting = false, reloading = false;
+const busy = () => ["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage", "in-settings"].some((x) => document.body.classList.contains(x)) || !!document.querySelector(".sheet-host, .cam, .ph-viewer");
+function freshOpen() {
+  if (reloading) return;
+  reloading = true;
+  splash.classList.add("now"); splash.classList.remove("gone");   // straight onto the splash, no fade
+  location.reload();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") { awayAt = Date.now(); return; }
+  const wasLong = awayAt && Date.now() - awayAt >= AWAY_LONG;
+  if (updateWaiting && wasLong && !busy()) return freshOpen();
+  if (lookNow() !== look && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render();
+});
+
 if ("serviceWorker" in navigator && location.protocol === "https:") {
-  const had = !!navigator.serviceWorker.controller;
+  let had = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js").then((reg) => {
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update(); });
   }).catch(() => {});
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (had && !reloaded && !document.querySelector(".sheet")) { reloaded = true; location.reload(); }
-  });
+  // A fresh open already loads the newest files, so a new version taking over never needs a reload straight away.
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) updateWaiting = true; had = true; });
 }

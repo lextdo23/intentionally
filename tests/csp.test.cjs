@@ -1,4 +1,4 @@
-// Safety net (Content-Security-Policy): every Daydeck screen, the tester page and the old app work with it on, nothing they
+// Safety net (Content-Security-Policy): every Daydeck screen and the tester page work with it on, nothing they
 // need is blocked, and a planted outside or inline script is refused. Made-up data only.
 const { chromium } = require("playwright");
 const { serve, checker } = require("./helpers.cjs");
@@ -28,11 +28,11 @@ const SCREENS = [
   p.on("pageerror", (e) => errors.push(e.message));
 
   const csp = async () => p.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content || "");
-  await p.goto(server.url + "v2/");
+  await p.goto(server.url);
   check(/script-src 'self'(;|$)/.test(await csp()), "the app page has the safety net, allowing only its own scripts");
   await p.evaluate((s) => localStorage.setItem("daydeck", JSON.stringify(s)), STATE);
   for (const [name, call, mod] of SCREENS) {
-    await p.goto(server.url + "v2/"); await p.waitForTimeout(700);
+    await p.goto(server.url); await p.waitForTimeout(700);
     if (call) await p.evaluate(async ([name, m]) => { const mm = await import(m), noop = () => {};
       ({ "morning check-in": () => mm.morning(noop), "evening check-in": () => mm.evening(noop), "card draw": () => mm.openDraw(noop), "Your days": () => mm.openDays(document.body, noop),
         "Settings": () => mm.openSettings(noop), "Going to sleep": () => mm.goToSleep(noop), "choosing pillars": () => mm.pickPillars(noop) })[name]();
@@ -42,7 +42,7 @@ const SCREENS = [
     check(v.length === 0, `${name} works with nothing blocked` + (v.length ? ` (blocked: ${v.join(", ")})` : ""));
   }
   // A sleep sound still plays from the app's own files.
-  await p.goto(server.url + "v2/"); await p.waitForTimeout(500);
+  await p.goto(server.url); await p.waitForTimeout(500);
   const audio = await p.evaluate(async () => { const a = new Audio("sounds/brown.mp3"); try { await a.play(); } catch {} await new Promise((r) => setTimeout(r, 300)); return window.__csp.length; });
   check(audio === 0, "sleep sounds aren't blocked");
   // Planted scripts are refused.
@@ -57,28 +57,28 @@ const SCREENS = [
   check(planted.ran === 0 && planted.blocked >= 2, `planted outside, inline and hidden scripts don't run (${planted.blocked} refused)`);
 
   // Tester page: logs in, shows everything, nothing blocked.
-  await p.goto(server.url + "v2/testers.html");
+  await p.goto(server.url + "testers.html");
   check(/script-src 'self'(;|$)/.test(await csp()), "the tester page has the safety net too");
   await p.fill("#pw", "made-up-password-for-testing"); await p.click("button.main"); await p.waitForTimeout(800);
   const t = await p.evaluate(() => ({ sections: document.querySelectorAll("#out section").length, v: window.__csp }));
   check(t.sections > 10 && t.v.length === 0, `tester page logs in and shows every section with nothing blocked` + (t.v.length ? ` (blocked: ${t.v.join(", ")})` : ""));
 
-  // The old app (Intentionally, at the root) shares its browser storage with Daydeck, so it has the same safety net.
-  await p.goto(server.url);
-  check(/script-src 'self'(;|$)/.test(await csp()), "the old app has the safety net too");
-  await p.waitForTimeout(1200);
-  const welcome = await p.evaluate(() => ({ v: window.__csp, drawn: document.getElementById("app").children.length }));
-  check(welcome.drawn > 0 && welcome.v.length === 0, "the old app's first screen shows with nothing blocked" + (welcome.v.length ? ` (blocked: ${welcome.v.join(", ")})` : ""));
-  await p.goto(server.url + "?test"); await p.waitForTimeout(1000);
-  await p.evaluate(() => [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Example sky")?.click()); await p.waitForTimeout(1500);
-  check(await p.evaluate(() => document.querySelectorAll("svg .hit").length > 0), "the old app's example sky shows its planets");
-  for (const sel of ["svg .hit", "svg .sundisc"]) {
-    await p.evaluate((sel) => { const el = document.querySelector(sel); if (el) el.dispatchEvent(new MouseEvent("click", { bubbles: true })); }, sel);
-    await p.waitForTimeout(700);
-  }
-  const old = await p.evaluate(() => ({ v: window.__csp, standalone: !!document.querySelector('script[src="js/standalone.js"]'), inline: [...document.scripts].filter((x) => !x.src).length }));
-  check(old.v.length === 0, "the old app's sky, a planet and the sun work with nothing blocked" + (old.v.length ? ` (blocked: ${old.v.join(", ")})` : ""));
-  check(old.standalone && old.inline === 0, "the old app has no inline script left");
+  // The privacy page: the safety net, no scripts at all, every section shows, and Lifeline is on it.
+  await p.goto(server.url + "privacy.html"); await p.waitForTimeout(300);
+  check(/script-src 'self'(;|$)/.test(await csp()), "the privacy page has the safety net too");
+  const pv = await p.evaluate(() => ({ scripts: document.scripts.length, sections: document.querySelectorAll("section").length, text: document.body.textContent }));
+  check(pv.scripts === 0 && pv.sections >= 3 && !/Alex/.test(pv.text) && /13 11 14/.test(pv.text), "the privacy page has no scripts, every section shows, names nobody, and Lifeline is there");
+
+  // The Friends guidelines: same safety net, no scripts, names nobody, Lifeline and how to report are on it.
+  await p.goto(server.url + "guidelines.html"); await p.waitForTimeout(300);
+  check(/script-src 'self'(;|$)/.test(await csp()), "the Friends guidelines page has the safety net too");
+  const gl = await p.evaluate(() => ({ scripts: document.scripts.length, sections: document.querySelectorAll("section").length, text: document.body.textContent }));
+  check(gl.scripts === 0 && gl.sections >= 6 && !/Alex/.test(gl.text) && /13 11 14/.test(gl.text) && /000/.test(gl.text) && /They might not be safe/.test(gl.text) && /18 or over/.test(gl.text), "the guidelines page has no scripts, names nobody, and has Lifeline, 000, how to report and 18+");
+
+  // Old /v2/ links and icons are sent on to Daydeck, keeping ?tester, with the safety net on.
+  const went = []; const seen = (f) => f === p.mainFrame() && went.push(f.url()); p.on("framenavigated", seen);
+  await p.goto(server.url + "v2/?tester"); await p.waitForTimeout(800); p.off("framenavigated", seen);
+  check(went.includes(server.url + "?tester"), "an old /v2/ link is sent on to Daydeck, keeping ?tester");
 
   check(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await b.close(); server.close(); done();
