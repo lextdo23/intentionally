@@ -845,6 +845,24 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-tile.photo.big { min-height: 0; aspect-ratio: 4 / 5; }
 /* A day photo in a feed runs wall to wall: edge to edge of the screen, no border or rounded corners (alex 2026-11-25). */
 .mo-post > .mo-tile.photo.big:not(.week) { margin: 0 calc(-1 * var(--edge)); border: 0; border-radius: 0; }
+/* A photo with its card behind it: swipe across to the card (alex 2026-11-25). Wall to wall like any feed photo. */
+.mo-car { position: relative; flex-shrink: 0; width: calc(100% + 2 * var(--edge)); margin: 0 calc(-1 * var(--edge)); aspect-ratio: 4 / 5; overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-select: none; outline: none; }
+.mo-car:focus-visible { box-shadow: inset 0 0 0 2px #efede9; }
+.mo-track { position: absolute; inset: 0; display: flex; transition: transform .45s var(--ease); }
+.mo-track > * { flex: 0 0 100%; }
+.mo-car .mo-tile.photo.big { aspect-ratio: auto; height: 100%; border: 0; border-radius: 0; }
+.mo-back { display: flex; align-items: center; justify-content: center; background: var(--sky2); }
+.mo-back .dcard.big { width: 70%; height: auto; aspect-ratio: 250 / 375; }   /* the real card, a little bigger than in the draw */
+.mo-back .dcard.big .size { margin-top: auto; }
+.mo-dots { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
+.mo-dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(239, 237, 233, .4); box-shadow: 0 0 4px rgba(0, 0, 0, .4); transition: background .2s; }
+.mo-dots span.on { background: #efede9; }
+.mo-tip { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; padding: 10px 14px; border-radius: 14px; background: #efede9; color: #1d1e22; font-size: 15px; font-weight: 500; box-shadow: 0 6px 24px rgba(0, 0, 0, .35); pointer-events: none; }
+@keyframes mo-peek { 0%, 55%, 100% { transform: translateX(0); } 20%, 35% { transform: translateX(-72px); } }
+.mo-car.peek .mo-track { animation: mo-peek 2.8s var(--ease) .6s infinite; }
+@media (prefers-reduced-motion: reduce) { .mo-track, .mo-dots span { transition: none; } .mo-car.peek .mo-track { animation: none; } }
+.mo-cardline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -8px; padding: 0 4px; font-size: 13px; color: var(--dim); }
+.mo-cardline-btn { flex-shrink: 0; min-height: 44px; font-size: 13px; font-weight: 500; color: var(--ink2); }
 .mo-tile.photo.week.big { aspect-ratio: 9 / 16; }   /* a week's card from the recap shows whole in the feed */
 .mo-cell .mo-tile.photo { aspect-ratio: 1; }
 .mo-pick .mo-tile.photo { aspect-ratio: 1; }
@@ -896,7 +914,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-more { width: 36px; height: 36px; background: transparent; }
 .mo-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .mo-see { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; font-size: 15px; font-weight: 500; color: var(--ink); }
-.mo-see[aria-pressed="true"] { color: #efede9; }
+.mo-see[aria-pressed="true"] { color: var(--sun); }   /* "I see you", once said, is marigold (alex 2026-11-25) */
 .mo-dimtext { color: var(--dim); font-weight: 400; }
 .mo-seers { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); min-width: 0; }
 .mo-seers > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
