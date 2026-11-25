@@ -10,7 +10,6 @@ import { makeSample } from "./sample.js";
 import { openSheet, roundBtn } from "./ui.js";
 import * as deck from "./deck.js";
 import * as notify from "./notify.js";
-import { openSettings } from "./settings.js";
 import * as tester from "./tester.js";
 import { log } from "./tester.js";
 import { openTester, askAgain } from "./tester-sheet.js";
@@ -20,7 +19,7 @@ import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
-import { openLevels } from "./path.js";
+import { openLevels, notYet, notYetLabel, ring } from "./path.js";
 import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
 import * as library from "./library.js";
@@ -196,6 +195,13 @@ function crumbsWhenFree(tries = 0) {
   }, tries ? 1500 : 3400);
 }
 
+// A round button for something a level hasn't opened yet: the same spot, an empty dashed ring, and a tap says when.
+function notYetBtn(kind, id) {
+  const b = roundBtn(kind, notYetLabel(id), (e) => notYet(e.currentTarget, id));
+  b.classList.add("not-yet"); b.append(ring(44));
+  return b;
+}
+
 function render(moment) {
   early();
   wrapped.applyPlan();   // a rest day kept for this week arrives on its own
@@ -291,17 +297,17 @@ function render(moment) {
   const shareLink = shareOK ? h("button.add-photo.share-link", { onclick: () => moments.openShare({ day: k, item: today.rest ? "rest" : "card", from: "home" }) },
     friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
   const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
-  // The glass pill (social stage 1): once Friends opens at level 4 (or in test mode), the main action moves into it,
-  // and Settings moves to the You tab. Until then Daydeck looks as it always has.
-  const usePill = testOn || levels.isOpen("friends");
-  if (usePill) { pill.start(() => render()); pill.setAction(main); } else pill.stop();
+  // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
+  // home never rearranges when Friends opens at level 4. Until then Friends is an empty dashed ring in the pill.
+  const friendsOpen = testOn || levels.isOpen("friends");
+  pill.start(() => render()); pill.setFriends(friendsOpen); pill.setAction(main);
   // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
   // Your days with crumbs beside it, then the card in the middle. Lifeline stays in every check-in, draw, Your days and
   // Friends, so it is one step from here.
-  const cardsOpen = !levels.isOpen || levels.isOpen("library");
-  const settingsBtn = usePill ? null : roundBtn("settings", "Settings", () => openSettings(() => render()));
-  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : settingsBtn || h("span");
-  const right = h("div.dd-right", null, cardsOpen ? settingsBtn : null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
+  // The card library (level 5) sits in its corner from day one too: an empty dashed ring until it opens.
+  const cardsOpen = testOn || levels.isOpen("library");
+  const left = cardsOpen ? roundBtn("cards", "Cards", () => library.openCards(() => render())) : notYetBtn("cards", "library");
+  const right = h("div.dd-right", null, roundBtn("photos", "Your photos", () => photos.openPhotos(() => render())));
   home.replaceChildren(
     h("div.dd-head", null, left, mark, right),
     levelRow(lvNew),
@@ -310,7 +316,7 @@ function render(moment) {
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     words,
     mid,
-    h("div.col", { style: { gap: "4px" } }, usePill ? null : main, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
+    h("div.col", { style: { gap: "4px" } }, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
@@ -418,7 +424,7 @@ else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.sea
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
 { const add = new URLSearchParams(location.search).get("add");
   if (add) { friends.noteInvite(add); history.replaceState(null, "", location.pathname); }
-  friends.useInvite().then((r) => { if (r && pill.on()) setTimeout(() => pill.go("friends"), 900); }); }
+  friends.useInvite().then((r) => { if (r && pill.friendsOn()) setTimeout(() => pill.go("friends"), 900); }); }
 // A tester invite link (…/?tester) opens the tester sheet once, then tidies the address.
 if (viaLink) { history.replaceState(null, "", location.pathname); booted.then(() => setTimeout(() => { tester.inviteSeen(); openTester(); }, 200)); }
 // Monday's "Weekly recap ready" notification opens the recap itself (if it's still waiting), from a fresh open or

@@ -7,17 +7,20 @@
 // slide. Swiping sideways on a screen moves whole screens with your finger, side by side with a thin dark line
 // between them; let go past halfway (or flick) to move on, otherwise it springs back.
 //
-// It shows once Friends opens at level 4 (js/levels.js), or in test mode (main.js decides). Until then Daydeck looks
-// as it always has. Friends and your profile on You live in js/friends.js; You also holds Settings.
+// It shows from day one (alex 2026-11-25), so home never rearranges when Friends opens at level 4 (js/levels.js).
+// Until then Friends sits in the pill as an empty dashed ring: tapping it says when it opens (path.js notYet), and
+// swiping never lands on it. Friends and your profile on You live in js/friends.js; You also holds Settings.
 import { h, reduceMotion } from "./util.js";
 import { log } from "./tester.js";
 import * as account from "./account.js";
 import { openSettings } from "./settings.js";
 import * as friends from "./friends.js";
 import * as moments from "./moments.js";
+import { ring, notYet, notYetLabel, closeNotYet } from "./path.js";
 
 const TABS = ["today", "friends", "you"];
 let nav = null, bubble = null, slot = null, tab = "today", screens = {}, onToday = null, todayAct = null, shareAct = null;
+let friendsOpen = true, loaded = false;
 
 const svg = (w, paths, extra = {}) => h("svg", { width: w, height: w, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.9", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", ...extra }, paths.map(([t, a]) => h(t, a)));
 const ICON = {
@@ -29,6 +32,7 @@ const LABEL = { today: "Today", friends: "Friends", you: "You" };
 
 export const on = () => !!nav;
 export const current = () => tab;
+export const friendsOn = () => !!nav && friendsOpen;
 
 // Build the pill once. today: called when Today is shown again (main.js redraws home).
 export function start(today) {
@@ -47,9 +51,24 @@ export function start(today) {
   screens.you = h("section", { id: "you", class: "tab-screen", "aria-label": "You" });
   document.body.append(screens.friends, screens.you);
   friends.connect({ go: (t) => go(t), dot: (on) => nav && nav.querySelector('[data-tab="friends"]').classList.toggle("dot", !!on), you: () => { if (!nav) return; if (tab === "you") drawYou(); mark(); } });
-  // Quietly, so the small dot shows if a request is waiting, and Today can offer "Share with friends".
-  friends.load().then((r) => { if (r && nav && tab === "today" && onToday && friends.canShare()) onToday(); });
   mark();
+}
+
+// Friends open or not yet (main.js says, every time home draws). Not yet: the dashed ring, and the bubble on a tap.
+export function setFriends(open) {
+  if (!nav) return;
+  friendsOpen = !!open;
+  document.body.classList.toggle("friends-open", friendsOpen);
+  const b = nav.querySelector('[data-tab="friends"]');
+  b.classList.toggle("not-yet", !friendsOpen);
+  b.setAttribute("aria-label", friendsOpen ? LABEL.friends : notYetLabel("friends"));
+  const r = b.querySelector(".ny-ring");
+  if (!friendsOpen && !r) b.append(ring(48)); else if (friendsOpen && r) r.remove();
+  if (!friendsOpen && tab === "friends") go("today", true);
+  // Quietly, once Friends is open, so the small dot shows if a request is waiting, and Today can offer "Share with friends".
+  if (friendsOpen && !loaded) { loaded = true; friends.load().then((x) => { if (x && nav && tab === "today" && onToday && friends.canShare()) onToday(); }); }
+  if (tab === "you") drawYou();
+  showAct();
 }
 // Press and slide along the tabs: the highlight follows your finger, and letting go opens the nearest tab
 // (alex 2026-11-20). A plain tap still works as before.
@@ -83,10 +102,10 @@ function follow() {
 
 export function stop() {
   if (!nav) return;
-  friends.closeAll();
+  friends.closeAll(); closeNotYet(true);
   [nav, screens.friends, screens.you].forEach((e) => e && e.remove());
-  nav = null; screens = {}; tab = "today"; shareAct = null; todayAct = null;
-  document.body.classList.remove("has-pill"); delete document.body.dataset.tab;
+  nav = null; screens = {}; tab = "today"; shareAct = null; todayAct = null; friendsOpen = true; loaded = false;
+  document.body.classList.remove("has-pill", "friends-open"); delete document.body.dataset.tab;
 }
 
 // The screen's main action sits in the pill: Today's (main.js hands over "End your day" and the like), and
@@ -103,13 +122,17 @@ function share() {
 function showAct() {
   if (!shareAct) shareAct = h("button.btn-main.pill-share", { type: "button", onclick: share },
     svg(18, [["path", { d: "M12 5v14M5 12h14" }]], { "stroke-width": "2.2" }), h("span", null, "Share a moment"));
-  const b = tab === "today" ? todayAct : shareAct;
+  // Before Friends opens there's nothing to share yet, so You keeps Today's action (off-white, like the social screens),
+  // and the pill never changes shape.
+  const b = tab === "today" || !friendsOpen ? todayAct : shareAct;
   if (slot.firstChild !== b) slot.replaceChildren(...(b ? [b] : []));
   nav.classList.toggle("no-act", !b);
 }
 
 export function go(t, quiet) {
   if (!nav || !TABS.includes(t)) return;
+  if (t === "friends" && !friendsOpen) { if (!quiet) notYet(nav.querySelector('[data-tab="friends"]'), "friends"); return; }
+  closeNotYet();
   const was = tab; tab = t;
   if (t === "friends") drawFriends();
   if (t === "you") drawYou();
@@ -188,10 +211,12 @@ function swipe() {
     e.preventDefault();
     const t = performance.now(); s.pts.push([t, p.clientX]); s.pts = s.pts.filter((q) => t - q[0] < 100);
     // Past the first or last screen it only gives a little, then springs back.
-    const n = s.i - dx / W(), edge = n < 0 || n > TABS.length - 1;
+    // Friends not open yet: no screen to swipe to, so it gives a little and springs back, like the last screen.
+    const lo = friendsOpen ? 0 : s.i, hi = friendsOpen ? TABS.length - 1 : s.i;
+    const n = s.i - dx / W(), edge = n < lo || n > hi;
     s.dx = edge ? dx / 3 : dx;
     const next = TABS[s.i + (dx < 0 ? 1 : -1)];
-    if (next && next !== "today" && !s.drawn[next]) { s.drawn[next] = 1; next === "friends" ? drawFriends() : drawYou(); }
+    if (next && next !== "today" && !edge && !s.drawn[next]) { s.drawn[next] = 1; next === "friends" ? drawFriends() : drawYou(); }
     place(s.i - s.dx / W());
   }, { passive: false, capture: true });
   const end = () => {
@@ -203,6 +228,7 @@ function swipe() {
     if ((d.dx < -innerWidth / 2 || v < -0.4) && d.dx < 0) to = d.i + 1;
     if ((d.dx > innerWidth / 2 || v > 0.4) && d.dx > 0) to = d.i - 1;
     to = Math.max(0, Math.min(TABS.length - 1, to));
+    if (!friendsOpen) to = d.i;
         // Settling takes about half a second (alex 2026-11-23: 0.16 to 0.32s felt too quick); a little quicker after a
     // hard flick so it never feels like it's dragging behind the finger.
     const left = Math.abs((to - (d.i - d.dx / W())) * W()) / W();   // how much of a screen is left to travel
@@ -237,7 +263,7 @@ function drawYou() {
   const u = account.user();
   const gear = h("button.round", { type: "button", "aria-label": "Settings", onclick: () => openSettings(() => { drawYou(); mark(); }) },
     svg(22, [["circle", { cx: "12", cy: "12", r: "3" }], ["path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" }]], { "stroke-width": "1.8" }));
-  const top = u ? friends.youTop(true) : h("div.you-top", null,
+  const top = u ? friends.youTop(friendsOpen) : h("div.you-top", null,
     h("button.you-pic", { type: "button", "aria-label": "Change your picture", onclick: () => account.choosePicture(() => { drawYou(); mark(); }) }, account.picture(88)),
     h("div.you-who", null, h("span.you-name", null, "You"), h("button.btn-text", { type: "button", onclick: () => account.openSignup(() => { drawYou(); mark(); }, { from: "settings" }) }, "Make an account")));
   screens.you.replaceChildren(h("div.tab-head", null, h("h1.big-title", { tabindex: "-1" }, "You"), gear), top);

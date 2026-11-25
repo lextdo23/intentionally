@@ -90,7 +90,7 @@ function yourDays() {
 function privacyData() {
   const pb = photoBackup.settingsGroup("parts"), n = photos.keys().length;
   const rows = [];
-  if (account.signedIn() && document.body.classList.contains("has-pill")) rows.push(linkRow("Who can see you", "Friends", { onclick: friends.openPrivacy }));
+  if (account.signedIn() && document.body.classList.contains("friends-open")) rows.push(linkRow("Who can see you", "Friends", { onclick: friends.openPrivacy }));
   if (pb) rows.push(pb.row);
   rows.push(linkRow("Save a copy", null, { onclick: saveCopy }), linkRow("Restore from a file", null, { onclick: restore }));
   if (n) rows.push(linkRow("Save my photos", `${n}`, { onclick: savePhotos }));

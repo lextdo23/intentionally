@@ -66,6 +66,7 @@ Today (home) is the reference screen: when unsure, match it.
 23b. **Nothing slides under the pill:** when Today is crowded (a level-up moment, boxes waiting and the recap line at once), the card shrinks just enough to fit (`fitCard` in `js/main.js`); an ordinary day keeps the full-size card.
 24. **Optical centring:** centre a card or block between what's above and below it, as it looks to the eye, not by the numbers.
 25. **The bottom pill is one single pill** (Today · Friends · You plus the screen's main action). Nothing else floats at the bottom.
+25b. **Not open yet is an empty dashed ring** (alex 2026-11-25): a button a level hasn't opened (Friends in the pill, Cards in the corner) keeps its real spot from day one, with a dashed ring, a muted icon and no glass. Never a padlock or a level number on it. A tap shows a small off-white bubble beside it saying when it opens and what gets you there.
 26. **Mockups are drawn on alex's phone at real size:** 430 by 932, safe areas 59 top and 34 bottom.
 
 ## 7. Words
