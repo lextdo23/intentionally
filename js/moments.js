@@ -20,6 +20,7 @@ import { log } from "./tester.js";
 import * as account from "./account.js";
 import * as friends from "./friends.js";
 import * as photos from "./photos.js";
+import { inUse } from "./looks.js";
 
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
 const LKEY = "daydeck-friends";
@@ -176,6 +177,7 @@ export function openShare({ day, item, from = "pill" } = {}) {
       if (!chosen || done) return;
       friends.busy(go, async () => {
         const body = { day: k, item: chosen.item, kind: chosen.kind, text: chosen.text, pillar: chosen.pillar, col: chosen.col, status: chosen.status, cap: text.value };
+        if (chosen.kind === "card" || chosen.kind === "own") body.look = (inUse() || { id: "daydeck" }).id;   // which set's feed card friends see
         const sendCard = !!(back && withCard);
         if (sendCard) Object.assign(body, { text: back.text, pillar: back.pillar, col: back.col, status: "Done" });
         if (chosen.kind === "photo") { body.photo = await photoData(k); if (!body.photo) return friends.note("That photo couldn't be shared. Try another day, or your card."); }
@@ -183,7 +185,7 @@ export function openShare({ day, item, from = "pill" } = {}) {
         const r = await account.call("/a/f/share", body);
         if (!r.ok) return friends.note(friends.say(r));
         done = true;
-        log("share", { kind: chosen.kind, ago: days.indexOf(k), mood: body.mood ? 1 : 0, cap: text.value.trim() ? 1 : 0, again: r.again ? 1 : 0, from, ...(back ? { card: sendCard ? 1 : 0 } : {}) });
+        log("share", { kind: chosen.kind, ago: days.indexOf(k), mood: body.mood ? 1 : 0, cap: text.value.trim() ? 1 : 0, again: r.again ? 1 : 0, from, ...(back ? { card: sendCard ? 1 : 0 } : {}), ...(body.look ? { look: body.look } : {}) });
         pg.close(); friends.note("Shared with your friends.");
         feed = null; friends.afterShare();
       });
@@ -244,7 +246,7 @@ export function post(m, { onChange, onPerson } = {}) {
     more.addEventListener("click", () => moreMenu(m, onChange));
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
-      m.kind === "photo" && m.text ? slides(m) : tile(m, { big: true }),
+      m.kind === "photo" && m.text ? slides(m) : m.kind === "card" || m.kind === "own" ? cardPost(m) : tile(m, { big: true }),
       h("div.mo-acts", null, see, seers),
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
       m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null].filter(Boolean));   // replaceChildren would print "null"
@@ -315,6 +317,21 @@ function slides(m) {
     io.observe(wrap);
   }
   return wrap;
+}
+// A card shared on its own (alex 2026-11-25, "Picked, for now" on the "Card with a shared photo" canvas): the card's
+// words stay the same for every set; what's around it is the set's own. Daydeck: a thin marigold edge. Mono: a hairline,
+// "MONO · 25.11" and a sheen. The rest: a piece of the set peeking out from under the card (gingham, the latte's layers,
+// toadstool spots, stitched mint, chrome). First versions: an artist will redraw the peeking pieces later.
+const PEEKS = ["cherry", "matcha", "mushroom", "pals", "chrome"];
+function cardPost(m) {
+  const look = m.look || "daydeck";
+  const dot = m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : h("span");
+  const [, mo, dd] = String(m.day || "").split("-");
+  const top = look === "mono" ? h("span.mo-cp-top", null, dot, h("span.mo-cp-mark", null, `MONO · ${dd || ""}.${mo || ""}`)) : dot;
+  const face = h("div.mo-cp-face", null, top, look === "mono" ? h("span.mo-cp-rule", { "aria-hidden": "true" }) : null,
+    h("span.mo-cp-words", null, m.text), h("span.mo-status", null, m.status || "Done"));
+  const under = PEEKS.includes(look) || look === "daydeck" ? h("div.mo-cp-under", { "aria-hidden": "true" }) : null;
+  return h(`div.mo-cp.look-${look}${PEEKS.includes(look) ? ".cp-peek" : ""}`, null, under, face);
 }
 function moreMenu(m, onChange) {
   openSheet((panel, close) => {

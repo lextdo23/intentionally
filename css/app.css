@@ -863,6 +863,27 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 @media (prefers-reduced-motion: reduce) { .mo-track, .mo-dots span { transition: none; } .mo-car.peek .mo-track { animation: none; } }
 .mo-cardline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -8px; padding: 0 4px; font-size: 13px; color: var(--dim); }
 .mo-cardline-btn { flex-shrink: 0; min-height: 44px; font-size: 13px; font-weight: 500; color: var(--ink2); }
+/* A card shared on its own: each set's feed card (alex 2026-11-25). The words stay the same; only what's around them changes. */
+.mo-cp { position: relative; }
+.mo-cp-face { position: relative; min-height: 220px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 16px; overflow: hidden; background: linear-gradient(180deg, #1e1e21 0%, #151517 100%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .10); }
+.mo-cp-face .mo-pil { position: relative; font-size: 12px; }
+.mo-cp-words { position: relative; flex: 1; display: flex; align-items: center; font-size: 22px; font-weight: 600; line-height: 1.25; color: var(--ink); overflow-wrap: anywhere; }
+.mo-cp-face .mo-status { position: relative; font-size: 12px; color: var(--dim); }
+.mo-cp-under { position: absolute; inset: 0; border-radius: 16px; overflow: hidden; }
+.mo-cp.cp-peek { margin-right: 6px; margin-bottom: 7px; }
+.mo-cp.cp-peek .mo-cp-under { transform: translate(6px, 7px); }
+.look-daydeck { margin-bottom: 2px; }
+.look-daydeck .mo-cp-under { top: 2px; bottom: -2px; background: linear-gradient(180deg, #ffb43d, #ffa51f 55%, #f29a12); }
+.look-mono .mo-cp-face::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(118deg, rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, .085) 40%, rgba(255, 255, 255, .025) 52%, rgba(255, 255, 255, 0) 64%), linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, 0) 30%); }
+.mo-cp-top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mo-cp-mark { font-size: 11px; letter-spacing: .16em; color: var(--faint, #8d8981); }
+.mo-cp-rule { position: relative; height: 1px; background: rgba(239, 237, 233, .18); }
+.look-cherry .mo-cp-under { background-color: #fdf1f5; background-image: repeating-linear-gradient(0deg, rgba(240, 160, 190, .55) 0 6px, transparent 6px 12px), repeating-linear-gradient(90deg, rgba(240, 160, 190, .55) 0 6px, transparent 6px 12px); }
+.look-matcha .mo-cp-under { background: linear-gradient(180deg, #e7efd9 0 22%, #a9cc7a 22% 40%, #5f9a34 40% 70%, #eef0e2 70% 100%); }
+.look-mushroom .mo-cp-under { background-color: #d9453f; background-image: radial-gradient(ellipse 4px 3px, #f6e7d3 98%, transparent), radial-gradient(ellipse 3px 2.5px, #f6e7d3 98%, transparent); background-size: 46px 38px, 46px 38px; background-position: 40px 32px, 17px 14px; }
+.look-pals .mo-cp-under { background: #cfe9df; }
+.look-pals .mo-cp-under::after { content: ""; position: absolute; inset: 3px; border-radius: 13px; border: 1.5px dashed #6fae9c; }
+.look-chrome .mo-cp-under { background: linear-gradient(125deg, #ffffff 0%, #8e9098 14%, #f4f5f8 27%, #4e5058 42%, #d9dbe1 55%, #ffffff 62%, #7a7c84 76%, #eceef2 88%, #5c5e66 100%); }
 .mo-tile.photo.week.big { aspect-ratio: 9 / 16; }   /* a week's card from the recap shows whole in the feed */
 .mo-cell .mo-tile.photo { aspect-ratio: 1; }
 .mo-pick .mo-tile.photo { aspect-ratio: 1; }
