@@ -14,11 +14,11 @@ import { log } from "./tester.js";
 export const RANKS = { open: ["Open edition", 3], special: ["Special edition", 4], rare: ["Rare edition", 5], master: ["Masterpiece", 8] };
 // In rolodex order: quickest to open first. col: the light and glow ("r g b"); edge: the card's thickness, light to dark.
 export const LOOKS = [
-  { id: "cherry", name: "Cherry bow", rank: "open", kind: "art", backs: 1, col: "244 160 190", edge: ["#f9d2df", "#eaa9bf", "#cd839e"] },
+  { id: "cherry", name: "Cherry Coquette", rank: "open", kind: "art", backs: 1, col: "244 160 190", edge: ["#f9d2df", "#eaa9bf", "#cd839e"] },
   { id: "mono", name: "Mono", rank: "open", kind: "mono", backs: 1, col: "230 232 238", edge: ["#3c3c40", "#222225", "#0d0d0e"] },
   { id: "matcha", name: "Matcha", rank: "special", kind: "art", backs: 4, col: "134 204 74", edge: ["#a3da66", "#72b23a", "#4e8a25"] },
-  { id: "mushroom", name: "Mushroom", rank: "rare", kind: "art", backs: 5, col: "240 150 116", edge: ["#f8dbc9", "#e9b597", "#c78c6b"] },
-  { id: "pals", name: "Pals", rank: "rare", kind: "art", backs: 5,   // each Pals back has its own colour
+  { id: "mushroom", name: "Shrooomy", rank: "rare", kind: "art", backs: 5, col: "240 150 116", edge: ["#f8dbc9", "#e9b597", "#c78c6b"] },
+  { id: "pals", name: "Softies Social Club", rank: "rare", kind: "art", backs: 5,   // each Pals back has its own colour
     cols: ["143 207 180", "183 163 220", "139 187 224", "224 199 102", "232 162 180"],
     edges: [["#b6e4cf", "#8fcfb4", "#5fa889"], ["#d4c7ec", "#b7a3dc", "#8a73b8"], ["#b6d5ee", "#8bbbe0", "#5b8fbb"], ["#efdd94", "#e0c766", "#b39a3c"], ["#f3c4d0", "#e8a2b4", "#c3738a"]] },
   { id: "chrome", name: "Chrome", rank: "master", kind: "chrome", art: ["heart", "moon", "sparkle", "spiky", "sun"], col: "205 210 220", edge: ["#e9eaee", "#a9abb2", "#6c6e75"] },
@@ -210,6 +210,70 @@ export function pickLook(mode, onDone) {
   setTimeout(() => collect.focus({ preventScroll: true }), 500);
 }
 
+// ---------------- A look up close (alex 2026-11-25) ----------------
+// Tap a look on the shelf: it fills the screen, big, with every back it has underneath. Swipe the card, or tap a
+// small back, to see each one. The button says what you can do with it: Use (open), Collect (not started); while
+// it's the one you're collecting, or it's on today's card, a quiet line says so instead.
+export function viewLook(L, onChange) {
+  const still = reduceMotion(), m = L.backs;
+  const { root, stage, close, show } = stageRoot("lk-view", L.name);
+  let back = L === inUse() ? todayBack(L) : 0;
+  const halo = h("div.lk-halo");
+  const big = h("div.lk-big", { role: "img" });
+  const minis = h("div.lk-mini.lk-vmini", { role: "group", "aria-label": `${m} different backs` });
+  stage.append(halo, big, minis);
+  const x = h("button.lk-x", { type: "button", "aria-label": "Close", onclick: () => close() }, "×");
+  const which = h("span.lk-count");
+  const under = h("div.lk-under", { style: { top: at(m > 1 ? 690 : 640) } });
+  const n = got(L), w = wantLook();
+  if (isOpen(L)) under.append(h("span.lk-count", null, m > 1 ? `${m} backs` : "One back"));
+  else under.append(h("span.lk-count", null, `${n}/${need(L)} cards`));
+  const btns = h("div.lk-btns");
+  const done = (then) => close(() => { onChange && onChange(); then && then(); });
+  if (isOpen(L) && L !== inUse()) btns.append(h("button.btn-main", { type: "button", onclick: () => { use(L.id, "view"); done(); } }, "Use"));
+  else if (isOpen(L)) btns.append(h("p.lk-note", null, "On today's card"));
+  else if (L === w) btns.append(h("p.lk-note", null, "You're collecting this one"));
+  else btns.append(h("button.btn-main", { type: "button", onclick: () => { setWant(L.id, "view"); done(); } }, "Collect"));
+  root.append(x, h("div.lk-top", { style: { top: at(84) } }, h("span.lk-eye", null, rankName(L)), h("h1.lk-rank", null, L.name)), under, btns);
+
+  function paint() {
+    const j = ((back % m) + m) % m;
+    big.replaceChildren(backEl(L, j));
+    big.setAttribute("aria-label", m > 1 ? `${L.name}, back ${j + 1} of ${m}` : L.name);
+    big.style.setProperty("--ring", `rgb(${colOf(L, j)})`);
+    halo.style.setProperty("--c", colOf(L, j));
+    minis.querySelectorAll(".lk-mc").forEach((b, k) => {
+      const on = k === j, side = k - (m - 1) / 2;
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
+      b.style.transform = `translateY(${Math.abs(side) * 4 - (on ? 10 : 0)}px) rotate(${side * 7}deg)${on ? " scale(1.14)" : ""}`;
+    });
+  }
+  if (m > 1) minis.append(...Array.from({ length: m }, (_, k) => {
+    const b = h("button.lk-mc", { type: "button", "aria-label": `Show back ${k + 1} of ${m}`, onclick: () => { back = k; paint(); } }, backEl(L, k));
+    b.style.setProperty("--ring", `rgb(${colOf(L, k)})`);
+    return b;
+  }));
+  else minis.hidden = true;
+  // swipe the big card for the next or last back
+  let p0 = null;
+  big.addEventListener("pointerdown", (e) => { p0 = { x: e.clientX, y: e.clientY }; });
+  const up = (e) => {
+    if (!p0 || m < 2) { p0 = null; return; }
+    const d = e.clientX - p0.x, dy = e.clientY - p0.y; p0 = null;
+    if (Math.abs(d) > 40 && Math.abs(d) > Math.abs(dy)) { back += d < 0 ? 1 : -1; paint(); }
+  };
+  big.addEventListener("pointerup", up); big.addEventListener("pointercancel", () => { p0 = null; });
+  root.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") close();
+    if (m > 1 && e.key === "ArrowRight") { back++; paint(); }
+    if (m > 1 && e.key === "ArrowLeft") { back--; paint(); }
+  });
+  if (still) root.classList.add("still");
+  paint(); show();
+  log("look_view", L.id);
+  setTimeout(() => x.focus({ preventScroll: true }), 500);
+}
+
 // ---------------- A look opens ----------------
 // The collected cards arrive as one stack, spread into a fan from the middle out, the light blooms in the look's
 // colour with one ring spreading out, a shine sweeps each card, then the words. Tap the cards to see it again.
@@ -257,18 +321,21 @@ export function afterOpen(L, onDone) {
 // of spots), Still to collect (Collect). Every button here is one size, whatever it says (DESIGN.md rule 13b).
 export function shelf(redraw) {
   const using = inUse(), w = wantLook();
-  const row = (thumb, title, sub, btn) => h("div.lk-srow", null, thumb, h("div.lk-stext", null, h("span.t", null, title), h("span.s", null, sub)), btn);
+  // Tap a look's picture or name to see it up close, with all its backs (alex 2026-11-25).
+  const row = (thumb, title, sub, btn, L) => h("div.lk-srow", null,
+    h(L ? "button.lk-sopen" : "div.lk-sopen", L ? { type: "button", "aria-label": `See ${title} up close`, onclick: () => viewLook(L, redraw) } : null,
+      thumb, h("div.lk-stext", null, h("span.t", null, title), h("span.s", null, sub))), btn);
   const thumbOf = (L) => h("div.lk-thumb", null, L ? backEl(L, L === using ? todayBack(L) : 0) : h("div.lk-back.lk-daydeck"));
   const useBtn = (id, on) => h("button.lk-btn" + (on ? ".in" : ""), { type: "button", "aria-pressed": String(on), onclick: () => { if (on) return; use(id, "shelf"); redraw(); } }, on ? "In use" : "Use");
   const mine = LOOKS.filter(isOpen);
   const out = [h("h2.ph-h", null, "Yours"),
     h("div.lk-list", null, row(thumbOf(null), "Daydeck", "The everyday card", useBtn(null, !using)),
-      ...mine.map((L) => row(thumbOf(L), L.name, `${rankName(L)}${L.backs > 1 ? ` · ${L.backs} backs` : ""}`, useBtn(L.id, using === L))))];
-  if (w) out.push(h("h2.ph-h", null, "Collecting"), h("div.lk-coll", null,
+      ...mine.map((L) => row(thumbOf(L), L.name, `${rankName(L)}${L.backs > 1 ? ` · ${L.backs} backs` : ""}`, useBtn(L.id, using === L), L)))];
+  if (w) out.push(h("h2.ph-h", null, "Collecting"), h("button.lk-coll", { type: "button", "aria-label": `See ${w.name} up close`, onclick: () => viewLook(w, redraw) },
     h("div.lk-chead", null, h("span.t", null, w.name, h("span.r", null, ` · ${rankName(w)}`)), h("span.n", null, `${got(w)}/${need(w)} cards`)), handEl(w, { size: 38 })));
   const rest = LOOKS.filter((L) => !isOpen(L) && L !== w);
   if (rest.length) out.push(h("h2.ph-h", null, "Still to collect"), h("div.lk-list", null, rest.map((L) =>
-    row(thumbOf(L), L.name, `${rankName(L)} · ${got(L)}/${need(L)} cards`, h("button.lk-btn", { type: "button", onclick: () => { setWant(L.id, "shelf"); redraw(); } }, "Collect")))));
+    row(thumbOf(L), L.name, `${rankName(L)} · ${got(L)}/${need(L)} cards`, h("button.lk-btn", { type: "button", onclick: () => { setWant(L.id, "shelf"); redraw(); } }, "Collect"), L))));
   if (!rest.length && !w) out.push(h("p.lk-done", null, "You've collected every look. New ones are on the way."));
   return out;
 }
