@@ -1,5 +1,5 @@
 {
- "made": "2026-11-25T05:01:49.664Z",
+ "made": "2026-11-25T05:31:37.760Z",
  "source": "live cards",
  "cards": [
   {
@@ -8763,6 +8763,645 @@
     "home": 11,
     "lifts": -24
    }
+  },
+  {
+   "key": "#564",
+   "n": 564,
+   "pillar": "Rest",
+   "size": "Small",
+   "for": [
+    "Can't switch off",
+    "Better sleep"
+   ],
+   "card": "Before bed, write tomorrow's to-do list for 5 minutes",
+   "why": "Writing it down lets your mind let go. Students who wrote tomorrow's to-do list before bed fell asleep faster.",
+   "src": "Scullin and colleagues, 2018",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (10 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 15,
+    "kept": 33,
+    "home": 33,
+    "lifts": -10
+   }
+  },
+  {
+   "key": "#565",
+   "n": 565,
+   "pillar": "Self",
+   "size": "Bigger",
+   "for": [
+    "Working out who I am",
+    "More confident"
+   ],
+   "card": "Go somewhere alone you'd usually save for company, like a gallery",
+   "why": "Going alone beats what you'd expect. People enjoyed a gallery on their own as much as those who went with a friend.",
+   "src": "Ratner and Hamilton, 2015",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (28 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 0,
+    "kept": 20,
+    "home": 11,
+    "lifts": -28
+   }
+  },
+  {
+   "key": "#566",
+   "n": 566,
+   "pillar": "Community",
+   "size": "Small",
+   "for": [
+    "Just moved"
+   ],
+   "card": "Explore one spot in your new area on your own, like a park or market",
+   "why": "Exploring alone can be a real pleasure. People enjoyed a gallery on their own as much as those who went with a friend.",
+   "src": "Ratner and Hamilton, 2015",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (17 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 20,
+    "home": 15,
+    "lifts": -17
+   }
+  },
+  {
+   "key": "#567",
+   "n": 567,
+   "pillar": "Self",
+   "size": "Small",
+   "for": [
+    "Kinder to myself"
+   ],
+   "card": "Write five small things that lift you, then do one of them today",
+   "why": "Planning small good things lifts a low mood. Students who planned enjoyable things for two weeks felt much less low.",
+   "src": "Gawrysiak, Nicholas and Hopko, 2009",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (14 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 11,
+    "kept": 20,
+    "home": 20,
+    "lifts": -14
+   }
+  },
+  {
+   "key": "#568",
+   "n": 568,
+   "pillar": "Meaning",
+   "size": "Small",
+   "for": [
+    "Days on repeat"
+   ],
+   "card": "Plan one small nice thing for today, and slow down to enjoy it",
+   "why": "Enjoying it on purpose makes it count. Students who planned something enjoyable and savoured it had more good feelings.",
+   "src": "Kumar and colleagues, 2024",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (22 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 15,
+    "kept": 33,
+    "home": 15,
+    "lifts": -22
+   }
+  },
+  {
+   "key": "#569",
+   "n": 569,
+   "pillar": "Work and study",
+   "size": "Small",
+   "for": [
+    "Putting things off",
+    "Move forward"
+   ],
+   "card": "Write your wish, the best result, what's in the way, and “If ___, I'll ___”",
+   "why": "Planning for the obstacle helps you start. Students who did this planned about twice as many hours for their goal.",
+   "src": "Oettingen and colleagues, 2015",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (23 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 9,
+    "kept": 15,
+    "home": 15,
+    "lifts": -23
+   }
+  },
+  {
+   "key": "#570",
+   "n": 570,
+   "pillar": "Rest",
+   "size": "Tiny",
+   "for": [
+    "Can't switch off"
+   ],
+   "card": "Sit for 10 minutes with nothing in your hands, and let your mind wander",
+   "why": "Your thoughts are better company than you'd guess. Students enjoyed time alone with their thoughts more than they expected.",
+   "src": "Hatano and colleagues, 2022",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (25 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 0,
+    "kept": 15,
+    "home": 11,
+    "lifts": -25
+   }
+  },
+  {
+   "key": "#571",
+   "n": 571,
+   "pillar": "Play and create",
+   "size": "Tiny",
+   "for": [
+    "Scroll less"
+   ],
+   "card": "Wait without your phone today, in a queue or on the bus",
+   "why": "Time to just think is nicer than it sounds. Students left alone with their thoughts enjoyed it more than they predicted.",
+   "src": "Hatano and colleagues, 2022",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (8 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 15,
+    "kept": 33,
+    "home": 29,
+    "lifts": -8
+   }
+  },
+  {
+   "key": "#572",
+   "n": 572,
+   "pillar": "Rest",
+   "size": "Tiny",
+   "for": [
+    "I'm exhausted"
+   ],
+   "card": "Go for a 10-minute walk or wheel, just because",
+   "why": "A short walk lifts your mood. Young adults felt better after one, even when they expected it to be boring.",
+   "src": "Miller and Krizan, 2016",
+   "issues": [],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": true
+   },
+   "room": {
+    "hand": 29,
+    "kept": 63,
+    "home": 42,
+    "lifts": 4
+   }
+  },
+  {
+   "key": "#573",
+   "n": 573,
+   "pillar": "Move",
+   "size": "Tiny",
+   "for": [
+    "Sit too much",
+    "Start moving"
+   ],
+   "card": "Take the stairs fast, three times today",
+   "why": "Short bursts add up. Inactive young adults who climbed three flights fast, three times a day, got fitter in six weeks.",
+   "src": "Jenkins and colleagues, 2019",
+   "issues": [],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": true
+   },
+   "room": {
+    "hand": 33,
+    "kept": 50,
+    "home": 42,
+    "lifts": 4
+   }
+  },
+  {
+   "key": "#574",
+   "n": 574,
+   "pillar": "Friends",
+   "size": "Tiny",
+   "for": [
+    "Meet new people (incl. starting from scratch)"
+   ],
+   "card": "Give someone a real compliment today, like on their jacket or their idea",
+   "why": "Compliments land better than you fear. People giving them expected awkwardness, but the other person felt good.",
+   "src": "Boothby and Bohns, 2021",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (42 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 15,
+    "home": 15,
+    "lifts": -42
+   }
+  },
+  {
+   "key": "#575",
+   "n": 575,
+   "pillar": "Community",
+   "size": "Tiny",
+   "for": [
+    "Part of something"
+   ],
+   "card": "Leave a kind note for a flatmate, coworker or classmate",
+   "why": "Small kindness goes further than you think. People who got one felt far better than the giver expected.",
+   "src": "Kumar and Epley, 2022",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (10 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 15,
+    "kept": 42,
+    "home": 20,
+    "lifts": -10
+   }
+  },
+  {
+   "key": "#576",
+   "n": 576,
+   "pillar": "Family",
+   "size": "Small",
+   "for": [
+    "Be closer",
+    "Just moved out"
+   ],
+   "card": "Write a short card to someone in your family, and give it or post it",
+   "why": "A short note means more than you'd guess. People who got a card from a student were far happier than the writer expected.",
+   "src": "Kumar and Epley, 2022",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (23 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 26,
+    "home": 15,
+    "lifts": -23
+   }
+  },
+  {
+   "key": "#577",
+   "n": 577,
+   "pillar": "Friends",
+   "size": "Small",
+   "for": [
+    "Deeper friendships"
+   ],
+   "card": "Ask a friend one deeper question, like “What's been on your mind lately?”",
+   "why": "Deep talk goes better than you'd expect. People who talked about deeper things found it less awkward and more connecting.",
+   "src": "Kardas, Kumar and Epley, 2022",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (22 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 11,
+    "home": 11,
+    "lifts": -22
+   }
+  },
+  {
+   "key": "#578",
+   "n": 578,
+   "pillar": "Play and create",
+   "size": "Small",
+   "for": [
+    "Make something"
+   ],
+   "card": "Colour in for 10 minutes: a free printable, or patterns you draw yourself",
+   "why": "Colouring can settle your mind. Women who coloured 10 minutes a day for a week felt less anxious and low.",
+   "src": "Flett and colleagues, 2017",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (27 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 11,
+    "home": 9,
+    "lifts": -27
+   }
+  },
+  {
+   "key": "#579",
+   "n": 579,
+   "pillar": "Move",
+   "size": "Small",
+   "for": [
+    "Start moving"
+   ],
+   "card": "Do 15 minutes of strength moves, like squats, push-ups and lunges",
+   "why": "Strength work helps your head too. A review of 33 trials found it clearly eased low mood.",
+   "src": "Gordon and colleagues, 2018",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (20 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 37,
+    "home": 15,
+    "lifts": -20
+   }
+  },
+  {
+   "key": "#580",
+   "n": 580,
+   "pillar": "Self",
+   "size": "Tiny",
+   "for": [
+    "Kinder to myself"
+   ],
+   "card": "Close your eyes and relive a happy memory for 10 minutes, like a trip",
+   "why": "Good memories can lift today. Students who pictured happy memories twice a day for a week felt happy more often.",
+   "src": "Bryant, Smart and King, 2005",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (24 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 11,
+    "kept": 15,
+    "home": 15,
+    "lifts": -24
+   }
+  },
+  {
+   "key": "#581",
+   "n": 581,
+   "pillar": "Self",
+   "size": "Tiny",
+   "for": [
+    "Understand my feelings",
+    "Kinder to myself"
+   ],
+   "card": "Before something stressful, rest a hand on your heart for 20 seconds",
+   "why": "Your own touch can calm your body. Young adults who did this before a stressful task had lower stress hormones.",
+   "src": "Dreisörner and colleagues, 2021",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (26 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 0,
+    "kept": 20,
+    "home": 9,
+    "lifts": -26
+   }
+  },
+  {
+   "key": "#582",
+   "n": 582,
+   "pillar": "Rest",
+   "size": "Tiny",
+   "for": [
+    "Can't switch off"
+   ],
+   "card": "Do a chore slowly, like washing up, noticing the warmth and smells",
+   "why": "Slowing down turns a chore into a break. Students who washed dishes this way felt 27% less nervous afterwards.",
+   "src": "Hanley and colleagues, 2015",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (18 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 15,
+    "home": 11,
+    "lifts": -18
+   }
+  },
+  {
+   "key": "#583",
+   "n": 583,
+   "pillar": "Play and create",
+   "size": "Tiny",
+   "for": [
+    "Laughs and play"
+   ],
+   "card": "Put on a song that lifts you, and really try to feel it",
+   "why": "Trying helps the music work. People who tried to feel happier while listening to upbeat music did; just listening didn't.",
+   "src": "Ferguson and Sheldon, 2013",
+   "issues": [],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": true
+   },
+   "room": {
+    "hand": 29,
+    "kept": 37,
+    "home": 33,
+    "lifts": 4
+   }
+  },
+  {
+   "key": "#584",
+   "n": 584,
+   "pillar": "Work and study",
+   "size": "Small",
+   "for": [
+    "Move forward"
+   ],
+   "card": "After reading for work or study, close it and write what you remember",
+   "why": "Testing yourself beats re-reading. A week after reading a passage, students who tested themselves remembered 61%, not 40%.",
+   "src": "Roediger and Karpicke, 2006",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (18 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 9,
+    "home": 4,
+    "lifts": -18
+   }
   }
  ],
  "counts": [
@@ -8777,7 +9416,7 @@
   {
    "pillar": "Friends",
    "mindset": "Deeper friendships",
-   "own": 8,
+   "own": 9,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -8793,7 +9432,7 @@
   {
    "pillar": "Friends",
    "mindset": "Meet new people (incl. starting from scratch)",
-   "own": 9,
+   "own": 10,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -8801,7 +9440,7 @@
   {
    "pillar": "Family",
    "mindset": "Be closer",
-   "own": 8,
+   "own": 9,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -8817,7 +9456,7 @@
   {
    "pillar": "Family",
    "mindset": "Just moved out",
-   "own": 9,
+   "own": 10,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -8849,7 +9488,7 @@
   {
    "pillar": "Community",
    "mindset": "Part of something",
-   "own": 6,
+   "own": 7,
    "everyone": 2,
    "missingSizes": [],
    "ok": false
@@ -8857,10 +9496,10 @@
   {
    "pillar": "Community",
    "mindset": "Just moved",
-   "own": 7,
+   "own": 8,
    "everyone": 2,
    "missingSizes": [],
-   "ok": false
+   "ok": true
   },
   {
    "pillar": "Community",
@@ -8873,7 +9512,7 @@
   {
    "pillar": "Move",
    "mindset": "Sit too much",
-   "own": 10,
+   "own": 11,
    "everyone": 2,
    "missingSizes": [],
    "ok": true
@@ -8881,7 +9520,7 @@
   {
    "pillar": "Move",
    "mindset": "Start moving",
-   "own": 10,
+   "own": 12,
    "everyone": 2,
    "missingSizes": [],
    "ok": true
@@ -8913,7 +9552,7 @@
   {
    "pillar": "Rest",
    "mindset": "I'm exhausted",
-   "own": 5,
+   "own": 6,
    "everyone": 3,
    "missingSizes": [],
    "ok": false
@@ -8921,18 +9560,18 @@
   {
    "pillar": "Rest",
    "mindset": "Can't switch off",
-   "own": 5,
+   "own": 8,
    "everyone": 3,
    "missingSizes": [],
-   "ok": false
+   "ok": true
   },
   {
    "pillar": "Rest",
    "mindset": "Better sleep",
-   "own": 7,
+   "own": 8,
    "everyone": 3,
    "missingSizes": [],
-   "ok": false
+   "ok": true
   },
   {
    "pillar": "Rest",
@@ -8953,7 +9592,7 @@
   {
    "pillar": "Work and study",
    "mindset": "Putting things off",
-   "own": 8,
+   "own": 9,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -8961,7 +9600,7 @@
   {
    "pillar": "Work and study",
    "mindset": "Move forward",
-   "own": 8,
+   "own": 10,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9001,7 +9640,7 @@
   {
    "pillar": "Play and create",
    "mindset": "Make something",
-   "own": 8,
+   "own": 9,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9009,7 +9648,7 @@
   {
    "pillar": "Play and create",
    "mindset": "Laughs and play",
-   "own": 8,
+   "own": 9,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9017,7 +9656,7 @@
   {
    "pillar": "Play and create",
    "mindset": "Scroll less",
-   "own": 8,
+   "own": 9,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9033,7 +9672,7 @@
   {
    "pillar": "Meaning",
    "mindset": "Days on repeat",
-   "own": 8,
+   "own": 9,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9057,7 +9696,7 @@
   {
    "pillar": "Self",
    "mindset": "Kinder to myself",
-   "own": 8,
+   "own": 11,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -9065,7 +9704,7 @@
   {
    "pillar": "Self",
    "mindset": "More confident",
-   "own": 8,
+   "own": 9,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -9089,7 +9728,7 @@
   {
    "pillar": "Self",
    "mindset": "Working out who I am",
-   "own": 8,
+   "own": 9,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -9097,7 +9736,7 @@
   {
    "pillar": "Self",
    "mindset": "Understand my feelings",
-   "own": 8,
+   "own": 9,
    "everyone": 3,
    "missingSizes": [
     "Bigger"
