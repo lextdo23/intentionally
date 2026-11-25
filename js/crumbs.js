@@ -17,6 +17,7 @@ import * as store from "./store.js";
 import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
 import { now } from "./clock.js";
+import { bubble } from "./path.js";
 
 export const FACE_WORD = ["Hard", "Low", "Okay", "Good", "Great"];
 export const NOT_SURE = -1;
@@ -55,20 +56,42 @@ export function face(f, size = 56) {
 }
 
 // The home button: a solid face with a small plus, both cut out so the button's own fill shows through (alex chose A5).
+// Closed for tonight (alex 2026-11-25, "Crumbs button after check-out" canvas): once the day is ended, the same spot
+// and size, but no glass, a fine solid ring, no plus and a faded face, so there's nothing to add. Not the dashed ring,
+// which means a level hasn't opened something yet. Tapping it says why and when it opens again (a new day, 4am), and
+// offers today's crumbs when there are some, since they can still be changed.
 let maskN = 0;
-export function button(onSaved) {
+export function button(onSaved, { closed = false } = {}) {
   const id = "crumb-cut-" + ++maskN, id2 = id + "p";
-  const svg = h("svg", { width: "24", height: "24", viewBox: "0 0 24 24", "aria-hidden": "true" },
-    h("defs", null,
-      h("mask", { id, maskUnits: "userSpaceOnUse", x: "0", y: "0", width: "24", height: "24" },
-        h("rect", { width: "24", height: "24", fill: "#fff" }), h("circle", { cx: "19", cy: "5", r: "5.4", fill: "#000" }),
-        h("circle", { cx: "8.3", cy: "11.6", r: "1.25", fill: "#000" }), h("circle", { cx: "13.7", cy: "11.6", r: "1.25", fill: "#000" }),
-        h("path", { d: "M8.1 15.4q2.9 2.5 5.8 0", stroke: "#000", "stroke-width": "1.7", fill: "none", "stroke-linecap": "round" })),
-      h("mask", { id: id2, maskUnits: "userSpaceOnUse", x: "0", y: "0", width: "24", height: "24" },
-        h("rect", { width: "24", height: "24", fill: "#fff" }), h("path", { d: "M19 3.1v3.8M17.1 5h3.8", stroke: "#000", "stroke-width": "1.6", "stroke-linecap": "round" }))),
+  const cut = h("mask", { id, maskUnits: "userSpaceOnUse", x: "0", y: "0", width: "24", height: "24" },
+    h("rect", { width: "24", height: "24", fill: "#fff" }), closed ? null : h("circle", { cx: "19", cy: "5", r: "5.4", fill: "#000" }),
+    h("circle", { cx: "8.3", cy: "11.6", r: "1.25", fill: "#000" }), h("circle", { cx: "13.7", cy: "11.6", r: "1.25", fill: "#000" }),
+    h("path", { d: "M8.1 15.4q2.9 2.5 5.8 0", stroke: "#000", "stroke-width": "1.7", fill: "none", "stroke-linecap": "round" }));
+  const plus = closed ? null : [h("mask", { id: id2, maskUnits: "userSpaceOnUse", x: "0", y: "0", width: "24", height: "24" },
+    h("rect", { width: "24", height: "24", fill: "#fff" }), h("path", { d: "M19 3.1v3.8M17.1 5h3.8", stroke: "#000", "stroke-width": "1.6", "stroke-linecap": "round" }))];
+  const svg = h("svg", { width: "24", height: "24", viewBox: closed ? "-1 1 24 24" : "0 0 24 24", "aria-hidden": "true" },
+    h("defs", null, cut, plus),
     h("circle", { cx: "11", cy: "13", r: "9", fill: "currentColor", mask: `url(#${id})` }),
-    h("circle", { cx: "19", cy: "5", r: "4.1", fill: "currentColor", mask: `url(#${id2})` }));
+    closed ? null : h("circle", { cx: "19", cy: "5", r: "4.1", fill: "currentColor", mask: `url(#${id2})` }));
+  if (closed) {
+    const b = h("button.round.crumb-btn.closed", { "aria-disabled": "true", "aria-label": "Crumbs, closed for tonight", onclick: () => {
+      log("crumb_closed_tap");
+      const some = ofDay().length > 0;
+      bubble(b, "Crumbs are closed for tonight.", " They open again in the morning.", some ? "See today's crumbs ›" : null, () => openToday(onSaved));
+    } }, svg);
+    return b;
+  }
   return h("button.round.crumb-btn", { "aria-label": "Drop a crumb", onclick: () => { log("crumb_open"); open({ onSaved }); } }, svg);
+}
+
+// Today's crumbs in a sheet, from the closed button: tap one to change or remove it.
+export function openToday(onSaved) {
+  openSheet((panel) => {
+    const list = h("div.crumb-list");
+    const draw = () => { list.replaceChildren(...ofDay().map((c) => row(c, () => open({ t: c.t, onSaved: () => { draw(); if (onSaved) onSaved(); } })))); };
+    draw();
+    panel.append(h("h2", null, "Your crumbs today"), list);
+  }, { label: "Your crumbs today" });
 }
 
 // ---------------- The sheet: drop a crumb, or change one ----------------
