@@ -80,7 +80,7 @@ const SHAPE = {
   acts_seen: (v) => ["worth", "moment", "both", "lift", "empty"].includes(v), acts_open: (v) => v == null, lifts_view: (v) => v === "any" || v === "harder",
   lifts_seen: (v) => isObj(v) && isInt(v.any, 0, 3) && isInt(v.harder, 0, 3),
   doctor_open: (v) => v == null,
-  crumbs_offer: (v) => v == null, crumb_open: (v) => v == null, crumb_delete: (v) => v == null,
+  crumbs_offer: (v) => v == null, crumb_open: (v) => v == null, crumb_closed_tap: (v) => v == null, crumb_delete: (v) => v == null,
   crumbs_on: (v) => ["offer", "settings", "off", "later"].includes(v), crumbs_seen: (v) => isInt(v, 1, 20),
   crumb_add: (v) => isObj(v) && isInt(v.n, 0, 1), crumb_edit: (v) => isObj(v) && isInt(v.n, 0, 1),
   doctor_made: (v) => isObj(v) && isInt(v.d, 1, 84) && typeof v.p === "string" && /^m?s?a?h?$/.test(v.p) && isInt(v.t, 0, 1) && isInt(v.n, 0, 1),
@@ -269,7 +269,7 @@ function drawAll(D) {
   const added = by("crumb_add").filter((e) => e.val);
   html += sec("Do people use Crumbs?", "Who was offered Crumbs, who turned it on, and who drops crumbs and sees them when ending the day. Never which face or what they wrote.",
     by("crumbs_offer").length || by("crumbs_on").length ? `${bars([["Offered it", who("crumbs_offer")], ["Turned it on from the offer", onFrom("offer")], ["Turned it on in Settings", onFrom("settings")], ["Said not now", onFrom("later")], ["Turned it off", onFrom("off")]], T)}
-     <div style="height:16px"></div>${bars([["Dropped a crumb", who("crumb_add")], ["Saw their crumbs when ending the day", who("crumbs_seen")], ["Changed or removed one", new Set(by("crumb_edit").concat(by("crumb_delete")).map((e) => e.code)).size]], T)}
+     <div style="height:16px"></div>${bars([["Dropped a crumb", who("crumb_add")], ["Saw their crumbs when ending the day", who("crumbs_seen")], ["Changed or removed one", new Set(by("crumb_edit").concat(by("crumb_delete")).map((e) => e.code)).size], ["Tapped it after ending the day (closed)", who("crumb_closed_tap")]], T)}
      <p class="note">Crumbs dropped: ${added.length}. With words: ${added.filter((e) => e.val.n).length}.</p>` : `<p class="sub">Nobody has been offered Crumbs yet.</p>`,
     "lots of 'not now' is fine: it's for people who find ending the day hard. If people turn it on but rarely drop crumbs, the button may be hard to find.");
 

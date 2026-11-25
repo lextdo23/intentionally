@@ -106,6 +106,19 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   s = await data();
   check(s.days[day(0)].mood === 6 && (s.days[day(0)].crumbs || []).length === 2, "the evening mood is saved as usual, and the crumbs stay");
 
+  // ---- Closed for tonight, once the day is ended (alex 2026-11-25) ----
+  const cbtn = await p.$("#home .peek-row .crumb-btn");
+  check(!!cbtn && (await cbtn.getAttribute("aria-disabled")) === "true" && (await cbtn.evaluate((x) => x.classList.contains("closed"))), "after ending the day, the button stays in its spot but is closed for tonight");
+  check(!(await p.$("#home .crumb-btn.closed svg mask circle[cx='19']")), "and the closed face has no plus");
+  await cbtn.evaluate((x) => x.click()); await p.waitForTimeout(400);   // aria-disabled: Playwright won't tap it, a phone will
+  check(!(await p.$(".sheet-host")), "tapping it doesn't open the crumb sheet");
+  const nyb = await p.$(".ny-box");
+  check(!!nyb && (await nyb.innerText()).includes("Crumbs are closed for tonight.") && (await nyb.innerText()).includes("open again in the morning"), "it says why, and when it opens again");
+  await shot("6b-closed");
+  await p.click(".ny-box .ny-more"); await p.waitForTimeout(600);
+  check(!!(await p.$(".sheet-host")) && (await p.$$(".sheet-host .crumb-row")).length === 2, "See today's crumbs opens today's crumbs, which can still be changed");
+  await p.evaluate(() => document.querySelectorAll(".sheet-host").forEach((e) => e.remove()));
+
   // ---- Settings ----
   await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(400); await p.click('#you button[aria-label="Settings"]'); await p.waitForTimeout(700);
   const sw = await p.$('#settings button.switch[aria-label="Crumbs"]');
@@ -120,6 +133,10 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- Never counted ----
   const stats = await p.evaluate(async () => { const st = await import("./js/stats.js"); return JSON.stringify(st.moodSeries(JSON.parse(localStorage.getItem("daydeck")).days, "week")); });
   check(!stats.includes("long meeting"), "the mood charts don't read crumbs");
+
+  // ---- A day not yet ended: open as usual ----
+  await load({ ...seed(), crumbs: { on: true }, notes: { sleepHint: 1, feelOwn: 1, crumbsOffer: 1 } });
+  check(!(await p.$("#home .crumb-btn.closed")) && !!(await p.$("#home .crumb-btn")), "on a day not yet ended, the button is open as usual");
 
   check(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await b.close(); server.close(); done();

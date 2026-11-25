@@ -180,9 +180,10 @@ let look = "";
 function lookNow() { const hr = new Date(now()).getHours(); return [dayKey(), greeting(), hr < 15, hr >= 17 || hr < 4].join("|"); }
 
 // The week's peek (Your days opens at level 2) and, once Crumbs is on, its face button beside it (alex 2026-11-23).
-// Crumbs isn't tied to a level: before the peek shows, the button sits in the same spot on its own.
+// Crumbs isn't tied to a level: before the peek shows, the button sits in the same spot on its own. Once the day is
+// ended it shows closed for tonight (alex 2026-11-25), and opens again with the new day.
 function weekRow() {
-  const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render()) : null;
+  const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render(), { closed: ((store.get().days[dayKey()] || {}).mood != null) }) : null;
   if (!cb) return pk || "";
   return h("div.peek-row", null, pk, cb);
 }

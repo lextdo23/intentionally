@@ -84,13 +84,18 @@ let nyLayer = null, nyT = 0;
 export function notYet(el, id) {
   const u = levels.UNLOCKS.find((x) => x.id === id);
   if (!u || !el) return;
-  closeNotYet(true);
   log("locked_tap", id);
+  bubble(el, `${u.name} opens at level ${u.level}.`, " Start and end your days to get there.", "See your levels ›", () => openLevels(() => {}));
+}
+// The small off-white bubble beside a button that can't be used right now (a level not reached, or Crumbs after the
+// day is ended). bold + rest are its words; more/onMore an optional link under them. Fades after 3.5s or on any tap.
+export function bubble(el, bold, rest, more, onMore) {
+  if (!el) return;
+  closeNotYet(true);
   const r = el.getBoundingClientRect(), below = r.top + r.height / 2 < innerHeight / 2;
   const W = 236, edge = 20, left = Math.max(edge, Math.min(innerWidth - edge - W, r.left + r.width / 2 - 70));
-  const more = h("button.ny-more", { type: "button", onclick: (e) => { e.stopPropagation(); closeNotYet(); openLevels(() => {}); } }, "See your levels ›");
-  const box = h(`div.ny-box.${below ? "below" : "above"}`, { role: "status" },
-    h("b", null, `${u.name} opens at level ${u.level}.`), " Start and end your days to get there.", more);
+  const link = more ? h("button.ny-more", { type: "button", onclick: (e) => { e.stopPropagation(); closeNotYet(); onMore(); } }, more) : null;
+  const box = h(`div.ny-box.${below ? "below" : "above"}${link ? "" : ".plain"}`, { role: "status" }, h("b", null, bold), rest, link);
   box.style.left = `${left}px`;
   box.style.setProperty("--ax", `${Math.round(r.left + r.width / 2 - left - 7)}px`);
   if (below) box.style.top = `${r.bottom + 12}px`; else box.style.bottom = `${innerHeight - r.top + 12}px`;
