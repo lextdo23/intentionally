@@ -311,6 +311,34 @@ function camBtn(k, onCam) {
 }
 // The card's thickness, in card points (about 5 on the phone), and one layer every quarter point so the edge looks solid.
 const EDGE = 3, EDGE_LAYERS = EDGE * 4 + 1;
+// The liquid edge (alex 2026-11-25, "Liquid edge" on the Daydeck card skins page): while the card waits, two drops of
+// light flow round its edge in the colour of the light behind it, one lap every 14 seconds. Each drop has a slightly
+// fuller, rounder head in the direction it's moving and a tail that thins and fades behind it. Drawn as one SVG per
+// side of the card: many faint layers of the same rounded outline, each dashed so its piece ends at the same head
+// point, short and wide near the head, long and thin towards the tail. Where more layers overlap the light is
+// stronger, so the drop fades and thins smoothly with no steps. Each layer's dash starts at its tail (a dash pattern
+// that started with an empty dash would leave a stray round dot), and all slide together (flowLiquid).
+const DROP = Array.from({ length: 48 }, (_, i) => { const t = i / 47; return [+(0.3 + 27 * Math.pow(t, 1.35)).toFixed(2), +(0.6 + 6.4 * Math.pow(1 - t, 1.6)).toFixed(2)]; });
+const HEAD = 30;   // where every layer's piece ends, on an edge 100 long (two drops: the dash pattern repeats every 50)
+function liquidEl(w = 150, hh = 210) {
+  const r = 16, d = `M${w / 2} 0 H${w - r} A${r} ${r} 0 0 1 ${w} ${r} V${hh - r} A${r} ${r} 0 0 1 ${w - r} ${hh} H${r} A${r} ${r} 0 0 1 0 ${hh - r} V${r} A${r} ${r} 0 0 1 ${r} 0 Z`;
+  const layer = (l, sw, cls = "") => `<path${cls} d="${d}" pathLength="100" stroke-dasharray="${l} ${50 - l}" stroke-dashoffset="${l - HEAD}" data-o="${l - HEAD}" stroke-width="${sw}"/>`;
+  const paths = DROP.map(([l, sw]) => layer(l, sw)).join("");
+  // The head catches the light: a small paler core, just behind the front of each drop.
+  const core = Array.from({ length: 16 }, (_, i) => layer(+(0.3 + 0.22 * i).toFixed(2), +(2.6 - 0.11 * i).toFixed(2), ' class="hd"')).join("");
+  const svg = `<svg viewBox="0 0 ${w} ${hh}" aria-hidden="true">${paths}${core}</svg>`;
+  const side = (cls) => { const e = h("div.liq" + cls); e.innerHTML = svg; return e; };
+  return [side(".bk"), side(".fr")];
+}
+// The drops flow round: every layer slides the same distance (one lap every 14 seconds), carrying on from where it
+// was when home redraws (at = milliseconds into the lap). Reduce motion: they stay still.
+function flowLiquid(els, at) {
+  if (reduceMotion()) return;
+  els.forEach((e) => e.querySelectorAll("path").forEach((p) => {
+    const o = +p.dataset.o, a = p.animate([{ strokeDashoffset: o }, { strokeDashoffset: o - 100 }], { duration: 14000, iterations: Infinity });
+    a.currentTime = at;
+  }));
+}
 const feltEl = (felt) => h("span.felt-word", null, felt[0] + (felt.length > 1 ? ` +${felt.length - 1}` : ""));
 export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid, photo, develop = false, turn = false, onCam } = {}) {
   timers.forEach(clearTimeout); timers = [];
@@ -323,6 +351,8 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   // card waits to be done, then fades as the card goes quiet. Where it comes from follows the day (sunlight).
   const glow = h("div.glow", { "aria-hidden": "true" });
   inn.prepend(glow);
+  let liq = liquidEl();
+  inn.append(...liq);
   sunlight(el);
   if (state === "up" || state === "done") el.classList.add("up");
   const back = el.querySelector(".back"), c = id ? deck.card(id) : null;
@@ -360,6 +390,7 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   const t = performance.now() - T0;
   el.style.animationDelay = `${-(t % 11000)}ms`;
   glow.style.animationDelay = el.style.animationDelay;   // the light moves exactly with the sway
+  flowLiquid(liq, t % 14000);   // the drops carry on where they were
   // It turns with your finger (alex 2026-11-15); no spinning on its own (alex 2026-11-18). A face-down card shows its back both ways.
   if (state === "down") el.classList.add("blank");
   // Until today's card is done, the light behind it shows (alex 2026-11-24).
@@ -368,7 +399,11 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   // A long task or why line: the card grows taller to fit, so nothing is cut off.
   if (state === "up" || state === "done") requestAnimationFrame(() => {
     const f = el.querySelector(".front");
-    if (f.clientHeight && f.scrollHeight > f.clientHeight + 1) el.style.height = `${Math.ceil(210 * f.scrollHeight / f.clientHeight)}px`;
+    if (f.clientHeight && f.scrollHeight > f.clientHeight + 1) {
+      const tall = Math.ceil(210 * f.scrollHeight / f.clientHeight);
+      el.style.height = `${tall}px`;
+      if (el.classList.contains("todo")) { const nl = liquidEl(150, tall); flowLiquid(nl, (performance.now() - T0) % 14000); liq.forEach((e, i) => e.replaceWith(nl[i])); liq = nl; }   // the drops follow the taller edge
+    }
   });
   return h("div.lifter", null, h("div.floater", { style: { animationDelay: `${-(t % 7000)}ms` } }, el));
 }

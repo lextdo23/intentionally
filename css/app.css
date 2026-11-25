@@ -1015,6 +1015,19 @@ body.has-pill:not([data-tab="today"]) .sheet .btn-main:not(.soft) { background: 
 .home-card.todo .back, .home-card.todo.blank .front { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
 @keyframes corona { 0%, 100% { transform: translateZ(0) translate(0, 0) scale(1); } 50% { transform: translateZ(0) translate(calc(var(--cx) * -3px), calc(var(--cy) * -2px)) scale(.97); } }
 @media (prefers-reduced-motion: reduce) { .home-card .glow { animation: none; transition: none; } }
+/* The liquid edge (alex 2026-11-25, DESIGN.md rule 37b): two drops of light flow round the card's edge while it waits,
+   one lap every 14 seconds (flowLiquid in js/draw.js), in the colour of the light behind it (--cc, set by sunlight() in js/draw.js; a card look
+   brings its own). A fuller head leads, a thin tail fades behind. One SVG for each side of the card, just outside its
+   face, so it turns with the card. Fades with the light once the card is done. Reduce motion: the drops stay still. */
+.home-card .liq { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.4s ease; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.home-card .liq.bk { transform: translateZ(1.8px); }
+.home-card .liq.fr { transform: rotateY(180deg) translateZ(1.8px); }
+.home-card.todo .liq { opacity: 1; }
+.home-card .liq svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.home-card .liq path { fill: none; stroke-linecap: round; stroke: rgb(var(--cc) / .065); }
+/* The head catches the light: a small paler core, just behind the front of each drop. */
+.home-card .liq path.hd { stroke: color-mix(in srgb, rgb(var(--cc)) 40%, #fff); stroke-opacity: .075; }
+@media (prefers-reduced-motion: reduce) { .home-card .liq { transition: none; } }   /* the drops themselves stay still (flowLiquid in js/draw.js) */
 /* Card draw (alex 2026-11-24): card faces have a fine white edge, not gold; the picked card keeps its marigold outline. */
 .dcard .front { box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 .dcard.sel .front { box-shadow: 0 0 0 2px var(--sun), 0 14px 30px rgba(0, 0, 0, .5); }
