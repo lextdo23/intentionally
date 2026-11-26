@@ -22,7 +22,7 @@ export function prefs() { const s = store.get(); s.notify = Object.assign(defaul
 // Also used by friend notifications (js/friends.js), which hand it to the service with the account.
 export async function pushSub() {
   if (!supported()) return null;
-  if (await Notification.requestPermission() !== "granted") return null;
+  if (Notification.permission !== "granted" && await Notification.requestPermission() !== "granted") return null;
   try {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
@@ -37,6 +37,14 @@ export async function pushSub() {
 export async function currentSub() {
   if (!supported() || Notification.permission !== "granted") return null;
   try { return await (await navigator.serviceWorker.ready).pushManager.getSubscription(); } catch { return null; }
+}
+// Asks the phone if it hasn't been asked yet. "asked" (allowed or not), "blocked" (said no before: Apple won't ask
+// again, so the person has to switch them on in the phone's Settings), "granted" already, or "no" (can't here).
+export async function askIfNeeded() {
+  if (!supported() || needsInstall()) return "no";
+  if (Notification.permission === "granted") return "granted";
+  if (Notification.permission === "denied") return "blocked";
+  return (await enable()) ? "asked" : "no";
 }
 export async function enable() {
   if (!await pushSub()) return false;
@@ -121,14 +129,23 @@ async function keepCardPlan(s) {
 }
 
 let sent = "";
+let resub = null;   // one sign-up at a time, however many times sync runs while it happens
 export async function sync() {
   if (!supported() || Notification.permission !== "granted") return;
   const n = prefs(), times = [];
   if (n.am.on) times.push(nextAt(n.am.t, (d) => !!d.sleep));
   if (n.pm.on) times.push(nextAt(n.pm.t, (d) => d.mood != null));
   try {
-    const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
-    if (!sub) return;
+    let sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+    // Allowed, but signed out of pings: notifications were switched off in the phone's Settings and back on
+    // (alex 2026-11-27). Sign this phone up again (no question: the phone already allows them), and let friend
+    // notifications follow.
+    if (!sub) {
+      const first = !resub;
+      sub = await (resub = resub || pushSub().finally(() => { resub = null; }));
+      if (!sub) return;
+      if (first) { sent = ""; allowed.forEach((f) => f()); }
+    }
     // The service takes four one-off times at most: the weekly recap first, then card reminders, then wind-down.
     const once = recapTimes().map((x) => x.t).concat(cardTimes(), windTimes()).slice(0, 4);
     await keepCardPlan(store.get());

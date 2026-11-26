@@ -104,3 +104,16 @@ export function open(onDone) {
       h("p.note", null, "Change any of them in Settings.")));
   }, { label: "Notifications", onClose: (why) => { if (!answered) log("notif_card_on", "later"); onDone && onDone(why); } });
 }
+
+// Switching a nudge back on in Settings while the phone has Daydeck's notifications off (alex 2026-11-27): Apple only
+// lets an app ask once, so after "Don't Allow" this says where to switch them on. The switch stays on, so nudges
+// start by themselves once the phone allows them (notify.sync re-signs the phone up when they come back).
+export function offInPhone() {
+  openSheet((panel, close) => {
+    panel.append(h("div.col.nc", { style: { gap: "16px" } }, bell(),
+      h("h2", null, "Notifications are off for Daydeck"),
+      h("p", { style: { color: "var(--ink2)" } }, "Your iPhone won't let Daydeck ask again. To get your nudges, turn them on in your phone's Settings app:"),
+      h("p.nc-steps", null, "Settings › Apps › Daydeck › Notifications › Allow Notifications"),
+      h("button.btn-main", { onclick: () => close("done") }, "Okay")));
+  }, { label: "Notifications are off for Daydeck" });
+}
