@@ -142,14 +142,13 @@ const MOMENT = {
   sleep: ["That's last night.", "Next, your card."],
   card: ["Your card for today.", "Do your card any time today."],
   rest: ["Rest day.", "No card today."],
-  did: ["Card's done.", null],
   end: ["That's today.", null],
   photo: ["Photo added.", "It's in Your photos."],
 };
 // Once, quietly: take every extra part out of photos saved before they were cleaned (alex 2026-11-20).
 setTimeout(() => photos.tidy(), 4000);
 
-let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo on its back turns into view
+let momentT = 0, turnPh = false, slotStill = false;   // slotStill: what's under the card already faded in as it landed   // turnPh: the card was just done, so a photo on its back turns into view
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
   setTimeout(() => {
@@ -255,9 +254,12 @@ function render(moment) {
           log("card_felt", { id: deck.tid(c.id), f: list.map((w) => deck.FELT.indexOf(w)), home: 1 }); // positions only, never words
         } else log("card_felt_later", deck.tid(c.id));
         store.save();
-        play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
+        // No "Card's done." here (alex 2026-11-26): the tick and the card gliding home say it, and the words pushed the card.
       },
-      onEnd: () => { lvBack = true; turnPh = true; render(); } });
+      // As the card lands (alex 2026-11-26): "Add a photo" and "Not done yet" fade in under it, in the space kept for
+      // them, so the redraw that follows changes nothing you can see.
+      onLand: () => { if (slotEl) slotEl.replaceChildren(...doneSlot()); },
+      onEnd: () => { turnPh = true; slotStill = true; render(); } });   // the level row is already back (it came back as the card landed)
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
@@ -274,7 +276,7 @@ function render(moment) {
   if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt, ...ph } : did ? { state: "done", flip: moment === "did", felt, ...ph } : { state: "up", onDid: markDid, onCam: cam, photo: k });
   else if (!today.rest && !ended && deck.dealable().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
 
-  // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
+  // A new level takes the moment: the greeting turns gold, "Level 4."
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
   if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
   if (lvNew) { log("level", lvNew); const u = levels.opensAt(lvNew); if (u && !(store.get().levels || {}).keepAll) log("unlock", u.id); }
@@ -287,7 +289,7 @@ function render(moment) {
   const mark = h("div.dd-mark", null, wordmark(36));
   mark.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
   // No greeting or narration on Today (alex 2026-11-23): the card and the button say what's next. The words only show
-  // for a moment ("Card's done.", "Level 4.") and, in the first week, as a short hint.
+  // for a moment ("Level 4.") and, in the first week, as a short hint.
   const hint = dayN <= 7 && !!line;
   const words = h(`div.col.greet-words${hint ? ".hint" : ""}`, { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
   // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept
@@ -300,7 +302,23 @@ function render(moment) {
   const shareOK = (testOn || levels.isOpen("friends")) && friends.canShare() && (did || today.rest) && moments.canShareDay(k) && !addPhoto;
   const shareLink = shareOK ? h("button.add-photo.share-link", { onclick: () => moments.openShare({ day: k, item: today.rest ? "rest" : "card", from: "home" }) },
     friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
-  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
+  // While the card is still to do, the space under it is kept at the size it will be once done ("Add a photo" or
+  // "Share with friends" over "Not done yet"), so the card is sized once and never shrinks as it lands (alex 2026-11-26).
+  const shareCould = (testOn || levels.isOpen("friends")) && friends.canShare() && moments.canShareDay(k);
+  const two = c && !ended && (addPhoto || shareLink || (!did && (photos.offerOK(k) || shareCould)));
+  const undoBtn = () => h("button.btn-text.undo", { onclick: undo }, "Not done yet");
+  // What the slot holds once the card is done; used as it lands, then again by the redraw.
+  function doneSlot() {
+    const pOK = photos.offerOK(k);
+    if (pOK) photos.offered(k);
+    const first = pOK ? h("button.add-photo.fade-in", { onclick: cam }, photos.camIcon(), "Add a photo")
+      : shareCould ? h("button.add-photo.share-link.fade-in", { onclick: () => moments.openShare({ day: k, item: "card", from: "home" }) },
+        friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
+    return [first, undoBtn()].filter(Boolean);
+  }
+  const still = slotStill; slotStill = false;
+  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null) : shareLink ? h("div.undo-slot", null, shareLink) : null;
+  const mid = h("div.home-mid", null, card, slotEl);
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
   // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
   const friendsOpen = testOn || levels.isOpen("friends");

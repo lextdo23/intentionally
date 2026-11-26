@@ -503,11 +503,12 @@ function spinner(el, rest, from = null) {
 // onPick(list) gets the picks ([] for "Not now"), onEnd() runs once it's all still.
 const SOFT = "cubic-bezier(.4,0,.2,1)";
 const HEAVY = ["Hard", "Drained me", "Not for me"];
-export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
+export function askFelt(lifter, id, { mid, hide, onPick, onLand, onEnd }) {
   const c = deck.card(id), el = lifter.querySelector(".home-card"), front = el.querySelector(".front");
   const rm = reduceMotion(), D = (ms) => (rm ? 0 : ms);
   document.body.classList.add("in-ask", "ask-open");   // ask-open hides the bottom pill until Done or Not now
   lifter.style.pointerEvents = "none"; lifter.style.transformOrigin = "50% 0";
+  lifter.style.willChange = "transform";   // moved as layers: smoother on the phone
   const did = el.querySelector(".did");
   if (did) { const t = tickEl(c); t.classList.add("fresh-tick"); did.replaceWith(t); }
 
@@ -527,9 +528,30 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   // above closed and the question slid up onto the card.
   const moment = mid.parentElement && mid.parentElement.querySelector(".greet-words.moment");
   if (moment) moment.classList.remove("moment");
+  // The boxes line and the recap line fold away while the question is open, so the card and question get the room
+  // (alex 2026-11-26), and come back as the card grows and settles. The level row and Your days stay.
+  const roomy = [...mid.parentElement.querySelectorAll(":scope > .box-row, :scope > .wr-lines")];
+  const sizes = roomy.map((e) => ({ e }));
+  // They only fade: the card itself moves up into their space, so nothing on the page is re-laid out while it moves.
+  const fold = (away, ms, delay = 0) => {
+    const opts = { duration: D(ms) || 1, delay: D(delay), easing: SOFT, fill: away ? "forwards" : "backwards" };
+    sizes.forEach(({ e }) => {
+      e.style.pointerEvents = away ? "none" : "";
+      e.getAnimations().forEach((a) => a.cancel());
+      e.animate(away ? [{ opacity: 1 }, { opacity: 0, offset: 0.5 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 0, offset: 0.72 }, { opacity: 1 }], { ...opts, easing: away ? "ease" : "linear" });   // back in once the card has grown down past them
+    });
+  };
+  fold(true, 700);
   const m = mid.getBoundingClientRect();
+  // What stays above (the level row, Your days): the card sits 24 under the lowest of it, wherever the lines were.
+  const folded = new Set(roomy);
+  const above = Math.max(0, ...[...mid.parentElement.children].filter((x) => x !== mid && !folded.has(x) && x.offsetHeight && x.compareDocumentPosition(mid) & Node.DOCUMENT_POSITION_FOLLOWING).map((x) => x.getBoundingClientRect().bottom));
   let lt = 0; for (let e = lifter; e && e !== mid; e = e.offsetParent) lt += e.offsetTop;
-  const top = lt - 20 + lifter.offsetHeight * 0.5 + 20;
+  // 24 under the card as it's drawn at half size (its edge and tilt make it a little taller than its box), so the
+  // question never touches it (alex 2026-11-26).
+  const ch = Math.max(lifter.offsetHeight, el.getBoundingClientRect().height);
+  const lift = Math.min(-20, Math.round(above + 24 - (m.top + lt) + (ch - lifter.offsetHeight) * 0.25));   // how far the card rises
+  const top = lt + lift + ch * 0.5 + 24;
   ask.style.top = `${top}px`;
   mid.append(ask);
   const wrap = pp.el.querySelector(".more-wrap");
@@ -540,7 +562,7 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const lifeline = document.body.classList.contains("has-pill") && mid.parentElement.querySelector(".lifeline");
   const floor = () => (lifeline ? lifeline.getBoundingClientRect().top - 8 : hide.getBoundingClientRect().bottom);
   const shift = (open) => Math.max(0, Math.round(m.top + top + h0 + (open ? extra : 0) - floor()));
-  const up = (s) => `translateY(${-20 - s}px) scale(.5)`;
+  const up = (s) => `translateY(${lift - s}px) scale(.5)`;
   let at = up(shift(false));
   const move = (to, ms) => {
     const from = getComputedStyle(lifter).transform;
@@ -563,7 +585,6 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
   const finish = (list) => {
     if (gone) return; gone = true;
     hide.classList.remove("soft-gone");
-    document.body.classList.remove("ask-open");   // the bottom pill comes back as soon as they've answered
     ask.classList.remove("on"); ask.classList.add("leaving");
     setTimeout(() => ask.remove(), D(400));
     onPick(list);
@@ -574,18 +595,24 @@ export function askFelt(lifter, id, { mid, hide, onPick, onEnd }) {
     if (!rm) { const sh = h("div.card-sheen", { "aria-hidden": "true" }); front.append(sh); setTimeout(() => sh.classList.add("go"), D(WAIT + MOVE * 0.55)); setTimeout(() => sh.remove(), D(WAIT + ALL + 200)); }
     // Home again, all in one move.
     const frames = !any ? [{ transform: at }, { transform: "none" }]
-      : [{ transform: at, offset: 0 }, { transform: good ? "translateY(-10px) scale(1.01)" : "translateY(6px) scale(.99)", offset: 0.6 }, { transform: "none", offset: 1 }];
+      : [{ transform: at, offset: 0, easing: "cubic-bezier(.3,.1,.3,1)" }, { transform: good ? "translateY(-2px) scale(1.01)" : "translateY(4px) scale(.993)", offset: 0.62, easing: "cubic-bezier(.45,0,.25,1)" }, { transform: "none", offset: 1 }];
     frames[0].transform = getComputedStyle(lifter).transform;
     lifter.getAnimations().forEach((a) => a.cancel());
-    lifter.animate(frames, { duration: D(MOVE) || 1, delay: D(WAIT), easing: SOFT, fill: "both" });
+    lifter.animate(frames, { duration: D(MOVE) || 1, delay: D(WAIT), easing: any ? "linear" : SOFT, fill: "both" });   // with picks, each part has its own easing
+    fold(false, MOVE, WAIT);   // the two lines open back up as the card grows, fading in once there's room
     // The gold word takes the size's place while the card is still moving.
     if (any) {
       const size = el.querySelector(".card-foot .size"), w = feltEl(list);
+      const cam = el.querySelector(".card-cam");
+      if (cam) { cam.style.transition = "opacity .4s ease"; cam.style.opacity = "0"; setTimeout(() => cam.remove(), D(400)); }
       if (size) { size.classList.add("out"); w.classList.add("enter"); setTimeout(() => { size.replaceWith(w); requestAnimationFrame(() => requestAnimationFrame(() => w.classList.remove("enter"))); }, D(600)); }
     }
     // Then it greys out to its done look, as the glow dies. The gold word stays gold.
+    // As it lands, everything else comes back with it (alex 2026-11-26): the level row, the bottom pill, and what goes
+    // under the card. Before, the pill came back while the card was still moving and the rest only after the redraw.
+    setTimeout(() => { document.body.classList.remove("ask-open", "in-ask"); onLand && onLand(); }, D(WAIT + MOVE * 0.85));
     setTimeout(() => el.classList.add("did"), D(WAIT + MOVE + HOLD));
-    setTimeout(() => { document.body.classList.remove("in-ask"); onEnd(); }, D(WAIT + ALL + 100));
+    setTimeout(() => { document.body.classList.remove("in-ask"); lifter.style.willChange = ""; onEnd(); }, D(WAIT + ALL + 100));
   };
   ok.addEventListener("click", () => { if (upPill && upPill.getAttribute("aria-pressed") === "true") library.up(id); finish([...felt]); });
   later.addEventListener("click", () => finish([]));
