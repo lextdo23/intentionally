@@ -2,6 +2,7 @@
 import { MOODS, MOOD_COL } from "./util.js";
 import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./words.js";
 import { BANK } from "./cards-data.js";
+import { usageHtml } from "./testers-usage.js";
 const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
 // Same order as FELT in js/deck.js: testers send positions in this list, never words.
 const FELT = ["Enjoyed it", "Proud of myself", "Glad it's done", "Calmer", "Closer to someone", "More energy", "Felt like me", "Hard", "Drained me", "Not for me"];
@@ -46,7 +47,9 @@ function bars(rows, max, unit = "") {
 const GROUP = { "Which cards are \"Not for me\"?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
-const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
+// The Usage tab (alex 2026-11-26, js/testers-usage.js): its sections all sit on that tab.
+["How long has each tester been on Daydeck?", "Do people come back after day one?", "How often do people open it?", "How long do people stay?", "What do people do each visit?", "When do people do their card?", "Recent visits", "Does it run smoothly?"].forEach((t) => (GROUP[t] = "usage"));
+const TABS = [["overview", "Overview"], ["usage", "Usage"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
 const item = (q, meta, chip, look) => `<div class="item"><span>${esc(q)}</span><span class="meta">${esc(meta)}</span>${chip ? `<span class="chip ${look ? "look" : "ok"}">${esc(chip)}</span>` : ""}</div>`;
 const notYet = (title, what) => sec(title, `Starts filling in once ${what} is built in the app.`, "", "", true);
@@ -60,6 +63,7 @@ const isArr = (x) => Array.isArray(x), arrOrNone = (x) => x == null || Array.isA
 // What each level opens (same ids as UNLOCKS in levels.js).
 const UNLOCK_NAMES = [["days", "Your days"], ["friends", "Friends"], ["recap", "Weekly recap"], ["library", "Cards"], ["own", "Own card"], ["months", "Month and Year"]];
 const SHAPE = {
+  open: (v) => v == null || v === "nudge", close: (v) => isInt(v, 0, 14400),   // close: seconds the app was open (alex 2026-11-26)
   level: (v) => isInt(v, 1, 9999), levels_open: (v) => isInt(v, 1, 9999), unlock: (v) => UNLOCK_NAMES.some(([id]) => id === v), locked_tap: (v) => UNLOCK_NAMES.some(([id]) => id === v), unlock_act: (v) => isObj(v) && UNLOCK_NAMES.some(([id]) => id === v.id) && (v.open === 0 || v.open === 1), level_start: (v) => isInt(v, 1, 9999), level_reset: (v) => isInt(v, 1, 9999), box_seen: (v) => isInt(v, 1, 9999),
   box_open: (v) => isObj(v) && isInt(v.n, 1, 9999) && isArr(v.c) && v.c.every(isNum) && isArr(v.x) && v.x.every((x) => ["draw", "rest", "pick", "send"].includes(x)) && (v.s == null || /^[a-z]{1,20}$/.test(v.s)) && isInt(v.p, 0, 99),
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
@@ -74,7 +78,7 @@ const SHAPE = {
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
-  card_keep: (v) => isObj(v) && isNum(v.id),
+  card_keep: (v) => isObj(v) && isNum(v.id), card_did: isNum,
   card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
   card_felt: (v) => isObj(v) && isNum(v.id) && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)),
   card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
@@ -607,6 +611,9 @@ function drawAll(D) {
   // 12. Safety
   html += sec("Safety", "Counts only, never tied to anything a tester wrote. For the safety reviewer.",
     bars([["\"Need to talk to someone?\" tapped", by("lifeline_tap").length], ["Testers who tapped it", who("lifeline_tap")]]), "");
+
+  // Usage tab (alex 2026-11-26)
+  html += usageHtml(testers, ev, today, { bars, sec, esc, median, keyOf, dayDiff, pct });
 
   // Testers table + actions
   const fmt = (t) => new Date(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
