@@ -92,7 +92,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Comments/.test(await text(pg + " .cm-title")), "the bubble opens Comments, sliding up as a sheet over the feed");
   check(!!(await p.$("#friends .mo-post")) && !(await p.$(".fr-page")), "the feed stays behind it");
   check(await p.$eval(".cm-sheet", (e) => e.getBoundingClientRect().top) >= 932 * 0.39, "the sheet is short (about 60%), so the top of the screen stays in view");
-  check(/Took the long way/.test(await text(pg)) && /Love the long way/.test(await text(pg)) && !(await text(pg)).includes("Ana's words"), "it starts with Sam's caption, then the comments Mia may see");
+  check(!/Took the long way/.test(await text(pg)) && /Love the long way/.test(await text(pg)) && !(await text(pg)).includes("Ana's words"), "just the comments Mia may see, no caption");
   check(/Only your friends will see it/.test(await text(pg)), "it says only friends will see it");
   check(await p.getAttribute(pg + " .cm-post", "aria-disabled") === "true", "Post waits for some words");
   check(await p.$eval(pg + " .cm-post", (e) => getComputedStyle(e).backgroundColor) !== "rgb(255, 165, 31)", "no orange on the Comments page");

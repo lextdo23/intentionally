@@ -28,7 +28,7 @@ export function preview(m, open) {
 }
 
 // The sheet with every comment and the box to write one (alex 2026-11-26: it slides up over the feed, like the
-// sheets everywhere else on iPhone, in Daydeck's own look). It's kept short, about 60% of the screen with only a light
+// sheets everywhere else on iPhone, in Daydeck's own look). Just the comments: the caption stays on the post. It's kept short, about 60% of the screen with only a light
 // shade, so a bit of the moment's picture always shows above it. Pull it down, or tap above it, to close. m is the moment
 // (needs id, mine and by). changed(moment) is told the moment's new latest comment whenever the list changes, so the
 // post under it can redraw.
@@ -84,9 +84,6 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
   // Only the list redraws; the box stays put, so what's typed and the keyboard are never lost.
   const draw = () => {
     const parts = [];
-    // What they shared, as the first line: their caption (when there is one).
-    if (m.cap && m.by) parts.push(h("div.cm-row.cm-cap", null, friends.pic(m.by, 32),
-      h("span.cm-body", null, h("span.cm-who", null, h("b", null, friends.shown(m.by)), m.at ? h("span.cm-when", null, ago(m.at)) : null), h("span.cm-text", null, m.cap))));
     if (problem === "gone") parts.push(h("p.cm-empty", null, "This moment isn't shared any more."));
     else if (problem) parts.push(h("div.cm-empty", null, h("p", null, "Can't reach Daydeck right now."), friends.small("Try again", () => { problem = false; draw(); load(); })));
     else if (!list) parts.push(h("div.cm-empty", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" })));

@@ -1021,7 +1021,6 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-list { display: flex; flex-direction: column; }
 .cm-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 0; text-align: left; }
 .cm-row .pic { flex: none; }
-.cm-cap { border-bottom: 1px solid rgba(239, 237, 233, .08); padding-bottom: 14px; margin-bottom: 4px; }
 .cm-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .cm-who { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
 .cm-who b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
