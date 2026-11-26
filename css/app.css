@@ -1084,8 +1084,6 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-sun-s .see-core { fill: var(--sun); }
 .cm-sun-s .see-moon { display: none; }
 .cm-sub { gap: 10px; padding-left: 44px; padding-top: 6px; }
-.cm-on { width: auto; margin: 0 calc(-1 * var(--edge)); padding-left: var(--edge); padding-right: var(--edge); background: rgba(239, 237, 233, .06); }
-.cm-on.cm-sub { padding-left: calc(var(--edge) + 44px); }
 .cm-see { flex: none; margin: -6px -12px 0 0; color: var(--dim); }
 .cm-see svg { width: 18px; height: 18px; }
 .cm-see .see-moon { fill: #141416; }   /* the sheet's own colour, so the moon matches what's behind it */
@@ -1106,6 +1104,8 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-sheet.kb .cm-compose .fr-foot { display: none; }
 .cm-box { position: relative; display: flex; }
 .cm-field { min-height: 44px; padding: 11px 50px 11px 14px; resize: none; font: inherit; font-size: 17px; line-height: 22px; border-radius: 22px; }
+/* Typing in it: a soft thin edge, not the heavy ring other fields get (alex 2026-11-26) */
+.cm-field:focus, .cm-field:focus-visible { outline: none; box-shadow: inset 0 0 0 1px rgba(239, 237, 233, .16); }
 /* Send: a round arrow inside the box; faint until there's something to send, then marigold (alex 2026-11-26) */
 .cm-post { position: absolute; right: 6px; bottom: 6px; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--sun); color: #1d1e22; transition: background .2s ease, color .2s ease; }
 .cm-post::before { content: ""; position: absolute; inset: -6px; }   /* a 44-point tap target */

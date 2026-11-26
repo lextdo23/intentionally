@@ -21,6 +21,7 @@ import { ago, sunIcon } from "./moments.js";
 export const bubbleIcon = () => friends.svg(24, [["path", { d: "M4.5 12a7.5 7 0 1 1 3.2 5.7L4 19l1.1-3.4A6.8 6.8 0 0 1 4.5 12z" }]]);
 const lock = () => friends.svg(13, [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]);
 const first = (p) => (p.name ? p.name.split(" ")[0] : "@" + p.username);
+const plain = (p) => (p.name ? p.name.split(" ")[0] : p.username);   // "sherrie", without the @ (alex 2026-11-26)
 const names = (list) => { const n = list.map(friends.shown); return n.length <= 2 ? n.join(" and ") : `${n[0]}, ${n[1]} and ${n.length - 2 === 1 ? "1 other" : n.length - 2 + " others"}`; };
 
 // The latest comment under a post, and "View all comments" when there are more. Nothing when there are none.
@@ -66,7 +67,7 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
       if (anim && anim.id === c.id) { see.classList.add(anim.on ? "see-on" : "see-off"); anim = null; }
       see.addEventListener("click", () => sun(c));
     }
-    return h("div.cm-row" + (small ? ".cm-sub" : "") + (replyTo && replyTo.id === c.id ? ".cm-on" : ""), { role: "listitem", "data-id": c.id },
+    return h("div.cm-row" + (small ? ".cm-sub" : ""), { role: "listitem", "data-id": c.id },
       friends.pic(c.by, small ? 24 : 32), h("div.cm-body", null, main, foot), see);
   };
   // The sun: changes straight away (with the same eclipse as on a moment), and back if the service says no.
@@ -83,21 +84,20 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     take(r);
     if (!now || !!now.seen !== c.seen) draw();   // only if it differs, so the animation plays through
   };
-  // Replying: the box says who to, the comment is lit, and × stops it.
+  // Replying (alex 2026-11-26, the way Instagram does it): one small line above the box, "Replying to sherrie" with ×,
+  // and the box says "Add a reply". The comment itself isn't marked.
   const startReply = (c) => {
     replyTo = c;
     open.add(c.parent || c.id);
-    replyBar.replaceChildren(h("span", null, "Replying to ", h("b", null, first(c.by))),
+    replyBar.replaceChildren(h("span", null, "Replying to ", h("b", null, plain(c.by))),
       h("button.cm-stop", { type: "button", "aria-label": "Stop replying", onclick: stopReply }, friends.svg(14, [["path", { d: "M6 6l12 12M18 6L6 18" }]], { "stroke-width": "2.4" })));
     replyBar.hidden = false;
-    field.placeholder = `Reply to ${first(c.by)}`;
-    draw();
+    field.placeholder = "Add a reply";
     field.focus();
   };
   const stopReply = () => {
     replyTo = null; replyBar.hidden = true;
     field.placeholder = m.mine ? "Add a comment" : `Add a comment for ${first(m.by || {})}`;
-    draw();
   };
   const actions = (c) => openSheet((panel, close) => {
     panel.append(h("h2", null, c.mine ? "Your comment" : friends.shown(c.by)), h("p.fr-sheet-text.cm-quote", null, c.text));
@@ -125,7 +125,8 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     if (!r.ok) return friends.note(friends.say(r));
     log("comment", { own: m.mine ? 1 : 0, from, reply: to ? 1 : 0 });
     field.value = ""; fit(); take(r);
-    if (to) { open.add(to.parent || to.id); stopReply(); } else draw();
+    if (to) { open.add(to.parent || to.id); stopReply(); }
+    draw();
     requestAnimationFrame(() => {
       const el = r.comment && listEl.querySelector(`[data-id="${r.comment}"]`);
       if (to && el) el.scrollIntoView({ block: "nearest" }); else listEl.scrollTop = listEl.scrollHeight;
@@ -160,9 +161,18 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     if (replyTo && list && !list.some((x) => x.id === replyTo.id)) stopReply();   // the comment went while replying
   };
 
-  // The iPhone keyboard covers the bottom of the screen: lift the sheet above it while it's up.
+  // The iPhone keyboard covers the bottom of the screen. While it's up the sheet shrinks to fit what's in it and sits
+  // just above the keyboard, never past the top of the screen (2026-11-26). On a Home Screen app iPhone doesn't make
+  // the page shorter: it shrinks the visible part and may slide it up, so both are measured.
   const vv = window.visualViewport;
-  const lift = () => { if (!panelEl || !vv) return; const kb = Math.max(0, innerHeight - vv.height - vv.offsetTop); panelEl.style.bottom = kb + "px"; panelEl.classList.toggle("kb", kb > 40); };
+  let topGap = 75;
+  const lift = () => {
+    if (!panelEl || !vv) return;
+    const up = innerHeight - vv.height > 120 || (field && document.activeElement === field && innerHeight - vv.height > 40);
+    panelEl.classList.toggle("kb", up);
+    panelEl.style.bottom = up ? Math.max(0, innerHeight - vv.height - vv.offsetTop) + "px" : "";
+    panelEl.style.maxHeight = up ? Math.max(200, vv.height - topGap) + "px" : "";
+  };
 
   openSheet((panel, close) => {
     closeSheet = close; panelEl = panel;
@@ -180,7 +190,13 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
       h("div.cm-compose", null, replyBar, h("div.cm-box", null, field, btn), h("p.fr-foot.mo-only", null, lock(), " Only your friends will see it.")));
     draw();
   }, { label: "Comments", onClose: () => { if (vv) { vv.removeEventListener("resize", lift); vv.removeEventListener("scroll", lift); } } });
-  if (vv) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
+  if (vv) {
+    vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift);
+    const probe = h("div", { style: { position: "fixed", top: "0", height: "var(--top)", visibility: "hidden" } });
+    document.body.append(probe); topGap = probe.getBoundingClientRect().height || topGap; probe.remove();
+    field.addEventListener("focus", () => setTimeout(lift, 50));
+    field.addEventListener("blur", () => setTimeout(lift, 50));
+  }
   if (focus) setTimeout(() => field.focus(), 420);
   load();
   return { close: (why) => closeSheet(why) };
