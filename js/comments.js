@@ -27,10 +27,13 @@ export function preview(m, open) {
     m.more ? h("button.cm-all", { type: "button", onclick: () => open("feed") }, "View all comments") : null);
 }
 
-// The page with every comment and the box to write one. m is the moment (needs id, mine and by). changed(moment) is
-// told the moment's new latest comment whenever the list changes, so the post under it can redraw.
+// The sheet with every comment and the box to write one (alex 2026-11-26: it slides up over the feed, like the
+// sheets everywhere else on iPhone, in Daydeck's own look). It's kept short, about 60% of the screen with only a light
+// shade, so a bit of the moment's picture always shows above it. Pull it down, or tap above it, to close. m is the moment
+// (needs id, mine and by). changed(moment) is told the moment's new latest comment whenever the list changes, so the
+// post under it can redraw.
 export function openComments(m, { from = "feed", changed, focus = false } = {}) {
-  let list = null, problem = false, sending = false, scrollEnd = false, box = null;
+  let list = null, problem = false, sending = false, closeSheet = () => {}, listEl = null, field = null, btn = null, panelEl = null;
   log("comment_open", from);
   const take = (r) => {
     list = r.comments;
@@ -41,7 +44,7 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     if (r.ok) take(r);
     else if (r.error === "not_found") { list = []; problem = "gone"; }
     else problem = true;
-    pg.refresh();
+    draw();
   };
   const row = (c) => {
     const b = h("button.cm-row", { type: "button", "aria-label": `${friends.shown(c.by)}, ${ago(c.at)} ago: ${c.text}. More` },
@@ -58,14 +61,15 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
       if (!r.ok) return friends.note(friends.say(r));
       log("uncomment", r.by === "own" ? "own" : "theirs");
       if (r.comments) take(r); else list = (list || []).filter((x) => x.id !== c.id);
-      pg.refresh();
+      draw();
       friends.note(c.mine ? "Comment deleted." : "Comment removed. They aren't told.");
     } }, c.mine ? "Delete comment" : "Remove comment"));
-    if (!c.mine) panel.append(h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => friends.openReport({ comment: c, pg }), 300); } }, "Report"));
+    if (!c.mine) panel.append(h("button.btn-soft.fr-sheet-btn", { type: "button", onclick: () => { close("pick"); setTimeout(() => friends.openReport({ comment: c, pg: { close: () => closeSheet("done") } }), 300); } }, "Report"));
     panel.append(h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Cancel"));
   }, { label: "Comment" });
 
-  const send = async (field, btn, fit) => {
+  const fit = () => { field.style.height = "auto"; field.style.height = Math.min(field.scrollHeight, 132) + "px"; btn.setAttribute("aria-disabled", String(!field.value.trim())); };
+  const send = async () => {
     const text = field.value.trim();
     if (!text || sending) return;
     sending = true; btn.setAttribute("aria-busy", "true");
@@ -73,39 +77,44 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     sending = false; btn.removeAttribute("aria-busy");
     if (!r.ok) return friends.note(friends.say(r));
     log("comment", { own: m.mine ? 1 : 0, from });
-    field.value = ""; fit(); take(r); scrollEnd = true; pg.refresh();
+    field.value = ""; fit(); take(r); draw();
+    requestAnimationFrame(() => { listEl.scrollTop = listEl.scrollHeight; });
   };
 
-  const pg = friends.page("Comments", () => {
+  // Only the list redraws; the box stays put, so what's typed and the keyboard are never lost.
+  const draw = () => {
     const parts = [];
     // What they shared, as the first line: their caption (when there is one).
     if (m.cap && m.by) parts.push(h("div.cm-row.cm-cap", null, friends.pic(m.by, 32),
       h("span.cm-body", null, h("span.cm-who", null, h("b", null, friends.shown(m.by)), m.at ? h("span.cm-when", null, ago(m.at)) : null), h("span.cm-text", null, m.cap))));
     if (problem === "gone") parts.push(h("p.cm-empty", null, "This moment isn't shared any more."));
-    else if (problem) parts.push(h("div.cm-empty", null, h("p", null, "Can't reach Daydeck right now."), friends.small("Try again", () => { problem = false; pg.refresh(); load(); })));
+    else if (problem) parts.push(h("div.cm-empty", null, h("p", null, "Can't reach Daydeck right now."), friends.small("Try again", () => { problem = false; draw(); load(); })));
     else if (!list) parts.push(h("div.cm-empty", null, h("span.fr-ring", { role: "status", "aria-label": "Loading" })));
     else if (!list.length) parts.push(h("p.cm-empty", null, "No comments yet."));
     else parts.push(h("div.cm-list", { role: "list", "aria-label": "Comments" }, list.map(row)));
-    if (problem !== "gone") {
-      // The box is made once and kept, so redrawing the list never loses what's typed or where the cursor is.
-      if (!box) {
-        const field = h("textarea.fr-field.cm-field", { rows: "1", maxlength: "280", enterkeyhint: "send", placeholder: m.mine ? "Add a comment" : `Add a comment for ${first(m.by || {})}`, "aria-label": "Add a comment" });
-        const btn = h("button.fr-btn.main.cm-post", { type: "button", "aria-disabled": "true" }, "Post");
-        const fit = () => { field.style.height = "auto"; field.style.height = Math.min(field.scrollHeight, 132) + "px"; btn.setAttribute("aria-disabled", String(!field.value.trim())); };
-        field.addEventListener("input", fit);
-        field.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(field, btn, fit); } });
-        btn.addEventListener("click", () => send(field, btn, fit));
-        box = { field, el: h("div.cm-compose", null, h("div.cm-compose-in", null, field, btn), h("p.fr-foot.mo-only", null, lock(), " Only your friends will see it.")), fit };
-        if (focus) setTimeout(() => field.focus(), 450);
-      }
-      const typing = document.activeElement === box.field;
-      if (typing) requestAnimationFrame(() => box.field.focus({ preventScroll: true }));
-      requestAnimationFrame(box.fit);
-      parts.push(box.el);
-    }
-    if (scrollEnd) { scrollEnd = false; requestAnimationFrame(() => { const s = pg.el.querySelector(".fr-scroll"); if (s) s.scrollTop = s.scrollHeight; }); }
-    return h("div.cm-page", null, parts);
-  }, { label: "Comments" });
+    listEl.replaceChildren(...parts);
+    if (problem === "gone") panelEl.querySelector(".cm-compose").hidden = true;
+  };
+
+  // The iPhone keyboard covers the bottom of the screen: lift the sheet above it while it's up.
+  const vv = window.visualViewport;
+  const lift = () => { if (!panelEl || !vv) return; const kb = Math.max(0, innerHeight - vv.height - vv.offsetTop); panelEl.style.bottom = kb + "px"; panelEl.classList.toggle("kb", kb > 40); };
+
+  openSheet((panel, close) => {
+    closeSheet = close; panelEl = panel;
+    panel.classList.add("cm-sheet");
+    field = h("textarea.fr-field.cm-field", { rows: "1", maxlength: "280", enterkeyhint: "send", placeholder: m.mine ? "Add a comment" : `Add a comment for ${first(m.by || {})}`, "aria-label": "Add a comment" });
+    btn = h("button.fr-btn.main.cm-post", { type: "button", "aria-disabled": "true" }, "Post");
+    field.addEventListener("input", fit);
+    field.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+    btn.addEventListener("click", send);
+    listEl = h("div.cm-scroll", { "data-scroll": "" });
+    panel.append(h("h2.cm-title", null, "Comments"), listEl,
+      h("div.cm-compose", null, h("div.cm-compose-in", null, field, btn), h("p.fr-foot.mo-only", null, lock(), " Only your friends will see it.")));
+    draw();
+  }, { label: "Comments", onClose: () => { if (vv) { vv.removeEventListener("resize", lift); vv.removeEventListener("scroll", lift); } } });
+  if (vv) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
+  if (focus) setTimeout(() => field.focus(), 420);
   load();
-  return pg;
+  return { close: (why) => closeSheet(why) };
 }

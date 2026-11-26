@@ -1,6 +1,6 @@
 // Comments in the app (js/comments.js, alex 2026-11-26). Runs the real Daydeck service inside the test, with a pretend
 // iPhone 15 Pro Max as Mia and made-up friends. Checks: the speech bubble beside the sun, the latest comment under a
-// post with "View all comments", the Comments page (posting, deleting, removing, reporting), comments from people Mia
+// post with "View all comments", the Comments sheet (posting, deleting, removing, reporting), comments from people Mia
 // does not know never showing, and the bell counting comments on her moments. SHOTS=1 saves pictures.
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -87,8 +87,11 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // ---- The Comments page ----
   await post.locator(".mo-talk").click(); await p.waitForTimeout(900);
-  const pg = ".fr-page:last-child";
-  check(/Comments/.test(await text(pg + " .fr-page-title")), "the bubble opens Comments");
+  const pg = ".cm-sheet";
+  const close = async () => { await p.click(".sheet-dim >> nth=-1", { position: { x: 200, y: 40 } }); await p.waitForTimeout(800); };
+  check(/Comments/.test(await text(pg + " .cm-title")), "the bubble opens Comments, sliding up as a sheet over the feed");
+  check(!!(await p.$("#friends .mo-post")) && !(await p.$(".fr-page")), "the feed stays behind it");
+  check(await p.$eval(".cm-sheet", (e) => e.getBoundingClientRect().top) >= 932 * 0.39, "the sheet is short (about 60%), so the top of the screen stays in view");
   check(/Took the long way/.test(await text(pg)) && /Love the long way/.test(await text(pg)) && !(await text(pg)).includes("Ana's words"), "it starts with Sam's caption, then the comments Mia may see");
   check(/Only your friends will see it/.test(await text(pg)), "it says only friends will see it");
   check(await p.getAttribute(pg + " .cm-post", "aria-disabled") === "true", "Post waits for some words");
@@ -100,20 +103,21 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await shot("c2-page");
   // Her own: tap it, Delete comment.
   await p.locator(pg + " .cm-row", { hasText: "Wish I'd come" }).click(); await p.waitForTimeout(700);
-  check(/Delete comment/.test(await text(".sheet")) && !/Report/.test(await text(".sheet")), "tapping her own comment offers Delete comment, not Report");
+  check(/Delete comment/.test(await text(".sheet-host:last-child .sheet")) && !/Report/.test(await text(".sheet-host:last-child .sheet")), "tapping her own comment offers Delete comment, not Report");
   await shot("c3-own");
-  await p.click(".sheet .danger"); await p.waitForTimeout(1000);
+  await p.click(".sheet-host:last-child .sheet .danger"); await p.waitForTimeout(1000);
   check(!(await text(pg)).includes("Wish I'd come") && !(await sam.get("/a/f/comments?id=" + sm.id)).comments.some((c) => c.text === "Wish I'd come"), "deleting removes it for everyone");
   // Josh's, on Sam's moment: only Report.
   await p.locator(pg + " .cm-row", { hasText: "Love the long way" }).click(); await p.waitForTimeout(700);
-  check(/Report/.test(await text(".sheet")) && !(await p.$(".sheet .danger")), "on someone else's moment, a friend's comment can be reported, not removed");
-  await p.click(".sheet .fr-sheet-btn"); await p.waitForTimeout(900);
-  check(/Report this comment/.test(await text(".sheet")), "Report opens the report sheet for the comment");
-  await p.click(".sheet .fr-why-row"); await p.waitForTimeout(400); await p.click(".sheet .fr-main"); await p.waitForTimeout(900);
+  check(/Report/.test(await text(".sheet-host:last-child .sheet")) && !(await p.$(".sheet-host:last-child .sheet .danger")), "on someone else's moment, a friend's comment can be reported, not removed");
+  await p.click(".sheet-host:last-child .sheet .fr-sheet-btn"); await p.waitForTimeout(900);
+  check(/Report this comment/.test(await text(".sheet-host:last-child .sheet")), "Report opens the report sheet for the comment");
+  await p.click(".sheet-host:last-child .fr-why-row"); await p.waitForTimeout(400); await p.click(".sheet-host:last-child .fr-main"); await p.waitForTimeout(900);
   const book = made["Accountsbook"];
   check(book.rList().open.some((r) => r.comment && r.snap.comment === "Love the long way"), "the report reaches alex with a copy of the words");
-  await p.click(".sheet .fr-main"); await p.waitForTimeout(600);
-  await p.click(pg + " .fr-page-head button"); await p.waitForTimeout(700);
+  await p.click(".sheet-host:last-child .fr-main"); await p.waitForTimeout(800);
+  await close();
+  check(!(await p.$(".cm-sheet")), "tapping above the sheet closes it");
 
   // ---- Comments on Mia's own moment: the bell, and removing one ----
   const mm = (await mia.post("/a/f/share", { day: day(0), item: "rest", kind: "rest", status: "Rested", cap: "Slow day" })).moment;
@@ -127,15 +131,15 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Rest well/.test(await mine.locator(".cm-last").textContent()) && await mine.locator(".cm-all").count() === 1, "her post shows the latest and View all comments");
   check(await mine.locator(".mo-see").count() === 0 && !/Your moment/.test(await mine.locator(".mo-acts").textContent()), "her own moment has no sun to press and no words, just the bubble");
   await p.click("#friends .fr-bell"); await p.waitForTimeout(900);
-  check(/New comments/.test(await text(pg)) && /Josh commented: Good on you/.test(await text(pg)) && /Sam commented: Rest well/.test(await text(pg)), "the bell lists New comments by name and words");
+  check(/New comments/.test(await text(".fr-page:last-child")) && /Josh commented: Good on you/.test(await text(".fr-page:last-child")) && /Sam commented: Rest well/.test(await text(".fr-page:last-child")), "the bell lists New comments by name and words");
   await shot("c4-bell");
-  await p.locator(pg + " .cm-note", { hasText: "Good on you" }).click(); await p.waitForTimeout(900);
+  await p.locator(".fr-page:last-child .cm-note", { hasText: "Good on you" }).click(); await p.waitForTimeout(900);
   check(/Good on you/.test(await text(pg + " .cm-list")) && /Rest well/.test(await text(pg + " .cm-list")), "tapping one opens that moment's comments");
   await p.locator(pg + " .cm-row", { hasText: "Good on you" }).click(); await p.waitForTimeout(700);
-  check(/Remove comment/.test(await text(".sheet")) && /Report/.test(await text(".sheet")), "on her own moment, Mia can remove or report a friend's comment");
-  await p.click(".sheet .danger"); await p.waitForTimeout(1000);
+  check(/Remove comment/.test(await text(".sheet-host:last-child .sheet")) && /Report/.test(await text(".sheet-host:last-child .sheet")), "on her own moment, Mia can remove or report a friend's comment");
+  await p.click(".sheet-host:last-child .sheet .danger"); await p.waitForTimeout(1000);
   check(!(await text(pg + " .cm-list")).includes("Good on you"), "removing it takes it off her moment");
-  await p.click(pg + " .fr-page-head button"); await p.waitForTimeout(600);
+  await close();
   await p.click(".fr-page:last-child .fr-page-head button"); await p.waitForTimeout(800);
   check(!(await p.getAttribute('#pill [data-tab="friends"]', "data-count")), "after the bell, the number clears");
   check(!(await mine.textContent()).includes("Good on you"), "the post under it shows the change too");

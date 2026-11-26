@@ -1011,7 +1011,13 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-last { display: block; width: 100%; padding: 2px 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-last b { color: var(--ink); font-weight: 600; }
 .cm-all { min-height: 32px; padding: 0; font-size: 15px; color: var(--dim); }
-.cm-page { display: flex; flex-direction: column; gap: 4px; min-height: calc(100dvh - var(--top) - var(--bot) - 96px); }
+/* The comments sheet: slides up over the feed, the list scrolls inside, the box sits at the bottom (lifted above the keyboard) */
+.sheet.cm-sheet { height: 60%; max-height: 60%; overflow: hidden; gap: 0; padding-bottom: 0; transition: height .25s ease; }
+.sheet.cm-sheet.kb { height: auto; max-height: calc(100% - var(--top)); }
+/* Only a light shade, so the moment's picture above stays clear (alex 2026-11-26) */
+.sheet-host:has(.cm-sheet) .sheet-dim { background: rgba(0, 0, 0, .22); }
+.cm-title { margin: 8px 0 4px; text-align: center; font-size: 17px !important; font-weight: 600; }
+.cm-scroll { flex: 1; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; margin: 0 calc(-1 * var(--edge)); padding: 4px var(--edge) 12px; }
 .cm-list { display: flex; flex-direction: column; }
 .cm-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 0; text-align: left; }
 .cm-row .pic { flex: none; }
@@ -1021,9 +1027,11 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-who b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-when { flex: none; font-size: 13px; color: var(--dim); }
 .cm-text { font-size: 15px; line-height: 1.4; color: var(--ink2); overflow-wrap: anywhere; }
-.cm-empty { margin: 24px 0; text-align: center; font-size: 15px; color: var(--dim); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cm-empty { margin: 32px 0; text-align: center; font-size: 15px; color: var(--dim); display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .cm-empty p { margin: 0; }
-.cm-compose { position: sticky; bottom: 0; margin: auto calc(-1 * var(--edge)) calc(-1 * (var(--bot) + 24px)); padding: 12px var(--edge) calc(var(--bot) + 12px); background: var(--sky3); border-top: 1px solid rgba(239, 237, 233, .08); }
+.cm-compose { flex: none; margin: 0 calc(-1 * var(--edge)); padding: 12px var(--edge) var(--bot); border-top: 1px solid rgba(239, 237, 233, .08); }
+.cm-sheet.kb .cm-compose { padding-bottom: 12px; }
+.cm-sheet.kb .cm-compose .fr-foot { display: none; }
 .cm-compose-in { display: flex; align-items: flex-end; gap: 8px; }
 .cm-field { min-height: 44px; padding: 11px 14px; resize: none; font: inherit; font-size: 17px; line-height: 22px; }
 .cm-post { width: 72px; }

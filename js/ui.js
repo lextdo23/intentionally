@@ -51,7 +51,7 @@ export function openSheet(build, { onClose, label } = {}) {
   let s0 = null, dragging = false, moved = false, base = 0, tr = null, inner = null;
   const start = (x, yy, target) => {
     if (closed || target.closest(".grip, input, textarea, [data-nodrag]")) return;
-    inner = target.closest(".dcard.big .front");   // a long card scrolls inside; pulling down scrolls it back up first
+    inner = target.closest(".dcard.big .front, [data-scroll]");   // a long card (or a list, like comments) scrolls inside; pulling down scrolls it back up first
     s0 = [x, yy]; dragging = false; moved = false; base = y; tr = tracker(); tr.add(yy);
   };
   const move = (x, yy) => {
