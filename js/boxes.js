@@ -8,7 +8,7 @@
 // same proportions (about 64%, 21% and 14%). Pick my own always comes in the 2nd box.
 // No more than 2 unused rest days are kept.
 // Looks (alex 2026-11-25, js/looks.js): the look card is always from the look you're collecting. The first box asks
-// which (a rolodex) before it opens; choosing later means that box brings a second extra instead. When the last card
+// which (a rolodex) before it opens, and one must be picked (alex 2026-11-26). When the last card
 // of a look comes, Done shows it opening, then asks which look to collect next.
 import { h, dayKey, addDays, reduceMotion } from "./util.js";
 import * as store from "./store.js";

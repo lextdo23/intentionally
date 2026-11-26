@@ -112,9 +112,10 @@ const at = (y) => `calc(var(--oy) + ${y}px * var(--z))`;
 
 // ---------------- Pick a look (a rolodex you swipe, round and round) ----------------
 // mode "first": the first box asks before it opens. "next": after a look opens, the same rolodex picks the next one,
-// without the looks already yours. Collect sets it; Choose later leaves it unpicked (the box brings an extra instead).
+// without the looks already yours. Collect sets it. There's no "Choose later" (alex 2026-11-26): a look is always
+// picked, and looks already yours are never offered again, whichever question it is.
 export function pickLook(mode, onDone) {
-  const list = mode === "next" ? LOOKS.filter((L) => !isOpen(L)) : LOOKS.slice();
+  const list = LOOKS.filter((L) => !isOpen(L));
   if (!list.length) return onDone && onDone(null);
   const still = reduceMotion(), N = list.length, STEP = 150;
   const { root, stage, close, show } = stageRoot("lk-pick", mode === "next" ? "Pick your next look" : "Pick a look to collect");
@@ -137,8 +138,7 @@ export function pickLook(mode, onDone) {
   const name = h("span.lk-name"), count = h("span.lk-count");
   const dots = h("div.lk-dots", null, list.map((L, k) => h("button", { type: "button", "aria-label": `Show ${L.name}`, onclick: () => go(i + Math.round(wrap(k - i))) }, h("i"))));
   const collect = h("button.btn-main", { type: "button", onclick: () => { const L = cur(); setWant(L.id, mode); clearInterval(timer); close(() => onDone && onDone(L.id)); } });
-  const later = h("button.btn-quiet", { type: "button", onclick: () => { log("look_later", mode); clearInterval(timer); close(() => onDone && onDone(null)); } }, "Choose later");
-  root.append(h("div.lk-top", { style: { top: at(76) } }, eyebrow, rank), h("div.lk-under", { style: { top: at(640) } }, name, count, dots), h("div.lk-btns", null, collect, later));
+  root.append(h("div.lk-top", { style: { top: at(76) } }, eyebrow, rank), h("div.lk-under", { style: { top: at(640) } }, name, count, dots), h("div.lk-btns", null, collect));
 
   function paintHand(deal) {
     const L = cur();

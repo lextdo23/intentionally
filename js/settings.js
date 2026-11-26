@@ -230,7 +230,10 @@ function howItWorks() {
       h("div.col", { style: { gap: "8px" } },
         h("p", null, "Start your day by noting how you slept. End it by noting how the day felt."),
         h("p", null, "Your days shows how your days have gone, and what seems to go with the good ones."),
-        h("p", null, "There's more to come, a little at a time. Everything stays on this phone, unless you choose to share it.")),
+        h("p", null, "There's more to come, a little at a time."),
+        // Kept true (alex 2026-11-26): with an account, days and photos are backed up; without one, they stay here.
+        h("p", null, account.signedIn() ? "Your days are backed up privately to your account, so a new phone gets them back. Nothing is shared with anyone unless you choose to."
+          : "Everything stays on this phone. Nothing is shared with anyone unless you choose to.")),
       h("button.btn-main", { onclick: () => close("done") }, "Done"));
   }, { label: "How Daydeck works" });
 }
