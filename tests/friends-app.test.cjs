@@ -267,12 +267,12 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click(`${sh} .mo-day[data-day="${day(1)}"]`); await p.waitForTimeout(800);
   const firstPick = await p.$eval(`${sh} .mo-pick`, (e) => e.textContent);
   check(/Your photo/.test(firstPick) && await p.getAttribute(`${sh} .mo-pick`, "aria-checked") === "true", "the photo comes first, already picked; the card is there if they'd rather");
-  // The card behind the photo (alex 2026-11-25): one quiet line, with a way to leave it off.
-  check(/Friends can swipe across to see your card/.test(await text(sh)), "sharing a photo says the day's card goes behind it");
+  // The card on the photo (alex 2026-11-25, written on it 2026-11-26): one quiet line, with a way to leave it off.
+  check(/Your card goes on the photo for friends/.test(await text(sh)), "sharing a photo says the day's card goes on it");
   await p.click(`${sh} .mo-cardline-btn`); await p.waitForTimeout(300);
   check(/Your card stays private/.test(await text(sh)), "Leave it off keeps the card private");
   await p.click(`${sh} .mo-cardline-btn`); await p.waitForTimeout(300);
-  check(/Friends can swipe across/.test(await text(sh)), "and Add it back puts it back");
+  check(/Your card goes on the photo/.test(await text(sh)), "and Add it back puts it back");
   await shot("18-share-photo");
   await p.click(`${sh} .fr-main`); await p.waitForTimeout(2200);
   const ph = (await sam.get("/a/f/feed")).moments.find((m) => m.kind === "photo");
@@ -283,15 +283,31 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.waitForTimeout(800);
   check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
   check(ph && ph.text && ph.status === "Done", "the card goes with the photo to Sam");
-  const car = "#friends .mo-car";
-  check(!!(await p.$(`${car} .mo-dots`)) && !!(await p.$(`${car} .mo-back .dcard.big.up .task`)), "in the feed, the card sits behind the photo, with two dots");
-  check(/Swipe to see your card/.test(await text(car)), "the first one shows how to see it");
-  check(await p.$eval(car, (e) => e.getBoundingClientRect().width) >= 430, "the photo runs wall to wall");
+  const fp = "#friends .mo-photo:has(.mo-stamp)";
+  check(await p.$eval(`${fp} .mo-stamp-text`, (e, t) => e.textContent === t, ph.text) && !(await p.$("#friends .mo-car, #friends .mo-dots")), "in the feed, the card's words sit on the photo itself (no swipe to a second slide)");
+  check(await p.$eval(fp, (e) => e.getBoundingClientRect().width) >= 430, "the photo runs wall to wall");
+  const lines = () => p.$eval(`${fp} .mo-stamp-text`, (e) => Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)));
+  check(await lines() === 1, "folded to one line at first");
   await quiet(); await shot("19-feed-photo");
-  await quiet(); await p.click(car); await p.waitForTimeout(700);
-  check(await p.$eval(`${car} .mo-dots span:last-child`, (e) => e.classList.contains("on")) && !(await p.$(`${car} .mo-tip`)), "moving across shows the card, and the tip goes");
-  check(await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-friends")).cardTip === 1), "and the tip never comes back");
+  await p.evaluate(() => document.querySelector("#friends .mo-photo .mo-stamp").scrollIntoView({ block: "center" }));
+  await p.click(`${fp} .mo-stamp`); await p.waitForTimeout(300);
+  check(await p.getAttribute(`${fp} .mo-stamp`, "aria-expanded") === "true" && await p.$eval(`${fp} .mo-stamp-text`, (e) => e.scrollHeight <= e.clientHeight + 1), "a tap opens the whole card");
   await shot("19b-feed-card");
+  await p.click(`${fp} .mo-stamp`); await p.waitForTimeout(300);
+  check(await lines() === 1, "and a second tap folds it back");
+  // Pinch to zoom: two fingers lift a bigger copy above everything; letting go springs back and leaves nothing behind.
+  const pinch = (phase, gap) => p.evaluate(([phase, gap]) => {
+    const el = document.querySelector("#friends .mo-photo:has(.mo-stamp)"), r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.6;
+    const ts = phase === "touchend" ? [] : [0, 1].map((i) => new Touch({ identifier: i, target: el, clientX: cx + (i ? gap : -gap), clientY: cy }));
+    el.dispatchEvent(new TouchEvent(phase, { touches: ts, targetTouches: ts, changedTouches: ts, bubbles: true, cancelable: true }));
+  }, [phase, gap]);
+  await pinch("touchstart", 40); await pinch("touchmove", 60); await pinch("touchmove", 100);
+  const zk = await p.evaluate(() => { const z = document.querySelector(".mo-zoom"); return z ? new DOMMatrix(getComputedStyle(z).transform).a : 0; });
+  check(zk > 2.2 && zk < 2.8, "pinching a feed photo zooms it with the fingers");
+  await shot("19c-feed-zoom");
+  await pinch("touchend", 0); await p.waitForTimeout(600);
+  check(!(await p.$(".mo-zoom, .mo-zoom-shade")), "letting go springs it back, leaving nothing behind");
+
 
   // Your friends, A to Z, with search: from the friends count on You
   await quiet(); await tab("you"); await p.waitForTimeout(900);

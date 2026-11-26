@@ -901,23 +901,23 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-tile.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .mo-tile.photo.big { min-height: 0; aspect-ratio: 4 / 5; }
 /* A day photo in a feed runs wall to wall: edge to edge of the screen, no border or rounded corners (alex 2026-11-25). */
-.mo-post > .mo-tile.photo.big:not(.week) { margin: 0 calc(-1 * var(--edge)); border: 0; border-radius: 0; }
-/* A photo with its card behind it: swipe across to the card (alex 2026-11-25). Wall to wall like any feed photo. */
-.mo-car { position: relative; flex-shrink: 0; width: calc(100% + 2 * var(--edge)); margin: 0 calc(-1 * var(--edge)); aspect-ratio: 4 / 5; overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-select: none; outline: none; }
-.mo-car:focus-visible { box-shadow: inset 0 0 0 2px #efede9; }
-.mo-track { position: absolute; inset: 0; display: flex; transition: transform .45s var(--ease); }
-.mo-track > * { flex: 0 0 100%; }
-.mo-car .mo-tile.photo.big { aspect-ratio: auto; height: 100%; border: 0; border-radius: 0; }
-.mo-back { display: flex; align-items: center; justify-content: center; background: var(--sky2); }
-.mo-back .dcard.big { width: 70%; height: auto; aspect-ratio: 250 / 375; }   /* the real card, a little bigger than in the draw */
-.mo-back .dcard.big .size { margin-top: auto; }
-.mo-dots { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
-.mo-dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(239, 237, 233, .4); box-shadow: 0 0 4px rgba(0, 0, 0, .4); transition: background .2s; }
-.mo-dots span.on { background: #efede9; }
-.mo-tip { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; padding: 10px 14px; border-radius: 14px; background: #efede9; color: #1d1e22; font-size: 15px; font-weight: 500; box-shadow: 0 6px 24px rgba(0, 0, 0, .35); pointer-events: none; }
-@keyframes mo-peek { 0%, 55%, 100% { transform: translateX(0); } 20%, 35% { transform: translateX(-72px); } }
-.mo-car.peek .mo-track { animation: mo-peek 2.8s var(--ease) .6s infinite; }
-@media (prefers-reduced-motion: reduce) { .mo-track, .mo-dots span { transition: none; } .mo-car.peek .mo-track { animation: none; } }
+.mo-photo { position: relative; flex-shrink: 0; }
+.mo-photo:not(:has(.week)) { margin: 0 calc(-1 * var(--edge)); }
+.mo-photo > .mo-tile.photo.big:not(.week) { border: 0; border-radius: 0; }
+/* Its card's words on the photo itself, at the top over a soft dark fade (alex 2026-11-26): one line with "…", tap to read
+   the whole card. */
+.mo-stamp { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; gap: 4px; padding: 16px var(--edge) 44px; text-align: left; color: #fff; background: linear-gradient(180deg, rgba(0, 0, 0, .5) 0%, rgba(0, 0, 0, .32) 55%, rgba(0, 0, 0, 0) 100%); text-shadow: 0 1px 8px rgba(0, 0, 0, .45); }
+.mo-stamp-pil { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, .88); }
+.mo-stamp-pil i { width: 8px; height: 8px; border-radius: 2px; }
+.mo-stamp-text { font-size: 20px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+.mo-stamp.open .mo-stamp-text { -webkit-line-clamp: unset; }
+.mo-stamp.open { padding-bottom: 64px; background: linear-gradient(180deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .4) 60%, rgba(0, 0, 0, 0) 100%); }
+/* Pinch to zoom: a copy of the photo lifted above everything, springing back when let go. */
+.mo-zoom { position: fixed; z-index: 90; object-fit: cover; pointer-events: none; will-change: transform; }
+.mo-zoom-shade { position: fixed; inset: 0; z-index: 89; background: #000; opacity: 0; pointer-events: none; }
+.mo-zoom.back { transition: transform .3s var(--ease); }
+.mo-zoom-shade.back { transition: opacity .3s var(--ease); }
+@media (prefers-reduced-motion: reduce) { .mo-zoom.back, .mo-zoom-shade.back { transition: none; } }
 .mo-cardline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -8px; padding: 0 4px; font-size: 13px; color: var(--dim); }
 .mo-cardline-btn { flex-shrink: 0; min-height: 44px; font-size: 13px; font-weight: 500; color: var(--ink2); }
 .mo-tile.photo.week.big { aspect-ratio: 9 / 16; }   /* a week's card from the recap shows whole in the feed */
