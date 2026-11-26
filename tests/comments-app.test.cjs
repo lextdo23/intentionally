@@ -52,6 +52,13 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // The number on the app icon (alex 2026-11-25): notifications allowed, and the icon's number noted instead of shown.
   await ctx.addInitScript(() => { Object.defineProperty(Notification, "permission", { get: () => "granted" }); window.__badge = []; navigator.setAppBadge = (n) => (window.__badge.push(n), Promise.resolve()); navigator.clearAppBadge = () => (window.__badge.push(0), Promise.resolve()); });
   const badge = () => p.evaluate(() => window.__badge[window.__badge.length - 1]);
+  // A pretend iPhone keyboard: the visible part of the page shrinks and may slide up, as on a Home Screen app.
+  await ctx.addInitScript(() => {
+    const t = new EventTarget(), st = { h: null, o: 0 };
+    Object.defineProperty(t, "height", { get: () => st.h == null ? innerHeight : st.h }); Object.defineProperty(t, "offsetTop", { get: () => st.o });
+    Object.defineProperty(window, "visualViewport", { get: () => t });
+    window.__kb = (h, o) => { st.h = h; st.o = o; t.dispatchEvent(new Event("resize")); };
+  });
   const p = await ctx.newPage(); const errors = []; p.on("pageerror", (e) => errors.push(e.message));
   const shot = async (n) => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, n + ".png") }); };
   const signIn = (tok, user) => p.evaluate(([tok, user]) => localStorage.setItem("daydeck-account", JSON.stringify({ token: tok, user, pic: { kind: "little", id: "smile" } })), [tok, user]);
@@ -183,14 +190,24 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click(pg + " .cm-more"); await p.waitForTimeout(400);
   check(/It was worth it/.test(await text(pg + " .cm-list")) && /Hide replies/.test(await text(pg + " .cm-list")) && await p.locator(pg + " .cm-sub").count() === 1, "View replies shows Sam's reply under Josh's comment, smaller");
   await p.locator(pg + " .cm-row", { hasText: "Love the long way" }).locator(".cm-reply").first().click(); await p.waitForTimeout(500);
-  check(/Replying to Josh/.test(await text(pg + " .cm-to")) && (await p.getAttribute(pg + " .cm-field", "placeholder")) === "Reply to Josh", "Reply says who it's to, in the bar and the box");
-  check(await p.locator(pg + " .cm-on").count() === 1, "the comment being answered is lit");
+  check(/Replying to Josh/.test(await text(pg + " .cm-to")) && (await p.getAttribute(pg + " .cm-field", "placeholder")) === "Add a reply", "Reply says who it's to once, in the line above the box (alex 2026-11-26)");
+  check(!/@/.test(await text(pg + " .cm-to")), "the name has no @");
+  check(await p.$eval(pg + " .cm-row", (e) => getComputedStyle(e).backgroundColor) === "rgba(0, 0, 0, 0)", "the comment being answered isn't highlighted");
+  check(await p.$eval(pg + " .cm-field", (e) => getComputedStyle(e).outlineStyle) === "none", "no heavy ring round the box while typing");
   await shot("c8-replying");
+  await p.evaluate(() => window.__kb(932 - 336, 200)); await p.waitForTimeout(500);
+  { const r = await p.$eval(pg, (e) => { const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom }; });
+    check(r.bottom <= 200 + 596 + 1 && r.bottom >= 200 + 596 - 1, "with the keyboard up, the sheet sits just above it");
+    check(r.top >= 200 + 59, "and never slides up under the clock");
+    check(await p.isHidden(pg + " .cm-compose .fr-foot"), "Only your friends will see it hides while typing"); }
+  await shot("c8b-keyboard");
   await p.fill(pg + " .cm-field", "Next time I'm coming"); await p.waitForTimeout(200);
   await p.click(pg + " .cm-post"); await p.waitForTimeout(900);
   { const mine2 = (await josh.get("/a/f/comments?id=" + sm.id)).comments.find((c) => c.text === "Next time I'm coming");
     check(mine2 && mine2.parent === jc.id, "Mia's reply goes under Josh's comment"); }
-  check(await p.isHidden(pg + " .cm-to") && (await p.getAttribute(pg + " .cm-field", "placeholder")) !== "Reply to Josh", "after sending, the box goes back to commenting");
+  await p.evaluate(() => window.__kb(null, 0)); await p.waitForTimeout(400);
+  check(!(await p.$eval(pg, (e) => e.classList.contains("kb"))), "with the keyboard down, the sheet goes back to its usual size");
+  check(await p.isHidden(pg + " .cm-to") && (await p.getAttribute(pg + " .cm-field", "placeholder")) !== "Add a reply", "after sending, the box goes back to commenting");
   check(await p.locator(pg + " .cm-sub").count() === 2, "her reply shows in the thread straight away");
   const jrow = p.locator(pg + " .cm-row", { hasText: "Love the long way" }).first();
   check(await jrow.locator(".cm-see").getAttribute("aria-pressed") === "false", "the sun on a friend's comment starts faint");
