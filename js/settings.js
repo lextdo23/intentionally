@@ -15,6 +15,7 @@ import * as library from "./library.js";
 import * as friends from "./friends.js";
 import * as photoBackup from "./photo-backup.js";
 import * as crumbs from "./crumbs.js";
+import { offInPhone } from "./notif-card.js";
 
 let onClosed = null, el = null;
 
@@ -130,6 +131,15 @@ function permRow(redraw) {
   const btn = can ? h("button.set-act", { type: "button", onclick: async () => { const ok = await notify.enable(); tester.log("nudge_allow", ok ? "yes" : "no"); redraw(); } }, "Turn on") : null;
   return h("div.set-row.set-toggle", null, h("span.set-label", null, "Notifications are off for Daydeck", h("small.set-small", null, why)), btn);
 }
+// Turning a nudge on (alex 2026-11-27): if the phone hasn't allowed notifications, ask it now (Apple's own Allow box),
+// or, if they said no to Apple before, show where to switch them on. Then Settings redraws, so the "off" row goes.
+async function askPhone() {
+  const r = await notify.askIfNeeded();
+  if (r === "granted" || (r === "no" && (!notify.supported() || notify.needsInstall()))) return;
+  if (r === "blocked") { tester.log("nudge_allow", "blocked"); offInPhone(); return; }
+  tester.log("nudge_allow", Notification.permission === "granted" ? "yes" : "no");
+  render();
+}
 const label = (text, small) => h("span.set-label", null, text, small ? h("small.set-small", null, small) : null);
 function nudges() {
   const n = notify.prefs();
@@ -139,8 +149,8 @@ function nudges() {
     time.disabled = !n[key].on;
     sw.addEventListener("click", async () => {
       const on = !n[key].on;
-      if (on && notify.supported() && Notification.permission === "default") await notify.enable();
       n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; cardShow(); store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
+      if (on) await askPhone();
     });
     time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
     return h("div.set-row.set-toggle", null, label(name), time, sw);
@@ -149,7 +159,7 @@ function nudges() {
   // It only works alongside a morning or evening nudge, so it shows off (and can't be pressed) while both are off.
   const cardSw = h("button.switch", { role: "switch", "aria-label": "Card reminders" });
   const cardShow = () => { const can = n.am.on || n.pm.on; cardSw.disabled = !can; cardSw.setAttribute("aria-checked", String(can && n.card.on)); };
-  cardSw.addEventListener("click", () => { n.card.on = !n.card.on; cardShow(); store.save(); notify.sync(); tester.log("nudge_card", n.card.on ? "on" : "off"); });
+  cardSw.addEventListener("click", async () => { n.card.on = !n.card.on; cardShow(); store.save(); notify.sync(); tester.log("nudge_card", n.card.on ? "on" : "off"); if (n.card.on) await askPhone(); });
   cardShow();
   // The wind-down nudge kept from the weekly wrapped shows here while it runs; switching it off stops it.
   const wind = deck.planItems().find((x) => x.kind === "nudge");

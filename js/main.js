@@ -490,6 +490,7 @@ function freshOpen() {
 }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") { awayAt = Date.now(); return; }
+  notify.sync();   // notifications may have been switched back on in the phone's Settings (alex 2026-11-27)
   const wasLong = awayAt && Date.now() - awayAt >= AWAY_LONG;
   if (updateWaiting && wasLong && !busy()) return freshOpen();
   if (lookNow() !== look && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render();
