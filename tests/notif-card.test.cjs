@@ -52,7 +52,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // Said no to Apple before: where to switch them on.
   await setup("denied");
   const d = await sheet();
-  check(/Notifications are off for Daydeck/.test(d) && /Settings › Apps › Daydeck/.test(d), "said no before: says where to turn them on in the phone's Settings");
+  check(/Notifications are off for Daydeck/.test(d) && /Settings › Notifications › Daydeck/.test(d), "said no before: says where to turn them on in the phone's Settings");
   await p.click(".sheet-host .btn-main"); await p.waitForTimeout(600);
 
   // Allowed, some switches off: just those, already on; one flicked back off stays off.

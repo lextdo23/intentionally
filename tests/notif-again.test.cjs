@@ -51,7 +51,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     await openSettings(p); await p.waitForTimeout(800);
     await flip(p, "Card reminders"); await flip(p, "Card reminders");
     const sh = await p.locator(".sheet-host").innerText().catch(() => "");
-    check(/Notifications are off for Daydeck/.test(sh) && /Settings › Apps › Daydeck › Notifications/.test(sh), "said no before: turning a nudge on shows where to switch them on");
+    check(/Notifications are off for Daydeck/.test(sh) && /Settings › Notifications › Daydeck/.test(sh), "said no before: turning a nudge on shows where to switch them on");
     check(await p.evaluate(() => window.__asked) === 0, "and doesn't pretend to ask (Apple wouldn't show anything)");
     check(await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck")).notify.card.on), "the switch stays on, ready for when they're allowed");
     await ctx.close(); }

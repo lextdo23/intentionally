@@ -63,7 +63,7 @@ export function open(onDone) {
       panel.append(h("div.col.nc", { style: { gap: "16px" } }, bell(),
         h("h2", null, "Notifications are off for Daydeck"),
         h("p", { style: { color: "var(--ink2)" } }, "To get a nudge to start and end your day, turn them on in your phone's Settings app:"),
-        h("p.nc-steps", null, "Settings › Apps › Daydeck › Notifications › Allow Notifications"),
+        h("p.nc-steps", null, "Settings › Notifications › Daydeck › Allow Notifications"),
         h("button.btn-main", { onclick: () => { answered = true; log("notif_card_on", "okay"); close("done"); } }, "Okay")));
       return;
     }
@@ -113,7 +113,8 @@ export function offInPhone() {
     panel.append(h("div.col.nc", { style: { gap: "16px" } }, bell(),
       h("h2", null, "Notifications are off for Daydeck"),
       h("p", { style: { color: "var(--ink2)" } }, "Your iPhone won't let Daydeck ask again. To get your nudges, turn them on in your phone's Settings app:"),
-      h("p.nc-steps", null, "Settings › Apps › Daydeck › Notifications › Allow Notifications"),
+      h("p.nc-steps", null, "Settings › Notifications › Daydeck › Allow Notifications"),
+      h("p", { style: { color: "var(--ink2)", fontSize: "15px" } }, "Home Screen apps are listed there, not under Apps, by the name under Daydeck's icon."),
       h("button.btn-main", { onclick: () => close("done") }, "Okay")));
   }, { label: "Notifications are off for Daydeck" });
 }
