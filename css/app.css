@@ -1031,10 +1031,12 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-compose { flex: none; margin: 0 calc(-1 * var(--edge)); padding: 12px var(--edge) var(--bot); border-top: 1px solid rgba(239, 237, 233, .08); }
 .cm-sheet.kb .cm-compose { padding-bottom: 12px; }
 .cm-sheet.kb .cm-compose .fr-foot { display: none; }
-.cm-compose-in { display: flex; align-items: flex-end; gap: 8px; }
-.cm-field { min-height: 44px; padding: 11px 14px; resize: none; font: inherit; font-size: 17px; line-height: 22px; }
-.cm-post { width: 72px; }
-.cm-post[aria-disabled="true"] { background: rgba(239, 237, 233, .08); color: var(--faint); }
+.cm-box { position: relative; display: flex; }
+.cm-field { min-height: 44px; padding: 11px 50px 11px 14px; resize: none; font: inherit; font-size: 17px; line-height: 22px; border-radius: 22px; }
+/* Send: a round arrow inside the box; faint until there's something to send, then marigold (alex 2026-11-26) */
+.cm-post { position: absolute; right: 6px; bottom: 6px; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--sun); color: #1d1e22; transition: background .2s ease, color .2s ease; }
+.cm-post::before { content: ""; position: absolute; inset: -6px; }   /* a 44-point tap target */
+.cm-post[aria-disabled="true"] { background: rgba(239, 237, 233, .10); color: var(--faint); }
 .cm-compose .fr-foot { margin-top: 8px; }
 .cm-quote { overflow-wrap: anywhere; color: var(--ink2); }
 .cm-note { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; text-align: left; }

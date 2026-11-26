@@ -101,13 +101,15 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     closeSheet = close; panelEl = panel;
     panel.classList.add("cm-sheet");
     field = h("textarea.fr-field.cm-field", { rows: "1", maxlength: "280", enterkeyhint: "send", placeholder: m.mine ? "Add a comment" : `Add a comment for ${first(m.by || {})}`, "aria-label": "Add a comment" });
-    btn = h("button.fr-btn.main.cm-post", { type: "button", "aria-disabled": "true" }, "Post");
+    // Send: a round arrow inside the box, faint until there's something to send, then marigold (alex 2026-11-26).
+    btn = h("button.cm-post", { type: "button", "aria-label": "Post comment", "aria-disabled": "true" },
+      friends.svg(18, [["path", { d: "M12 19V5M6 11l6-6 6 6" }]], { "stroke-width": "2.4" }));
     field.addEventListener("input", fit);
     field.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
     btn.addEventListener("click", send);
     listEl = h("div.cm-scroll", { "data-scroll": "" });
     panel.append(h("h2.cm-title", null, "Comments"), listEl,
-      h("div.cm-compose", null, h("div.cm-compose-in", null, field, btn), h("p.fr-foot.mo-only", null, lock(), " Only your friends will see it.")));
+      h("div.cm-compose", null, h("div.cm-box", null, field, btn), h("p.fr-foot.mo-only", null, lock(), " Only your friends will see it.")));
     draw();
   }, { label: "Comments", onClose: () => { if (vv) { vv.removeEventListener("resize", lift); vv.removeEventListener("scroll", lift); } } });
   if (vv) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }

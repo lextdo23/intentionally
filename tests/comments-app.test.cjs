@@ -95,8 +95,10 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!/Took the long way/.test(await text(pg)) && /Love the long way/.test(await text(pg)) && !(await text(pg)).includes("Ana's words"), "just the comments Mia may see, no caption");
   check(/Only your friends will see it/.test(await text(pg)), "it says only friends will see it");
   check(await p.getAttribute(pg + " .cm-post", "aria-disabled") === "true", "Post waits for some words");
-  check(await p.$eval(pg + " .cm-post", (e) => getComputedStyle(e).backgroundColor) !== "rgb(255, 165, 31)", "no orange on the Comments page");
-  await p.fill(pg + " .cm-field", "Wish I'd come");
+  check(await p.$eval(pg + " .cm-post", (e) => getComputedStyle(e).backgroundColor) !== "rgb(255, 165, 31)", "the send arrow is faint while the box is empty");
+  await p.fill(pg + " .cm-field", "Wish I'd come"); await p.waitForTimeout(300);
+  check(await p.$eval(pg + " .cm-post", (e) => getComputedStyle(e).backgroundColor) === "rgb(255, 165, 31)", "and turns marigold once there's something to send");
+  await shot("c2b-typing");
   await p.click(pg + " .cm-post"); await p.waitForTimeout(900);
   check(/Wish I'd come/.test(await text(pg + " .cm-list")) && (await p.inputValue(pg + " .cm-field")) === "", "Mia's comment is posted and the box empties");
   check((await sam.get("/a/f/comments?id=" + sm.id)).comments.some((c) => c.text === "Wish I'd come"), "Sam sees it on his moment");
@@ -130,6 +132,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const mine = p.locator("#friends .mo-post", { hasText: "Slow day" });
   check(/Rest well/.test(await mine.locator(".cm-last").textContent()) && await mine.locator(".cm-all").count() === 1, "her post shows the latest and View all comments");
   check(await mine.locator(".mo-see").count() === 0 && !/Your moment/.test(await mine.locator(".mo-acts").textContent()), "her own moment has no sun to press and no words, just the bubble");
+  await mine.scrollIntoViewIfNeeded(); await shot("c5-own-closed");
   await p.click("#friends .fr-bell"); await p.waitForTimeout(900);
   check(/New comments/.test(await text(".fr-page:last-child")) && /Josh commented: Good on you/.test(await text(".fr-page:last-child")) && /Sam commented: Rest well/.test(await text(".fr-page:last-child")), "the bell lists New comments by name and words");
   await shot("c4-bell");
