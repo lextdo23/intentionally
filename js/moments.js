@@ -283,9 +283,10 @@ export function post(m, { onChange, onPerson } = {}) {
         Object.assign(m, r.moment); if (!same) draw(); onChange && onChange(m);
       });
     });
-    // Who said it, as faces and names: tap for the whole list (only your own friends among them, unless it's yours).
-    const seers = m.seers.length ? h("button.mo-seers", { type: "button", onclick: () => seenBy(m, onPerson), "aria-label": `${names(m.seers)} said I see you. See who` },
-      h("span.mo-faces", { "aria-hidden": "true" }, m.seers.slice(0, 3).map((p) => friends.pic(p, 22))), h("span", null, names(m.seers))) : null;
+    // Who said it, on its own line under the sun (alex 2026-11-27): small faces and "Seen by Josh and Sam" in body
+    // text. Tap for the whole list (only your own friends among them, unless it's yours). Nothing when nobody has.
+    const seers = m.seers.length ? h("button.mo-seers", { type: "button", onclick: () => seenBy(m, onPerson), "aria-label": `Seen by ${names(m.seers)}. See who` },
+      h("span.mo-faces", { "aria-hidden": "true" }, m.seers.slice(0, 3).map((p) => friends.pic(p, 20))), h("span", null, "Seen by ", h("b", null, names(m.seers)))) : null;
     const who = h("button.mo-who", { type: "button", onclick: () => onPerson && onPerson(m.by.username), "aria-label": `${friends.shown(m.by)}, ${ago(m.at)}` }, friends.pic(m.by, 36), h("span.mo-name", null, friends.shown(m.by)), h("span.mo-when", null, ago(m.at)));
     const more = h("button.round.mo-more", { type: "button", "aria-label": "More" }, friends.svg(20, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }));
     more.addEventListener("click", () => moreMenu(m, onChange));
@@ -294,7 +295,8 @@ export function post(m, { onChange, onPerson } = {}) {
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
       m.kind === "photo" || m.kind === "week" ? photoPost(m) : m.kind === "card" || m.kind === "own" ? cardPost(m) : tile(m, { big: true }),
-      h("div.mo-acts", null, h("div.mo-acts-l", null, see, talk), seers),
+      h("div.mo-acts", null, h("div.mo-acts-l", null, see, talk)),
+      seers,
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
       m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null,
       comments.preview(m, open)].filter(Boolean));   // replaceChildren would print "null"
