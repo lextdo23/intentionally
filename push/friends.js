@@ -34,6 +34,11 @@
 // three different people reporting it holds it back until alex looks. A new comment on your moment adds to your
 // Friends number and, with friend notifications on, brings "Sam commented on your moment" (same hourly and night
 // rules). Removing or blocking a friend takes their comments on each other's moments with it.
+// Replies and suns on comments (alex 2026-11-26): a reply sits under the comment it answers, one level deep (replying
+// to a reply joins the same thread). You see a reply only if you may see it and the comment it's under. The person
+// answered gets "Mia replied to your comment" (same Friends switch and rules) and it counts on their number. The sun
+// is "I see you" for a comment: never counted, never a notification; the writer sees which of their friends said it.
+// Removing a comment takes its replies and suns with it.
 
 import { ping, pushable } from "./webpush.js";
 
@@ -88,9 +93,13 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS fpings (user TEXT PRIMARY KEY, sub TEXT, tz TEXT, pend TEXT, last INTEGER, due INTEGER);
     CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, moment TEXT, who TEXT, text TEXT, at INTEGER);
     CREATE INDEX IF NOT EXISTS comments_moment ON comments (moment, at);
-    CREATE TABLE IF NOT EXISTS cheld (comment TEXT PRIMARY KEY, at INTEGER);`);
+    CREATE TABLE IF NOT EXISTS cheld (comment TEXT PRIMARY KEY, at INTEGER);
+    CREATE TABLE IF NOT EXISTS csees (comment TEXT, who TEXT, at INTEGER, PRIMARY KEY (comment, who));`);
   // Reports can be about a comment (2026-11-26). Books made before then get the column added once.
   try { sql.exec("ALTER TABLE reports ADD COLUMN comment TEXT"); } catch { /* already there */ }
+  // Replies (alex 2026-11-26): parent is the comment a reply sits under, rto who it answers. Added once to older books.
+  try { sql.exec("ALTER TABLE comments ADD COLUMN parent TEXT"); } catch { /* already there */ }
+  try { sql.exec("ALTER TABLE comments ADD COLUMN rto TEXT"); } catch { /* already there */ }
 }
 
 // Words typed for a name or "This season": plain text only, with invisible characters and line breaks taken out.
@@ -127,7 +136,8 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/pings": return out(b.pSet(token, body));
     case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
     case "GET /a/f/comments": return out(b.cList(token, q.get("id") || ""));
-    case "POST /a/f/comment": return out(b.cAdd(token, String(body.id || ""), body.text));
+    case "POST /a/f/comment": return out(b.cAdd(token, String(body.id || ""), body.text, body.parent ? String(body.parent) : ""));
+    case "POST /a/f/csee": return out(b.cSee(token, String(body.id || ""), body.undo === true));
     case "POST /a/f/uncomment": return out(b.cDrop(token, String(body.id || "")));
   }
   return null;
@@ -189,7 +199,8 @@ export const friendMethods = {
     // Their "I see you"s and comments on each other's moments go too.
     this.sql.exec("DELETE FROM sees WHERE (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?)) OR (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?))", a, b, b, a);
     this.sql.exec("DELETE FROM comments WHERE (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?)) OR (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?))", a, b, b, a);
-    this.sql.exec("DELETE FROM cheld WHERE comment NOT IN (SELECT id FROM comments)");
+    this.sql.exec("DELETE FROM csees WHERE (who = ? AND comment IN (SELECT id FROM comments WHERE who = ?)) OR (who = ? AND comment IN (SELECT id FROM comments WHERE who = ?))", a, b, b, a);
+    this.cTidy();
   },
 
   // Signed in and ticked "I'm 18 or over"? Most things need both.
@@ -441,6 +452,7 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM cheld WHERE comment IN (SELECT id FROM comments WHERE moment = ?)", id);
     for (const t of ["sees", "mphotos", "mheld", "comments"]) this.sql.exec(`DELETE FROM ${t} WHERE moment = ?`, id);
     this.sql.exec("DELETE FROM moments WHERE id = ?", id);
+    this.cTidy();
   },
   // A shared photo: only for its owner and their friends.
   async mPhoto(token, id) {
@@ -481,10 +493,26 @@ export const friendMethods = {
     return meId === ownerId || this.fIsPal(meId, c.who);
   },
   // The comments on a moment you may see, oldest first.
-  cSeen(row, meId) { return this.rows("SELECT * FROM comments WHERE moment = ? ORDER BY at, id", row.id).filter((c) => this.cMay(c, meId, row.owner)); },
+  // A reply shows only when the comment it sits under shows too.
+  cSeen(row, meId) {
+    const all = this.rows("SELECT * FROM comments WHERE moment = ? ORDER BY at, id", row.id).filter((c) => this.cMay(c, meId, row.owner));
+    const ids = new Set(all.map((c) => c.id));
+    return all.filter((c) => !c.parent || ids.has(c.parent));
+  },
+  // A comment taken away (or a moment, friend or account): its replies, holds and suns go too.
+  cTidy() {
+    this.sql.exec("DELETE FROM comments WHERE parent IS NOT NULL AND parent NOT IN (SELECT id FROM comments)");
+    this.sql.exec("DELETE FROM cheld WHERE comment NOT IN (SELECT id FROM comments)");
+    this.sql.exec("DELETE FROM csees WHERE comment NOT IN (SELECT id FROM comments)");
+  },
   cOut(c, meId, ownerId) {
     const u = this.one("SELECT * FROM users WHERE id = ?", c.who);
-    return { id: c.id, text: c.text, at: c.at, by: u ? this.fCard(u) : { username: "", name: "", pic: "smile" }, mine: c.who === meId, canRemove: c.who === meId || meId === ownerId };
+    // The sun: whether you said it, and on your own comment which of your friends did (never a count).
+    const ss = this.rows("SELECT who FROM csees WHERE comment = ? ORDER BY at", c.id);
+    const seers = c.who !== meId ? [] : ss.filter((x) => x.who !== meId && (x.who === ownerId || this.fIsPal(meId, x.who)) && !this.one("SELECT 1 AS x FROM paused WHERE user = ?", x.who))
+      .map((x) => this.one("SELECT * FROM users WHERE id = ?", x.who)).filter(Boolean).map((p) => this.fCard(p));
+    return { id: c.id, text: c.text, at: c.at, parent: c.parent || null, by: u ? this.fCard(u) : { username: "", name: "", pic: "smile" }, mine: c.who === meId, canRemove: c.who === meId || meId === ownerId,
+      seen: ss.some((x) => x.who === meId), seers };
   },
   // A moment you may comment on (and read the comments of): your own, or a friend's that isn't held back.
   cMoment(meId, id) {
@@ -504,7 +532,7 @@ export const friendMethods = {
     const row = this.cMoment(g.u.id, id);
     return row ? this.cAll(row, g.u.id) : { error: "not_found", status: 404 };
   },
-  async cAdd(token, id, text) {
+  async cAdd(token, id, text, parent = "") {
     const g = await this.fGate(token); if (g.error) return g;
     const me = g.u, row = this.cMoment(me.id, id);
     if (!row) return { error: "not_found", status: 404 };
@@ -513,10 +541,32 @@ export const friendMethods = {
     if (!words) return { error: "bad_comment" };
     const t = Date.now();
     if (this.one("SELECT COUNT(*) AS n FROM comments WHERE who = ? AND at > ?", me.id, t - DAY).n >= LIMITS.commentsPerDay) return { error: "too_many_comments" };
+    // A reply: to a comment on this moment you can see. Replying to a reply joins the same thread, one level deep.
+    let top = null, rto = null;
+    if (parent) {
+      const p = this.cSeen(row, me.id).find((c) => c.id === parent);
+      if (!p) return { error: "not_found", status: 404 };
+      top = p.parent || p.id; rto = p.who;
+    }
     const cid = this.newToken().slice(0, 16);
-    this.sql.exec("INSERT INTO comments (id, moment, who, text, at) VALUES (?, ?, ?, ?, ?)", cid, row.id, me.id, words, t);
-    if (row.owner !== me.id) await this.pComment(row.owner, cid);   // the person who shared gets told (in time)
+    this.sql.exec("INSERT INTO comments (id, moment, who, text, at, parent, rto) VALUES (?, ?, ?, ?, ?, ?, ?)", cid, row.id, me.id, words, t, top, rto);
+    // The person answered gets told, if they can see the reply (it's their friend's, or on their own moment).
+    const told = rto && rto !== me.id && (rto === row.owner || this.fIsPal(rto, me.id));
+    if (told) await this.pReply(rto, cid);
+    if (row.owner !== me.id && !(told && rto === row.owner)) await this.pComment(row.owner, cid);   // the person who shared gets told (in time)
     return { ...this.cAll(row, me.id), comment: cid };
+  },
+  // The sun on a comment ("I see you", alex 2026-11-26): on someone else's comment you can see. Never counted or told.
+  async cSee(token, cid, undo) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, c = this.one("SELECT * FROM comments WHERE id = ?", cid), row = c && this.cMoment(me.id, c.moment);
+    if (!row || c.who === me.id || !this.cSeen(row, me.id).some((x) => x.id === cid)) return { error: "not_found", status: 404 };
+    if (undo) this.sql.exec("DELETE FROM csees WHERE comment = ? AND who = ?", cid, me.id);
+    else {
+      if (this.one("SELECT 1 AS x FROM paused WHERE user = ?", me.id)) return { error: "paused" };
+      this.sql.exec("INSERT OR IGNORE INTO csees (comment, who, at) VALUES (?, ?, ?)", cid, me.id, Date.now());
+    }
+    return this.cAll(row, me.id);
   },
   // Delete your own comment, or remove anyone's from your own moment. Nobody is told.
   async cDrop(token, cid) {
@@ -525,13 +575,19 @@ export const friendMethods = {
     const row = c && this.one("SELECT * FROM moments WHERE id = ?", c.moment);
     if (!c || !row || (c.who !== me.id && row.owner !== me.id)) return { error: "not_found", status: 404 };
     this.sql.exec("DELETE FROM comments WHERE id = ?", cid);
-    this.sql.exec("DELETE FROM cheld WHERE comment = ?", cid);
+    this.cTidy();
     return { ok: true, by: c.who === me.id ? "own" : "theirs", ...(this.cMoment(me.id, row.id) ? this.cAll(row, me.id) : {}) };
   },
   // Friends' comments on your moments lately, newest first: the bell's "New comments" (the phone knows which are new).
+  // Replies to you on friends' moments come too (2026-11-26), marked reply, with whose moment it's on.
   cNews(meId, since) {
-    return this.rows(`SELECT c.*, m.owner FROM comments c JOIN moments m ON m.id = c.moment WHERE m.owner = ? AND c.who != ? AND c.at > ? ORDER BY c.at DESC LIMIT 50`, meId, meId, since)
-      .filter((c) => this.cMay(c, meId, meId) && this.fIsPal(meId, c.who)).map((c) => ({ ...this.cOut(c, meId, meId), moment: c.moment }));
+    return this.rows(`SELECT c.*, m.owner FROM comments c JOIN moments m ON m.id = c.moment WHERE (m.owner = ? OR c.rto = ?) AND c.who != ? AND c.at > ? ORDER BY c.at DESC LIMIT 50`, meId, meId, meId, since)
+      .filter((c) => this.fIsPal(meId, c.who) && this.cMay(c, meId, c.owner) && (c.owner === meId || this.cMoment(meId, c.moment))
+        && (!c.parent || (() => { const p = this.one("SELECT * FROM comments WHERE id = ?", c.parent); return p && this.cMay(p, meId, c.owner); })()))
+      .map((c) => {
+        const on = c.owner === meId ? null : this.one("SELECT * FROM users WHERE id = ?", c.owner);
+        return { ...this.cOut(c, meId, c.owner), moment: c.moment, reply: c.rto === meId, onMine: c.owner === meId, onBy: on ? this.fCard(on) : null };
+      });
   },
 
   // ---------------- Reports ----------------
@@ -596,7 +652,7 @@ export const friendMethods = {
     const close = (state) => this.sql.exec(`UPDATE reports SET state = ?, done = ?, photo = NULL WHERE state = 'open' AND ${same[0]}`, state, t, same[1]);
     if (act === "keep") { if (r.moment) this.sql.exec("DELETE FROM mheld WHERE moment = ?", r.moment); if (r.comment) this.sql.exec("DELETE FROM cheld WHERE comment = ?", r.comment); close("kept"); }
     if (act === "remove" && r.moment) { this.mDrop(r.moment); close("removed"); }
-    if (act === "remove" && r.comment) { this.sql.exec("DELETE FROM comments WHERE id = ?", r.comment); this.sql.exec("DELETE FROM cheld WHERE comment = ?", r.comment); close("removed"); }
+    if (act === "remove" && r.comment) { this.sql.exec("DELETE FROM comments WHERE id = ?", r.comment); this.cTidy(); close("removed"); }
     if (act === "pause") { this.sql.exec("INSERT OR IGNORE INTO paused (user, at) VALUES (?, ?)", r.who, t); close("paused"); }
     if (act === "unpause") this.sql.exec("DELETE FROM paused WHERE user = ?", r.who);
     return { ok: true };
@@ -612,7 +668,8 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM invites WHERE user = ?", id);
     this.sql.exec("DELETE FROM sees WHERE who = ? OR moment IN (SELECT id FROM moments WHERE owner = ?)", id, id);
     this.sql.exec("DELETE FROM comments WHERE who = ? OR moment IN (SELECT id FROM moments WHERE owner = ?)", id, id);
-    this.sql.exec("DELETE FROM cheld WHERE comment NOT IN (SELECT id FROM comments)");
+    this.sql.exec("DELETE FROM csees WHERE who = ?", id);
+    this.cTidy();
     this.sql.exec("DELETE FROM mphotos WHERE moment IN (SELECT id FROM moments WHERE owner = ?)", id);
     this.sql.exec("DELETE FROM moments WHERE owner = ?", id);
     this.sql.exec("DELETE FROM hides WHERE owner = ? OR who = ?", id, id);
@@ -642,9 +699,9 @@ export const friendMethods = {
   // counted on the number (alex 2026-11-27: notifications yes; the number stays requests, moments and comments).
   pNote(news) {
     const m = news.names.length ? this.pWords(news) : "", a = news.asks.length ? this.pAskWords(news.asks) : "", c = news.commenters.length ? this.pCommentWords(news) : "";
-    const s = news.seers.length ? this.pSeeWords(news.seers) : "";
-    const lines = [a, c, s, m].filter(Boolean);
-    return { kind: "friends", title: lines[0] || "", body: lines.slice(1).join("\n"), n: news.moments + news.asks.length + news.comments };
+    const s = news.seers.length ? this.pSeeWords(news.seers) : "", y = news.repliers.length ? this.pReplyWords(news) : "";
+    const lines = [a, y, c, s, m].filter(Boolean);
+    return { kind: "friends", title: lines[0] || "", body: lines.slice(1).join("\n"), n: news.moments + news.asks.length + news.comments + news.replies };
   },
   // When this phone may next be pinged: an hour after the last one, and never in its night (10pm to 8am).
   pDue(row, t = Date.now()) {
@@ -683,6 +740,14 @@ export const friendMethods = {
     this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
     await this.pWake();
   },
+  // A reply to your comment (alex 2026-11-26): kept in the same waiting list, marked "y:", told by the same rules.
+  async pReply(toId, cid) {
+    const r = this.one("SELECT * FROM fpings WHERE user = ?", toId);
+    if (!r) return;
+    const pend = JSON.parse(r.pend || "[]").concat("y:" + cid).slice(-50);
+    this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
+    await this.pWake();
+  },
   // Someone said "I see you" on your moment (alex 2026-11-27): kept in the same waiting list as "s:<who>:<moment>",
   // told by the same rules (one an hour, never at night), and dropped if they take it back before then.
   async pSee(toId, whoId, momentId) {
@@ -698,7 +763,7 @@ export const friendMethods = {
   },
   // The waiting moments still worth telling: still there, still a friend's, not hidden, paused or held back by reports.
   pNews(row) {
-    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !/^[rcs]:/.test(String(x)));
+    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !/^[rcsy]:/.test(String(x)));
     // Requests still waiting (not answered, taken back or blocked since), newest first.
     const askers = [...new Set(all.filter((x) => String(x).startsWith("r:")).map((x) => x.slice(2)).reverse())]
       .filter((id) => this.one("SELECT 1 AS x FROM asks WHERE f = ? AND t = ?", id, row.user) && !this.fBlocked(id, row.user))
@@ -712,12 +777,18 @@ export const friendMethods = {
     const cms = cids.length ? this.rows(`SELECT c.*, m.owner FROM comments c JOIN moments m ON m.id = c.moment WHERE c.id IN (${cids.map(() => "?").join(",")}) AND m.owner = ? ORDER BY c.at DESC`, ...cids, row.user)
       .filter((c) => c.who !== row.user && this.fIsPal(row.user, c.who) && this.cMay(c, row.user, row.user)) : [];
     const commenters = [...new Set(cms.map((c) => c.who))].map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean);
+    // Replies to you still there, by someone who's still a friend, under a comment that still shows. Newest first.
+    const yids = all.filter((x) => String(x).startsWith("y:")).map((x) => x.slice(2));
+    const yms = yids.length ? this.rows(`SELECT c.*, m.owner FROM comments c JOIN moments m ON m.id = c.moment WHERE c.id IN (${yids.map(() => "?").join(",")}) AND c.rto = ? ORDER BY c.at DESC`, ...yids, row.user)
+      .filter((c) => c.who !== row.user && this.fIsPal(row.user, c.who) && this.cMay(c, row.user, c.owner) && (c.owner === row.user || this.cMoment(row.user, c.moment))) : [];
+    const repliers = [...new Set(yms.map((c) => c.who))].map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean);
     // "I see you"s still there, on your own moments, from someone who's still a friend. Newest first.
     const seers = [...new Set(all.filter((x) => String(x).startsWith("s:")).reverse().map((x) => x.split(":")).filter(([, who, mid]) =>
       this.one("SELECT 1 AS x FROM sees s JOIN moments m ON m.id = s.moment WHERE s.moment = ? AND s.who = ? AND m.owner = ?", mid, who, row.user) &&
       this.fIsPal(row.user, who) && !this.one("SELECT 1 AS x FROM paused WHERE user = ?", who)).map(([, who]) => who))]
       .map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean).map(nameOf);
-    return { moments: moms.length, names: people.map(nameOf), asks: askers.map(nameOf), seers, comments: cms.length, commenters: commenters.map(nameOf), on: new Set(cms.map((c) => c.moment)).size };
+    return { moments: moms.length, names: people.map(nameOf), asks: askers.map(nameOf), seers, comments: cms.length, commenters: commenters.map(nameOf), on: new Set(cms.map((c) => c.moment)).size,
+      replies: yms.length, repliers: repliers.map(nameOf), to: new Set(yms.map((c) => c.parent)).size };
   },
   // "Sam commented on your moment", "Sam left 3 comments", "Sam and Priya commented on your moments", "Sam and 2 others commented".
   pCommentWords(news) {
@@ -725,6 +796,13 @@ export const friendMethods = {
     if (n === 1) return news.comments > 1 ? `${a} left ${news.comments} comments` : `${a} commented on ${where}`;
     if (n === 2) return `${a} and ${b} commented on ${where}`;
     return `${a} and ${n - 1} others commented`;
+  },
+  // "Mia replied to your comment", "Mia left 3 replies", "Mia and Sam replied to your comments", "Mia and 2 others replied to your comment".
+  pReplyWords(news) {
+    const [a, b] = news.repliers, n = news.repliers.length, what = news.to > 1 ? "your comments" : "your comment";
+    if (n === 1) return news.replies > 1 ? `${a} left ${news.replies} replies` : `${a} replied to ${what}`;
+    if (n === 2) return `${a} and ${b} replied to ${what}`;
+    return `${a} and ${n - 1} others replied to ${what}`;
   },
   // "Sam said I see you", "Sam and Priya said I see you", "Sam and 2 others said I see you".
   pSeeWords(names) {
@@ -747,7 +825,7 @@ export const friendMethods = {
     const now = Date.now();
     for (const row of this.rows("SELECT * FROM fpings WHERE due IS NOT NULL AND due <= ?", now + 30000)) {
       const news = this.pNews(row);
-      if (!news.names.length && !news.asks.length && !news.commenters.length && !news.seers.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
+      if (!news.names.length && !news.asks.length && !news.commenters.length && !news.seers.length && !news.repliers.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
       const sub = JSON.parse(row.sub);
       let gone = false;
       try { gone = await ping(this.env, sub.endpoint, this.pNote(news), sub.keys, PINGS.ttl / 1000); } catch { /* tried again with the next moment */ }

@@ -238,7 +238,7 @@ const names = (list) => { const n = list.map(friends.shown); if (n.length <= 1) 
 // The sun: its middle, eight rays (each its own line, so they can light up one by one), and a moon in the page's black
 // that slides across it when "I see you" is said or taken back (alex 2026-11-27, "eclipse"; see .see-on in app.css).
 const RAYS = [[12, 2.5, 12, 4.5], [17.3, 6.7, 18.7, 5.3], [19.5, 12, 21.5, 12], [17.3, 17.3, 18.7, 18.7], [12, 19.5, 12, 21.5], [5.3, 18.7, 6.7, 17.3], [2.5, 12, 4.5, 12], [5.3, 5.3, 6.7, 6.7]];
-const sunIcon = (filled) => friends.svg(24, [["circle", { class: "see-core", cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }],
+export const sunIcon = (filled) => friends.svg(24, [["circle", { class: "see-core", cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }],
   ...RAYS.map(([x1, y1, x2, y2]) => ["line", { class: "see-ray", x1, y1, x2, y2 }]), ["circle", { class: "see-moon", cx: "12", cy: "12", r: "5.7" }]]);
 // Who said "I see you" on a moment: a sheet of faces and names, tap one for their profile. The person who shared sees
 // everyone; others see only themselves and their own friends (the service decides).
