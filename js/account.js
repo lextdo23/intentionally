@@ -1,5 +1,5 @@
-// Accounts (decided with alex 2026-11-20; CLAUDE.md "Accounts"). Sign up with an email code, a username and
-// Face ID (a passkey), or carry on without an account. On for everyone since 2026-11-20: new people see it first,
+// Accounts (decided with alex 2026-11-20; CLAUDE.md "Accounts"). Sign up with an email code and a username
+// (Face ID taken out 2026-11-26), or carry on without an account. On for everyone since 2026-11-20: new people see it first,
 // and people already using the app see it once.
 //
 // What's kept on this phone, under "daydeck-account" (apart from "daydeck", so Save a copy never carries it):
@@ -290,7 +290,9 @@ function stepCode() {
     if (r.ok) {
       Object.assign(flow, { ticket: r.ticket, existing: !!r.existing, username: r.username || "" });
       log("signup_step", r.existing ? "back_in" : "name");
-      show(r.existing ? (passkeysOK() ? stepFaceID : stepFinishNoPasskey) : stepName);
+      // No Face ID step (alex 2026-11-26: it didn't work and isn't needed yet): back in straight away.
+      if (r.existing) return finishWithout(go, msg);
+      show(stepName);
     } else { msg.textContent = say(r); input.value = ""; draw(); input.focus(); log("signup_error", r.error || "unknown"); }
   };
   go.addEventListener("click", verify);
@@ -355,7 +357,8 @@ function stepName() {
     }
   };
   input.addEventListener("input", () => { input.value = input.value.replace(/\s/g, "").toLowerCase(); check(); });
-  const next = () => { if (!okName) return; flow.username = okName; log("signup_step", "faceid"); show(passkeysOK() ? stepFaceID : stepFinishNoPasskey); };
+  // The username is the last step (alex 2026-11-26: Face ID taken out); the email code is the way back in.
+  const next = () => { if (!okName) return; flow.username = okName; finishWithout(go, msg); };
   go.addEventListener("click", next);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") next(); });
   if (input.value) check();
@@ -367,35 +370,6 @@ function stepName() {
   ], [go], { lead: back(() => show(stepEmail)) });
 }
 
-const faceIcon = () => h("svg", { width: "60", height: "60", viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", "stroke-width": "2.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
-  ["M6 15V10a4 4 0 0 1 4-4h5", "M33 6h5a4 4 0 0 1 4 4v5", "M42 33v5a4 4 0 0 1-4 4h-5", "M15 42h-5a4 4 0 0 1-4-4v-5", "M17 18v3", "M31 18v3", "M24 18v8l-2 1", "M18 32c3.5 3 8.5 3 12 0"].map((d) => h("path", { d })));
-function stepFaceID() {
-  const msg = msgEl();
-  const go = h("button.btn-main", null, "Continue");
-  const later = h("button.btn-quiet", null, "Not now");
-  go.addEventListener("click", async () => {
-    if (go.classList.contains("busy")) return;
-    busy(go, true); msg.textContent = "";
-    const o = await api("/a/passkey/options", { ticket: flow.ticket, username: flow.username });
-    if (!o.ok) { busy(go, false); return trouble(o, msg); }
-    let cred;
-    try { cred = await makePasskey(o.options); }
-    catch { busy(go, false); msg.textContent = "Face ID didn't finish. Try again, or tap Not now."; log("signup_faceid", "stopped"); return; }
-    const r = await api("/a/finish", { ticket: flow.ticket, username: flow.username, credential: cred });
-    busy(go, false);
-    if (r.ok) { log("signup_faceid", "yes"); return finished(r); }
-    trouble(r, msg);
-  });
-  later.addEventListener("click", () => { log("signup_faceid", "not_now"); finishWithout(later, msg); });
-  return screen([h("span.acct-face", null, faceIcon()), h("h1.acct-title", null, "Add Face ID")], [go, later, msg]);
-}
-// A phone that can't make passkeys: straight on, with the email code as the way back in.
-function stepFinishNoPasskey() {
-  const msg = msgEl(), go = h("button.btn-main", null, "Continue");
-  go.addEventListener("click", () => finishWithout(go, msg));
-  setTimeout(() => go.click(), 0);
-  return screen([h("h1.acct-title", null, "One moment")], [go, msg]);
-}
 async function finishWithout(btn, msg) {
   if (btn.classList.contains("busy")) return;
   busy(btn, true);
@@ -478,13 +452,8 @@ function backedUp(st) {
 export function settingsSection(group, linkRow, redraw, syncStatus) {
   if (!available()) return null;
   if (!signedIn()) {
-    const msg = h("p.set-foot", { role: "status", "aria-live": "polite" }, "Keeps your days safe if you lose or change phones. Already have one? Sign in with Face ID, or make an account with the same email.");
+    const msg = h("p.set-foot", { role: "status", "aria-live": "polite" }, "Keeps your days safe if you lose or change phones. Already have one? Tap Make an account and use the same email to get back in.");
     const rows = [linkRow("Make an account", null, { onclick: () => openSignup(redraw, { from: "settings" }) })];
-    if (passkeysOK()) rows.push(linkRow("Sign in with Face ID", null, { onclick: async () => {
-      const r = await signIn();
-      if (r.ok) return redraw();
-      msg.textContent = r.error === "stopped" ? "Face ID didn't finish. Try again." : r.error === "unknown_passkey" ? "That Face ID key isn't linked to an account any more. Make an account with your email instead." : r.error === "offline" ? WORDS.offline : "That didn't work. Try again, or make an account with your email.";
-    } }));
     return group("Your account", rows, msg);
   }
   const u = user() || {};

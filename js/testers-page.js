@@ -417,7 +417,7 @@ function drawAll(D) {
     const face = {}; by("signup_faceid").forEach((e) => (face[e.val] = (face[e.val] || 0) + 1));
     const errs = {}; by("signup_error").forEach((e) => { if (typeof e.val === "string" && e.val.length < 30) errs[e.val] = (errs[e.val] || 0) + 1; });
     const pics = {}; by("avatar").forEach((e) => { if (typeof e.val === "string" && e.val.length < 20) pics[e.val] = (pics[e.val] || 0) + 1; });
-    html += sec("How does signing up go?", "The sign-up screens (test mode only for now): email, code, username, Face ID. How far people get, who carries on without an account, and which pictures they pick. Never anyone's email, username or code.",
+    html += sec("How does signing up go?", "The sign-up screens (test mode only for now): email, code, username (Face ID taken out 26 Nov 2026; older Face ID numbers below are from before). How far people get, who carries on without an account, and which pictures they pick. Never anyone's email, username or code.",
       opened ? bars(steps, opened) +
         `<p class="note">Carried on without an account: ${people("signup_without", (e) => e.val === "yes")}. Got back into an account they already had: ${people("signup_done", (e) => e.val === "back_in")}. Face ID: added ${face.yes || 0}, not now ${face.not_now || 0}, stopped part way ${face.stopped || 0}. Signed in with Face ID later: ${by("signin").filter((e) => e.val === "ok").length}. Signed out: ${by("signout").length}. Deleted their account: ${by("account_delete").length}.</p>` +
         `<p class="note">Things that went wrong: ${Object.entries(errs).map(([k, n]) => `${esc(k)} ${n}`).join(", ") || "nothing"}.</p>` +
