@@ -68,7 +68,6 @@ export function openNotes() {
   let list = fresh;
   page("Notifications", (redraw) => {
     const parts = [];
-    if (pingOffer()) parts.push(pingCard(redraw));
     if (data && data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
     if (list.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New moments"),
       moments.feedList(list, { onPerson: openPerson, onChange: (m, gone) => { if (gone) { list = list.filter((x) => x.id !== gone.id); again(); } } })));
@@ -93,14 +92,14 @@ function setBadge(n) {
   } catch { /* no number on the icon: nothing lost */ }
 }
 
-// ---------------- Friend notifications (alex 2026-11-25) ----------------
-// Off until pressed: "Get notified when friends share" at the top of the bell page (shown once, until Turn on or
-// Not now), and "When friends share" in Settings, Notifications. Then a friend's new moment brings "Mia shared a
-// moment" (their name, else @username; never a photo, caption or mood), at most one an hour and never 10pm to 8am.
-// The service keeps this phone's push address with the account for it (push/friends.js); off removes it.
-// On this phone: pings (on or off), pingAsk (the bell page's offer was answered) and pingSub (the address sent).
-export const pingsOn = () => !!local.pings;
-const pingOffer = () => !local.pings && !local.pingAsk && notify.supported() && !notify.needsInstall() && !notify.blocked();
+// ---------------- Friend notifications (alex 2026-11-25; one switch for everything social, on by default, 2026-11-26) ----
+// On unless switched off: "Friends" in Settings, Social. A friend's new moment brings "Mia shared a moment" and a
+// friend request "Sam wants to be friends" (their name, else @username; never a photo, caption or mood), at most one
+// an hour and never 10pm to 8am. Nothing arrives until the phone allows notifications (Apple asks once); then the
+// service keeps this phone's push address with the account for it (push/friends.js); off removes it.
+// On this phone: pings (true on, false switched off, unset = never chosen, so on), pingSub (the address sent).
+// pingAsk is the old bell-page "Not now" (2026-11-25): those people keep it off until they switch it on.
+export const pingsOn = () => local.pings === true || (local.pings == null && !local.pingAsk);
 const tz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { return ""; } };
 export async function setPings(on, from) {
   if (on) {
@@ -114,36 +113,36 @@ export async function setPings(on, from) {
     if (!r.ok) { note(say(r)); return false; }
     local.pings = false; delete local.pingSub;
   }
-  local.pingAsk = 1; keep();
+  keep();
   log("friend_pings", on ? "on_" + (from || "settings") : "off");
   return true;
 }
-function pingsLater() { local.pingAsk = 1; keep(); log("friend_pings", "later"); }
-// If the phone's push address changed (iPhone sometimes renews it), tell the service quietly. If notifications were
-// switched off for Daydeck in the phone's Settings, friend notifications are off too.
+// Tells the service quietly whenever it needs to know: on by default once the phone allows notifications, a new push
+// address (iPhone sometimes renews it), or notifications switched off for Daydeck in the phone's Settings (then the
+// service forgets the phone, and it comes back by itself if they're allowed again). Never asks for permission.
+let pingBusy = false;
 async function checkPings() {
-  if (!local.pings) return;
-  if (typeof Notification !== "undefined" && Notification.permission === "denied") { local.pings = false; delete local.pingSub; keep(); account.call("/a/f/pings", { on: false }); return; }
+  if (!pingsOn() || pingBusy || !data || !data.me.adult) return;
+  if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+    if (local.pingSub) { delete local.pingSub; keep(); account.call("/a/f/pings", { on: false }); }
+    return;
+  }
   const sub = await notify.currentSub();
   if (!sub || sub.endpoint === local.pingSub) return;
+  pingBusy = true;
   const r = await account.call("/a/f/pings", { on: true, sub: sub.toJSON(), tz: tz() });
+  pingBusy = false;
   if (r.ok) { local.pingSub = sub.endpoint; keep(); }
 }
 // Signing out: friend notifications stop (the service also stops them once no phone is signed in).
 export async function pingsOffForSignOut() {
-  if (!local.pings) return;
+  if (!local.pingSub && local.pings !== true) return;
   await account.call("/a/f/pings", { on: false }).catch(() => {});
-  local.pings = false; delete local.pingSub; delete local.pingAsk; keep();
+  delete local.pings; delete local.pingSub; delete local.pingAsk; keep();
 }
 account.beforeLeaving(pingsOffForSignOut);
-function pingCard(redraw) {
-  const on = h("button.fr-btn.main", { type: "button", onclick: (e) => busy(e.currentTarget, async () => { if (await setPings(true, "bell")) { note("You'll hear when friends share."); redraw(); } }) }, "Turn on");
-  const later = h("button.fr-btn.soft", { type: "button", onclick: () => { pingsLater(); redraw(); } }, "Not now");
-  return h("section.fr-ping", null,
-    h("h2.fr-ping-title", null, "Get notified when friends share"),
-    h("p.fr-ping-text", null, "At most one an hour, never at night. You'll see their name, never their photo or words."),
-    h("div.fr-ping-btns", null, on, later));
-}
+// Notifications just allowed (from Settings or setup): friend notifications follow straight away.
+notify.onAllowed(() => checkPings());
 
 // Coming back to Daydeck: check again now and then, so the number keeps up.
 let lastCheck = 0;

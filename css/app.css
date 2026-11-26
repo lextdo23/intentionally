@@ -300,6 +300,8 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .set-row:active { transform: none; background: var(--fill2); }
 .set-toggle { gap: 12px; min-height: 56px; padding-right: 12px; }
 .set-label { flex-grow: 1; min-width: 0; }
+.set-small { display: block; font-size: 13px; color: var(--dim); }
+.set-act { min-height: 44px; padding: 0 4px; font-size: 17px; color: var(--sun); flex-shrink: 0; }
 .set-toggle .time-pill { flex: 0 0 auto; width: 108px; }
 #settings { z-index: 5; }
 .sheet-host { position: relative; z-index: 10; }
@@ -798,10 +800,6 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .fr-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(239, 237, 233, .08); flex-shrink: 0; }
 .fr-switch { display: flex; align-items: center; gap: 12px; min-height: 56px; }
 /* Friend notifications offer at the top of the bell page (alex 2026-11-25): shown once, until Turn on or Not now. */
-.fr-ping { border-radius: 16px; background: rgba(239, 237, 233, .06); border: 1px solid rgba(239, 237, 233, .08); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-.fr-ping-title { margin: 0; font-size: 17px; font-weight: 600; }
-.fr-ping-text { margin: 0; font-size: 15px; color: var(--dim); }
-.fr-ping-btns { display: flex; gap: 8px; margin-top: 8px; }
 .fr-group { border-radius: 16px; background: rgba(239, 237, 233, .06); padding: 4px 16px; display: flex; flex-direction: column; }
 .fr-group > * + * { border-top: 1px solid rgba(239, 237, 233, .08); }
 .fr-group .fr-switch { min-height: 72px; }

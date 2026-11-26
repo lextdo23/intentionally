@@ -63,10 +63,11 @@ function render() {
   const top = el.querySelector(".set-scroll")?.scrollTop || 0;
   el.replaceChildren(h("div.set-scroll", null, h("div.set-page", null,
     h("div.col", { style: { gap: "8px" } }, roundBtn("back", "Back to home", closeSettings), h("h1.big-title", null, "Settings")),
-    // Grouped by how it's used (alex 2026-11-24): you; your days; nudges; privacy and your data; support; about; delete.
+    // Grouped by how it's used (alex 2026-11-24): you; your days; nudges; social; privacy and your data; support; about; delete.
     account.settingsSection(group, linkRow, render, sync.status),
     yourDays(),
     nudges(),
+    social(),
     privacyData(),
     group("Support", [
       linkRow("Talk to someone", "Lifeline 13 11 14", { href: "tel:131114" }),
@@ -118,27 +119,31 @@ function changePillars() {
   setTimeout(() => pickPillars(() => { if (!el) return; el.style.visibility = ""; render(); requestAnimationFrame(() => document.body.classList.add("in-settings")); }), 200);
 }
 
-// Nudges: one for the start of your day, one for the end. Each can be on or off, at a time you choose.
+// Notifications, in two groups (alex 2026-11-26): Nudges (your own day) and Social (friends). Everything starts on and
+// people switch off what they don't want. No paragraphs: a few words under a row only where its name isn't enough.
+// Nothing arrives until the phone allows notifications, so while it doesn't, one row at the top says so.
+function permRow(redraw) {
+  if (notify.supported() && !notify.needsInstall() && Notification.permission === "granted") return null;
+  const why = notify.needsInstall() ? "Add Daydeck to your Home Screen first" : !notify.supported() ? "This browser can't show them"
+    : notify.blocked() ? "Turn them on in your phone's Settings app" : "Nothing below can reach you yet";
+  const can = notify.supported() && !notify.needsInstall() && !notify.blocked();
+  const btn = can ? h("button.set-act", { type: "button", onclick: async () => { const ok = await notify.enable(); tester.log("nudge_allow", ok ? "yes" : "no"); redraw(); } }, "Turn on") : null;
+  return h("div.set-row.set-toggle", null, h("span.set-label", null, "Notifications are off for Daydeck", h("small.set-small", null, why)), btn);
+}
+const label = (text, small) => h("span.set-label", null, text, small ? h("small.set-small", null, small) : null);
 function nudges() {
   const n = notify.prefs();
-  const msg = h("p.set-foot");
-  const say = () => {
-    msg.textContent = notify.needsInstall() ? "On iPhone, add Daydeck to your Home Screen first (Share, then Add to Home Screen), then turn these on there."
-      : !notify.supported() ? "This browser can't show notifications."
-      : notify.blocked() ? "Notifications are switched off for Daydeck in your phone's Settings app." : "One gentle nudge each, skipped if you've already checked in. Card reminders come at lunch and after work, only if your card isn't done yet. Nothing you wrote is ever shown."
-        + (friends.loaded() && account.signedIn() ? " When friends share, you'll see their name (at most once an hour, never at night). The number on the Daydeck icon is friend requests and new moments; turn it off in your phone's Settings, Notifications, Daydeck, Badges." : "");
-  };
-  const row = (key, label) => {
-    const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": label });
-    const time = h("input.time-pill", { type: "time", step: "300", value: n[key].t, "aria-label": `${label} time` });
+  const row = (key, name) => {
+    const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": name });
+    const time = h("input.time-pill", { type: "time", step: "300", value: n[key].t, "aria-label": `${name} time` });
     time.disabled = !n[key].on;
     sw.addEventListener("click", async () => {
       const on = !n[key].on;
-      if (on && (!notify.supported() || Notification.permission !== "granted")) { const ok = await notify.enable(); say(); if (!ok) return; }
+      if (on && notify.supported() && Notification.permission === "default") await notify.enable();
       n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; cardShow(); store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
     });
     time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
-    return h("div.set-row.set-toggle", null, h("span.set-label", null, label), time, sw);
+    return h("div.set-row.set-toggle", null, label(name), time, sw);
   };
   // Card reminders: on/off only. Times follow the day (see cardTimes in notify.js).
   // It only works alongside a morning or evening nudge, so it shows off (and can't be pressed) while both are off.
@@ -146,26 +151,29 @@ function nudges() {
   const cardShow = () => { const can = n.am.on || n.pm.on; cardSw.disabled = !can; cardSw.setAttribute("aria-checked", String(can && n.card.on)); };
   cardSw.addEventListener("click", () => { n.card.on = !n.card.on; cardShow(); store.save(); notify.sync(); tester.log("nudge_card", n.card.on ? "on" : "off"); });
   cardShow();
-  const cardRow = () => h("div.set-row.set-toggle", null, h("span.set-label", null, "Card reminders"), cardSw);
-  say();
   // The wind-down nudge kept from the weekly wrapped shows here while it runs; switching it off stops it.
   const wind = deck.planItems().find((x) => x.kind === "nudge");
   const windRow = () => {
     const sw = h("button.switch", { role: "switch", "aria-checked": "true", "aria-label": "Wind-down nudge" });
     sw.addEventListener("click", () => { wind.off = true; store.save(); notify.sync(); tester.log("wrap_stop", "nudge"); sw.setAttribute("aria-checked", "false"); sw.disabled = true; });
-    return h("div.set-row.set-toggle", null, h("span.set-label", null, "Wind-down nudge"), h("span.time-pill", { style: { opacity: ".7" } }, `until ${DAY_NAME[keyDate(store.get().wrap.plan.end).getDay()]}`), sw);
+    return h("div.set-row.set-toggle", null, label("Wind-down nudge", `Until ${DAY_NAME[keyDate(store.get().wrap.plan.end).getDay()]}`), sw);
   };
-  // Friend notifications (alex 2026-11-25): once Friends is open and ticked 18+. Off until switched on.
-  const fd = friends.loaded(), friendRow = () => {
-    const sw = h("button.switch", { role: "switch", "aria-checked": String(friends.pingsOn()), "aria-label": "When friends share" });
-    sw.addEventListener("click", async () => {
-      const on = !friends.pingsOn(); sw.disabled = true;
-      await friends.setPings(on, "settings");
-      sw.disabled = false; sw.setAttribute("aria-checked", String(friends.pingsOn())); say();
-    });
-    return h("div.set-row.set-toggle", null, h("span.set-label", null, "When friends share"), sw);
-  };
-  return group("Nudges", [row("am", "Start your day"), row("pm", "End your day"), cardRow()].concat(wind ? [windRow()] : [], fd && fd.me.adult && account.signedIn() ? [friendRow()] : []), msg);
+  const perm = permRow(render);
+  return group("Nudges", [].concat(perm ? [perm] : [], [row("am", "Start your day"), row("pm", "End your day"),
+    h("div.set-row.set-toggle", null, label("Card reminders", "If your card isn't done"), cardSw)], wind ? [windRow()] : []));
+}
+// Social: one switch for everything social, friend requests and friends' new moments (alex 2026-11-26).
+// Only once Friends is open and ticked 18+.
+function social() {
+  const fd = friends.loaded();
+  if (!(fd && fd.me.adult && account.signedIn())) return null;
+  const sw = h("button.switch", { role: "switch", "aria-checked": String(friends.pingsOn()), "aria-label": "Friends" });
+  sw.addEventListener("click", async () => {
+    const on = !friends.pingsOn(); sw.disabled = true;
+    await friends.setPings(on, "settings");
+    sw.disabled = false; sw.setAttribute("aria-checked", String(friends.pingsOn()));
+  });
+  return group("Social", [h("div.set-row.set-toggle", null, label("Friends", "Requests and new moments"), sw)]);
 }
 
 // A copy of everything, as a file the person keeps, photos included (alex 2026-11-20). Tester details stay out of it.

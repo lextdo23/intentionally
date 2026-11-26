@@ -1,7 +1,7 @@
 // Keeps Daydeck working offline. Daydeck is the whole site (the old Intentionally app is retired).
 // Bump VERSION whenever any file below changes. (icons/launch-*.png are left out on purpose: the iPhone fetches its one
 // launch picture itself when Daydeck is added to the home screen, so keeping all ten here would only cost space.)
-const VERSION = "d127";
+const VERSION = "d128";
 const FILES = [
   "./", "index.html", "privacy.html", "guidelines.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css", "css/box.css", "css/photos.css", "css/library.css", "css/looks.css",
   "js/main.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js",
@@ -70,10 +70,10 @@ async function show() {
   return note([t, "sent", kind]);
 }
 // Friend notifications (alex 2026-11-25): these carry their own words, sealed for this phone by the service:
-// "Mia shared a moment" and how many moments. Never a photo, caption or mood. The number on the app icon goes up by
+// "Mia shared a moment" and how many moments, and friend requests ("Sam wants to be friends", alex 2026-11-26). Never a photo, caption or mood. The number on the app icon goes up by
 // that many (opening Daydeck puts the real number back: friend requests plus moments not seen yet).
 async function friendNote(w) {
-  await self.registration.showNotification(String(w.title || "").slice(0, 80), { body: "", icon: "icons/icon-192.png", tag: "daydeck-friends", data: { kind: "friends" } });
+  await self.registration.showNotification(String(w.title || "").slice(0, 80), { body: String(w.body || "").slice(0, 80), icon: "icons/icon-192.png", tag: "daydeck-friends", data: { kind: "friends" } });
   try {
     if (self.navigator.setAppBadge) {
       const c = await caches.open("nudge-plan"), r = await c.match("badge"), n = (r ? Number(await r.text()) || 0 : 0) + Math.max(1, Number(w.n) || 1);

@@ -174,7 +174,7 @@ async function testers(req, env, path) {
     events.push([e[0], e[1], v]);
   }
   const info = { phone: short(b.phone), version: short(b.version, 12), started: DAYK.test(b.started) ? b.started : null,
-    nudges: JSON.stringify({ am: short(b.nudges?.am, 5), pm: short(b.nudges?.pm, 5) }) };
+    nudges: JSON.stringify({ am: short(b.nudges?.am, 5), pm: short(b.nudges?.pm, 5), card: short(b.nudges?.card, 3), fr: short(b.nudges?.fr, 3), allow: short(b.nudges?.allow, 3) }) };
   const res = await db(env).send(b.code, hash, info, days, events);
   return reply(res.ok ? { ok: true } : { error: res.error }, res.ok ? 200 : res.error === "removed" ? 410 : res.error === "full" ? 403 : 409);
 }

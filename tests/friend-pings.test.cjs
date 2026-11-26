@@ -1,4 +1,4 @@
-// Friend notifications (alex 2026-11-25): off until turned on; "Mia shared a moment" with the friend's chosen name
+// Friend notifications (alex 2026-11-25; friend requests too, 2026-11-26): off until turned on; "Mia shared a moment" with the friend's chosen name
 // (else @username), never a photo, caption or mood; at most one an hour, none 10pm to 8am where the phone is; sealed
 // so only that phone can read the words. Runs the real service in Node with made-up people and a made-up phone.
 const crypto = require("crypto");
@@ -135,11 +135,28 @@ function phone(n) {
   await share(mia); await tick();
   check(pings.length === 6 && jp.open(pings[5].body).title === "Mia shared a moment", "friends still ping after that");
 
+  // ---- Friend requests, under the same switch (alex 2026-11-26) ----
+  clock += 2 * HOUR;
+  const lee = await person("lee"), kai = await person("kai"), zed = await person("zed");
+  await lee.post("/a/f/profile", { name: "Lee" });
+  await lee.post("/a/f/ask", { username: "josh_r" }); await tick();
+  words = jp.open(pings[6].body);
+  check(pings.length === 7 && words.title === "Lee wants to be friends" && !words.body, `a friend request pings by name: "${words.title}"`);
+  check(words.n === 1, "a request counts toward the number on the icon");
+  clock += 2 * HOUR; await lee.post("/a/f/ask", { username: "josh_r" }); await tick();
+  check(pings.length === 7, "asking again doesn't ping again");
+  await kai.post("/a/f/ask", { username: "josh_r" }); await share(mia); await tick();
+  words = jp.open(pings[7].body);
+  check(pings.length === 8 && words.title === "@kai wants to be friends" && words.body === "Mia shared a moment" && words.n === 2, `a request and a moment in one: "${words.title}" / "${words.body}"`);
+  clock += 2 * HOUR; await zed.post("/a/f/ask", { username: "josh_r" }); await josh.post("/a/f/answer", { username: "zed", yes: false }); await tick();
+  check(pings.length === 8, "a request already answered never pings");
+  for (const u of ["lee", "kai"]) await josh.post("/a/f/answer", { username: u, yes: false });
+
   // ---- Off, phone gone, sign out, delete ----
   clock += 2 * HOUR;
   await josh.post("/a/f/pings", { on: false });
   await share(mia); await tick();
-  check(pings.length === 6 && !book.one("SELECT 1 AS x FROM fpings"), "switching it off stops pings and forgets the phone");
+  check(pings.length === 8 && !book.one("SELECT 1 AS x FROM fpings"), "switching it off stops pings and forgets the phone");
   await josh.post("/a/f/pings", { on: true, sub: jp.sub, tz: "Australia/Sydney" });
   clock += 60000; gone = true; await share(mia); await tick(); gone = false;
   check(!book.one("SELECT 1 AS x FROM fpings"), "a phone that has gone away is forgotten");
