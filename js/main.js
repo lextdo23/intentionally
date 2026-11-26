@@ -142,7 +142,6 @@ const MOMENT = {
   sleep: ["That's last night.", "Next, your card."],
   card: ["Your card for today.", "Do your card any time today."],
   rest: ["Rest day.", "No card today."],
-  did: ["Card's done.", null],
   end: ["That's today.", null],
   photo: ["Photo added.", "It's in Your photos."],
 };
@@ -255,7 +254,7 @@ function render(moment) {
           log("card_felt", { id: deck.tid(c.id), f: list.map((w) => deck.FELT.indexOf(w)), home: 1 }); // positions only, never words
         } else log("card_felt_later", deck.tid(c.id));
         store.save();
-        play(MOMENT.did[0], "Next, end your day tonight.", false, "Next, end your day tonight.");
+        // No "Card's done." here (alex 2026-11-26): the tick and the card gliding home say it, and the words pushed the card.
       },
       onEnd: () => { lvBack = true; turnPh = true; render(); } });
   };
@@ -274,7 +273,7 @@ function render(moment) {
   if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt, ...ph } : did ? { state: "done", flip: moment === "did", felt, ...ph } : { state: "up", onDid: markDid, onCam: cam, photo: k });
   else if (!today.rest && !ended && deck.dealable().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
 
-  // A new level takes the moment: the greeting turns gold, "Level 4.", the way it says "Card's done."
+  // A new level takes the moment: the greeting turns gold, "Level 4."
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
   if (lvFirst) log("level_start", levels.level().level);   // where they began (people from before levels start higher)
   if (lvNew) { log("level", lvNew); const u = levels.opensAt(lvNew); if (u && !(store.get().levels || {}).keepAll) log("unlock", u.id); }
@@ -287,7 +286,7 @@ function render(moment) {
   const mark = h("div.dd-mark", null, wordmark(36));
   mark.addEventListener("click", () => { const n = Date.now(); taps = n - tapT < 600 ? taps + 1 : 1; tapT = n; if (taps >= 5) { taps = 0; testOn = !testOn; st.test.on = testOn; store.save(); render(); } });
   // No greeting or narration on Today (alex 2026-11-23): the card and the button say what's next. The words only show
-  // for a moment ("Card's done.", "Level 4.") and, in the first week, as a short hint.
+  // for a moment ("Level 4.") and, in the first week, as a short hint.
   const hint = dayN <= 7 && !!line;
   const words = h(`div.col.greet-words${hint ? ".hint" : ""}`, { style: { gap: "4px" } }, h("span.top-line", null, topLine), greet, sub);
   // "Not done yet" sits quietly under a done card (it used to be inside the card, behind a tap). The space is kept

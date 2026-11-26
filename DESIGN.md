@@ -74,7 +74,7 @@ Today (home) is the reference screen: when unsure, match it.
 
 ## 7. Words
 
-27. **No narration or AI-sounding greetings.** The card and the button say what's next. Short words only for a moment ("Card's done.") or as a first-week hint.
+27. **No narration or AI-sounding greetings.** The card and the button say what's next. Short words only for a moment ("Level 4.") or as a first-week hint. Nothing after "I did it" (alex 2026-11-26): the tick and the card gliding home say it.
 28. **Brief and steady everywhere; comforting at hard moments.** Lead with what happened, never gaps, comparisons or targets.
 29. **No keys or legends on charts.** Words sit next to marks.
 30. **Thoughts are always in quotation marks.**
