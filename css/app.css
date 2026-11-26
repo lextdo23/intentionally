@@ -671,6 +671,63 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .acct-backup { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--dim); }
 .acct-backup i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .acct-link { color: var(--ink2); text-decoration: underline; text-underline-offset: 2px; }
+/* ---------- First-time setup (alex 2026-11-26, js/setup.js) ---------- */
+/* Username: the box goes green when it's free, red when it can't be used (no "That one's free."). */
+.acct-at.good, .acct-at.good:focus-within { outline: 2px solid #7fd19b; outline-offset: 3px; }
+.acct-at.bad, .acct-at.bad:focus-within { outline: 2px solid #e5736b; outline-offset: 3px; }
+.acct-label { align-self: flex-start; margin: 8px 0 0 4px; font-size: 15px; color: var(--ink2); }
+/* Progress dots: done ink, this one a marigold dash, still to come grey. */
+.setup-dots { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.setup-dots i { width: 8px; height: 8px; border-radius: 4px; background: #46464a; }
+.setup-dots i.on { background: var(--ink); }
+.setup-dots i.now { width: 18px; background: var(--sun); }
+.setup-dots-top { position: absolute; top: var(--top); left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+/* The pillar picker inside setup: its own screen, sliding like the others. */
+.acct-pick { padding: 0; overflow: hidden; }
+.acct-pick .step .rise { transition: none; }
+/* Add to Home Screen */
+.setup-hs .acct-top { justify-content: flex-start; padding-top: 24px; }
+.hs-icon { width: 72px; height: 72px; border-radius: 16px; }
+.hs-steps { width: 100%; border-radius: 16px; background: var(--fill); overflow: hidden; text-align: left; }
+.hs-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.hs-row + .hs-row { border-top: 1px solid rgba(239, 237, 233, .08); }
+.hs-n { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: rgba(239, 237, 233, .12); color: var(--ink); }
+.hs-n.first { background: var(--sun); color: var(--on-sun); }
+.hs-words { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 17px; }
+.hs-sub { font-size: 13px; color: var(--dim); }
+.hs-more { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; background: rgba(239, 237, 233, .14); font-size: 20px; font-weight: 700; letter-spacing: 1px; line-height: 1; }
+.hs-btn { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; height: 40px; padding: 0 14px; border-radius: 12px; background: rgba(239, 237, 233, .14); font-size: 15px; white-space: nowrap; }
+.hs-add { display: inline-flex; align-items: center; flex-shrink: 0; height: 40px; padding: 0 16px; border-radius: 20px; background: #0a84ff; font-size: 15px; font-weight: 600; color: #fff; }
+/* Welcome: today's card as it sits on home, a little smaller. */
+.setup-card { --fit: .72; display: grid; place-items: center; margin-bottom: 24px; }
+.setup-big { font-size: 34px; font-weight: 600; }
+/* Notifications */
+.setup-notify .acct-top, .setup-help .acct-top { padding-top: 64px; }
+.setup-ico { width: 64px; height: 64px; border-radius: 50%; background: var(--fill); display: grid; place-items: center; color: var(--ink); }
+.setup-list { align-self: stretch; gap: 24px; text-align: left; }
+.setup-list .set-head { margin-left: 16px; }
+/* Help improve Daydeck */
+.setup-ticks { align-self: stretch; border-radius: 16px; background: var(--fill2); padding: 4px 16px; text-align: left; }
+.setup-tick { display: flex; align-items: center; gap: 12px; min-height: 48px; font-size: 17px; }
+.setup-tick + .setup-tick { border-top: 1px solid rgba(239, 237, 233, .08); }
+.setup-tick .y, .setup-tick .n { width: 20px; font-weight: 700; text-align: center; }
+.setup-tick .y { color: #7fd19b; }
+.setup-tick .n { color: #e5736b; }
+.setup-fine { font-size: 15px; color: var(--ink2); max-width: 340px; }
+.setup-more { min-height: 44px; padding: 0; background: none; font-size: 13px; }
+/* Your deck is ready */
+.setup-deck { overflow: hidden; }
+.dr-holder { position: relative; flex: 1 0 380px; }
+.dr-stage { position: absolute; inset: 0; }
+.dr-card { position: absolute; left: 50%; top: 50%; width: 150px; height: 210px; margin: -105px 0 0 -75px; border-radius: 16px; background: var(--sun);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 10px 24px rgba(0, 0, 0, .45); transform: translate(0, 900px); }
+.dr-card::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(35.2% 35.2% at 64.8% 50%, var(--sun) 98%, transparent 100%), #141416; }
+.dr-date { position: absolute; left: 14px; top: 12px; font-size: 13px; font-weight: 700; letter-spacing: -.01em; color: rgba(20, 12, 0, .72); }
+.dr-glow { position: absolute; left: 50%; top: 50%; width: 560px; height: 560px; margin: -280px 0 0 -280px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 150, 30, .36), rgba(255, 150, 30, .10) 55%, transparent); opacity: 0; }
+.dr-text { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 0 40px; text-align: center; opacity: 0; }
+.dr-text strong { color: var(--ink); font-weight: 600; }
+.setup-deck .btn-main { opacity: 0; }
 
 /* The glass pill (js/pill.js, social stage 1; alex 2026-11-20): subtle smoky glass, Today · Friends · You beside the
    screen's main action. The highlight glides between tabs; screens slide across. Hidden during flows and sheets. */

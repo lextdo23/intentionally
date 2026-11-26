@@ -37,6 +37,21 @@ export function openTester(onDone) {
   }, { label: "Help test Daydeck", onClose: () => onDone && onDone() });
 }
 
+// "More details" from setup's Help improve Daydeck (js/setup.js): the full list and the fine print, nothing to press
+// but Done, so the choice stays on the setup screen.
+export function openDetails() {
+  openSheet((panel, close) => {
+    const list = (items) => h("ul.tlist", null, items.map((x) => h("li", null, x)));
+    panel.append(h("h2", null, "What sharing means"),
+      h("div.col", { style: { gap: "8px" } }, h("span.tlabel", null, "What's shared"), list(tester.SHARED)),
+      h("div.col", { style: { gap: "8px" } }, h("span.tlabel", null, "Never shared"), list(tester.NEVER)),
+      h("p.sub", null, "It's kept under a random tester code on Cloudflare's servers, which may be outside Australia. The person making Daydeck looks at it from time to time, sometimes with help from Claude, an AI assistant made by Anthropic."),
+      h("p.sub", null, "Nobody watches it as it comes in. If you need to talk to someone, call Lifeline on 13 11 14, or 000 in an emergency."),
+      h("p.sub", null, "It's kept for as long as Daydeck is being tested. You can stop any time from Settings. What you've shared is deleted straight away, and backup copies are gone within 30 days."),
+      h("button.btn-main", { onclick: () => close("done") }, "Done"));
+  }, { label: "What sharing means" });
+}
+
 // After a change to what's shared (CONSENT went up): ask once before sending anything more. Until they answer,
 // nothing is sent (tester.on() is false), and nothing already shared changes.
 export function askAgain(onDone) {

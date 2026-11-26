@@ -32,6 +32,7 @@ import * as photoBackup from "./photo-backup.js";
 import * as crumbs from "./crumbs.js";
 import * as notifCard from "./notif-card.js";
 import { wordmark } from "./wordmark.js";
+import * as setup from "./setup.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -420,6 +421,8 @@ function inviteWhenFree(tries = 0) {
   tester.inviteSeen(); openTester(() => render());
 }
 if (tester.needsAsk()) booted.then(() => setTimeout(() => askAgain(() => render()), 300));
+// New people (alex 2026-11-26): the whole first-time setup, from the welcome to "Your deck is ready" (js/setup.js).
+else if (!viaLink && setup.due()) booted.then(() => setTimeout(() => setup.openSetup(() => render()), 200));
 // The one-time "Help shape Daydeck" invite goes before anything else (alex 2026-11-25). The invite link opens it below.
 else if (!viaLink && tester.inviteDue()) booted.then(() => setTimeout(inviteWhenFree, 300));
 else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
