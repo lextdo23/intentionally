@@ -1,6 +1,6 @@
 // Weekly recap notifications (alex 2026-11-22). Sunday: "Weekly recap tonight" at the evening nudge time (7pm if
 // evenings are off) until the day is ended. Monday: "Weekly recap ready" at the morning nudge time (8am if mornings
-// are off), only while the recap still waits. Checks the times the phone works out, the words the service worker
+// are off), only while the recap still waits. Always on, even with nudges off (alex 2026-11-26). Checks the times the phone works out, the words the service worker
 // shows (and when it stays quiet), and the home line. Made-up data only.
 process.env.TZ = "Australia/Sydney";
 const { chromium } = require("playwright");
@@ -46,7 +46,7 @@ const week = (mood = 3, sunday = false) => {
   r = await times(base({ notify: { am: { on: false, t: "08:00" }, pm: { on: true, t: "20:15" }, card: { on: true } } }), at("2026-11-29T12:00:00"));
   check(show(r) === show([["recap-sun", "Sun 8:15 pm"], ["recap-mon", "Mon 8:00 am"]]), `mornings off: Monday's at 8am (${show(r)})`);
   r = await times(base({ notify: { am: { on: false, t: "08:00" }, pm: { on: false, t: "21:00" }, card: { on: true } } }), at("2026-11-29T12:00:00"));
-  check(r.length === 0, "nudges off: no recap notifications");
+  check(show(r) === show([["recap-sun", "Sun 7:00 pm"], ["recap-mon", "Mon 8:00 am"]]), `nudges off: the recap still comes, always on (alex 2026-11-26) (${show(r)})`);
   r = await times(base({ started: "2026-11-25" }), at("2026-11-29T12:00:00"));
   check(r.length === 0, "first week of use (no recap until day 7): no notifications");
   r = await times(base(), at("2026-11-30T07:00:00"));

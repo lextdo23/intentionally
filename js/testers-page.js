@@ -10,6 +10,7 @@ const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const median = (a) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); };
+const hm = (v) => { const [h, m] = String(v).split(":").map(Number); return Number.isFinite(h) ? `${h % 12 || 12}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "am" : "pm"}` : esc(v); };
 const pct = (a, b) => (b ? Math.round(a / b * 100) : 0);
 const kd = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d, 12); };
 const dayDiff = (a, b) => Math.round((kd(b) - kd(a)) / 864e5);
@@ -43,7 +44,7 @@ function bars(rows, max, unit = "") {
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
 const GROUP = { "Which cards are \"Not for me\"?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
-  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 const TABS = [["overview", "Overview"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
 const sec = (title, ask, body, means, later) => `<section data-g="${GROUP[title] || "overview"}" class="${later ? "later" : ""}"><h2>${title}</h2><p class="ask">${ask}</p>${body}${means ? `<p class="means"><b>What this means:</b> ${means}</p>` : ""}</section>`;
@@ -67,7 +68,7 @@ const SHAPE = {
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from) && (v.card === undefined || isInt(v.card, 0, 1)),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1, photo_card: (v) => v === 1,
-  friend_pings: (v) => ["on_bell", "on_settings", "off", "later"].includes(v), badge: (v) => isInt(v, 1, 10), friend_ping_open: (v) => v == null,
+  friend_pings: (v) => ["on_bell", "on_settings", "off", "later"].includes(v), nudge_allow: (v) => v === "yes" || v === "no", badge: (v) => isInt(v, 1, 10), friend_ping_open: (v) => v == null,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
@@ -225,6 +226,20 @@ function drawAll(D) {
   const hRows = (c) => c.map((n, h) => [`${h % 12 || 12} ${h < 12 ? "am" : "pm"}`, n]).filter((r) => r[1]);
   const within = (k) => { let hit = 0, all = 0; by(k + "_done").forEach((e) => { const t = testers.findIndex((x) => x.code === e.code), set = nud[t] && nud[t][k]; if (!set || set === "off") return; all++; const [hh, mm] = set.split(":").map(Number), d = new Date(e.t), n = new Date(d); n.setHours(hh, mm, 0, 0); const gap = (d - n) / 6e4; if (gap >= 0 && gap <= 60) hit++; }); return [hit, all]; };
   const [wa, aa] = within("am"), [wp, ap] = within("pm");
+  // One row per tester (alex 2026-11-26): every notification on or off, and whether the phone lets them arrive.
+  // Older phones that haven't sent the new switches yet show a dash.
+  { const val = (v, y = "On") => v == null || v === "" ? `<td class="n">–</td>` : v === "off" ? `<td class="n">Off</td>` : v === "-" ? `<td class="n">Friends not open</td>` : `<td>${esc(v === "on" ? y : /^\d/.test(v) ? hm(v) : v)}</td>`;
+    const ago = (t) => { const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? "Today" : d === 1 ? "Yesterday" : `${d} days ago`; };
+    const rows = testers.map((t, i) => [t, nud[i]]).sort((a, b) => b[0].seen - a[0].seen);
+    const allow = (n) => n.allow === "yes", anyNudge = (n) => [n.am, n.pm].some((x) => x && x !== "off"), off = (n) => !anyNudge(n) && n.fr !== "on";
+    const known = rows.filter(([, n]) => n.allow);
+    html += sec("Who has notifications on?", "Each tester by their code: which notifications they have on, and whether their phone lets them arrive. Greyed rows can't get any, because the phone hasn't allowed Daydeck to send them.",
+      (known.length ? bars([["Phone allows notifications", known.filter(([, n]) => allow(n)).length], ["Has a morning or evening nudge on", known.filter(([, n]) => anyNudge(n)).length], ["Has Friends notifications on", known.filter(([, n]) => n.fr === "on").length], ["Has everything off", known.filter(([, n]) => off(n)).length]], known.length) : "") +
+      (rows.length ? `<div class="tbl"><table><thead><tr><th>Tester</th><th>Phone allows</th><th>Start your day</th><th>End your day</th><th>Card reminders</th><th>Friends</th><th>Last open</th></tr></thead><tbody>${rows.map(([t, n]) =>
+        `<tr${n.allow === "no" ? ' style="opacity:.5"' : ""}><td>${esc(t.code)}</td>${n.allow ? `<td>${n.allow === "yes" ? "Yes" : "No"}</td>` : `<td class="n">–</td>`}${val(n.am)}${val(n.pm)}${val(n.card)}${val(n.fr)}<td>${ago(t.seen)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="sub">No testers yet.</p>`) +
+      `<p class="note">The weekly recap reminder has no switch: it reaches everyone whose phone allows notifications.</p>`,
+      "lots of \"No\" under Phone allows means people think nudges are coming when they aren't; the setup step asking for notifications may need to explain why.");
+  }
   html += sec("Do nudges bring people in?", "Who has nudges on, how often a nudge opened the app, and when people actually check in.",
     bars([["Morning nudge on", amOn], ["Evening nudge on", pmOn]], T) +
     `<p class="note">Nudges that reached phones, and how many were tapped</p>` +
@@ -461,7 +476,7 @@ function drawAll(D) {
   // Friend notifications and the number on the icon (alex 2026-11-25): only choices and counts, never names.
   { const fp = (v) => new Set(by("friend_pings").filter((e) => e.val === v).map((e) => e.code)).size, who = (n) => new Set(by(n).map((e) => e.code)).size;
     const b = by("badge").map((e) => e.val), mid = b.length ? b.slice().sort((x, y) => x - y)[Math.floor(b.length / 2)] : 0;
-    html += sec("Do friend notifications help?", "Who turned on \"Get notified when friends share\", from the bell page or Settings, and how big the number on the Daydeck icon gets. Never whose names were in them.",
+    html += sec("Do friend notifications help?", "Friend notifications start on (since 26 Nov 2026; before that people turned them on from the bell page or Settings). Who changed them, and how big the number on the Daydeck icon gets. Never whose names were in them.",
       by("friend_pings").length || b.length ? bars([["Turned it on from the bell page", fp("on_bell")], ["Turned it on in Settings", fp("on_settings")], ["Said not now", fp("later")], ["Turned it off", fp("off")], ["Opened Daydeck from one", who("friend_ping_open")]]) +
         `<p class="note">The number on the icon was shown ${b.length} times (to ${who("badge")} testers); usually ${mid}${b.some((x) => x >= 10) ? ", sometimes 10 or more" : ""}.</p>`
         : `<p class="sub">Nobody has been offered friend notifications yet.</p>`,

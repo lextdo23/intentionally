@@ -283,7 +283,9 @@ export const friendMethods = {
     if (this.fProf(them.id).closed) return { error: "closed" };
     if (this.one("SELECT COUNT(*) AS n FROM asks WHERE f = ?", me.id).n >= LIMITS.waiting) return { error: "too_many_waiting" };
     if (this.fCount(me.id) >= LIMITS.friends) return { error: "full" };
+    const fresh = !this.one("SELECT 1 AS x FROM asks WHERE f = ? AND t = ?", me.id, them.id);
     this.sql.exec("INSERT OR IGNORE INTO asks (f, t, at) VALUES (?, ?, ?)", me.id, them.id, Date.now());
+    if (fresh) await this.pAsk(me.id, them.id);   // they get told, in time, if their friend notifications are on
     return { ok: true, state: "asked" };
   },
   async fAnswer(token, name, yes) {
@@ -528,6 +530,11 @@ export const friendMethods = {
       JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } }), tz || "Australia/Sydney", had ? had.pend : "[]", had ? had.last : 0, had ? had.due : null);
     return { ok: true, on: true };
   },
+  // One notification: requests first (they wait on an answer), moments in the line under it.
+  pNote(news) {
+    const m = news.names.length ? this.pWords(news) : "", a = news.asks.length ? this.pAskWords(news.asks) : "";
+    return { kind: "friends", title: a || m, body: a ? m : "", n: news.moments + news.asks.length };
+  },
   // When this phone may next be pinged: an hour after the last one, and never in its night (10pm to 8am).
   pDue(row, t = Date.now()) {
     t = Math.max(t, (row.last || 0) + PINGS.gap);
@@ -548,17 +555,31 @@ export const friendMethods = {
     }
     await this.pWake();
   },
+  // A new friend request (alex 2026-11-26: one Friends switch covers everything social). Kept in the same waiting
+  // list as moments, marked "r:" with who asked, and told by the same rules: one an hour, never at night.
+  async pAsk(fromId, toId) {
+    const r = this.one("SELECT * FROM fpings WHERE user = ?", toId);
+    if (!r) return;
+    const key = "r:" + fromId, pend = JSON.parse(r.pend || "[]").filter((x) => x !== key).concat(key).slice(-50);
+    this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
+    await this.pWake();
+  },
   async pWake() {
     const next = this.one("SELECT MIN(due) AS t FROM fpings WHERE due IS NOT NULL");
     if (next && next.t && this.ctx && this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(next.t);
   },
   // The waiting moments still worth telling: still there, still a friend's, not hidden, paused or held back by reports.
   pNews(row) {
-    const ids = JSON.parse(row.pend || "[]");
+    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !String(x).startsWith("r:"));
+    // Requests still waiting (not answered, taken back or blocked since), newest first.
+    const askers = [...new Set(all.filter((x) => String(x).startsWith("r:")).map((x) => x.slice(2)).reverse())]
+      .filter((id) => this.one("SELECT 1 AS x FROM asks WHERE f = ? AND t = ?", id, row.user) && !this.fBlocked(id, row.user))
+      .map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean);
     const moms = ids.length ? this.rows(`SELECT owner, at FROM moments WHERE id IN (${ids.map(() => "?").join(",")}) AND owner IN (SELECT b FROM pals WHERE a = ?) AND owner NOT IN (SELECT who FROM hides WHERE owner = ?)
       AND owner NOT IN (SELECT user FROM paused) AND id NOT IN (SELECT moment FROM mheld) ORDER BY at DESC`, ...ids, row.user, row.user) : [];
     const people = [...new Set(moms.map((m) => m.owner))].map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean);
-    return { moments: moms.length, names: people.map((u) => this.fProf(u.id).name || "@" + u.name) };
+    const nameOf = (u) => this.fProf(u.id).name || "@" + u.name;
+    return { moments: moms.length, names: people.map(nameOf), asks: askers.map(nameOf) };
   },
   // The words: "Mia shared a moment", "Mia shared 3 moments", "Mia and Josh shared moments", "Mia and 2 others shared moments".
   pWords(news) {
@@ -567,14 +588,19 @@ export const friendMethods = {
     if (n === 2) return `${a} and ${b} shared moments`;
     return `${a} and ${n - 1} others shared moments`;
   },
+  // "Sam wants to be friends", "Sam and Priya want to be friends", "Sam and 2 others want to be friends".
+  pAskWords(names) {
+    const [a, b] = names, n = names.length;
+    return n === 1 ? `${a} wants to be friends` : n === 2 ? `${a} and ${b} want to be friends` : `${a} and ${n - 1} others want to be friends`;
+  },
   async alarm() {
     const now = Date.now();
     for (const row of this.rows("SELECT * FROM fpings WHERE due IS NOT NULL AND due <= ?", now + 30000)) {
       const news = this.pNews(row);
-      if (!news.names.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
+      if (!news.names.length && !news.asks.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
       const sub = JSON.parse(row.sub);
       let gone = false;
-      try { gone = await ping(this.env, sub.endpoint, { kind: "friends", title: this.pWords(news), n: news.moments }, sub.keys, PINGS.ttl / 1000); } catch { /* tried again with the next moment */ }
+      try { gone = await ping(this.env, sub.endpoint, this.pNote(news), sub.keys, PINGS.ttl / 1000); } catch { /* tried again with the next moment */ }
       if (gone) this.sql.exec("DELETE FROM fpings WHERE user = ?", row.user);
       else this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]', last = ? WHERE user = ?", now, row.user);
     }
