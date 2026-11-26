@@ -31,7 +31,8 @@ export function connect({ dot, you, go }) { if (dot) dotFn = dot; if (you) redra
 
 // ---------------- Notifications (alex 2026-11-25) ----------------
 // A number on Friends in the pill and on the bell at the top of Friends: friend requests waiting, plus friends'
-// moments shared since you last opened the bell, plus friends' comments on your moments since then (2026-11-26).
+// moments shared since you last opened the bell, plus friends' comments on your moments since then (2026-11-26),
+// and their replies to your comments anywhere (2026-11-26).
 // Never "I see you"s (those stay uncounted). What you've seen is
 // kept on this phone as the newest moment's time from the service, so the phone's own clock never matters.
 const newMoments = () => {
@@ -88,11 +89,12 @@ export function openNotes() {
   });
   showCount();
 }
-// One comment on the bell's page: their picture, "Sam commented: …" and when. Tap to open that moment's comments.
+// One comment on the bell's page: their picture, "Sam commented: …" (or "Sam replied to you: …", 2026-11-26) and when.
+// Tap to open that moment's comments.
 function commentNote(c) {
-  const m = (moments.cachedFeed() || []).find((x) => x.id === c.moment) || { id: c.moment, mine: true, by: data && data.me };
+  const m = (moments.cachedFeed() || []).find((x) => x.id === c.moment) || { id: c.moment, mine: c.onMine !== false, by: c.onBy || (data && data.me) };
   return h("button.cm-note", { type: "button", onclick: () => comments.openComments(m, { from: "bell" }) }, pic(c.by, 40),
-    h("span.cm-note-text", null, h("b", null, shown(c.by)), " commented: ", c.text), h("span.cm-when", null, moments.ago(c.at)));
+    h("span.cm-note-text", null, h("b", null, shown(c.by)), c.reply ? " replied to you: " : " commented: ", c.text), h("span.cm-when", null, moments.ago(c.at)));
 }
 // ---------------- The number on the app icon (alex 2026-11-25) ----------------
 // The same number as the bell, on the Daydeck icon on the home screen. Nothing else is ever counted there: never

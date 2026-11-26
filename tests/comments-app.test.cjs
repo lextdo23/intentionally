@@ -173,6 +173,36 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click(".sheet-host:last-child .mo-seen-row"); await p.waitForTimeout(900);
   check(!!(await p.$(".fr-page")), "tapping someone opens their profile");
 
+  // ---- Replies and the sun on comments (alex 2026-11-26) ----
+  const jc = (await josh.get("/a/f/comments?id=" + sm.id)).comments.find((c) => c.text === "Love the long way");
+  await sam.post("/a/f/comment", { id: sm.id, text: "It was worth it", parent: jc.id });
+  await p.reload(); await p.waitForTimeout(1500); await quiet(); await tab("friends"); await p.waitForTimeout(1000);
+  await p.locator("#friends .mo-post", { hasText: "Go for a slow walk" }).locator(".mo-talk").click(); await p.waitForTimeout(900);
+  check(/View replies/.test(await text(pg + " .cm-list")) && !/It was worth it/.test(await text(pg + " .cm-list")), "replies start folded behind View replies");
+  check(!/\d+ (replies|repl)/.test(await text(pg + " .cm-list")), "never a count of replies");
+  await p.click(pg + " .cm-more"); await p.waitForTimeout(400);
+  check(/It was worth it/.test(await text(pg + " .cm-list")) && /Hide replies/.test(await text(pg + " .cm-list")) && await p.locator(pg + " .cm-sub").count() === 1, "View replies shows Sam's reply under Josh's comment, smaller");
+  await p.locator(pg + " .cm-row", { hasText: "Love the long way" }).locator(".cm-reply").first().click(); await p.waitForTimeout(500);
+  check(/Replying to Josh/.test(await text(pg + " .cm-to")) && (await p.getAttribute(pg + " .cm-field", "placeholder")) === "Reply to Josh", "Reply says who it's to, in the bar and the box");
+  check(await p.locator(pg + " .cm-on").count() === 1, "the comment being answered is lit");
+  await shot("c8-replying");
+  await p.fill(pg + " .cm-field", "Next time I'm coming"); await p.waitForTimeout(200);
+  await p.click(pg + " .cm-post"); await p.waitForTimeout(900);
+  { const mine2 = (await josh.get("/a/f/comments?id=" + sm.id)).comments.find((c) => c.text === "Next time I'm coming");
+    check(mine2 && mine2.parent === jc.id, "Mia's reply goes under Josh's comment"); }
+  check(await p.isHidden(pg + " .cm-to") && (await p.getAttribute(pg + " .cm-field", "placeholder")) !== "Reply to Josh", "after sending, the box goes back to commenting");
+  check(await p.locator(pg + " .cm-sub").count() === 2, "her reply shows in the thread straight away");
+  const jrow = p.locator(pg + " .cm-row", { hasText: "Love the long way" }).first();
+  check(await jrow.locator(".cm-see").getAttribute("aria-pressed") === "false", "the sun on a friend's comment starts faint");
+  await jrow.locator(".cm-see").click(); await p.waitForTimeout(60);
+  check(await p.locator(pg + " .cm-row", { hasText: "Love the long way" }).first().locator(".cm-see").getAttribute("aria-pressed") === "true", "pressing it says I see you straight away");
+  await p.waitForTimeout(1200); await shot("c9-sun");
+  { const jj = (await josh.get("/a/f/comments?id=" + sm.id)).comments.find((c) => c.id === jc.id);
+    check(jj.seers.some((x) => x.username === "mia.k"), "Josh sees Mia said it on his comment"); }
+  check(await p.locator(pg + " .cm-row", { hasText: "Next time I'm coming" }).locator(".cm-see").count() === 0, "no sun on your own comment");
+  check(!/\b\d+\b/.test(await p.locator(pg + " .cm-row", { hasText: "Love the long way" }).first().locator(".cm-foot").textContent()), "never a number by the sun");
+  await close();
+
   // ---- What testers hear ----
   const src = fs.readFileSync(path.join(__dirname, "..", "js", "comments.js"), "utf8");
   const logs = [...src.matchAll(/log\(([^;]*?)\);/g)].map((m) => m[1]);

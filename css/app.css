@@ -1070,9 +1070,31 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .cm-title { margin: 8px 0 4px; text-align: center; font-size: 17px !important; font-weight: 600; }
 .cm-scroll { flex: 1; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; margin: 0 calc(-1 * var(--edge)); padding: 4px var(--edge) 12px; }
 .cm-list { display: flex; flex-direction: column; }
-.cm-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 0; text-align: left; }
+.cm-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 0 0; text-align: left; }
 .cm-row .pic { flex: none; }
-.cm-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cm-body { display: flex; flex-direction: column; gap: 0; min-width: 0; flex: 1; }
+/* Replies and the sun (alex 2026-11-26): replies sit under the comment they answer with a smaller picture; the sun is
+   "I see you" for a comment, faint until said, then marigold; never a number. */
+.cm-main { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 0; text-align: left; }
+.cm-foot { display: flex; align-items: center; gap: 16px; min-height: 32px; }
+.cm-reply { min-height: 32px; padding: 0; font-size: 13px; font-weight: 600; color: var(--dim); }
+.cm-seers { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-sun-s { flex: none; display: inline-flex; color: var(--sun); }
+.cm-sun-s svg { width: 13px; height: 13px; }
+.cm-sun-s .see-core { fill: var(--sun); }
+.cm-sun-s .see-moon { display: none; }
+.cm-sub { gap: 10px; padding-left: 44px; padding-top: 6px; }
+.cm-on { width: auto; margin: 0 calc(-1 * var(--edge)); padding-left: var(--edge); padding-right: var(--edge); background: rgba(239, 237, 233, .06); }
+.cm-on.cm-sub { padding-left: calc(var(--edge) + 44px); }
+.cm-see { flex: none; margin: -6px -12px 0 0; color: var(--dim); }
+.cm-see svg { width: 18px; height: 18px; }
+.cm-see .see-moon { fill: #141416; }   /* the sheet's own colour, so the moon matches what's behind it */
+.cm-more { display: flex; align-items: center; gap: 10px; min-height: 32px; margin-left: 44px; padding: 0; font-size: 13px; font-weight: 600; color: var(--dim); }
+.cm-line { width: 24px; height: 1px; background: rgba(239, 237, 233, .25); }
+.cm-to { display: flex; align-items: center; justify-content: space-between; padding: 0 0 6px 4px; font-size: 13px; color: var(--dim); }
+.cm-to[hidden] { display: none; }
+.cm-to b { color: var(--ink); font-weight: 600; }
+.cm-stop { width: 44px; height: 32px; margin-right: -12px; display: flex; align-items: center; justify-content: center; color: var(--dim); }
 .cm-who { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
 .cm-who b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-when { flex: none; font-size: 13px; color: var(--dim); }
