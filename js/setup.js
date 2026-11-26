@@ -178,7 +178,7 @@ function help() {
   if (!tester.inviteOK()) return finish();
   const item = (yes, text) => h("div.setup-tick", null, h("span" + (yes ? ".y" : ".n"), { "aria-hidden": "true" }, yes ? "✓" : "✕"), h("span", null, text));
   const list = h("div.setup-ticks", { role: "list" },
-    [[1, "What you tap and choose"], [1, "Your check-in moods and sleep"], [0, "Anything you type"], [0, "Your photos"], [0, "Your name or email"]]
+    [[1, "What you tap and choose, and for how long"], [1, "Your check-in moods and sleep"], [0, "Anything you type"], [0, "Your photos"], [0, "Your name or email"]]
       .map(([y, t]) => { const el = item(y, t); el.setAttribute("role", "listitem"); el.setAttribute("aria-label", (y ? "Shared: " : "Never shared: ") + t); return el; }));
   account.slide(() => account.shell([
     h("h1.acct-title", null, "Help improve Daydeck"),

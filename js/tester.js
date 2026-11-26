@@ -11,12 +11,13 @@ import { dayKey } from "./util.js";
 import { SLEEP_TAGS, SLEEP_MORE, FEELINGS } from "./words.js";
 
 export const SERVICE = "https://intentionally-push.lextdo.workers.dev";
-export const CONSENT = 2;   // 2: cards you show to everyone (the card library) do leave the phone (alex 2026-11-18)
+export const CONSENT = 3;   // 2: cards you show to everyone (the card library) do leave the phone (alex 2026-11-18)
+                            // 3: how long the app stays open each visit (alex 2026-11-26, the Usage tab)
 export const SHARED = [
   "Your check-in answers: your mood, and the feelings and sleep tags you tap",
   "What you choose and do in the app, like pillars, cards, thumbs up or down, levels and which screens you use",
   "How many times you tap the Lifeline link",
-  "How long check-ins take, when nudges arrive and when you check in",
+  "How long check-ins take, how long the app stays open each time, when nudges arrive and when you check in",
   "Your phone type and any errors the app runs into",
 ];
 export const NEVER = ["Anything you type in your own words, unless you show a card you made to everyone", "Your photos", "Your name, email or where you are"];
@@ -193,14 +194,22 @@ async function nudges() {
   } catch { /* try again next open */ }
 }
 
-// App opened, and whether a nudge opened it.
+// App opened, and whether a nudge opened it. Leaving the app notes how many seconds it was open (alex 2026-11-26,
+// tester page Usage tab), up to 4 hours so a phone left on the table doesn't count as a day.
+let openAt = null;
 export async function opened() {
   finishForget();
+  openAt = now();
   const fromNudge = new URLSearchParams(location.search).get("from") === "nudge";
   log("open", fromNudge ? "nudge" : undefined);
   await nudges();
   send();
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.nudge) log("open", "nudge"); });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") opened(); else send(true); });
+export function left() {
+  if (openAt != null) log("close", Math.max(0, Math.min(14400, Math.round((now() - openAt) / 1000))));
+  openAt = null;
+  send(true);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") opened(); else left(); });
 addEventListener("online", finishForget);
