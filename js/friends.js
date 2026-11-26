@@ -235,6 +235,8 @@ const ICON = {
 };
 const iconBtn = (icon, label, onclick) => h("button.round", { type: "button", "aria-label": label, onclick }, icon());
 export const shown = (p) => p.name || p.username;
+// You, as friends see you (name, @username, picture), once Friends has loaded.
+export const meCard = () => (data ? data.me : null);
 // A person's picture: yours always as it really is; a friend's photo is fetched once (the smile shows until it
 // arrives, or if it can't be fetched); otherwise their little one.
 const isMe = (p) => { const u = account.user(); return !!(u && p && p.username && p.username.toLowerCase() === String(u.username || "").toLowerCase()); };

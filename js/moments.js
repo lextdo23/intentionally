@@ -227,24 +227,57 @@ export const ago = (at) => {
   const days = Math.round(hrs / 24); return days < 7 ? days + "d" : longDay(dayKey(at));
 };
 const names = (list) => { const n = list.map(friends.shown); if (n.length <= 1) return n.join(""); if (n.length <= 3) return n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return n.slice(0, 3).join(", ") + " and others"; };
-const sunIcon = (filled) => friends.svg(24, [["circle", { cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }], ["path", { d: "M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" }]]);
+// The sun: its middle, eight rays (each its own line, so they can light up one by one), and a moon in the page's black
+// that slides across it when "I see you" is said or taken back (alex 2026-11-27, "eclipse"; see .see-on in app.css).
+const RAYS = [[12, 2.5, 12, 4.5], [17.3, 6.7, 18.7, 5.3], [19.5, 12, 21.5, 12], [17.3, 17.3, 18.7, 18.7], [12, 19.5, 12, 21.5], [5.3, 18.7, 6.7, 17.3], [2.5, 12, 4.5, 12], [5.3, 5.3, 6.7, 6.7]];
+const sunIcon = (filled) => friends.svg(24, [["circle", { class: "see-core", cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }],
+  ...RAYS.map(([x1, y1, x2, y2]) => ["line", { class: "see-ray", x1, y1, x2, y2 }]), ["circle", { class: "see-moon", cx: "12", cy: "12", r: "5.7" }]]);
+// Who said "I see you" on a moment: a sheet of faces and names, tap one for their profile. The person who shared sees
+// everyone; others see only themselves and their own friends (the service decides).
+function seenBy(m, onPerson) {
+  log("seen_by", m.mine ? "own" : "theirs");
+  openSheet((panel, close) => {
+    panel.classList.add("mo-seen-sheet");
+    panel.append(h("h2", null, "I see you"));
+    if (!m.seers.length) { panel.append(h("p.fr-sheet-text", null, "Nobody yet.")); return; }
+    panel.append(h("div.mo-seen-list", { "data-scroll": "", role: "list" }, m.seers.slice().reverse().map((p) =>
+      h("button.mo-seen-row", { type: "button", role: "listitem", onclick: () => { close("pick"); if (onPerson && p.username !== (friends.meCard() || {}).username) setTimeout(() => onPerson(p.username), 300); } },
+        friends.pic(p, 40), h("span.mo-seen-who", null, h("b", null, friends.shown(p)), h("span", null, "@" + p.username))))));
+  }, { label: "Who said I see you" });
+}
 // One moment in a feed: who and when, the card, "I see you" (and a speech bubble for comments) and who said it, their
 // words, how the day felt, then the latest comment and "View all comments" when there are more.
 export function post(m, { onChange, onPerson } = {}) {
   const el = h("article.mo-post", { "data-id": m.id });
+  let anim = null, sending = false;
   const draw = () => {
-    // The sun on its own, no words (alex 2026-11-26): marigold once you've said it. Your own moment has no sun to press.
-    const see = h("button.mo-see", { type: "button", "aria-pressed": String(!!m.seen), "aria-label": m.seen ? "You said I see you. Tap to take it back" : "I see you" }, sunIcon(m.seen));
+    // The sun on its own, no words (alex 2026-11-26): marigold once you've said it. On your own moment it's there too
+    // (alex 2026-11-27), and tapping it shows who said it. Saying it: the moon slides off, the rays light up marigold
+    // one by one round the sun, then its middle fills. Taking it back: the moon slides over and it fades back to white,
+    // ray by ray (alex 2026-11-27). It changes straight away, and changes back if the service says no.
+    const see = h("button.mo-see", { type: "button", "aria-pressed": String(!!m.seen),
+      "aria-label": m.mine ? (m.seers.length ? `${names(m.seers)} said I see you. See who` : "Nobody has said I see you yet") : m.seen ? "You said I see you. Tap to take it back" : "I see you" }, sunIcon(m.seen));
+    if (anim) { see.classList.add(anim === "on" ? "see-on" : "see-off"); anim = null; }
     see.addEventListener("click", () => {
-      if (m.mine) return;
-      friends.busy(see, async () => {
-        const r = await account.call("/a/f/see", { id: m.id, undo: !!m.seen });
-        if (!r.ok) return friends.note(friends.say(r));
-        log("see", m.seen ? 0 : 1);
-        Object.assign(m, r.moment); draw(); onChange && onChange(m);
+      if (m.mine) return seenBy(m, onPerson);
+      if (sending) return;
+      const was = { seen: m.seen, seers: m.seers }, me = friends.meCard() || { username: account.user() || "", name: "", pic: "smile" };
+      m.seen = !was.seen;
+      m.seers = m.seen ? [...was.seers.filter((p) => p.username !== me.username), me] : was.seers.filter((p) => p.username !== me.username);
+      anim = m.seen ? "on" : "off"; draw();
+      sending = true;
+      account.call("/a/f/see", { id: m.id, undo: !!was.seen }).then((r) => {
+        sending = false;
+        if (!r.ok) { Object.assign(m, was); draw(); return friends.note(friends.say(r)); }
+        log("see", was.seen ? 0 : 1);
+        // Only redraw if the service's answer differs from what's showing, so the animation plays through.
+        const key = (x) => `${!!x.seen}|${x.seers.map((p) => p.username).join(",")}`, same = key(r.moment) === key(m);
+        Object.assign(m, r.moment); if (!same) draw(); onChange && onChange(m);
       });
     });
-    const seers = m.seers.length ? h("span.mo-seers", { "aria-label": `${names(m.seers)} said I see you` }, h("span.mo-faces", { "aria-hidden": "true" }, m.seers.slice(0, 3).map((p) => friends.pic(p, 22))), h("span", null, names(m.seers))) : null;
+    // Who said it, as faces and names: tap for the whole list (only your own friends among them, unless it's yours).
+    const seers = m.seers.length ? h("button.mo-seers", { type: "button", onclick: () => seenBy(m, onPerson), "aria-label": `${names(m.seers)} said I see you. See who` },
+      h("span.mo-faces", { "aria-hidden": "true" }, m.seers.slice(0, 3).map((p) => friends.pic(p, 22))), h("span", null, names(m.seers))) : null;
     const who = h("button.mo-who", { type: "button", onclick: () => onPerson && onPerson(m.by.username), "aria-label": `${friends.shown(m.by)}, ${ago(m.at)} ago` }, friends.pic(m.by, 36), h("span.mo-name", null, friends.shown(m.by)), h("span.mo-when", null, ago(m.at)));
     const more = h("button.round.mo-more", { type: "button", "aria-label": "More" }, friends.svg(20, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }));
     more.addEventListener("click", () => moreMenu(m, onChange));
@@ -253,7 +286,7 @@ export function post(m, { onChange, onPerson } = {}) {
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
       m.kind === "photo" || m.kind === "week" ? photoPost(m) : m.kind === "card" || m.kind === "own" ? cardPost(m) : tile(m, { big: true }),
-      h("div.mo-acts", null, h("div.mo-acts-l", null, m.mine ? null : see, talk), seers),
+      h("div.mo-acts", null, h("div.mo-acts-l", null, see, talk), seers),
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
       m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null,
       comments.preview(m, open)].filter(Boolean));   // replaceChildren would print "null"

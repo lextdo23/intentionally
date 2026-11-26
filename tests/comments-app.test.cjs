@@ -131,7 +131,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await tab("friends"); await p.waitForTimeout(800);
   const mine = p.locator("#friends .mo-post", { hasText: "Slow day" });
   check(/Rest well/.test(await mine.locator(".cm-last").textContent()) && await mine.locator(".cm-all").count() === 1, "her post shows the latest and View all comments");
-  check(await mine.locator(".mo-see").count() === 0 && !/Your moment/.test(await mine.locator(".mo-acts").textContent()), "her own moment has no sun to press and no words, just the bubble");
+  check(await mine.locator(".mo-see").count() === 1 && !/Your moment/.test(await mine.locator(".mo-acts").textContent()), "her own moment shows the sun too (alex 2026-11-27), with no words");
   await mine.scrollIntoViewIfNeeded(); await shot("c5-own-closed");
   await p.click("#friends .fr-bell"); await p.waitForTimeout(900);
   check(/New comments/.test(await text(".fr-page:last-child")) && /Josh commented: Good on you/.test(await text(".fr-page:last-child")) && /Sam commented: Rest well/.test(await text(".fr-page:last-child")), "the bell lists New comments by name and words");
@@ -146,6 +146,32 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click(".fr-page:last-child .fr-page-head button"); await p.waitForTimeout(800);
   check(!(await p.getAttribute('#pill [data-tab="friends"]', "data-count")), "after the bell, the number clears");
   check(!(await mine.textContent()).includes("Good on you"), "the post under it shows the change too");
+
+  // ---- "I see you": the animation, and who said it (alex 2026-11-27) ----
+  await p.reload(); await p.waitForTimeout(1500); await quiet(); await tab("friends"); await p.waitForTimeout(1000);
+  const sp = p.locator("#friends .mo-post", { hasText: "Go for a slow walk" });
+  { const a = await sp.locator(".mo-see").boundingBox(), c = await sp.locator(".mo-talk").boundingBox();
+    check(c.x - (a.x + a.width) < 0, "the sun and the speech bubble sit close together"); }
+  await sp.locator(".mo-acts").scrollIntoViewIfNeeded(); await p.evaluate(() => document.querySelector("#friends").scrollBy(0, 200)); await p.waitForTimeout(400);
+  await sp.locator(".mo-see").click(); await p.waitForTimeout(60);
+  check(await sp.locator(".mo-see").getAttribute("aria-pressed") === "true" && await sp.locator(".mo-see.see-on").count() === 1, "pressing the sun marigolds it straight away, with the pop");
+  { const a = await sp.locator(".mo-see").boundingBox(), c = await sp.locator(".mo-talk").boundingBox(); check(Math.abs(a.y - c.y) < 2, "the sun stays in its row while it pops"); }
+  await p.waitForTimeout(500); await shot("c6-pop"); await p.waitForTimeout(800); await shot("c6-done");
+  check((await sam.get("/a/f/feed")).moments.find((x) => x.id === sm.id).seers.some((x) => x.username === "mia.k"), "and it reaches the service");
+  check(/Mia/.test(await sp.locator(".mo-seers").textContent()), "her name joins who said it");
+  await sp.locator(".mo-see").click(); await p.waitForTimeout(60);
+  check(await sp.locator(".mo-see").getAttribute("aria-pressed") === "false" && await sp.locator(".mo-see.see-off").count() === 1, "pressing again takes it back, with the shrink");
+  await p.waitForTimeout(900);
+  // Mia's own moment: the sun shows who said it.
+  await josh.post("/a/f/see", { id: mm.id }); await sam.post("/a/f/see", { id: mm.id });
+  await p.reload(); await p.waitForTimeout(1500); await quiet(); await tab("friends"); await p.waitForTimeout(1000);
+  const own = p.locator("#friends .mo-post", { hasText: "Slow day" });
+  await own.locator(".mo-see").click(); await p.waitForTimeout(700);
+  check(/I see you/.test(await text(".sheet-host:last-child .sheet")) && /Josh/.test(await text(".sheet-host:last-child .sheet")) && /Sam/.test(await text(".sheet-host:last-child .sheet")), "on her own moment, the sun opens who said I see you");
+  check((await sam.get("/a/f/feed")).moments.find((x) => x.id === mm.id).seers.every((x) => x.username !== "mia.k"), "tapping her own sun never says it to herself");
+  await shot("c7-seen-by");
+  await p.click(".sheet-host:last-child .mo-seen-row"); await p.waitForTimeout(900);
+  check(!!(await p.$(".fr-page")), "tapping someone opens their profile");
 
   // ---- What testers hear ----
   const src = fs.readFileSync(path.join(__dirname, "..", "js", "comments.js"), "utf8");

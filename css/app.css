@@ -996,8 +996,55 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .mo-see { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }   /* the sun alone, no words (alex 2026-11-26) */
 .mo-see[aria-pressed="true"] { color: var(--sun); }   /* "I see you", once said, is marigold (alex 2026-11-25) */
+/* Saying it, "eclipse" (alex 2026-11-27): the moon moves right to left: it slides off to the left, the rays light up marigold one by one round the sun,
+   then its middle fills with a small bounce. Taking it back: the moon slides over and the marigold fades to white,
+   ray by ray, the other way round. No ring. Nothing moves with reduce motion. */
+.mo-see svg { overflow: visible; }
+.mo-see svg, .see-core, .see-ray { transform-origin: 12px 12px; }
+.see-moon { fill: #0a0a0b; stroke: none; opacity: 0; }
+.mo-see[aria-pressed="true"] .see-core { fill: var(--sun); }
+.mo-see.see-on .see-moon { animation: moon-off .52s cubic-bezier(.5, 0, .2, 1); }
+.mo-see.see-on svg { animation: see-wake .52s ease-out; }
+.mo-see.see-on .see-ray { animation: ray-on .3s ease-out backwards; }
+.mo-see.see-on .see-core { animation: core-on .38s cubic-bezier(.3, 1.6, .5, 1) .82s backwards; }
+.mo-see.see-off .see-moon { animation: moon-on .8s cubic-bezier(.4, 0, .2, 1); }
+.mo-see.see-off svg { animation: see-rest .7s ease-in-out; }
+.mo-see.see-off .see-ray { animation: ray-off .3s ease backwards; }
+.mo-see.see-off .see-core { animation: core-off .35s ease .3s backwards; }
+.mo-see.see-on .see-ray:nth-of-type(1) { animation-delay: 380ms; }
+.mo-see.see-off .see-ray:nth-of-type(1) { animation-delay: 435ms; }
+.mo-see.see-on .see-ray:nth-of-type(2) { animation-delay: 430ms; }
+.mo-see.see-off .see-ray:nth-of-type(2) { animation-delay: 390ms; }
+.mo-see.see-on .see-ray:nth-of-type(3) { animation-delay: 480ms; }
+.mo-see.see-off .see-ray:nth-of-type(3) { animation-delay: 345ms; }
+.mo-see.see-on .see-ray:nth-of-type(4) { animation-delay: 530ms; }
+.mo-see.see-off .see-ray:nth-of-type(4) { animation-delay: 300ms; }
+.mo-see.see-on .see-ray:nth-of-type(5) { animation-delay: 580ms; }
+.mo-see.see-off .see-ray:nth-of-type(5) { animation-delay: 255ms; }
+.mo-see.see-on .see-ray:nth-of-type(6) { animation-delay: 630ms; }
+.mo-see.see-off .see-ray:nth-of-type(6) { animation-delay: 210ms; }
+.mo-see.see-on .see-ray:nth-of-type(7) { animation-delay: 680ms; }
+.mo-see.see-off .see-ray:nth-of-type(7) { animation-delay: 165ms; }
+.mo-see.see-on .see-ray:nth-of-type(8) { animation-delay: 730ms; }
+.mo-see.see-off .see-ray:nth-of-type(8) { animation-delay: 120ms; }
+@keyframes moon-off { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 1; transform: translateX(-9px); } }
+@keyframes moon-on { 0% { opacity: 1; transform: translateX(9px); } 60% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(0); } }
+@keyframes see-wake { 0%, 50% { transform: scale(.85); } 100% { transform: scale(1); } }
+@keyframes see-rest { 0% { transform: scale(1); } 50% { transform: scale(.88); } 100% { transform: scale(1); } }
+@keyframes ray-on { 0% { stroke: var(--ink); transform: scale(1); } 50% { transform: scale(1.5); } 100% { stroke: var(--sun); transform: scale(1); } }
+@keyframes ray-off { 0% { stroke: var(--sun); } 100% { stroke: var(--ink); } }
+@keyframes core-on { 0% { fill: none; transform: scale(.6); } 60% { fill: var(--sun); transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes core-off { 0% { stroke: var(--sun); fill: var(--sun); fill-opacity: 1; } 100% { stroke: var(--ink); fill-opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mo-see.see-on *, .mo-see.see-off *, .mo-see.see-on svg, .mo-see.see-off svg { animation: none !important; } }
+/* Who said it */
+.mo-seen-list { display: flex; flex-direction: column; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(-1 * var(--edge)); padding: 0 var(--edge); }
+.mo-seen-row { display: flex; align-items: center; gap: 12px; min-height: 56px; width: 100%; text-align: left; }
+.mo-seen-row .pic { flex: none; }
+.mo-seen-who { display: flex; flex-direction: column; min-width: 0; font-size: 15px; }
+.mo-seen-who b { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mo-seen-who span { color: var(--dim); }
 .mo-dimtext { color: var(--dim); font-weight: 400; }
-.mo-seers { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); min-width: 0; }
+.mo-seers { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; color: var(--dim); min-width: 0; text-align: left; }
 .mo-seers > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-faces { display: flex; }
 .mo-faces .pic { box-shadow: 0 0 0 2px var(--sky2); }
@@ -1009,6 +1056,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 /* Comments (alex 2026-11-26): a speech bubble beside "I see you", the latest comment under a post, and the Comments page */
 .mo-acts-l { display: flex; align-items: center; gap: 4px; flex: none; }
 .mo-acts-l > :first-child { margin-left: -10px; }
+.mo-acts-l .mo-talk { margin-left: -8px; }   /* the sun and the bubble sit close together (alex 2026-11-27) */
 .mo-talk { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }
 .cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: -4px; }
 .cm-last { display: block; width: 100%; padding: 2px 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
