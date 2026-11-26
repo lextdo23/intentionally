@@ -221,6 +221,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(/Sam said I see you|Sam/.test(await p.getAttribute("#friends .mo-seers", "aria-label")), "Mia sees that Sam said I see you, by name");
   check(!/\b1\b/.test(await text("#friends .mo-acts")), "with no number anywhere");
   check(!/\bnull\b|undefined/.test(await text("#friends")), "no stray null or undefined on screen");
+  check(!!(await p.$("#friends .mo-post .mo-cp .mo-cp-words")), "a card shared on its own shows as its set's card");
   await shot("15-feed");
   // ---- Notifications (alex 2026-11-25): a number for requests waiting and friends' new moments, never I see yous ----
   check(await p.$eval('#pill [data-tab="friends"]', (e) => e.dataset.count) === "1", "the pill shows 1 on Friends: Sam's new moment (Mia's own and I see yous don't count)");

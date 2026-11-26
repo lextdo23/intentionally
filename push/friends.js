@@ -38,6 +38,9 @@ const PICS = ["flower", "smile", "frog", "cat", "bunny", "bear", "chick", "sprou
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
 export const REASONS = ["hurtful", "sexual", "risk", "spam", "else"];
 const KEEP_DONE = 90 * DAY, HOLD_AT = 3;
+// The card looks a shared card can come from (alex 2026-11-25): each shows its own feed card on Friends.
+// Add a new look here as well as in js/looks.js, or its shared cards fall back to the plain Daydeck one.
+const LOOK_IDS = ["daydeck", "cherry", "mono", "matcha", "mushroom", "pals", "chrome"];
 const MOOD_WORDS = ["awful", "rough", "low", "okay", "good", "really good", "great"];   // the app's own mood words, in words only
 
 // A shared photo must be a small JPEG with nothing but the picture: no location, time, phone or camera details
@@ -360,10 +363,11 @@ export const friendMethods = {
     const col = TINTS.includes(body.col) ? body.col : null;
     const status = ["Done", "Rested", ""].includes(body.status) ? body.status : "";
     const mood = MOOD_WORDS.includes(body.mood) ? body.mood : null;
+    const look = (kind === "card" || kind === "own") && LOOK_IDS.includes(body.look) ? body.look : null;
     const feel = mood && Array.isArray(body.feel) ? body.feel.map((f) => tidyText(f, 24)).filter(Boolean).slice(0, 6) : [];
     let photo = null;
     if (kind === "photo" || kind === "week") { photo = photoOK(body.photo); if (!photo) return null; }
-    return { day, item, photo, data: { kind, text, pillar, col, status, cap, mood, feel, ph: !!photo } };
+    return { day, item, photo, data: { kind, text, pillar, col, status, cap, mood, feel, ph: !!photo, look } };
   },
   mOut(row, meId, owner, extra = {}) {
     // Who said "I see you": the person who shared sees everyone; others see only themselves and their own friends.

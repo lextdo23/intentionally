@@ -16,7 +16,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } }));
   const days = { [day(1)]: { mood: 3, feel: ["calm"] }, [day(0)]: { mood: 2 } };
   await p.goto(server.url);
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 } })), days);
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1, notifCard: 1 } })), days);
   await p.reload(); await p.waitForTimeout(1200);
 
   // A made-up photo on yesterday: a plain orange square.
@@ -37,7 +37,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // A new phone: nothing on it.
   await p.evaluate(async () => { localStorage.clear(); await (await import("./js/photos.js")).wipe(); });
-  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1 } })), { [day(0)]: {} });
+  await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1, notifCard: 1 } })), { [day(0)]: {} });
   await p.reload(); await p.waitForTimeout(1200);
   check(await p.evaluate(async () => (await import("./js/photos.js")).keys().length) === 0, "the new phone starts with no photos");
 

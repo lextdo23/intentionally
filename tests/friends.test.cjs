@@ -166,6 +166,9 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   check((await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "x", mood: 4 })).moment.mood === null, "a mood is only ever a word, never a number");
   r = await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "Text an old friend", pillar: "Friends", col: "#ff0000", status: "Done", cap: "Felt nice" });
   check(r.again && r.moment.id === m1 && r.moment.col === null && r.moment.mood === null, "sharing the same card again updates it (no mood this time), and only Daydeck's tints are kept");
+  // Each set's feed card (alex 2026-11-25): the card keeps which look it came from, and only real looks are kept.
+  check((await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "Text an old friend", pillar: "Friends", status: "Done", cap: "Felt nice", look: "matcha" })).moment.look === "matcha", "a shared card remembers the look it came from");
+  check((await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "Text an old friend", pillar: "Friends", status: "Done", cap: "Felt nice", look: "<b>gold</b>" })).moment.look === null, "only real looks are kept");
   check((await mia.post("/a/f/share", { day: "yesterday", item: "12", kind: "card", text: "x" })).error === "bad_moment" && (await mia.post("/a/f/share", { day: today, item: "12", kind: "spam", text: "x" })).error === "bad_moment", "anything that isn't a real day and card is refused");
   r = await sam.get("/a/f/feed");
   check(r.ok && r.moments.length === 1 && r.moments[0].by.username === "mia.k" && r.moments[0].cap === "Felt nice", "Sam, her friend, sees it in his feed");

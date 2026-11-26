@@ -20,7 +20,7 @@ const SHOTS = process.env.SHOTS;
     const day = (id) => ({ sleep: { bed: 1380, wake: 420, rested: 2, tags: [] }, card: { hands: [[id, id + 1, id + 2]], id, done: true, how: 3 }, mood: 4, feel: [], pil: [] });
     const days = { "2026-11-10": day(1), "2026-11-11": day(10) };
     days[k] = { sleep: { bed: 1380, wake: 420, rested: 2, tags: [] } };
-    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", seen: { note: "sleep", testInvite: 1 }, levels: { seen: 3 },
+    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", seen: { note: "sleep", testInvite: 1, notifCard: 1 }, levels: { seen: 3 },
       pillars: [{ name: "Rest", mindsets: ["I'm exhausted"] }, { name: "Move", mindsets: ["Start moving"] }, { name: "Friends", mindsets: ["I feel lonely"] }], days }));
   }, k);
   await p.reload(); await p.waitForTimeout(900);
