@@ -996,7 +996,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .mo-see { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }   /* the sun alone, no words (alex 2026-11-26) */
 .mo-see[aria-pressed="true"] { color: var(--sun); }   /* "I see you", once said, is marigold (alex 2026-11-25) */
-/* Saying it, "eclipse" (alex 2026-11-27): the moon slides off, the rays light up marigold one by one round the sun,
+/* Saying it, "eclipse" (alex 2026-11-27): the moon moves right to left: it slides off to the left, the rays light up marigold one by one round the sun,
    then its middle fills with a small bounce. Taking it back: the moon slides over and the marigold fades to white,
    ray by ray, the other way round. No ring. Nothing moves with reduce motion. */
 .mo-see svg { overflow: visible; }
@@ -1027,8 +1027,8 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-see.see-off .see-ray:nth-of-type(7) { animation-delay: 165ms; }
 .mo-see.see-on .see-ray:nth-of-type(8) { animation-delay: 730ms; }
 .mo-see.see-off .see-ray:nth-of-type(8) { animation-delay: 120ms; }
-@keyframes moon-off { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 1; transform: translateX(9px); } }
-@keyframes moon-on { 0% { opacity: 1; transform: translateX(-9px); } 60% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(0); } }
+@keyframes moon-off { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 1; transform: translateX(-9px); } }
+@keyframes moon-on { 0% { opacity: 1; transform: translateX(9px); } 60% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(0); } }
 @keyframes see-wake { 0%, 50% { transform: scale(.85); } 100% { transform: scale(1); } }
 @keyframes see-rest { 0% { transform: scale(1); } 50% { transform: scale(.88); } 100% { transform: scale(1); } }
 @keyframes ray-on { 0% { stroke: var(--ink); transform: scale(1); } 50% { transform: scale(1.5); } 100% { stroke: var(--sun); transform: scale(1); } }
