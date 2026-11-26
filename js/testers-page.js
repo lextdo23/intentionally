@@ -68,7 +68,7 @@ const SHAPE = {
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from) && (v.card === undefined || isInt(v.card, 0, 1)),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1, photo_card: (v) => v === 1,
-  friend_pings: (v) => ["on_bell", "on_settings", "off", "later", "on_setup", "off_setup"].includes(v),
+  friend_pings: (v) => ["on_bell", "on_settings", "off", "later", "on_setup", "off_setup", "on_card"].includes(v), notif_card: (v) => ["ask", "denied", "rest"].includes(v), notif_card_on: (v) => typeof v === "string" && /^(allowed|not|later|okay|none|(am|pm|card|fr)(,(am|pm|card|fr))*)$/.test(v),
   setup: (v) => isObj(v) && isInt(v.hs, 0, 1) && ["new", "returning"].includes(v.path) && ["new", "back_in", "without", "none"].includes(v.acct) && isInt(v.secs, 0, 86400) && (v.n == null || (isObj(v.n) && ["a", "p", "c", "s", "y"].every((k) => isInt(v.n[k], -1, 1)))),
   setup_done: (v) => v === "deck" || v === "back", signup_shown_name: (v) => v === 0 || v === 1, nudge_allow: (v) => v === "yes" || v === "no", badge: (v) => isInt(v, 1, 10), friend_ping_open: (v) => v == null,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
@@ -239,7 +239,11 @@ function drawAll(D) {
       (known.length ? bars([["Phone allows notifications", known.filter(([, n]) => allow(n)).length], ["Has a morning or evening nudge on", known.filter(([, n]) => anyNudge(n)).length], ["Has Friends notifications on", known.filter(([, n]) => n.fr === "on").length], ["Has everything off", known.filter(([, n]) => off(n)).length]], known.length) : "") +
       (rows.length ? `<div class="tbl"><table><thead><tr><th>Tester</th><th>Phone allows</th><th>Start your day</th><th>End your day</th><th>Card reminders</th><th>Friends</th><th>Last open</th></tr></thead><tbody>${rows.map(([t, n]) =>
         `<tr${n.allow === "no" ? ' style="opacity:.5"' : ""}><td>${esc(t.code)}</td>${n.allow ? `<td>${n.allow === "yes" ? "Yes" : "No"}</td>` : `<td class="n">–</td>`}${val(n.am)}${val(n.pm)}${val(n.card)}${val(n.fr)}<td>${ago(t.seen)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="sub">No testers yet.</p>`) +
-      `<p class="note">The weekly recap reminder has no switch: it reaches everyone whose phone allows notifications.</p>`,
+      `<p class="note">The weekly recap reminder has no switch: it reaches everyone whose phone allows notifications.</p>` +
+      (by("notif_card").length ? `<p class="note">The one-time "Turn on notifications?" card</p>` + bars([["Saw it", new Set(by("notif_card").map((e) => e.code)).size],
+        ["Allowed notifications from it", new Set(by("notif_card_on").filter((e) => e.val === "allowed").map((e) => e.code)).size],
+        ["Turned some switches on from it", new Set(by("notif_card_on").filter((e) => /^(am|pm|card|fr)/.test(e.val)).map((e) => e.code)).size],
+        ["Said not now", new Set(by("notif_card_on").filter((e) => e.val === "later").map((e) => e.code)).size]]) : ""),
       "lots of \"No\" under Phone allows means people think nudges are coming when they aren't; the setup step asking for notifications may need to explain why.");
   }
   html += sec("Do nudges bring people in?", "Who has nudges on, how often a nudge opened the app, and when people actually check in.",

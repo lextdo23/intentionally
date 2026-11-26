@@ -30,6 +30,7 @@ import * as friends from "./friends.js";
 import * as moments from "./moments.js";
 import * as photoBackup from "./photo-backup.js";
 import * as crumbs from "./crumbs.js";
+import * as notifCard from "./notif-card.js";
 import { wordmark } from "./wordmark.js";
 import * as setup from "./setup.js";
 
@@ -426,6 +427,8 @@ else if (!viaLink && setup.due()) booted.then(() => setTimeout(() => setup.openS
 else if (!viaLink && tester.inviteDue()) booted.then(() => setTimeout(inviteWhenFree, 300));
 else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
+// Nothing else to ask this open: the one-time "Turn on notifications?" card, if it's due (alex 2026-11-26).
+else if (!viaLink) booted.then(() => setTimeout(() => notifCard.whenFree(() => render()), 300));
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
 { const add = new URLSearchParams(location.search).get("add");
   if (add) { friends.noteInvite(add); levels.openInvited(); history.replaceState(null, "", location.pathname); }   // Friends opens straight away (alex 2026-11-25)

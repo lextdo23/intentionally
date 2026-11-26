@@ -300,6 +300,8 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .set-row:active { transform: none; background: var(--fill2); }
 .set-toggle { gap: 12px; min-height: 56px; padding-right: 12px; }
 .set-label { flex-grow: 1; min-width: 0; }
+.nc-bell { width: 48px; height: 48px; border-radius: 50%; background: var(--sun); color: var(--on-sun); display: grid; place-items: center; }
+.nc-steps { padding: 14px 16px; border-radius: 16px; background: var(--fill); font-size: 17px; color: var(--ink); }
 .set-small { display: block; font-size: 13px; color: var(--dim); }
 .set-act { min-height: 44px; padding: 0 4px; font-size: 17px; color: var(--sun); flex-shrink: 0; }
 .set-toggle .time-pill { flex: 0 0 auto; width: 108px; }
