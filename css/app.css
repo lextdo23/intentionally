@@ -1061,7 +1061,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-acts-l > :first-child { margin-left: -7px; }
 .mo-acts-l .mo-talk { margin-left: -4px; }   /* the sun and the bubble sit close together (alex 2026-11-27) */
 /* Instagram-sized (alex 2026-11-27): the sun 30 and the bubble 27, so they read as the same size */
-.mo-see svg { width: 30px; height: 30px; }
+.mo-acts .mo-see svg { width: 30px; height: 30px; }
 .mo-talk svg { width: 27px; height: 27px; }
 .mo-talk { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }
 .cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: -4px; }
