@@ -157,8 +157,8 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- "I see you": the animation, and who said it (alex 2026-11-27) ----
   await p.reload(); await p.waitForTimeout(1500); await quiet(); await tab("friends"); await p.waitForTimeout(1000);
   const sp = p.locator("#friends .mo-post", { hasText: "Go for a slow walk" });
-  { const a = await sp.locator(".mo-see").boundingBox(), c = await sp.locator(".mo-talk").boundingBox();
-    check(c.x - (a.x + a.width) < 0, "the sun and the speech bubble sit close together"); }
+  { const a = await sp.locator(".mo-see svg").boundingBox(), c = await sp.locator(".mo-talk svg").boundingBox();
+    check(c.x - (a.x + a.width) <= 18 && a.width >= 29 && c.width >= 26, "the sun and the speech bubble are Instagram-sized and sit close together"); }
   await sp.locator(".mo-acts").scrollIntoViewIfNeeded(); await p.evaluate(() => document.querySelector("#friends").scrollBy(0, 200)); await p.waitForTimeout(400);
   await sp.locator(".mo-see").click(); await p.waitForTimeout(60);
   check(await sp.locator(".mo-see").getAttribute("aria-pressed") === "true" && await sp.locator(".mo-see.see-on").count() === 1, "pressing the sun marigolds it straight away, with the pop");

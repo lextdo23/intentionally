@@ -18,7 +18,7 @@ import * as account from "./account.js";
 import * as friends from "./friends.js";
 import { ago, sunIcon } from "./moments.js";
 
-export const bubbleIcon = () => friends.svg(24, [["path", { d: "M4.5 12a7.5 7 0 1 1 3.2 5.7L4 19l1.1-3.4A6.8 6.8 0 0 1 4.5 12z" }]]);
+export const bubbleIcon = () => friends.svg(27, [["path", { d: "M4.5 12a7.5 7 0 1 1 3.2 5.7L4 19l1.1-3.4A6.8 6.8 0 0 1 4.5 12z" }]]);
 const lock = () => friends.svg(13, [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]);
 const first = (p) => (p.name ? p.name.split(" ")[0] : "@" + p.username);
 const plain = (p) => (p.name ? p.name.split(" ")[0] : p.username);   // "sherrie", without the @ (alex 2026-11-26)
