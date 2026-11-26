@@ -35,11 +35,16 @@ export const needsAsk = () => !!(t() && t().on && t().code && (t().consent || 0)
 // has an evening check-in. Never for a phone that's already testing, someone who stopped on purpose, or alex's test
 // accounts. "Not now" (or closing it) means it never comes back; Settings still has "Help test Daydeck".
 export const INVITE = 1;
-export function inviteDue() {
+// New people are asked during setup instead (alex 2026-11-26, js/setup.js "Help improve Daydeck"), so this later
+// invite is only for people who came before it, or left setup early.
+export function inviteOK() {
   const s = store.get(), tt = s.tester || {};
   if (on() || needsAsk() || tt.left || tt.removed || testAccount() || s.test.on) return false;
-  if ((s.seen || {}).testInvite >= INVITE) return false;
-  return Object.values(s.days || {}).filter((d) => d && d.mood != null).length >= 2;   // after the second evening (alex 2026-11-25)
+  return !((s.seen || {}).testInvite >= INVITE);
+}
+export function inviteDue() {
+  if (!inviteOK()) return false;
+  return Object.values(store.get().days || {}).filter((d) => d && d.mood != null).length >= 2;   // after the second evening (alex 2026-11-25)
 }
 export function inviteSeen() { const s = store.get(); s.seen = s.seen || {}; s.seen.testInvite = INVITE; store.save(); }
 export function agreeAgain() { t().consent = CONSENT; store.save(); log("consent_again", CONSENT); send(true); }

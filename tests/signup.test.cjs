@@ -48,8 +48,9 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const msg = () => p.locator("#acct .acct-screen:last-child .acct-msg").first().textContent();
 
   // ---- On for everyone: the sign-up shows first, without test mode ----
+  // (Someone already using Daydeck. New people get the whole setup around it: tests/setup.test.cjs.)
   await p.goto(server.url);
-  await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: null, days: {}, seen: { note: "sleep", testInvite: 1 } })));
+  await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-01", days: {}, seen: { note: "sleep", testInvite: 1 } })));
   await p.reload(); await p.waitForTimeout(2200);   // it waits for the splash to go (tests/launch.test.cjs)
   check(!!(await p.$("#acct")), "the sign-up shows when the app opens, for everyone (not just test mode)");
   await p.goto(server.url + "?tester"); await p.waitForTimeout(1200);
@@ -99,7 +100,7 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   check(await btn("Continue").getAttribute("aria-disabled") === "true", "too short can't go on");
   await p.click("#acct .acct-chip >> nth=0").catch(() => {});
   await p.fill("#acct .acct-name", "mia.k"); await p.waitForTimeout(800);
-  check(/free/.test(await msg()) && (await btn("Continue").getAttribute("aria-disabled")) === "false", "a free name can go on");
+  check(await p.$eval("#acct .acct-at", (el) => el.classList.contains("good")) && (await btn("Continue").getAttribute("aria-disabled")) === "false", "a free name turns the box green and can go on");
 
   // The picture: pick a little one.
   await p.click("#acct .acct-pic"); await p.waitForTimeout(700);

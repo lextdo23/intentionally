@@ -185,6 +185,9 @@ function cropPhoto(file, changed) {
 
 // ---------------- The sign-up screens ----------------
 let layer = null, timers = [], flow = {}, onDoneF = null;
+// When the account is one part of first-time setup (js/setup.js, alex 2026-11-26), setup passes its hooks:
+// dots (the progress dots), back (from the email screen), and next (once signed in, or carrying on without one).
+let part = null;
 const back = (to) => { const b = roundBtn("back", "Back", to); b.classList.add("acct-back"); return b; };
 const msgEl = () => h("p.acct-msg", { role: "status", "aria-live": "polite" });
 function clearTimers() { timers.forEach(clearInterval); timers = []; }
@@ -193,22 +196,38 @@ function show(step) {
   const el = step();
   if (!layer.firstChild) { layer.append(el); }
   else { const old = layer.firstChild; old.classList.add("out"); el.classList.add("in"); layer.append(el); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("in"))); setTimeout(() => old.remove(), 300); }
-  setTimeout(() => el.querySelector("input:not([type=range]), .btn-main")?.focus({ preventScroll: true }), 320);
+  // Only a box to type in takes the focus (a button or time box would show a ring for no reason).
+  setTimeout(() => el.querySelector("input[type=email], input.acct-code-input, input.acct-name")?.focus({ preventScroll: true }), 320);
 }
-const screen = (top, bottom, { lead } = {}) => h("div.acct-screen", null, lead || null, h("div.acct-top", null, top), h("div.acct-bottom", null, bottom));
+const screen = (top, bottom, { lead, cls = "" } = {}) => h("div.acct-screen" + cls, null, lead || null, h("div.acct-top", null, top), h("div.acct-bottom", null, bottom));
 const busy = (btn, on) => { btn.setAttribute("aria-busy", on ? "true" : "false"); btn.classList.toggle("busy", on); };
 
 export function openSignup(onDone, { from = "start" } = {}) {
-  if (layer) return;
-  onDoneF = onDone; flow = { from };
-  layer = h("div", { id: "acct", role: "dialog", "aria-modal": "true", "aria-label": "Keep your days safe" });
-  document.body.append(layer); document.body.classList.add("in-acct");
+  if (!openLayer(onDone, "Keep your days safe")) return;
+  flow = { from };
   log("signup_open", from);
+  show(stepEmail);
+}
+// First-time setup (js/setup.js) uses the same layer and the same slide for every screen, so it all feels like one.
+export function openLayer(onDone, label) {
+  if (layer) return false;
+  onDoneF = onDone; flow = { from: "start" }; part = null;
+  layer = h("div", { id: "acct", role: "dialog", "aria-modal": "true", "aria-label": label });
+  document.body.append(layer); document.body.classList.add("in-acct");
+  return true;
+}
+export const slide = (step) => { if (layer) show(step); };
+export const shell = (top, bottom, opts) => screen(top, bottom, opts);
+export const closeLayer = (why) => closeSignup(why);
+// The account screens inside setup. returning: "I already have an account" (a new phone).
+export function accountPart(hooks, { returning = false } = {}) {
+  part = hooks; flow = { from: "start", returning };
+  log("signup_open", returning ? "returning" : "setup");
   show(stepEmail);
 }
 function closeSignup(why) {
   if (!layer) return;
-  clearTimers();
+  clearTimers(); part = null;
   const l = layer; layer = null;
   document.body.classList.remove("in-acct"); l.classList.add("gone");
   setTimeout(() => l.remove(), 360);
@@ -249,13 +268,13 @@ function stepEmail() {
   go.addEventListener("click", send);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
   ready();
+  // Just the title and the box (alex 2026-11-26): "it's pretty straightforward that you need to sign up".
+  // On a new phone ("I already have an account") there's nothing to skip, so no "Use without an account".
   return screen([
-    h("div.acct-sun", { "aria-hidden": "true" }),
-    h("h1.acct-title", null, "Keep your days safe"),
-    h("p.acct-text", null, "Make an account so a lost or new phone never loses your days."),
+    h("h1.acct-title", null, flow.returning ? "Welcome back" : "Keep your days safe"),
     h("div.col", { style: { gap: "8px", width: "100%" } }, input, h("p.acct-note", null, "No passwords. We'll email you a 6-digit code. ", h("a.acct-link", { href: "privacy.html" }, "Your privacy")), msg),
-  ], [go, h("button.btn-quiet", { onclick: withoutAccount }, "Use without an account"), LIFELINE()],
-  { lead: flow.from !== "start" ? (() => { const x = roundBtn("close", "Close", () => closeSignup("closed")); x.classList.add("acct-back"); return x; })() : null });
+  ], [go, flow.returning ? null : h("button.btn-quiet", { onclick: withoutAccount }, "Use without an account"), LIFELINE()],
+  { lead: part ? [back(part.back), part.dots(2)] : flow.from !== "start" ? (() => { const x = roundBtn("close", "Close", () => closeSignup("closed")); x.classList.add("acct-back"); return x; })() : null });
 }
 
 function stepCode() {
@@ -309,7 +328,7 @@ function stepCode() {
     h("h1.acct-title", null, "Check your email"),
     h("p.acct-text", null, "We sent a 6-digit code to ", h("b", null, flow.email)),
     code, h("div.acct-under", null, life, paste), msg,
-  ], [go, again, h("p.acct-note", null, "Not there? Check your junk folder.")], { lead: back(() => show(stepEmail)) });
+  ], [go, again, h("p.acct-note", null, "Not there? Check your junk folder.")], { lead: [back(() => show(stepEmail)), part ? part.dots(2) : null] });
 }
 
 const NAME_WORDS = {
@@ -330,18 +349,23 @@ function localNameProblem(n) {
 function stepName() {
   const picBtn = h("button.acct-pic", { "aria-label": "Add a photo, if you like" }, picture(104), h("span.acct-cam", { "aria-hidden": "true" }, camIcon()));
   picBtn.addEventListener("click", () => choosePicture(() => picBtn.replaceChild(picture(104), picBtn.firstChild)));
-  const input = h("input.acct-field.acct-name", { type: "text", autocomplete: "username", autocapitalize: "off", autocorrect: "off", spellcheck: "false", maxlength: "20", "aria-label": "Username", placeholder: "username", enterkeyhint: "go" });
+  const input = h("input.acct-field.acct-name", { type: "text", autocomplete: "username", autocapitalize: "off", autocorrect: "off", spellcheck: "false", maxlength: "20", "aria-label": "Username", placeholder: "username", enterkeyhint: "next" });
   if (flow.username) input.value = flow.username;
   const field = h("label.acct-at", null, h("span", { "aria-hidden": "true" }, "@"), input);
-  const msg = msgEl(), chips = h("div.acct-chips");
+  // The name friends see, if they like (alex 2026-11-26). Up to 30, the same as Edit on You.
+  const nameIn = h("input.acct-field.acct-shown", { type: "text", autocomplete: "name", autocapitalize: "words", maxlength: "30", placeholder: "Your name", "aria-label": "Name friends see (optional)", enterkeyhint: "go" });
+  if (flow.name) nameIn.value = flow.name;
+  const msg = msgEl(), chips = h("div.acct-chips"), nameMsg = msgEl();
   const go = h("button.btn-main", { "aria-disabled": "true" }, "Continue");
+  // No "That one's free." (alex 2026-11-26): the box itself goes green when it's free, red when it can't be used.
+  const ring = (k) => { field.classList.toggle("good", k === "good"); field.classList.toggle("bad", k === "bad"); };
   let seq = 0, okName = null;
   const check = async () => {
     const n = input.value.trim().toLowerCase(), mine = ++seq;
-    okName = null; go.setAttribute("aria-disabled", "true"); chips.replaceChildren(); msg.classList.remove("ok");
+    okName = null; go.setAttribute("aria-disabled", "true"); chips.replaceChildren(); ring(null);
     if (!n) { msg.textContent = ""; return; }
     const p = localNameProblem(n);
-    if (p) { msg.textContent = n.length < 3 ? "" : NAME_WORDS[p]; return; }
+    if (p) { msg.textContent = n.length < 3 ? "" : NAME_WORDS[p]; if (n.length >= 3) ring("bad"); return; }
     msg.textContent = "";
     await new Promise((res) => setTimeout(res, 350));
     if (mine !== seq) return;
@@ -349,25 +373,35 @@ function stepName() {
     const r = await api("/a/name?u=" + encodeURIComponent(n));
     if (mine !== seq) return;
     msg.classList.remove("wait");
-    if (r.ok) { okName = n; go.setAttribute("aria-disabled", "false"); msg.textContent = "That one's free."; msg.classList.add("ok"); }
+    if (r.ok) { okName = n; go.setAttribute("aria-disabled", "false"); msg.textContent = ""; ring("good"); }
     else if (r.error === "offline") msg.textContent = WORDS.offline;
     else {
+      ring("bad");
       msg.textContent = NAME_WORDS[r.why] || "Try a different one.";
       (r.try || []).forEach((t) => chips.append(h("button.acct-chip", { onclick: () => { input.value = t; log("signup_suggestion"); check(); } }, "@" + t)));
     }
   };
   input.addEventListener("input", () => { input.value = input.value.replace(/\s/g, "").toLowerCase(); check(); });
-  // The username is the last step (alex 2026-11-26: Face ID taken out); the email code is the way back in.
-  const next = () => { if (!okName) return; flow.username = okName; finishWithout(go, msg); };
+  nameIn.addEventListener("input", () => { nameMsg.textContent = ""; });
+  // The username is the last account step (alex 2026-11-26: Face ID taken out); the email code is the way back in.
+  // Signed up already but the name wasn't allowed: Continue only tries the name again.
+  const next = () => {
+    if (!okName && !flow.made) return;
+    flow.username = okName || flow.username; flow.name = nameIn.value.trim();
+    if (flow.made) return saveName(go, nameMsg);
+    finishWithout(go, nameMsg);
+  };
   go.addEventListener("click", next);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") next(); });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") nameIn.focus(); });
+  nameIn.addEventListener("keydown", (e) => { if (e.key === "Enter") next(); });
   if (input.value) check();
   return screen([
     picBtn, h("p.acct-note", { style: { marginTop: "-8px" } }, "Add a photo, if you like"),
     h("h1.acct-title", null, "Pick a username"),
     h("div.col", { style: { gap: "8px", width: "100%" } }, field, msg, chips,
-      h("p.acct-note", null, "3 to 20 letters, numbers, full stops or underscores. You can change it later.")),
-  ], [go], { lead: back(() => show(stepEmail)) });
+      h("p.acct-note.acct-one", null, "3 to 20 letters, numbers, full stops or underscores.")),
+    h("div.col", { style: { gap: "8px", width: "100%" } }, h("label.acct-label", null, "Name friends see (optional)"), nameIn, nameMsg),
+  ], [go], { lead: [back(() => show(stepEmail)), part ? part.dots(2) : null] });
 }
 
 async function finishWithout(btn, msg) {
@@ -375,7 +409,7 @@ async function finishWithout(btn, msg) {
   busy(btn, true);
   const r = await api("/a/finish", { ticket: flow.ticket, username: flow.username, credential: null });
   busy(btn, false);
-  if (r.ok) return finished(r);
+  if (r.ok) return finished(r, btn, msg);
   trouble(r, msg);
 }
 function trouble(r, msg) {
@@ -384,11 +418,29 @@ function trouble(r, msg) {
   if (r.error === "expired") { msg.textContent = "That took a while, so the code stopped working. Start again with your email."; setTimeout(() => show(stepEmail), 2200); return; }
   msg.textContent = r.error === "offline" ? WORDS.offline : "Something went wrong. Try again.";
 }
-function finished(r) {
+async function finished(r, btn, msg) {
   me.token = r.session; me.user = r.user; delete me.skip; keep();
   log("signup_done", r.created ? "new" : "back_in");
-  closeSignup("done");
   tell("in");
+  flow.made = r;
+  if (r.created && flow.name) return saveName(btn, msg);
+  done(r);
+}
+// The name friends see goes with the friends profile (push/friends.js), which an account has from the start.
+async function saveName(btn, msg) {
+  if (flow.name) {
+    busy(btn, true);
+    const p = await api("/a/f/profile", { name: flow.name });
+    busy(btn, false);
+    if (p.error === "name_words") { msg.textContent = "That name can't be used. Try another, or leave it empty."; return; }
+    if (!p.ok) { msg.textContent = p.error === "offline" ? WORDS.offline : "Something went wrong. Try again."; return; }
+  }
+  log("signup_shown_name", flow.name ? 1 : 0);   // whether there's one, never the name
+  done(flow.made);
+}
+function done(r) {
+  if (part) return part.next(r);
+  closeSignup("done");
 }
 
 // "Use without an account": one calm sheet saying what they give up.
@@ -403,7 +455,7 @@ function withoutAccount() {
         point(noIcon([["circle", { cx: "9", cy: "9", r: "3.2" }], ["circle", { cx: "16.5", cy: "10", r: "2.6" }], ["path", { d: "M3.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6" }], ["path", { d: "M15 14.6c2.2 0 4 1.3 4.8 4" }]]), "Friends and sharing, when they come, will need an account."),
         point(noIcon([["circle", { cx: "12", cy: "12", r: "3" }], ["path", { d: "M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" }]]), "You can make one any time in Settings.")),
       h("button.btn-main", { onclick: () => { log("signup_without", "make"); close("make"); } }, "Make an account"),
-      h("button.btn-quiet", { onclick: () => { close("without"); me.skip = 1; keep(); log("signup_without", "yes"); closeSignup("without"); } }, "Continue without"));
+      h("button.btn-quiet", { onclick: () => { close("without"); me.skip = 1; keep(); log("signup_without", "yes"); if (part) part.next(null); else closeSignup("without"); } }, "Continue without"));
   }, { label: "Using Daydeck without an account" });
 }
 

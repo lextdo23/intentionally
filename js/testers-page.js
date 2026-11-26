@@ -68,7 +68,9 @@ const SHAPE = {
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from) && (v.card === undefined || isInt(v.card, 0, 1)),
   report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1, photo_card: (v) => v === 1,
-  friend_pings: (v) => ["on_bell", "on_settings", "off", "later"].includes(v), nudge_allow: (v) => v === "yes" || v === "no", badge: (v) => isInt(v, 1, 10), friend_ping_open: (v) => v == null,
+  friend_pings: (v) => ["on_bell", "on_settings", "off", "later", "on_setup", "off_setup"].includes(v),
+  setup: (v) => isObj(v) && isInt(v.hs, 0, 1) && ["new", "returning"].includes(v.path) && ["new", "back_in", "without", "none"].includes(v.acct) && isInt(v.secs, 0, 86400) && (v.n == null || (isObj(v.n) && ["a", "p", "c", "s", "y"].every((k) => isInt(v.n[k], -1, 1)))),
+  setup_done: (v) => v === "deck" || v === "back", signup_shown_name: (v) => v === 0 || v === 1, nudge_allow: (v) => v === "yes" || v === "no", badge: (v) => isInt(v, 1, 10), friend_ping_open: (v) => v == null,
   friend_set: (v) => isObj(v) && Object.keys(v).every((k) => ["requests", "count", "mood"].includes(k)) && Object.values(v).every((x) => x === 0 || x === 1),
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
@@ -424,11 +426,22 @@ function drawAll(D) {
     : `<p class="sub">Nobody has started yet.</p>`,
     "if lots of people stop on the pillar screen, there may be too many to choose from. Over two minutes means it feels like homework.");
 
+  // First-time setup (alex 2026-11-26, js/setup.js). Only people who said Share on its last question are here, so it
+  // shows how setup went for them: the path they took, the account, the notification switches, and how long it took.
+  { const ev = by("setup").map((e) => e.val), n = ev.length, c = (f) => ev.filter(f).length, nn = ev.filter((v) => v.n);
+    const secs = median(ev.map((v) => v.secs).filter(Number.isFinite));
+    html += sec("How does the new setup go?", "From the welcome to Your deck is ready (26 Nov 2026 on). Only testers who said Share at its end, so everyone here finished it.",
+      n ? bars([["Came from Safari (Add to Home Screen first)", c((v) => v.hs === 1)], ["I already have an account", c((v) => v.path === "returning")], ["Made an account", c((v) => v.acct === "new")], ["Back into their account", c((v) => v.acct === "back_in")], ["Without an account", c((v) => v.acct === "without")]], n) +
+        (nn.length ? `<p class="note">Notifications screen:</p>` + bars([["Pressed Turn on", nn.filter((v) => v.n.y >= 0).length], ["The phone allowed them", nn.filter((v) => v.n.y === 1).length], ["Kept Start your day on", nn.filter((v) => v.n.a === 1).length], ["Kept End your day on", nn.filter((v) => v.n.p === 1).length], ["Kept Today's card on", nn.filter((v) => v.n.c === 1).length], ["Kept Social on (with an account)", nn.filter((v) => v.n.s === 1).length]], nn.length) : "") +
+        `<p class="note">A usual setup took ${secs == null ? "–" : secs + " seconds"}. Added a name friends see: ${by("signup_shown_name").filter((e) => e.val === 1).length} of ${by("signup_shown_name").length}.</p>`
+      : `<p class="sub">Nobody has been through the new setup yet.</p>`,
+      "lots pressing Not now on notifications means the screen doesn't show why they help; over three minutes means setup feels long."); }
+
   // Accounts (alex 2026-11-20): the sign-up screens. Only steps and choices; never an email, username or code.
   { const people = (n, f = () => true) => new Set(by(n).filter(f).map((e) => e.code)).size;
     const opened = people("signup_open");
     const steps = [["Saw Keep your days safe", opened], ["Got a code", people("signup_step", (e) => e.val === "code")],
-      ["Picked a username", people("signup_step", (e) => e.val === "faceid")], ["Made an account", people("signup_done", (e) => e.val === "new")]];
+      ["Picked a username", people("signup_step", (e) => e.val === "faceid" || e.val === "name")], ["Made an account", people("signup_done", (e) => e.val === "new")]];
     const face = {}; by("signup_faceid").forEach((e) => (face[e.val] = (face[e.val] || 0) + 1));
     const errs = {}; by("signup_error").forEach((e) => { if (typeof e.val === "string" && e.val.length < 30) errs[e.val] = (errs[e.val] || 0) + 1; });
     const pics = {}; by("avatar").forEach((e) => { if (typeof e.val === "string" && e.val.length < 20) pics[e.val] = (pics[e.val] || 0) + 1; });
