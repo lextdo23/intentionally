@@ -148,7 +148,7 @@ const MOMENT = {
 // Once, quietly: take every extra part out of photos saved before they were cleaned (alex 2026-11-20).
 setTimeout(() => photos.tidy(), 4000);
 
-let momentT = 0, turnPh = false;   // turnPh: the card was just done, so a photo on its back turns into view
+let momentT = 0, turnPh = false, slotStill = false;   // slotStill: what's under the card already faded in as it landed   // turnPh: the card was just done, so a photo on its back turns into view
 // The one-time note about where photos live waits until home is quiet (not mid-rating, no other sheet open).
 function noteWhenFree(tries = 0) {
   setTimeout(() => {
@@ -256,7 +256,10 @@ function render(moment) {
         store.save();
         // No "Card's done." here (alex 2026-11-26): the tick and the card gliding home say it, and the words pushed the card.
       },
-      onEnd: () => { lvBack = true; turnPh = true; render(); } });
+      // As the card lands (alex 2026-11-26): "Add a photo" and "Not done yet" fade in under it, in the space kept for
+      // them, so the redraw that follows changes nothing you can see.
+      onLand: () => { if (slotEl) slotEl.replaceChildren(...doneSlot()); },
+      onEnd: () => { turnPh = true; slotStill = true; render(); } });   // the level row is already back (it came back as the card landed)
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
@@ -299,7 +302,23 @@ function render(moment) {
   const shareOK = (testOn || levels.isOpen("friends")) && friends.canShare() && (did || today.rest) && moments.canShareDay(k) && !addPhoto;
   const shareLink = shareOK ? h("button.add-photo.share-link", { onclick: () => moments.openShare({ day: k, item: today.rest ? "rest" : "card", from: "home" }) },
     friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
-  const mid = h("div.home-mid", null, card, c && !ended ? h("div.undo-slot", null, addPhoto || shareLink, did ? h("button.btn-text.undo", { onclick: undo }, "Not done yet") : null) : shareLink ? h("div.undo-slot", null, shareLink) : null);
+  // While the card is still to do, the space under it is kept at the size it will be once done ("Add a photo" or
+  // "Share with friends" over "Not done yet"), so the card is sized once and never shrinks as it lands (alex 2026-11-26).
+  const shareCould = (testOn || levels.isOpen("friends")) && friends.canShare() && moments.canShareDay(k);
+  const two = c && !ended && (addPhoto || shareLink || (!did && (photos.offerOK(k) || shareCould)));
+  const undoBtn = () => h("button.btn-text.undo", { onclick: undo }, "Not done yet");
+  // What the slot holds once the card is done; used as it lands, then again by the redraw.
+  function doneSlot() {
+    const pOK = photos.offerOK(k);
+    if (pOK) photos.offered(k);
+    const first = pOK ? h("button.add-photo.fade-in", { onclick: cam }, photos.camIcon(), "Add a photo")
+      : shareCould ? h("button.add-photo.share-link.fade-in", { onclick: () => moments.openShare({ day: k, item: "card", from: "home" }) },
+        friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
+    return [first, undoBtn()].filter(Boolean);
+  }
+  const still = slotStill; slotStill = false;
+  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null) : shareLink ? h("div.undo-slot", null, shareLink) : null;
+  const mid = h("div.home-mid", null, card, slotEl);
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
   // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
   const friendsOpen = testOn || levels.isOpen("friends");

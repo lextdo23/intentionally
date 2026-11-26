@@ -80,7 +80,6 @@ h1, h2, p { margin: 0; }
 .lv-plus { position: absolute; bottom: 10px; font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; pointer-events: none; translate: -50% 0; opacity: 0; animation: lv-plus 2.2s ease-out .2s both; }
 @keyframes lv-plus { 0% { opacity: 0; transform: translateY(6px); } 25% { opacity: 1; transform: none; } 70% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-12px); } }
 @media (prefers-reduced-motion: reduce) { .lv-plus { animation: none; opacity: 1; } }
-.in-ask .lv-row { opacity: 0; }
 .lv-row.lv-back { animation: lv-back .8s ease both; }
 @keyframes lv-back { from { opacity: 0; } to { opacity: 1; } }
 
@@ -406,7 +405,8 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .home-card.did .why { color: #77746e; }
 .home-card .size.out { opacity: 0; }
 /* What doing it felt like, in gold where the size was. It stays gold once the card is done. */
-.home-card .felt-word { font-size: 9.5px; font-weight: 600; color: var(--ink); white-space: nowrap; transition: opacity .6s ease; }
+.home-card .felt-word { font-size: 9.5px; font-weight: 600; color: var(--ink); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; transition: opacity .6s ease; }
+.home-card .card-foot > .tick-done, .home-card .foot-right { flex-shrink: 0; }
 .home-card .felt-word.enter { opacity: 0; }
 .home-card .fresh-tick { animation: fill .5s var(--ease) both; }
 .home-card .tick-done { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
@@ -507,11 +507,14 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 
 /* "Not done yet": a small quiet line under a done card. */
 .undo-slot { min-height: 44px; display: flex; justify-content: center; }
+.undo-slot.two { min-height: 88px; align-items: flex-start; }   /* kept for "Add a photo" over "Not done yet" (alex 2026-11-26) */
+.undo-slot .fade-in { animation: undo-in .6s ease both; }
+.undo-slot.still .undo, .undo-slot.still .add-photo { animation: none; }
 .undo-slot .undo { font-size: 13px; color: var(--dim); animation: undo-in .6s ease both; }
 @keyframes undo-in { from { opacity: 0 } }
 /* "How did doing it feel?" right after "I did it", on home (draw.js askFelt). One soft move: the question and pills
    rise in a little after the card starts shrinking, and leave together. */
-.did-ask { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
+.did-ask { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
   transition: transform .55s cubic-bezier(.4, 0, .2, 1); }
 .did-ask.on { pointer-events: auto; }
 .did-q { margin: 0; font-size: 17px; font-weight: 600; }
@@ -529,8 +532,8 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .did-ask .more-wrap { margin-top: -8px; transition: grid-template-rows .55s cubic-bezier(.4, 0, .2, 1), margin-top .55s cubic-bezier(.4, 0, .2, 1); }
 .did-ask .more-wrap.open { margin-top: 0; }
 .did-ask > .col > .btn-text { margin-top: -4px; }
-.did-ask .ok { min-height: 44px; padding: 0 28px; border-radius: 22px; background: var(--sun); color: var(--on-sun); font-size: 15px; font-weight: 600; }
-.did-ask .later { margin-top: -8px; font-size: 15px; color: var(--ink2); }
+.did-ask .ok { margin-top: 16px; min-height: 44px; padding: 0 28px; border-radius: 22px; background: var(--sun); color: var(--on-sun); font-size: 15px; font-weight: 600; }
+.did-ask .later { margin-top: -6px; font-size: 15px; color: var(--ink2); }
 .soft-gone { opacity: 0; pointer-events: none; transition: opacity .35s ease; }
 .btn-main { transition: background .3s, color .3s, opacity .35s ease; }
 @media (prefers-reduced-motion: reduce) { .did-ask, .did-ask * { transition: none !important; } .undo-slot .undo, .home-card .fresh-tick { animation: none; } }
