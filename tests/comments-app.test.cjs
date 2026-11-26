@@ -156,7 +156,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await sp.locator(".mo-see").click(); await p.waitForTimeout(60);
   check(await sp.locator(".mo-see").getAttribute("aria-pressed") === "true" && await sp.locator(".mo-see.see-on").count() === 1, "pressing the sun marigolds it straight away, with the pop");
   { const a = await sp.locator(".mo-see").boundingBox(), c = await sp.locator(".mo-talk").boundingBox(); check(Math.abs(a.y - c.y) < 2, "the sun stays in its row while it pops"); }
-  await p.waitForTimeout(120); await shot("c6-pop"); await p.waitForTimeout(800);
+  await p.waitForTimeout(500); await shot("c6-pop"); await p.waitForTimeout(800); await shot("c6-done");
   check((await sam.get("/a/f/feed")).moments.find((x) => x.id === sm.id).seers.some((x) => x.username === "mia.k"), "and it reaches the service");
   check(/Mia/.test(await sp.locator(".mo-seers").textContent()), "her name joins who said it");
   await sp.locator(".mo-see").click(); await p.waitForTimeout(60);

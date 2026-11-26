@@ -227,7 +227,11 @@ export const ago = (at) => {
   const days = Math.round(hrs / 24); return days < 7 ? days + "d" : longDay(dayKey(at));
 };
 const names = (list) => { const n = list.map(friends.shown); if (n.length <= 1) return n.join(""); if (n.length <= 3) return n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return n.slice(0, 3).join(", ") + " and others"; };
-const sunIcon = (filled) => friends.svg(24, [["circle", { cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }], ["path", { d: "M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" }]]);
+// The sun: its middle, eight rays (each its own line, so they can light up one by one), and a moon in the page's black
+// that slides across it when "I see you" is said or taken back (alex 2026-11-27, "eclipse"; see .see-on in app.css).
+const RAYS = [[12, 2.5, 12, 4.5], [17.3, 6.7, 18.7, 5.3], [19.5, 12, 21.5, 12], [17.3, 17.3, 18.7, 18.7], [12, 19.5, 12, 21.5], [5.3, 18.7, 6.7, 17.3], [2.5, 12, 4.5, 12], [5.3, 5.3, 6.7, 6.7]];
+const sunIcon = (filled) => friends.svg(24, [["circle", { class: "see-core", cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }],
+  ...RAYS.map(([x1, y1, x2, y2]) => ["line", { class: "see-ray", x1, y1, x2, y2 }]), ["circle", { class: "see-moon", cx: "12", cy: "12", r: "5.7" }]]);
 // Who said "I see you" on a moment: a sheet of faces and names, tap one for their profile. The person who shared sees
 // everyone; others see only themselves and their own friends (the service decides).
 function seenBy(m, onPerson) {
@@ -248,8 +252,9 @@ export function post(m, { onChange, onPerson } = {}) {
   let anim = null, sending = false;
   const draw = () => {
     // The sun on its own, no words (alex 2026-11-26): marigold once you've said it. On your own moment it's there too
-    // (alex 2026-11-27), and tapping it shows who said it. Pressing it pops the sun and its rays burst out; taking it
-    // back shrinks it away (alex 2026-11-27). It changes straight away, and changes back if the service says no.
+    // (alex 2026-11-27), and tapping it shows who said it. Saying it: the moon slides off, the rays light up marigold
+    // one by one round the sun, then its middle fills. Taking it back: the moon slides over and it fades back to white,
+    // ray by ray (alex 2026-11-27). It changes straight away, and changes back if the service says no.
     const see = h("button.mo-see", { type: "button", "aria-pressed": String(!!m.seen),
       "aria-label": m.mine ? (m.seers.length ? `${names(m.seers)} said I see you. See who` : "Nobody has said I see you yet") : m.seen ? "You said I see you. Tap to take it back" : "I see you" }, sunIcon(m.seen));
     if (anim) { see.classList.add(anim === "on" ? "see-on" : "see-off"); anim = null; }
