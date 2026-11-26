@@ -24,4 +24,6 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/accounts.test.cjs      (sign up, Face ID sign in, backup, rename, delete: the whole account journey)
     node tests/origins.test.cjs       (the notifications service answers daydeck.day, and nobody else)
     node tests/library-service.test.cjs
+    node tests/comments.test.cjs      (comments on moments: who sees which, delete and remove, reports, the bell, notifications)
+    node tests/comments-app.test.cjs  (comments in the app: the bubble, the latest comment, the Comments page, the bell; SHOTS=1)
     node tests/crumbs.test.cjs        (Crumbs: off by default, the offer, the face button beside the week, the sheet, crumbs at the end of the day, Settings)

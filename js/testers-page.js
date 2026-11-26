@@ -46,7 +46,7 @@ function bars(rows, max, unit = "") {
 }
 const GROUP = { "Which cards are \"Not for me\"?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
-  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
+  "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do people comment?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 // The Usage tab (alex 2026-11-26, js/testers-usage.js): its sections all sit on that tab.
 ["How long has each tester been on Daydeck?", "Do people come back after day one?", "How often do people open it?", "How long do people stay?", "What do people do each visit?", "When do people do their card?", "Recent visits", "Does it run smoothly?"].forEach((t) => (GROUP[t] = "usage"));
 const TABS = [["overview", "Overview"], ["usage", "Usage"], ["reports", "Reports"], ["cards", "Cards"], ["library", "Library"], ["checkins", "Check-ins"], ["setup", "Setup"], ["testers", "Testers"]];
@@ -70,7 +70,8 @@ const SHAPE = {
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, notes_open: (v) => Number.isInteger(v) && v >= 0 && v <= 50, friend_profile: (v) => v === 0 || v === 1, common_open: (v) => v === 1,
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from) && (v.card === undefined || isInt(v.card, 0, 1)) && (v.look === undefined || ["daydeck", "cherry", "mono", "matcha", "mushroom", "pals", "chrome"].includes(v.look)),
-  report: (v) => isObj(v) && ["moment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "person"].includes(v),
+  report: (v) => isObj(v) && ["moment", "comment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "comment", "person"].includes(v),
+  comment: (v) => isObj(v) && isInt(v.own, 0, 1) && ["feed", "button", "bell"].includes(v.from), comment_open: (v) => ["feed", "button", "bell"].includes(v), uncomment: (v) => v === "own" || v === "theirs",
   share_open: (v) => ["pill", "home"].includes(v), see: (v) => v === 0 || v === 1, unshare: (v) => v === 1, hide: (v) => v === 1, unhide: (v) => v === 1, grid_open: (v) => v === 1, photo_backed: (v) => v === 1, photo_backup: (v) => v === "on" || v === "off", photo_backup_note: (v) => v === 1, photo_backup_wait: (v) => ["daily_limit", "photos_full", "photos_off"].includes(v), friends_list: (v) => v === 1, photo_card: (v) => v === 1, photo_zoom: (v) => v === 1,
   friend_pings: (v) => ["on_bell", "on_settings", "off", "later", "on_setup", "off_setup", "on_card"].includes(v), notif_card: (v) => ["ask", "denied", "rest"].includes(v), notif_card_on: (v) => typeof v === "string" && /^(allowed|not|later|okay|none|(am|pm|card|fr)(,(am|pm|card|fr))*)$/.test(v),
   setup: (v) => isObj(v) && isInt(v.hs, 0, 1) && ["new", "returning"].includes(v.path) && ["new", "back_in", "without", "none"].includes(v.acct) && isInt(v.secs, 0, 86400) && (v.n == null || (isObj(v.n) && ["a", "p", "c", "s", "y"].every((k) => isInt(v.n[k], -1, 1)))),
@@ -494,6 +495,14 @@ function drawAll(D) {
         `<p class="note">Opened ${opens.length} times (${from("pill")} from the pill, ${from("home")} from under the card); shared ${n} (${opens.length ? Math.round(100 * n / opens.length) : 0}% of opens). With a caption: ${pct((e) => e.val.cap)}. With how the day felt: ${pct((e) => e.val.mood)}. From an earlier day: ${pct((e) => e.val.ago > 0)}. "I see you" said ${sees} times. Moments removed: ${by("unshare").length}. Friends' moments hidden: ${by("hide").length}. Grids opened: ${by("grid_open").length}. Friends list opened: ${by("friends_list").length}. Photos shared with their card on them: ${sh.filter((e) => e.val.card === 1).length} (left off: ${sh.filter((e) => e.val.card === 0).length}). Tapped to read a whole card on a photo: ${by("photo_card").length}. Photos pinched to zoom: ${by("photo_zoom").length}. Cards shared, by look: ${Object.entries(sh.filter((e) => e.val.look).reduce((o, e) => ((o[e.val.look] = (o[e.val.look] || 0) + 1), o), {})).map(([k, n]) => `${k} ${n}`).join(", ") || "none yet"}.</p>`
         : `<p class="sub">Nobody has shared a moment yet.</p>`,
       "many opens but few shares means the share screen asks too much; lots of hides means feeds feel noisy."); }
+  // Comments (alex 2026-11-26): only that comments were opened, written, deleted or reported, never the words.
+  { const opens = by("comment_open"), cs = by("comment"), from = (w) => opens.filter((e) => e.val === w).length, un = by("uncomment");
+    const reps = by("report").filter((e) => e.val.kind === "comment").length;
+    html += sec("Do people comment?", "Comments on friends' moments: opened from the speech bubble, the latest comment under a post, or the bell. Only that it happened, never the words.",
+      opens.length ? bars([["Opened from the speech bubble", from("button")], ["Opened from a comment under a post", from("feed")], ["Opened from the bell", from("bell")]], opens.length) +
+        `<p class="note">Comments written: ${cs.length} (${cs.filter((e) => e.val.own === 1).length} replies on their own moment). Deleted their own: ${un.filter((e) => e.val === "own").length}. Removed someone else's from their moment: ${un.filter((e) => e.val === "theirs").length}. Comments reported: ${reps}.</p>`
+        : `<p class="sub">Nobody has opened comments yet.</p>`,
+      "lots of opens but few comments means people read but don't feel like writing; removals or reports mean comments may not feel safe."); }
   // Friend notifications and the number on the icon (alex 2026-11-25): only choices and counts, never names.
   { const fp = (v) => new Set(by("friend_pings").filter((e) => e.val === v).map((e) => e.code)).size, who = (n) => new Set(by(n).map((e) => e.code)).size;
     const b = by("badge").map((e) => e.val), mid = b.length ? b.slice().sort((x, y) => x - y)[Math.floor(b.length / 2)] : 0;
@@ -808,7 +817,12 @@ async function reportsView() {
   if (tabBtn && q.open.length) tabBtn.textContent = `Reports (${q.open.length})`;
   const what = (r) => {
     const s = r.snap || {}, wrap = document.createElement("div"); wrap.className = "rsnap";
-    if (r.moment) {
+    if (r.comment) {
+      const p = document.createElement("p"); p.className = "rtext"; p.textContent = `"${s.comment || ""}"`; wrap.append(p);
+      const on = s.on || {}, n = document.createElement("p"); n.className = "note";
+      n.textContent = `A comment on @${on.by || "someone"}'s ${on.kind === "rest" ? "rest day" : on.kind === "photo" ? "photo" : "moment"}${on.text ? `: ${on.text}` : ""}${on.cap ? ` (caption "${on.cap}")` : ""}`;
+      wrap.append(n);
+    } else if (r.moment) {
       if (r.photo) { const im = document.createElement("img"); im.alt = "The reported photo"; im.src = r.photo; wrap.append(im); }
       else if (s.kind === "photo" || s.kind === "week") { const p = document.createElement("p"); p.className = "note"; p.textContent = "(The photo was let go after review.)"; wrap.append(p); }
       if (s.text) { const p = document.createElement("p"); p.className = "rtext"; p.textContent = s.text; wrap.append(p); }
@@ -828,10 +842,10 @@ async function reportsView() {
     q.open.forEach((r) => {
       const el = document.createElement("div"); el.className = "lcard";
       el.innerHTML = `<p class="meta"><span class="m"></span></p><p class="who"></p><div class="w"></div><p class="rnote"></p>
-        <div class="row two"><button class="keep">Keep it</button>${r.moment && r.still ? `<button class="main remove">Remove the moment</button>` : ""}</div>
+        <div class="row two"><button class="keep">Keep it</button>${(r.moment || r.comment) && r.still ? `<button class="main remove">${r.comment ? "Remove the comment" : "Remove the moment"}</button>` : ""}</div>
         <button class="pause"></button><p class="note msg" aria-live="polite"></p>`;
       el.querySelector(".m").textContent = `${WHY[r.why] || r.why} · ${ago(r.at)} · reported by @${r.by}${r.held ? " · held back from feeds" : ""}`;
-      el.querySelector(".who").textContent = `${r.moment ? "A moment by" : "The account"} @${r.who}${r.about > 1 ? ` · ${r.about} reports about them so far` : ""}${r.moment && !r.still ? " · they've since removed it" : ""}`;
+      el.querySelector(".who").textContent = `${r.comment ? "A comment by" : r.moment ? "A moment by" : "The account"} @${r.who}${r.about > 1 ? ` · ${r.about} reports about them so far` : ""}${r.moment && !r.still ? " · they've since removed it" : r.comment && !r.still ? " · it's since been removed" : ""}`;
       el.querySelector(".w").append(what(r));
       const n = el.querySelector(".rnote"); if (r.note) n.textContent = `Their words: "${r.note}"`; else n.remove();
       el.querySelector(".pause").textContent = r.paused ? "Let them share again" : "Pause their sharing";
@@ -850,7 +864,7 @@ async function reportsView() {
     if (dl) q.done.forEach((r) => {
       const el = document.createElement("div"); el.className = "item";
       el.innerHTML = `<span class="t"></span><span class="meta"></span><span class="chip"></span>`;
-      el.querySelector(".t").textContent = `@${r.who}: ${(r.snap && (r.snap.cap || r.snap.text)) || (r.moment ? "a moment" : "their account")}`;
+      el.querySelector(".t").textContent = `@${r.who}: ${(r.snap && (r.snap.comment || r.snap.cap || r.snap.text)) || (r.moment ? "a moment" : "their account")}`;
       el.querySelector(".meta").textContent = `${WHY[r.why] || r.why} · reported by @${r.by} · answered ${ago(r.done || r.at)}${r.paused ? " · still paused" : ""}`;
       const [label, look] = STATE[r.state] || [r.state, "ok"], chip = el.querySelector(".chip"); chip.textContent = label; chip.classList.add(look);
       dl.append(el);

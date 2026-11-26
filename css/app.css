@@ -991,7 +991,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-when { font-size: 13px; color: var(--dim); }
 .mo-more { width: 36px; height: 36px; background: transparent; }
 .mo-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
-.mo-see { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; font-size: 15px; font-weight: 400; color: var(--ink); }   /* not bold (alex 2026-11-25) */
+.mo-see { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }   /* the sun alone, no words (alex 2026-11-26) */
 .mo-see[aria-pressed="true"] { color: var(--sun); }   /* "I see you", once said, is marigold (alex 2026-11-25) */
 .mo-dimtext { color: var(--dim); font-weight: 400; }
 .mo-seers { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); min-width: 0; }
@@ -1003,6 +1003,37 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-felt { margin: -4px 0 0; font-size: 13px; color: var(--dim); }
 .mo-felt b { color: var(--ink2); font-weight: 600; }
 .mo-end { margin: 8px 0 0; text-align: center; font-size: 15px; color: var(--dim); }
+/* Comments (alex 2026-11-26): a speech bubble beside "I see you", the latest comment under a post, and the Comments page */
+.mo-acts-l { display: flex; align-items: center; gap: 4px; flex: none; }
+.mo-acts-l > :first-child { margin-left: -10px; }
+.mo-talk { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }
+.cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: -4px; }
+.cm-last { display: block; width: 100%; padding: 2px 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-last b { color: var(--ink); font-weight: 600; }
+.cm-all { min-height: 32px; padding: 0; font-size: 15px; color: var(--dim); }
+.cm-page { display: flex; flex-direction: column; gap: 4px; min-height: calc(100dvh - var(--top) - var(--bot) - 96px); }
+.cm-list { display: flex; flex-direction: column; }
+.cm-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 10px 0; text-align: left; }
+.cm-row .pic { flex: none; }
+.cm-cap { border-bottom: 1px solid rgba(239, 237, 233, .08); padding-bottom: 14px; margin-bottom: 4px; }
+.cm-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cm-who { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
+.cm-who b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-when { flex: none; font-size: 13px; color: var(--dim); }
+.cm-text { font-size: 15px; line-height: 1.4; color: var(--ink2); overflow-wrap: anywhere; }
+.cm-empty { margin: 24px 0; text-align: center; font-size: 15px; color: var(--dim); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cm-empty p { margin: 0; }
+.cm-compose { position: sticky; bottom: 0; margin: auto calc(-1 * var(--edge)) calc(-1 * (var(--bot) + 24px)); padding: 12px var(--edge) calc(var(--bot) + 12px); background: var(--sky3); border-top: 1px solid rgba(239, 237, 233, .08); }
+.cm-compose-in { display: flex; align-items: flex-end; gap: 8px; }
+.cm-field { min-height: 44px; padding: 11px 14px; resize: none; font: inherit; font-size: 17px; line-height: 22px; }
+.cm-post { width: 72px; }
+.cm-post[aria-disabled="true"] { background: rgba(239, 237, 233, .08); color: var(--faint); }
+.cm-compose .fr-foot { margin-top: 8px; }
+.cm-quote { overflow-wrap: anywhere; color: var(--ink2); }
+.cm-note { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; text-align: left; }
+.cm-note .pic { flex: none; }
+.cm-note-text { flex: 1; min-width: 0; font-size: 15px; line-height: 1.35; color: var(--ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.cm-note-text b { color: var(--ink); font-weight: 600; }
 .mo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin: 0 calc(-1 * var(--edge)); }
 .mo-cell { display: block; padding: 0; }
 .mo-cell .mo-tile { border-radius: 0; border: 0; }
