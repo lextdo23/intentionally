@@ -57,6 +57,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const t = new EventTarget(), st = { h: null, o: 0 };
     Object.defineProperty(t, "height", { get: () => st.h == null ? innerHeight : st.h }); Object.defineProperty(t, "offsetTop", { get: () => st.o });
     Object.defineProperty(window, "visualViewport", { get: () => t });
+    // As on iPhone, innerHeight shrinks with the keyboard too; only the page's own height stays put.
+    const real = Object.getOwnPropertyDescriptor(window, "innerHeight") || Object.getOwnPropertyDescriptor(Window.prototype, "innerHeight");
+    Object.defineProperty(window, "innerHeight", { configurable: true, get: () => st.h == null ? real.get.call(window) : st.h });
     window.__kb = (h, o) => { st.h = h; st.o = o; t.dispatchEvent(new Event("resize")); };
   });
   const p = await ctx.newPage(); const errors = []; p.on("pageerror", (e) => errors.push(e.message));
