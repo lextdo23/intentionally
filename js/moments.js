@@ -221,10 +221,18 @@ export async function loadFeed() {
 }
 export const cachedFeed = () => feed;
 export const cachedComments = () => (feed ? feedComments : null);
+// When a moment or comment was shared (alex 2026-11-26, TikTok's way): "Just now", "12m ago", "3h ago", "1d ago" up to
+// "6d ago", then the date in numbers, day first ("17-11"), from 7 days on; an earlier year adds it ("17-11-2025").
 export const ago = (at) => {
-  const mins = Math.max(0, Math.round((now() - at) / 60000));
-  if (mins < 1) return "now"; if (mins < 60) return mins + "m"; const hrs = Math.round(mins / 60); if (hrs < 24) return hrs + "h";
-  const days = Math.round(hrs / 24); return days < 7 ? days + "d" : longDay(dayKey(at));
+  const t = now(), mins = Math.floor(Math.max(0, t - at) / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h ago";
+  const a = new Date(at), b = new Date(t);
+  const days = Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5);
+  if (days < 7) return Math.max(1, days) + "d ago";
+  return a.getDate() + "-" + (a.getMonth() + 1) + (a.getFullYear() === b.getFullYear() ? "" : "-" + a.getFullYear());
 };
 const names = (list) => { const n = list.map(friends.shown); if (n.length <= 1) return n.join(""); if (n.length <= 3) return n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return n.slice(0, 3).join(", ") + " and others"; };
 // The sun: its middle, eight rays (each its own line, so they can light up one by one), and a moon in the page's black
@@ -278,7 +286,7 @@ export function post(m, { onChange, onPerson } = {}) {
     // Who said it, as faces and names: tap for the whole list (only your own friends among them, unless it's yours).
     const seers = m.seers.length ? h("button.mo-seers", { type: "button", onclick: () => seenBy(m, onPerson), "aria-label": `${names(m.seers)} said I see you. See who` },
       h("span.mo-faces", { "aria-hidden": "true" }, m.seers.slice(0, 3).map((p) => friends.pic(p, 22))), h("span", null, names(m.seers))) : null;
-    const who = h("button.mo-who", { type: "button", onclick: () => onPerson && onPerson(m.by.username), "aria-label": `${friends.shown(m.by)}, ${ago(m.at)} ago` }, friends.pic(m.by, 36), h("span.mo-name", null, friends.shown(m.by)), h("span.mo-when", null, ago(m.at)));
+    const who = h("button.mo-who", { type: "button", onclick: () => onPerson && onPerson(m.by.username), "aria-label": `${friends.shown(m.by)}, ${ago(m.at)}` }, friends.pic(m.by, 36), h("span.mo-name", null, friends.shown(m.by)), h("span.mo-when", null, ago(m.at)));
     const more = h("button.round.mo-more", { type: "button", "aria-label": "More" }, friends.svg(20, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }));
     more.addEventListener("click", () => moreMenu(m, onChange));
     const open = (from, focus) => comments.openComments(m, { from, focus, changed: (mm) => { Object.assign(m, mm); draw(); } });

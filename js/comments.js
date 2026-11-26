@@ -47,7 +47,7 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
     draw();
   };
   const row = (c) => {
-    const b = h("button.cm-row", { type: "button", "aria-label": `${friends.shown(c.by)}, ${ago(c.at)} ago: ${c.text}. More` },
+    const b = h("button.cm-row", { type: "button", "aria-label": `${friends.shown(c.by)}, ${ago(c.at)}: ${c.text}. More` },
       friends.pic(c.by, 32),
       h("span.cm-body", null, h("span.cm-who", null, h("b", null, friends.shown(c.by)), h("span.cm-when", null, ago(c.at))), h("span.cm-text", null, c.text)));
     b.addEventListener("click", () => actions(c));
