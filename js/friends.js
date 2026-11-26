@@ -117,6 +117,9 @@ export async function setPings(on, from) {
   log("friend_pings", on ? "on_" + (from || "settings") : "off");
   return true;
 }
+// First-time setup's Social switch (js/setup.js, alex 2026-11-26). The service only takes the switch once someone has
+// ticked 18+ on Friends, which comes later, so setup keeps the choice here; checkPings follows it from then on.
+export function choosePings(on) { local.pings = !!on; keep(); log("friend_pings", on ? "on_setup" : "off_setup"); }
 // Tells the service quietly whenever it needs to know: on by default once the phone allows notifications, a new push
 // address (iPhone sometimes renews it), or notifications switched off for Daydeck in the phone's Settings (then the
 // service forgets the phone, and it comes back by itself if they're allowed again). Never asks for permission.

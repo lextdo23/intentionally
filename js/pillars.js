@@ -6,7 +6,7 @@ import { h, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import { roundBtn } from "./ui.js";
 import { log } from "./tester.js";
-import { show, close, step, where, spacer, mainBtn, begin } from "./checkin.js";
+import { show as showStep, close, step as makeStep, where, spacer, mainBtn, begin } from "./checkin.js";
 
 // Set aside for now (alex 2026-11-19): Outdoors, Learn, Give, Food and Money come back once they're reworked.
 export const GROUPS = [
@@ -42,7 +42,10 @@ const top = (s) => { s.querySelector(".step-body").style.justifyContent = "flex-
 export function pickPillars(onDone, { first = false } = {}) { begin(onDone); pickSteps(() => close(true), { first }); }
 
 // The screens, inside a flow that's already open (the morning check-in or a draw from home).
-export function pickSteps(then, { first = false } = {}) {
+// ui: first-time setup (js/setup.js, alex 2026-11-26) shows these screens itself, sliding like the rest of setup,
+// with its progress dots in place of "Getting started"; Back on the first screen goes back to the welcome.
+export function pickSteps(then, { first = false, ui = null } = {}) {
+  const show = ui ? ui.show : showStep, step = ui ? ui.step : makeStep;
   const had = store.get().pillars || [];
   const st = {
     picked: had.filter((p) => !p.own && MINDSETS[p.name]).map((p) => p.name),
@@ -92,7 +95,7 @@ export function pickSteps(then, { first = false } = {}) {
     const groups = GROUPS.map(([g, names]) => h("div.pick-group.rise", null, h("span.pick-head", null, g),
       h("div.pills", null, names.map((n) => (els[n] = h("button.pill", { onclick: () => tap(n) }, n))))));
     refresh();
-    show(top(step([spacer(), where(first ? "Getting started" : "Your pillars"), closeBtn()],
+    show(top(step(ui ? [roundBtn("back", "Back", ui.back), ui.dots(), spacer()] : [spacer(), where(first ? "Getting started" : "Your pillars"), closeBtn()],
       [h("h1.q.rise", { style: { fontSize: "22px" } }, "What matters to you right now?"), h("p.q2.rise", null, "Pick 3 to 5. You can change them any time."),
         ...groups, h("div.pick-group.rise", null, h("span.pick-head", null, "Your own"), ownPills, ownWrap)],
       [note, said, btn, LIFELINE()])));
@@ -105,8 +108,8 @@ export function pickSteps(then, { first = false } = {}) {
     const p = list[st.i], last = st.i === list.length - 1;
     st.at = "mindset_" + (st.own.includes(p) ? "own" : p);
     const back = roundBtn("back", "Back", () => { if (st.i === 0) pillars(); else { st.i--; mindset(); } });
-    const head = [back, where(`${p} · ${st.i + 1} of ${list.length}`), closeBtn()];
-    const label = last ? (first ? "Make my deck" : "Save") : "Next";
+    const head = ui ? [back, ui.dots(), spacer()] : [back, where(`${p} · ${st.i + 1} of ${list.length}`), closeBtn()];
+    const label = last ? (ui ? "Next" : first ? "Make my deck" : "Save") : "Next";
 
     if (st.own.includes(p)) {
       // Their own pillar: no cards for it yet, so just room to write something, if they want to.
@@ -168,7 +171,7 @@ export function pickSteps(then, { first = false } = {}) {
     });
     store.save();
     log("pick_done", { secs: Math.round((Date.now() - st.t0) / 1000), n: s.pillars.length, own: st.own.length, first });
-    if (!first) return then();
+    if (!first || ui) return then();
     // Getting started: show the deck that was just dealt, then on to the first draw.
     import("./deck.js").then((deck) => {
       const n = deck.deck().length;
@@ -208,7 +211,7 @@ function tidy(s) {
 export function repickSteps(then) {
   const s = store.get(), gone = s.pillars.filter((p) => !p.own && !MINDSETS[p.name]).map((p) => p.name);
   log("repick_shown", { gone: gone.length });
-  show(step([spacer(), where("Your pillars"), spacer()],
+  showStep(makeStep([spacer(), where("Your pillars"), spacer()],
     [h("h1.q.rise", { style: { fontSize: "22px" } }, "Your pillars have new choices"),
       h("p.q2.rise", null, "The cards have been reworked, and so have the answers to where you're at. Pick again so your deck fits you."),
       gone.length ? h("p.q2.rise", null, `${and(gone)} ${gone.length > 1 ? "are" : "is"} set aside for now while ${gone.length > 1 ? "they're" : "it's"} reworked. Pick another if you like.`) : null],

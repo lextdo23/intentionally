@@ -1,4 +1,4 @@
-// The sign-up screens (js/account.js, alex 2026-11-20): email, code, username and picture, Face ID; "Use without an
+// The sign-up screens (js/account.js, alex 2026-11-20): email, code, username and picture (no Face ID since 2026-11-26); "Use without an
 // account"; and "Your account" in Settings. Runs on a pretend iPhone 15 Pro Max with a pretend Daydeck service and a
 // pretend Face ID, so no real email is sent. Made-up data only. Set SHOTS=1 to save a picture of each screen.
 const { chromium } = require("playwright");
@@ -48,8 +48,9 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const msg = () => p.locator("#acct .acct-screen:last-child .acct-msg").first().textContent();
 
   // ---- On for everyone: the sign-up shows first, without test mode ----
+  // (Someone already using Daydeck. New people get the whole setup around it: tests/setup.test.cjs.)
   await p.goto(server.url);
-  await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: null, days: {}, seen: { note: "sleep", testInvite: 1 } })));
+  await p.evaluate(() => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-01", days: {}, seen: { note: "sleep", testInvite: 1 } })));
   await p.reload(); await p.waitForTimeout(2200);   // it waits for the splash to go (tests/launch.test.cjs)
   check(!!(await p.$("#acct")), "the sign-up shows when the app opens, for everyone (not just test mode)");
   await p.goto(server.url + "?tester"); await p.waitForTimeout(1200);
@@ -99,7 +100,7 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   check(await btn("Continue").getAttribute("aria-disabled") === "true", "too short can't go on");
   await p.click("#acct .acct-chip >> nth=0").catch(() => {});
   await p.fill("#acct .acct-name", "mia.k"); await p.waitForTimeout(800);
-  check(/free/.test(await msg()) && (await btn("Continue").getAttribute("aria-disabled")) === "false", "a free name can go on");
+  check(await p.$eval("#acct .acct-at", (el) => el.classList.contains("good")) && (await btn("Continue").getAttribute("aria-disabled")) === "false", "a free name turns the box green and can go on");
 
   // The picture: pick a little one.
   await p.click("#acct .acct-pic"); await p.waitForTimeout(700);
@@ -109,19 +110,11 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   await p.click('.sheet .pic-pick[aria-label="Frog"]'); await p.waitForTimeout(600);
   check(await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-account")).pic.id) === "frog", "the picked one is kept on this phone");
   await shot("3c-username-ok");
-  await btn("Continue").click(); await p.waitForTimeout(500);
-
-  // ---- Face ID ----
-  const faceText = await p.textContent("#acct .acct-screen:last-child");
-  check(/Add Face ID/.test(faceText) && !/Nothing to remember|never leaves/.test(faceText), "Face ID is short: no explaining");
-  await shot("4-faceid");
-  await p.evaluate(() => (window.__faceid = "no"));
-  await btn("Continue").click(); await p.waitForTimeout(500);
-  check(/didn't finish/.test(await msg()), "if Face ID is cancelled, it says so calmly and stays");
-  await p.evaluate(() => (window.__faceid = "yes"));
   await btn("Continue").click(); await p.waitForTimeout(900);
+  // No Face ID step (alex 2026-11-26): the username finishes signing up.
   const fin = seen.filter((x) => x.key === "POST /a/finish").pop();
-  check(fin && fin.body.username === "mia.k" && fin.body.credential && fin.body.credential.response.attestationObject, "Face ID's key goes to the service with the username");
+  check(fin && fin.body.username === "mia.k" && !fin.body.credential, "Continue on the username finishes signing up, with no Face ID");
+  check(!seen.some((x) => x.key === "POST /a/passkey/options"), "Face ID is never asked for");
   check(!(await p.$("#acct")), "then the sign-up closes");
   const acct = await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-account")));
   check(acct.token === "S1" && acct.user.username === "mia.k", "the phone stays signed in");
@@ -146,23 +139,17 @@ if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   check(/Tap again/.test(await p.textContent(".sheet-host")), "delete asks for a second tap");
   await p.locator(".sheet-host button", { hasText: "Tap again" }).click(); await p.waitForTimeout(900);
   check(seen.some((x) => x.key === "POST /a/delete"), "and then deletes the account");
-  check(/Make an account/.test(await p.textContent("#settings")) && /Sign in with Face ID/.test(await p.textContent("#settings")), "then Settings offers making one, or signing in with Face ID");
+  check(/Make an account/.test(await p.textContent("#settings")) && !/Face ID/.test(await p.textContent("#settings")), "then Settings offers making one (no Face ID sign-in)");
   await shot("6b-settings-signed-out");
-  await p.locator("#settings button", { hasText: "Sign in with Face ID" }).click(); await p.waitForTimeout(700);
-  check(await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-account")).token) === "S1", "Face ID signs back in");
-  await p.click("#settings .acct-head"); await p.waitForTimeout(700);
-  await p.locator(".sheet-host button", { hasText: "Sign out" }).click(); await p.waitForTimeout(900);
-  check(!(await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-account")).token)), "sign out forgets the sign-in on this phone");
   await p.click('#settings button[aria-label="Back to home"]'); await p.waitForTimeout(600);
 
-  // ---- An existing account on a new phone: email, code, then straight to Face ID ----
+  // ---- An existing account on a new phone: email, code, then straight in ----
   await p.evaluate(() => { localStorage.removeItem("daydeck-account"); });
   await p.reload(); await p.waitForTimeout(1200);
   await p.fill("#acct input[type=email]", "josh@example.com"); await btn("Continue").click(); await p.waitForTimeout(500);
   await p.fill("#acct .acct-code-input", "123456"); await p.waitForTimeout(700);
-  check(/Add Face ID/.test(await p.textContent("#acct .acct-screen:last-child")), "an email that already has an account skips the username");
-  await btn("Not now").click(); await p.waitForTimeout(800);
-  check(!(await p.$("#acct")) && (await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-account")).user.username)) === "josh_k", "Not now still signs them in, with their own username");
+  await p.waitForTimeout(600);
+  check(!(await p.$("#acct")) && (await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck-account")).user.username)) === "josh_k", "an email that already has an account is signed straight back in after the code, with their own username");
 
   // ---- Use without an account ----
   await p.evaluate(() => localStorage.removeItem("daydeck-account"));
