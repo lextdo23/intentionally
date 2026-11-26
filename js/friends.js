@@ -16,6 +16,7 @@ import { log } from "./tester.js";
 import * as account from "./account.js";
 import * as moments from "./moments.js";
 import * as notify from "./notify.js";
+import * as comments from "./comments.js";
 
 const KEY = "daydeck-friends";
 let local = read();
@@ -30,7 +31,8 @@ export function connect({ dot, you, go }) { if (dot) dotFn = dot; if (you) redra
 
 // ---------------- Notifications (alex 2026-11-25) ----------------
 // A number on Friends in the pill and on the bell at the top of Friends: friend requests waiting, plus friends'
-// moments shared since you last opened the bell. Never "I see you"s (those stay uncounted). What you've seen is
+// moments shared since you last opened the bell, plus friends' comments on your moments since then (2026-11-26).
+// Never "I see you"s (those stay uncounted). What you've seen is
 // kept on this phone as the newest moment's time from the service, so the phone's own clock never matters.
 const newMoments = () => {
   const list = moments.cachedFeed();
@@ -39,7 +41,14 @@ const newMoments = () => {
   if (local.seen == null) { local.seen = theirs.reduce((a, m) => Math.max(a, m.at || 0), 0); keep(); }   // first time: start from nothing new
   return theirs.filter((m) => (m.at || 0) > local.seen);
 };
-export const count = () => (data && data.me.adult ? data.asksYou.length + newMoments().length : 0);
+// Friends' comments on your own moments since you last opened the bell (alex 2026-11-26), kept the same way.
+const newComments = () => {
+  const list = moments.cachedComments();
+  if (!list) return [];
+  if (local.cseen == null) { local.cseen = list.reduce((a, c) => Math.max(a, c.at || 0), 0); keep(); }
+  return list.filter((c) => (c.at || 0) > local.cseen);
+};
+export const count = () => (data && data.me.adult ? data.asksYou.length + newMoments().length + newComments().length : 0);
 const countText = (n) => (n > 9 ? "9+" : String(n));
 // After you've been on Friends and moved on, the pill shows just a small dot for what was there, and the number
 // again only once something new comes in (alex 2026-11-25). The bell keeps the number.
@@ -60,21 +69,30 @@ function bell() {
   setTimeout(showCount, 0);
   return b;
 }
-// The bell's page: requests first (Accept / Not now), then friends' new moments. Opening it marks the moments seen.
+// The bell's page: requests first (Accept / Not now), then comments on your moments, then friends' new moments.
+// Opening it marks the moments and comments seen.
 export function openNotes() {
-  const fresh = newMoments();
+  const fresh = newMoments(), talk = newComments();
   if (fresh.length) { local.seen = Math.max(local.seen || 0, ...fresh.map((m) => m.at || 0)); keep(); }
-  log("notes_open", Math.min(fresh.length + (data ? data.asksYou.length : 0), 50));
+  if (talk.length) { local.cseen = Math.max(local.cseen || 0, ...talk.map((c) => c.at || 0)); keep(); }
+  log("notes_open", Math.min(fresh.length + talk.length + (data ? data.asksYou.length : 0), 50));
   let list = fresh;
   page("Notifications", (redraw) => {
     const parts = [];
     if (data && data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
+    if (talk.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New comments"), talk.map(commentNote)));
     if (list.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New moments"),
       moments.feedList(list, { onPerson: openPerson, onChange: (m, gone) => { if (gone) { list = list.filter((x) => x.id !== gone.id); again(); } } })));
-    if (!list.length && !(data && data.asksYou.length)) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
+    if (!list.length && !talk.length && !(data && data.asksYou.length)) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
     return h("div.fr-body", null, parts);
   });
   showCount();
+}
+// One comment on the bell's page: their picture, "Sam commented: …" and when. Tap to open that moment's comments.
+function commentNote(c) {
+  const m = (moments.cachedFeed() || []).find((x) => x.id === c.moment) || { id: c.moment, mine: true, by: data && data.me };
+  return h("button.cm-note", { type: "button", onclick: () => comments.openComments(m, { from: "bell" }) }, pic(c.by, 40),
+    h("span.cm-note-text", null, h("b", null, shown(c.by)), " commented: ", c.text), h("span.cm-when", null, moments.ago(c.at)));
 }
 // ---------------- The number on the app icon (alex 2026-11-25) ----------------
 // The same number as the bell, on the Daydeck icon on the home screen. Nothing else is ever counted there: never
@@ -295,6 +313,8 @@ const SAY = {
   bad_moment: "That couldn't be shared. Try again.",
   paused: "Sharing is paused on your account while Daydeck looks into a report. Email hello@daydeck.day if you think that's a mistake.",
   bad_report: "That report couldn't be sent. Try again.",
+  bad_comment: "Write a few words first.",
+  too_many_comments: "That's lots of comments for one day. Try again tomorrow.",
   not_found: "No one by that name. Check the spelling with your friend.",
   name_words: "That name can't be used. Try another.",
   adult: "Friends on Daydeck are for people 18 and over.",
@@ -593,13 +613,14 @@ function sure(p, what, pg) {
 }
 
 // ---------------- Report (step 5) ----------------
-// A moment ({ moment }) or a person ({ person }). Pick why, add a few words if you like, send. They're never told who.
+// A moment ({ moment }), a comment ({ comment }, 2026-11-26) or a person ({ person }). Pick why, add a few words if you like, send. They're never told who.
 // Then: thanks, and the choice to also hide their moments or block them. "They might not be safe" also shows how to
 // get help now (000, Lifeline), since that report is about worry for someone, not about rules.
 const WHY = [["hurtful", "Hurtful, bullying or hateful"], ["sexual", "Sexual or violent"], ["risk", "They might not be safe"], ["spam", "Spam or a fake account"], ["else", "Something else"]];
-export function openReport({ moment, person, pg }) {
-  const who = moment ? moment.by : person, title = moment ? "Report this moment" : `Report @${who.username}`;
-  log("report_open", moment ? "moment" : "person");
+export function openReport({ moment, comment, person, pg }) {
+  const kind = comment ? "comment" : moment ? "moment" : "person";
+  const who = comment ? comment.by : moment ? moment.by : person, title = comment ? "Report this comment" : moment ? "Report this moment" : `Report @${who.username}`;
+  log("report_open", kind);
   openSheet((panel, close) => {
     const step1 = () => panel.replaceChildren(h("span.grabber", { "aria-hidden": "true" }), h("h2", null, title),
       h("p.fr-sheet-text", null, `Why are you reporting it? ${shown(who)} won't know it was you.`),
@@ -610,9 +631,9 @@ export function openReport({ moment, person, pg }) {
       const note = h("textarea.fr-field.mo-cap", { maxlength: "300", rows: "3", placeholder: "Anything else we should know? (optional)", "aria-label": "Anything else we should know?" });
       const send = h("button.btn-main.fr-main", { type: "button" }, "Send report");
       send.addEventListener("click", () => busy(send, async () => {
-        const r = await account.call("/a/f/report", moment ? { moment: moment.id, why: k, note: note.value } : { username: who.username, why: k, note: note.value });
+        const r = await account.call("/a/f/report", comment ? { comment: comment.id, why: k, note: note.value } : moment ? { moment: moment.id, why: k, note: note.value } : { username: who.username, why: k, note: note.value });
         if (!r.ok) return friendsNote(r);
-        log("report", { kind: moment ? "moment" : "person", why: WHY.findIndex((w) => w[0] === k) });
+        log("report", { kind, why: WHY.findIndex((w) => w[0] === k) });
         step3(k);
       }));
       panel.replaceChildren(h("span.grabber", { "aria-hidden": "true" }), h("h2", null, label), note, send, h("button.btn-quiet", { type: "button", onclick: step1 }, "Back"));

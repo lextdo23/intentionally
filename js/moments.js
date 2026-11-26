@@ -21,6 +21,7 @@ import * as account from "./account.js";
 import * as friends from "./friends.js";
 import * as photos from "./photos.js";
 import { inUse } from "./looks.js";
+import * as comments from "./comments.js";
 
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
 const LKEY = "daydeck-friends";
@@ -210,27 +211,30 @@ export function openShare({ day, item, from = "pill" } = {}) {
 }
 
 // ---------------- The feed ----------------
-let feed = null, feedLoading = null;
+// The feed also brings friends' comments on your own moments lately, for the bell (alex 2026-11-26).
+let feed = null, feedLoading = null, feedComments = [];
 export const resetFeed = () => { feed = null; };
 export async function loadFeed() {
   if (feedLoading) return feedLoading;
-  feedLoading = account.call("/a/f/feed").then((r) => { feedLoading = null; if (r.ok) feed = r.moments; return r.ok ? feed : null; });
+  feedLoading = account.call("/a/f/feed").then((r) => { feedLoading = null; if (r.ok) { feed = r.moments; feedComments = r.comments || []; } return r.ok ? feed : null; });
   return feedLoading;
 }
 export const cachedFeed = () => feed;
-const ago = (at) => {
+export const cachedComments = () => (feed ? feedComments : null);
+export const ago = (at) => {
   const mins = Math.max(0, Math.round((now() - at) / 60000));
   if (mins < 1) return "now"; if (mins < 60) return mins + "m"; const hrs = Math.round(mins / 60); if (hrs < 24) return hrs + "h";
   const days = Math.round(hrs / 24); return days < 7 ? days + "d" : longDay(dayKey(at));
 };
 const names = (list) => { const n = list.map(friends.shown); if (n.length <= 1) return n.join(""); if (n.length <= 3) return n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return n.slice(0, 3).join(", ") + " and others"; };
 const sunIcon = (filled) => friends.svg(24, [["circle", { cx: "12", cy: "12", r: "4.5", fill: filled ? "currentColor" : "none" }], ["path", { d: "M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" }]]);
-// One moment in a feed: who and when, the card, "I see you" and who said it, their words, and how the day felt.
+// One moment in a feed: who and when, the card, "I see you" (and a speech bubble for comments) and who said it, their
+// words, how the day felt, then the latest comment and "View all comments" when there are more.
 export function post(m, { onChange, onPerson } = {}) {
   const el = h("article.mo-post", { "data-id": m.id });
   const draw = () => {
-    const see = h("button.mo-see", { type: "button", "aria-pressed": String(!!m.seen), "aria-label": m.seen ? "You said I see you. Tap to take it back" : "I see you" }, sunIcon(m.seen), h("span", null, m.seen ? "You see them" : "I see you"));
-    if (m.mine) see.replaceChildren(sunIcon(false), h("span.mo-dimtext", null, "Your moment"));
+    // The sun on its own, no words (alex 2026-11-26): marigold once you've said it. Your own moment has no sun to press.
+    const see = h("button.mo-see", { type: "button", "aria-pressed": String(!!m.seen), "aria-label": m.seen ? "You said I see you. Tap to take it back" : "I see you" }, sunIcon(m.seen));
     see.addEventListener("click", () => {
       if (m.mine) return;
       friends.busy(see, async () => {
@@ -244,12 +248,15 @@ export function post(m, { onChange, onPerson } = {}) {
     const who = h("button.mo-who", { type: "button", onclick: () => onPerson && onPerson(m.by.username), "aria-label": `${friends.shown(m.by)}, ${ago(m.at)} ago` }, friends.pic(m.by, 36), h("span.mo-name", null, friends.shown(m.by)), h("span.mo-when", null, ago(m.at)));
     const more = h("button.round.mo-more", { type: "button", "aria-label": "More" }, friends.svg(20, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }));
     more.addEventListener("click", () => moreMenu(m, onChange));
+    const open = (from, focus) => comments.openComments(m, { from, focus, changed: (mm) => { Object.assign(m, mm); draw(); } });
+    const talk = h("button.mo-talk", { type: "button", "aria-label": "Comments", onclick: () => open("button", true) }, comments.bubbleIcon());
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
       m.kind === "photo" || m.kind === "week" ? photoPost(m) : m.kind === "card" || m.kind === "own" ? cardPost(m) : tile(m, { big: true }),
-      h("div.mo-acts", null, see, seers),
+      h("div.mo-acts", null, h("div.mo-acts-l", null, m.mine ? null : see, talk), seers),
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
-      m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null].filter(Boolean));   // replaceChildren would print "null"
+      m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null,
+      comments.preview(m, open)].filter(Boolean));   // replaceChildren would print "null"
   };
   draw();
   return el;
