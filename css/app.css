@@ -1046,7 +1046,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-seen-who span { color: var(--dim); }
 .mo-dimtext { color: var(--dim); font-weight: 400; }
 /* Who said it: its own line under the sun and bubble, body-sized (alex 2026-11-27) */
-.mo-seers { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; margin-top: -8px; font-size: 15px; color: var(--ink2); min-width: 0; text-align: left; }
+.mo-seers { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 21px; margin-top: -6px; font-size: 15px; line-height: 1.4; color: var(--ink2); min-width: 0; text-align: left; }
 .mo-seers b { font-weight: 600; color: var(--ink); }
 .mo-seers > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-faces { display: flex; }
@@ -1064,10 +1064,11 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-acts .mo-see svg { width: 30px; height: 30px; }
 .mo-talk svg { width: 27px; height: 27px; }
 .mo-talk { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }
-.cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: -4px; }
-.cm-last { display: block; width: 100%; padding: 2px 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Even spacing (alex 2026-11-27): Seen by, caption, View comments, the comment, all 10 apart like the post's own gap */
+.cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.cm-last { display: block; width: 100%; padding: 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-last b { color: var(--ink); font-weight: 600; }
-.cm-all { min-height: 32px; padding: 0; font-size: 15px; color: var(--dim); }
+.cm-all { padding: 0; font-size: 15px; line-height: 1.4; color: var(--dim); text-align: left; }
 /* The comments sheet: slides up over the feed, the list scrolls inside, the box sits at the bottom (lifted above the keyboard) */
 .sheet.cm-sheet { height: 60%; max-height: 60%; overflow: hidden; gap: 0; padding-bottom: 0; transition: height .25s ease; }
 .sheet.cm-sheet.kb { height: auto; max-height: calc(100% - var(--top)); }

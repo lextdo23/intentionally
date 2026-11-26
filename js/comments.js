@@ -1,7 +1,7 @@
 // Comments (alex 2026-11-26, CLAUDE.md "Social"): friends can say a few words under a moment. Words only, up to 280.
 // Who sees a comment works like "I see you": the person who shared sees every comment; everyone else sees only their
 // own friends' comments, so nobody reads words from someone they don't know (the service decides, push/friends.js).
-// In the feed, a post shows just the latest comment you may see, then "View all comments" when there are more
+// In the feed, a post shows "View comments" in grey, then just the latest comment you may see
 // (never a count). Tapping either, or the speech bubble beside the sun, opens this page: every comment oldest
 // first, and a box at the bottom to add one. Tap a comment for what you can do with it: delete your own, remove any
 // on your own moment, report someone else's.
@@ -24,13 +24,14 @@ const first = (p) => (p.name ? p.name.split(" ")[0] : "@" + p.username);
 const plain = (p) => (p.name ? p.name.split(" ")[0] : p.username);   // "sherrie", without the @ (alex 2026-11-26)
 const names = (list) => { const n = list.map(friends.shown); return n.length <= 2 ? n.join(" and ") : `${n[0]}, ${n[1]} and ${n.length - 2 === 1 ? "1 other" : n.length - 2 + " others"}`; };
 
-// The latest comment under a post, and "View all comments" when there are more. Nothing when there are none.
+// Under a post's caption (alex 2026-11-27): "View comments" in grey, then the latest comment you may see. The grey
+// line is what tells the caption and the comments apart, so the spacing all stays even. Nothing when there are none.
 export function preview(m, open) {
   if (!m.last) return null;
   const c = m.last;
   return h("div.cm-preview", null,
-    h("button.cm-last", { type: "button", onclick: () => open("feed"), "aria-label": `${friends.shown(c.by)} commented: ${c.text}. Open comments` }, h("b", null, friends.shown(c.by)), " ", c.text),
-    m.more ? h("button.cm-all", { type: "button", onclick: () => open("feed") }, "View all comments") : null);
+    h("button.cm-all", { type: "button", onclick: () => open("feed") }, "View comments"),
+    h("button.cm-last", { type: "button", onclick: () => open("feed"), "aria-label": `${friends.shown(c.by)} commented: ${c.text}. Open comments` }, h("b", null, friends.shown(c.by)), " ", c.text));
 }
 
 // The sheet with every comment and the box to write one (alex 2026-11-26: it slides up over the feed, like the

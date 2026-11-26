@@ -1,6 +1,6 @@
 // Comments in the app (js/comments.js, alex 2026-11-26). Runs the real Daydeck service inside the test, with a pretend
 // iPhone 15 Pro Max as Mia and made-up friends. Checks: the speech bubble beside the sun, the latest comment under a
-// post with "View all comments", the Comments sheet (posting, deleting, removing, reporting), comments from people Mia
+// post under "View comments", the Comments sheet (posting, deleting, removing, reporting), comments from people Mia
 // does not know never showing, and the bell counting comments on her moments. SHOTS=1 saves pictures.
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -87,7 +87,10 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!!(await post.locator(".mo-talk").count()), "a speech bubble sits beside the sun");
   check(/Josh/.test(await post.locator(".cm-last").textContent()) && /Love the long way/.test(await post.locator(".cm-last").textContent()), "the latest comment Mia may see shows under the post");
   check(!(await post.textContent()).includes("Ana's words"), "a comment from someone Mia doesn't know never shows");
-  check(await post.locator(".cm-all").count() === 0, "with one comment, there's no View all comments");
+  check(await post.locator(".cm-all").count() === 1 && /^View comments$/.test(await post.locator(".cm-all").textContent()), "\"View comments\" sits above the comment, even with just one");
+  { const cap = await post.locator(".mo-cap-text").boundingBox(), all = await post.locator(".cm-all").boundingBox(), last = await post.locator(".cm-last").boundingBox();
+    const g1 = all.y - (cap.y + cap.height), g2 = last.y - (all.y + all.height);
+    check(all.y > cap.y && last.y > all.y && Math.abs(g1 - g2) <= 2, `caption, View comments and the comment are evenly spaced (${Math.round(g1)} and ${Math.round(g2)})`); }
   check(!/\d+ comments?/.test(await post.textContent()), "never a count of comments");
   check(!/I see you|You see them/.test(await post.locator(".mo-acts").textContent()) && await post.locator(".mo-see svg").count() === 1, "the sun has no words beside it (alex 2026-11-26)");
   await shot("c1-feed");
@@ -137,7 +140,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(await p.getAttribute('#pill [data-tab="friends"]', "data-count") === "2", "two comments on Mia's moment add to the Friends number");
   await tab("friends"); await p.waitForTimeout(800);
   const mine = p.locator("#friends .mo-post", { hasText: "Slow day" });
-  check(/Rest well/.test(await mine.locator(".cm-last").textContent()) && await mine.locator(".cm-all").count() === 1, "her post shows the latest and View all comments");
+  check(/Rest well/.test(await mine.locator(".cm-last").textContent()) && await mine.locator(".cm-all").count() === 1, "her post shows View comments and the latest");
   check(await mine.locator(".mo-see").count() === 1 && !/Your moment/.test(await mine.locator(".mo-acts").textContent()), "her own moment shows the sun too (alex 2026-11-27), with no words");
   await mine.scrollIntoViewIfNeeded(); await shot("c5-own-closed");
   await p.click("#friends .fr-bell"); await p.waitForTimeout(900);
