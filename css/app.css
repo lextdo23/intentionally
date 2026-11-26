@@ -996,8 +996,27 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .mo-see { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }   /* the sun alone, no words (alex 2026-11-26) */
 .mo-see[aria-pressed="true"] { color: var(--sun); }   /* "I see you", once said, is marigold (alex 2026-11-25) */
+/* Saying it: the sun pops and its rays burst out; taking it back: it shrinks and settles (alex 2026-11-27) */
+.mo-see svg { overflow: visible; }
+.mo-see.see-on svg { animation: see-pop .5s cubic-bezier(.3, 1.6, .5, 1); }
+.mo-see.see-on svg path { transform-origin: 12px 12px; animation: see-rays .5s ease-out; }
+.mo-see.see-on::after { content: ""; position: absolute; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--sun); opacity: 0; animation: see-ring .55s ease-out; pointer-events: none; }
+.mo-see { position: relative; }
+.mo-see.see-off svg { animation: see-drop .32s ease-out; }
+@keyframes see-pop { 0% { transform: scale(.7); } 45% { transform: scale(1.32) rotate(18deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes see-rays { 0% { transform: scale(.4); opacity: 0; } 50% { transform: scale(1.35); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes see-ring { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2); opacity: 0; } }
+@keyframes see-drop { 0% { transform: scale(1); } 40% { transform: scale(.72); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .mo-see.see-on svg, .mo-see.see-on svg path, .mo-see.see-on::after, .mo-see.see-off svg { animation: none; } }
+/* Who said it */
+.mo-seen-list { display: flex; flex-direction: column; max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(-1 * var(--edge)); padding: 0 var(--edge); }
+.mo-seen-row { display: flex; align-items: center; gap: 12px; min-height: 56px; width: 100%; text-align: left; }
+.mo-seen-row .pic { flex: none; }
+.mo-seen-who { display: flex; flex-direction: column; min-width: 0; font-size: 15px; }
+.mo-seen-who b { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mo-seen-who span { color: var(--dim); }
 .mo-dimtext { color: var(--dim); font-weight: 400; }
-.mo-seers { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); min-width: 0; }
+.mo-seers { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; color: var(--dim); min-width: 0; text-align: left; }
 .mo-seers > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-faces { display: flex; }
 .mo-faces .pic { box-shadow: 0 0 0 2px var(--sky2); }
@@ -1009,6 +1028,7 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 /* Comments (alex 2026-11-26): a speech bubble beside "I see you", the latest comment under a post, and the Comments page */
 .mo-acts-l { display: flex; align-items: center; gap: 4px; flex: none; }
 .mo-acts-l > :first-child { margin-left: -10px; }
+.mo-acts-l .mo-talk { margin-left: -8px; }   /* the sun and the bubble sit close together (alex 2026-11-27) */
 .mo-talk { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }
 .cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: -4px; }
 .cm-last { display: block; width: 100%; padding: 2px 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

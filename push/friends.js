@@ -455,7 +455,11 @@ export const friendMethods = {
     const me = g.u, row = this.one("SELECT * FROM moments WHERE id = ?", id);
     if (!row || (row.owner !== me.id && !this.fIsPal(me.id, row.owner))) return { error: "not_found", status: 404 };
     if (undo) this.sql.exec("DELETE FROM sees WHERE moment = ? AND who = ?", id, me.id);
-    else this.sql.exec("INSERT OR IGNORE INTO sees (moment, who, at) VALUES (?, ?, ?)", id, me.id, Date.now());
+    else {
+      const fresh = !this.one("SELECT 1 AS x FROM sees WHERE moment = ? AND who = ?", id, me.id);
+      this.sql.exec("INSERT OR IGNORE INTO sees (moment, who, at) VALUES (?, ?, ?)", id, me.id, Date.now());
+      if (fresh && row.owner !== me.id) await this.pSee(row.owner, me.id, id);   // the person who shared gets told (in time)
+    }
     return { ok: true, moment: this.mOut(row, me.id, this.one("SELECT * FROM users WHERE id = ?", row.owner)) };
   },
   // Hide a friend's moments from your feed (they aren't told, and you stay friends).
@@ -634,10 +638,12 @@ export const friendMethods = {
     return { ok: true, on: true };
   },
   // One notification: requests first (they wait on an answer), moments in the line under it.
-  // Comments on your moments come next, then friends' moments.
+  // Comments on your moments come next, then "I see you"s, then friends' moments. "I see you"s are told but never
+  // counted on the number (alex 2026-11-27: notifications yes; the number stays requests, moments and comments).
   pNote(news) {
     const m = news.names.length ? this.pWords(news) : "", a = news.asks.length ? this.pAskWords(news.asks) : "", c = news.commenters.length ? this.pCommentWords(news) : "";
-    const lines = [a, c, m].filter(Boolean);
+    const s = news.seers.length ? this.pSeeWords(news.seers) : "";
+    const lines = [a, c, s, m].filter(Boolean);
     return { kind: "friends", title: lines[0] || "", body: lines.slice(1).join("\n"), n: news.moments + news.asks.length + news.comments };
   },
   // When this phone may next be pinged: an hour after the last one, and never in its night (10pm to 8am).
@@ -677,13 +683,22 @@ export const friendMethods = {
     this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
     await this.pWake();
   },
+  // Someone said "I see you" on your moment (alex 2026-11-27): kept in the same waiting list as "s:<who>:<moment>",
+  // told by the same rules (one an hour, never at night), and dropped if they take it back before then.
+  async pSee(toId, whoId, momentId) {
+    const r = this.one("SELECT * FROM fpings WHERE user = ?", toId);
+    if (!r) return;
+    const key = `s:${whoId}:${momentId}`, pend = JSON.parse(r.pend || "[]").filter((x) => x !== key).concat(key).slice(-50);
+    this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
+    await this.pWake();
+  },
   async pWake() {
     const next = this.one("SELECT MIN(due) AS t FROM fpings WHERE due IS NOT NULL");
     if (next && next.t && this.ctx && this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(next.t);
   },
   // The waiting moments still worth telling: still there, still a friend's, not hidden, paused or held back by reports.
   pNews(row) {
-    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !/^[rc]:/.test(String(x)));
+    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !/^[rcs]:/.test(String(x)));
     // Requests still waiting (not answered, taken back or blocked since), newest first.
     const askers = [...new Set(all.filter((x) => String(x).startsWith("r:")).map((x) => x.slice(2)).reverse())]
       .filter((id) => this.one("SELECT 1 AS x FROM asks WHERE f = ? AND t = ?", id, row.user) && !this.fBlocked(id, row.user))
@@ -697,7 +712,12 @@ export const friendMethods = {
     const cms = cids.length ? this.rows(`SELECT c.*, m.owner FROM comments c JOIN moments m ON m.id = c.moment WHERE c.id IN (${cids.map(() => "?").join(",")}) AND m.owner = ? ORDER BY c.at DESC`, ...cids, row.user)
       .filter((c) => c.who !== row.user && this.fIsPal(row.user, c.who) && this.cMay(c, row.user, row.user)) : [];
     const commenters = [...new Set(cms.map((c) => c.who))].map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean);
-    return { moments: moms.length, names: people.map(nameOf), asks: askers.map(nameOf), comments: cms.length, commenters: commenters.map(nameOf), on: new Set(cms.map((c) => c.moment)).size };
+    // "I see you"s still there, on your own moments, from someone who's still a friend. Newest first.
+    const seers = [...new Set(all.filter((x) => String(x).startsWith("s:")).reverse().map((x) => x.split(":")).filter(([, who, mid]) =>
+      this.one("SELECT 1 AS x FROM sees s JOIN moments m ON m.id = s.moment WHERE s.moment = ? AND s.who = ? AND m.owner = ?", mid, who, row.user) &&
+      this.fIsPal(row.user, who) && !this.one("SELECT 1 AS x FROM paused WHERE user = ?", who)).map(([, who]) => who))]
+      .map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean).map(nameOf);
+    return { moments: moms.length, names: people.map(nameOf), asks: askers.map(nameOf), seers, comments: cms.length, commenters: commenters.map(nameOf), on: new Set(cms.map((c) => c.moment)).size };
   },
   // "Sam commented on your moment", "Sam left 3 comments", "Sam and Priya commented on your moments", "Sam and 2 others commented".
   pCommentWords(news) {
@@ -705,6 +725,11 @@ export const friendMethods = {
     if (n === 1) return news.comments > 1 ? `${a} left ${news.comments} comments` : `${a} commented on ${where}`;
     if (n === 2) return `${a} and ${b} commented on ${where}`;
     return `${a} and ${n - 1} others commented`;
+  },
+  // "Sam said I see you", "Sam and Priya said I see you", "Sam and 2 others said I see you".
+  pSeeWords(names) {
+    const [a, b] = names, n = names.length;
+    return n === 1 ? `${a} said I see you` : n === 2 ? `${a} and ${b} said I see you` : `${a} and ${n - 1} others said I see you`;
   },
   // The words: "Mia shared a moment", "Mia shared 3 moments", "Mia and Josh shared moments", "Mia and 2 others shared moments".
   pWords(news) {
@@ -722,7 +747,7 @@ export const friendMethods = {
     const now = Date.now();
     for (const row of this.rows("SELECT * FROM fpings WHERE due IS NOT NULL AND due <= ?", now + 30000)) {
       const news = this.pNews(row);
-      if (!news.names.length && !news.asks.length && !news.commenters.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
+      if (!news.names.length && !news.asks.length && !news.commenters.length && !news.seers.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
       const sub = JSON.parse(row.sub);
       let gone = false;
       try { gone = await ping(this.env, sub.endpoint, this.pNote(news), sub.keys, PINGS.ttl / 1000); } catch { /* tried again with the next moment */ }
