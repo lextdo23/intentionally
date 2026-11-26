@@ -1045,7 +1045,9 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-seen-who b { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-seen-who span { color: var(--dim); }
 .mo-dimtext { color: var(--dim); font-weight: 400; }
-.mo-seers { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; color: var(--dim); min-width: 0; text-align: left; }
+/* Who said it: its own line under the sun and bubble, body-sized (alex 2026-11-27) */
+.mo-seers { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; margin-top: -8px; font-size: 15px; color: var(--ink2); min-width: 0; text-align: left; }
+.mo-seers b { font-weight: 600; color: var(--ink); }
 .mo-seers > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-faces { display: flex; }
 .mo-faces .pic { box-shadow: 0 0 0 2px var(--sky2); }
