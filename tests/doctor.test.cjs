@@ -43,7 +43,7 @@ function readPdf(bytes) {
     days[D[3]].made = ["o1"]; days[D[2]].rest = true;
     // Some days before, for "the 4 weeks before".
     for (let i = 29; i < 40; i++) days[D[i]] = { mood: 2 };
-    return { v: 1, started: D[39], days, seen: { note: "sleep", testInvite: 1 }, levels: { keepAll: true }, own: [{ id: "o1", day: D[3], pillar: "Move", text: "SECRET OWN CARD", felt: ["Enjoyed it"], deck: false }],
+    return { v: 1, started: D[39], days, seen: { note: "sleep", testInvite: 1, notifCard: 1 }, levels: { keepAll: true }, own: [{ id: "o1", day: D[3], pillar: "Move", text: "SECRET OWN CARD", felt: ["Enjoyed it"], deck: false }],
       pillars: [{ name: "Move", mindsets: [] }] };
   }, [D]);
   await p.evaluate((s) => { localStorage.setItem("daydeck", JSON.stringify(s)); localStorage.setItem("daydeck-account", JSON.stringify({ skip: 1 })); }, state);

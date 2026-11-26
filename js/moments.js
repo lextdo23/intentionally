@@ -20,6 +20,7 @@ import { log } from "./tester.js";
 import * as account from "./account.js";
 import * as friends from "./friends.js";
 import * as photos from "./photos.js";
+import { inUse } from "./looks.js";
 
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
 const LKEY = "daydeck-friends";
@@ -164,10 +165,10 @@ export function openShare({ day, item, from = "pill" } = {}) {
     const feltLine = info.mood ? [info.mood[0].toUpperCase() + info.mood.slice(1)].concat(info.feel.length ? [info.feel.join(", ")] : []).join(" · ") : null;
     const sw = h("button.switch", { type: "button", role: "switch", "aria-checked": String(mood), "aria-label": "Add how the day felt", onclick: () => { mood = !mood; sw.setAttribute("aria-checked", String(mood)); } });
     const moodRow = info.mood ? h("div.fr-group", null, h("div.fr-switch", null, h("div.fr-who", null, h("span.fr-label", null, "Add how the day felt"), h("span.fr-handle", null, feltLine)), sw)) : null;
-    // A photo takes the day's card with it, behind the photo; one quiet line says so, with a way to leave it off (alex 2026-11-25).
+    // A photo takes the day's card with it, written on the photo; one quiet line says so, with a way to leave it off (alex 2026-11-25).
     const back = chosen && chosen.kind === "photo" ? chosen.back : null;
     const cardLine = back ? h("div.mo-cardline", null,
-      h("span", null, withCard ? "Friends can swipe across to see your card." : "Just your photo. Your card stays private."),
+      h("span", null, withCard ? "Your card goes on the photo for friends." : "Just your photo. Your card stays private."),
       h("button.mo-cardline-btn", { type: "button", onclick: () => { withCard = !withCard; drawBelow(); } }, withCard ? "Leave it off" : "Add it back")) : null;
     const text = h("textarea.fr-field.mo-cap", { maxlength: "280", rows: "3", placeholder: "Add a caption, if you like", "aria-label": "Caption" });
     text.value = cap; text.addEventListener("input", () => { cap = text.value; });
@@ -176,6 +177,7 @@ export function openShare({ day, item, from = "pill" } = {}) {
       if (!chosen || done) return;
       friends.busy(go, async () => {
         const body = { day: k, item: chosen.item, kind: chosen.kind, text: chosen.text, pillar: chosen.pillar, col: chosen.col, status: chosen.status, cap: text.value };
+        if (chosen.kind === "card" || chosen.kind === "own") body.look = (inUse() || { id: "daydeck" }).id;   // which set's feed card friends see
         const sendCard = !!(back && withCard);
         if (sendCard) Object.assign(body, { text: back.text, pillar: back.pillar, col: back.col, status: "Done" });
         if (chosen.kind === "photo") { body.photo = await photoData(k); if (!body.photo) return friends.note("That photo couldn't be shared. Try another day, or your card."); }
@@ -183,7 +185,7 @@ export function openShare({ day, item, from = "pill" } = {}) {
         const r = await account.call("/a/f/share", body);
         if (!r.ok) return friends.note(friends.say(r));
         done = true;
-        log("share", { kind: chosen.kind, ago: days.indexOf(k), mood: body.mood ? 1 : 0, cap: text.value.trim() ? 1 : 0, again: r.again ? 1 : 0, from, ...(back ? { card: sendCard ? 1 : 0 } : {}) });
+        log("share", { kind: chosen.kind, ago: days.indexOf(k), mood: body.mood ? 1 : 0, cap: text.value.trim() ? 1 : 0, again: r.again ? 1 : 0, from, ...(back ? { card: sendCard ? 1 : 0 } : {}), ...(body.look ? { look: body.look } : {}) });
         pg.close(); friends.note("Shared with your friends.");
         feed = null; friends.afterShare();
       });
@@ -244,7 +246,7 @@ export function post(m, { onChange, onPerson } = {}) {
     more.addEventListener("click", () => moreMenu(m, onChange));
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
-      m.kind === "photo" && m.text ? slides(m) : tile(m, { big: true }),
+      m.kind === "photo" || m.kind === "week" ? photoPost(m) : m.kind === "card" || m.kind === "own" ? cardPost(m) : tile(m, { big: true }),
       h("div.mo-acts", null, see, seers),
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
       m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null].filter(Boolean));   // replaceChildren would print "null"
@@ -252,69 +254,83 @@ export function post(m, { onChange, onPerson } = {}) {
   draw();
   return el;
 }
-// A photo with its card behind it (alex 2026-11-25): swipe across (or tap) to slide from the photo to the card and back.
-// Two dots show there's a card. The first time anyone meets one, it nudges to show the card's edge, with a tip, until
-// their first swipe. touch-action: pan-y keeps a sideways swipe here from changing tabs (js/pill.js ownsSideways).
-// Only one tip on screen at a time; a redrawn feed can show it again until the first swipe.
-const tipOnScreen = () => [...document.querySelectorAll(".mo-tip")].some((t) => t.isConnected && t.offsetParent);
-function slides(m) {
-  const who = m.mine ? "Your" : `${friends.shown(m.by)}'s`;
-  // The real Daydeck card, face up: the same card as the morning draw, with the friend's words and pillar (alex 2026-11-25).
-  const real = h("div.dcard.big.up", { "aria-hidden": "true" }, h("div.in", null, h("div.face.back"), h("div.face.front", null,
-    h("span.ctag", null, h("i", { style: { background: m.col || "#a9a59d" } }), m.pillar || "Card"),
-    h("span.task", null, m.text),
-    h("span.size", null, `${who} card · Done`))));
-  const face = h("div.mo-back", null, real);
-  const track = h("div.mo-track", null, tile(m, { big: true }), face);
-  const dots = h("div.mo-dots", { "aria-hidden": "true" }, h("span.on"), h("span"));
-  const wrap = h("div.mo-car", { role: "group", tabindex: "0", "aria-roledescription": "carousel" }, track, dots);
-  let page = 0, sx = null, sy = 0, dx = 0, moved = false, tip = null, logged = false;
-  const label = () => wrap.setAttribute("aria-label", page ? `${who} card: ${m.text}. Tap for the photo` : `${friends.shown(m.by)}'s photo. Swipe or tap to see the card`);
-  const go = (p) => {
-    if (p !== page && p === 1 && !logged) { logged = true; log("photo_card", 1); }
-    if (p !== page) learned();
-    page = p; track.style.transition = ""; track.style.transform = `translateX(${-100 * page}%)`;
-    dots.children[0].classList.toggle("on", !page); dots.children[1].classList.toggle("on", !!page); label();
-  };
-  const learned = () => {
-    if (tip) { tip.remove(); tip = null; wrap.classList.remove("peek"); }
-    document.querySelectorAll(".mo-tip").forEach((t) => { t.parentElement.classList.remove("peek"); t.remove(); });
-    if (!local().cardTip) setLocal("cardTip", 1);
-  };
-  wrap.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; dx = 0; moved = false; });
-  wrap.addEventListener("pointermove", (e) => {
-    if (sx == null) return;
-    dx = e.clientX - sx;
-    if (!moved && (Math.abs(dx) < 8 || Math.abs(e.clientY - sy) > Math.abs(dx))) return;
-    moved = true; wrap.classList.remove("peek");
-    const pull = (page === 0 && dx > 0) || (page === 1 && dx < 0) ? dx / 3 : dx;   // past either end it only gives a little
-    track.style.transition = "none"; track.style.transform = `translateX(calc(${-100 * page}% + ${pull}px))`;
-  });
-  const up = () => {
-    if (sx == null) return; sx = null;
-    if (!moved) return;
-    go(dx < -60 ? 1 : dx > 60 ? 0 : page);
-  };
-  wrap.addEventListener("pointerup", up); wrap.addEventListener("pointercancel", up);
-  wrap.addEventListener("click", () => { if (moved) { moved = false; return; } go(page ? 0 : 1); });
-  wrap.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowLeft") go(0); else if (e.key === "ArrowRight") go(1);
-    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(page ? 0 : 1); }
-  });
-  label();
-  // The first one someone sees, once it's mostly on screen: the nudge and "Swipe to see Mia's card".
-  if (!local().cardTip && "IntersectionObserver" in window) {
-    const io = new IntersectionObserver((es) => {
-      if (!es.some((x) => x.intersectionRatio >= 0.6)) return;
-      io.disconnect();
-      if (local().cardTip || tipOnScreen() || page) return;
-      wrap.classList.add("peek");
-      tip = h("span.mo-tip", null, friends.svg(18, [["path", { d: "M20 12H5M10 7l-5 5 5 5" }]]), m.mine ? "Swipe to see your card" : `Swipe to see ${friends.shown(m.by)}'s card`);
-      wrap.append(tip);
-    }, { threshold: [0.6] });
-    io.observe(wrap);
+// A photo in a feed (alex 2026-11-26): its card's words sit at the top of the photo itself, over a soft dark fade, so
+// it's always clear which card it was (even on a video, later). Folded to one line with "…"; tap to read the whole card,
+// tap again to fold it. Every big photo can be pinched to zoom, then springs back (zoom()).
+function photoPost(m) {
+  const wrap = h("div.mo-photo", null, tile(m, { big: true }));
+  if (m.kind === "photo" && m.text) {
+    const words = h("span.mo-stamp-text", null, m.text);
+    const btn = h("button.mo-stamp", { type: "button", "aria-expanded": "false", "aria-label": `${m.mine ? "Your" : friends.shown(m.by) + "'s"} card: ${m.text}` },
+      m.pillar ? h("span.mo-stamp-pil", null, h("i", { style: { background: m.col || "#a9a59d" } }), m.pillar) : null, words);
+    let logged = false;
+    btn.addEventListener("click", () => {
+      const open = btn.getAttribute("aria-expanded") !== "true";
+      btn.setAttribute("aria-expanded", String(open)); btn.classList.toggle("open", open);
+      if (open && !logged && words.scrollHeight > words.clientHeight + 1) { logged = true; log("photo_card", 1); }
+    });
+    wrap.append(btn);
   }
+  zoom(wrap, m);
   return wrap;
+}
+// Pinch a feed photo to look closer, like other apps: two fingers lift a copy of it above everything, following the
+// fingers; letting go springs it back into place. Nothing is kept or sent. Never changes tabs (two fingers stop that).
+function zoom(wrap, m) {
+  let z = null;   // { copy, shade, r, d0, cx, cy }
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const mid = (t) => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+  const start = (t) => {
+    const img = wrap.querySelector("img"); if (!img || !img.complete || !img.naturalWidth) return;
+    const r = img.getBoundingClientRect();
+    const copy = img.cloneNode(); copy.className = "mo-zoom"; copy.alt = "";
+    Object.assign(copy.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+    const shade = h("div.mo-zoom-shade");
+    document.body.append(shade, copy);
+    const [cx, cy] = mid(t);
+    z = { copy, shade, r, d0: dist(t), cx, cy, ox: cx - r.left, oy: cy - r.top };
+    log("photo_zoom", 1);
+  };
+  const move = (t) => {
+    const k = Math.min(4, Math.max(1, dist(t) / z.d0)), [x, y] = mid(t);
+    // Scale around the point between the fingers, and follow them as they move.
+    z.copy.style.transformOrigin = `${z.ox}px ${z.oy}px`;
+    z.copy.style.transform = `translate(${x - z.cx}px, ${y - z.cy}px) scale(${k})`;
+    z.shade.style.opacity = String(Math.min(0.85, (k - 1) * 0.9));
+  };
+  const end = () => {
+    if (!z) return;
+    const { copy, shade } = z; z = null;
+    copy.classList.add("back"); shade.classList.add("back");
+    copy.style.transform = ""; shade.style.opacity = "0";
+    const done = () => { copy.remove(); shade.remove(); };
+    copy.addEventListener("transitionend", done, { once: true }); setTimeout(done, 400);
+  };
+  wrap.addEventListener("touchstart", (e) => { if (e.touches.length === 2 && !z) start(e.touches); }, { passive: true });
+  wrap.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 2 && !z) start(e.touches);
+    if (!z) return;
+    e.preventDefault();
+    if (e.touches.length === 2) move(e.touches);
+  }, { passive: false });
+  wrap.addEventListener("touchend", (e) => { if (e.touches.length < 2) end(); });
+  wrap.addEventListener("touchcancel", end);
+  wrap.addEventListener("gesturestart", (e) => e.preventDefault());   // Safari's own page zoom
+}
+// A card shared on its own (alex 2026-11-25, "Picked, for now" on the "Card with a shared photo" canvas): the card's
+// words stay the same for every set; what's around it is the set's own. Daydeck: a thin marigold edge. Mono: a hairline,
+// "MONO · 25.11" and a sheen. The rest: a piece of the set peeking out from under the card (gingham, the latte's layers,
+// toadstool spots, stitched mint, chrome). First versions: an artist will redraw the peeking pieces later.
+const PEEKS = ["cherry", "matcha", "mushroom", "pals", "chrome"];
+function cardPost(m) {
+  const look = m.look || "daydeck";
+  const dot = m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : h("span");
+  const [, mo, dd] = String(m.day || "").split("-");
+  const top = look === "mono" ? h("span.mo-cp-top", null, dot, h("span.mo-cp-mark", null, `MONO · ${dd || ""}.${mo || ""}`)) : dot;
+  const face = h("div.mo-cp-face", null, top, look === "mono" ? h("span.mo-cp-rule", { "aria-hidden": "true" }) : null,
+    h("span.mo-cp-words", null, m.text), h("span.mo-status", null, m.status || "Done"));
+  const under = PEEKS.includes(look) || look === "daydeck" ? h("div.mo-cp-under", { "aria-hidden": "true" }) : null;
+  return h(`div.mo-cp.look-${look}${PEEKS.includes(look) ? ".cp-peek" : ""}`, null, under, face);
 }
 function moreMenu(m, onChange) {
   openSheet((panel, close) => {

@@ -12,7 +12,7 @@ const { serve, checker } = require("./helpers.cjs");
   await p.goto(server.url);
   const k = await p.evaluate(async () => (await import("./js/util.js")).dayKey());
   await p.evaluate((k) => { const days = {}; days[k] = { sleep: { bed: 1380, wake: 420, rested: 2, tags: [] } };
-    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", seen: { note: "sleep", testInvite: 1, crumbsOffer: 1 }, levels: { seen: 3 },
+    localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: "2026-11-10", seen: { note: "sleep", testInvite: 1, crumbsOffer: 1, notifCard: 1 }, levels: { seen: 3 },
       pillars: [{ name: "Move", mindsets: ["Sit too much"] }, { name: "Rest", mindsets: ["Can't switch off"] }, { name: "Family", mindsets: ["Be closer"] }], days })); }, k);
   await p.reload(); await p.waitForTimeout(1500);
   await p.evaluate(async () => (await import("./js/draw.js")).openDraw(() => {}));
