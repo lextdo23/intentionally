@@ -137,6 +137,26 @@ function phone(n) {
   check(pings.length === before, "Josh's comment on Mia's moment tells Mia, not Josh");
   await josh.post("/a/f/pings", { on: true, sub: phone(2).sub, tz: "Australia/Sydney" });
 
+  // ---- "I see you" notifications (alex 2026-11-27) ----
+  clock = Date.parse("2026-11-26T00:00:00Z"); await book.alarm();   // 11am the next day in Sydney; what waited overnight goes out
+  clock += 2 * HOUR; let pb = pings.length;
+  await josh.post("/a/f/see", { id: mid }); await book.alarm();
+  w = mp.open(pings[pings.length - 1]);
+  check(pings.length === pb + 1 && w.title === "Josh said I see you" && w.n === 0, `the person who shared is told: "${w.title}", never counted on the number`);
+  clock += 2 * HOUR; pb = pings.length;
+  await josh.post("/a/f/see", { id: mid, undo: true }); await josh.post("/a/f/see", { id: mid }); await book.alarm();
+  check(pings.length === pb + 1, "saying it again after taking it back tells them again");
+  clock += 2 * HOUR; pb = pings.length;
+  await sam.post("/a/f/see", { id: mid }); await sam.post("/a/f/see", { id: mid, undo: true }); await book.alarm();
+  check(pings.length === pb, "taken back before the ping goes out: never told");
+  clock += 2 * HOUR; pb = pings.length;
+  await mia.post("/a/f/see", { id: mid }); await mia.post("/a/f/see", { id: mid, undo: true }); await book.alarm();
+  check(pings.length === pb, "your own never pings you");
+  clock += 2 * HOUR; pb = pings.length;
+  await sam.post("/a/f/see", { id: mid }); clock += 1000; await ana.post("/a/f/see", { id: mid }); clock += 1000; await josh.post("/a/f/comment", { id: mid, text: "and this" }); await book.alarm();
+  w = mp.open(pings[pings.length - 1]);
+  check(w.title === "Josh commented on your moment" && w.body === "@ana and Sam said I see you" && w.n === 1, `with a comment in the same hour, one ping: "${w.title}" / "${w.body}"`);
+
   // ---- Reports ----
   const sc = (await mia.get("/a/f/comments?id=" + mid)).comments.find((c) => c.by.username === "sam");
   check((await sam.post("/a/f/report", { comment: sc.id, why: "hurtful" })).status === 404, "you can't report your own comment");
