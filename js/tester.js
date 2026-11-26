@@ -129,6 +129,19 @@ async function version() {
   try { return ((await caches.keys()).find((k) => k.startsWith("daydeck-")) || "").slice(8) || "?"; } catch { return "?"; }
 }
 
+// Which notifications this phone has on, for the tester page's one row per tester (alex 2026-11-26): the morning and
+// evening times (or "off"), card reminders and Friends ("on", "off", or "-" while Friends isn't open), and whether the
+// phone allows notifications at all ("yes" / "no"). Choices only, under the tester code, like everything else here.
+function switches(s) {
+  const n = s.notify || {}, at = (x) => (x ? (x.on ? x.t : "off") : "off");
+  let fr = "-";
+  if (document.body.classList.contains("friends-open")) {
+    try { const l = JSON.parse(localStorage.getItem("daydeck-friends")) || {}; fr = l.pings === true || (l.pings == null && !l.pingAsk) ? "on" : "off"; } catch { fr = "on"; }
+  }
+  return { am: at(n.am), pm: at(n.pm), card: n.card && n.card.on === false ? "off" : "on", fr,
+    allow: typeof Notification !== "undefined" && Notification.permission === "granted" ? "yes" : "no" };
+}
+
 let busy = false, lastTry = 0;
 // Sends what's waiting. Quietly tries again later if the phone is offline.
 export async function send(force) {
@@ -141,9 +154,7 @@ export async function send(force) {
   const keys = Object.keys(s.days).filter((k) => full || k >= shift(today, -3));
   const days = {}; keys.forEach((k) => (days[k] = clean(s.days[k])));
   const events = tt.queue.slice(0, 500);
-  const n = s.notify || {};
-  const body = { code: tt.code, key: tt.key, phone: phone(), version: await version(), started: s.started, days, events,
-    nudges: { am: n.am ? (n.am.on ? n.am.t : "off") : "off", pm: n.pm ? (n.pm.on ? n.pm.t : "off") : "off" } };
+  const body = { code: tt.code, key: tt.key, phone: phone(), version: await version(), started: s.started, days, events, nudges: switches(s) };
   try {
     const res = await fetch(`${SERVICE}/t/send`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: JSON.stringify(body).length < 60000 });
     if (res.status === 410) { s.tester = { on: false, consent: 0, removed: true }; store.save(); busy = false; return; } // removed from the test: stop sending

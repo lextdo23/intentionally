@@ -7,7 +7,9 @@ import { card as cardOf, dayOfUse } from "./deck.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const DAY = 864e5;
-export const defaults = () => ({ am: { on: false, t: "08:00" }, pm: { on: false, t: "21:00" }, card: { on: true } });
+// Everything starts on (alex 2026-11-26): people turn off what they don't want. Nothing arrives until the phone
+// allows notifications (Apple asks once). People who already had Daydeck keep the choices saved on their phone.
+export const defaults = () => ({ am: { on: true, t: "08:00" }, pm: { on: true, t: "21:00" }, card: { on: true } });
 const HOUR = 36e5;
 export const supported = () => "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
 export const blocked = () => supported() && Notification.permission === "denied";
@@ -38,8 +40,11 @@ export async function currentSub() {
 }
 export async function enable() {
   if (!await pushSub()) return false;
-  sent = ""; await sync(); return true;
+  sent = ""; await sync(); allowed.forEach((f) => f()); return true;
 }
+// Others that want to know when notifications are allowed (friend notifications follow straight away).
+const allowed = [];
+export const onAllowed = (f) => allowed.push(f);
 
 // The next time the clock reads hh:mm, skipped if the check-in for that nudge's own day is already done.
 // (Checking "today" instead broke mornings: a day runs until 4am, so opening the app after midnight saw
@@ -85,12 +90,12 @@ export function windTimes(s = store.get(), at = Date.now()) {
 // Weekly recap (alex 2026-11-22). Sunday: "Weekly recap tonight" at the evening nudge time (7pm if evenings are off),
 // unless the day is already ended. Monday: "Weekly recap ready" at the morning nudge time (8am if mornings are off),
 // only while that week's recap still waits on home. Never more than these two for one week, and only when a recap
-// will really be there (from day 7 of use, like js/wrapped.js readyWeek). Only for people with morning or evening
-// nudges on. When it lands on the same minute as the usual nudge, the service sends one ping and it gets these words.
+// will really be there (from day 7 of use, like js/wrapped.js readyWeek). Always on, with no switch (alex 2026-11-26):
+// everyone whose phone allows notifications gets them, nudges on or off. When it lands on the same minute as the usual nudge, the service sends one ping and it gets these words.
 // evenIfDone keeps the ones no longer needed (marked done) so a ping already on its way stays quiet.
 export function recapTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
   const n = prefs();
-  if (!(n.am.on || n.pm.on) || !s.started) return [];
+  if (!s.started) return [];
   const seen = (s.wrap && s.wrap.seen) || {}, k = dayKey(at), mon = addDays(k, -((keyDate(k).getDay() + 6) % 7)), out = [];
   const on = (day, hhmm) => { const [h, m] = hhmm.split(":").map(Number), x = keyDate(day); x.setHours(h, m, 0, 0); return x.getTime() + (h < 4 ? DAY : 0); };
   for (const w of [addDays(mon, -7), mon]) {

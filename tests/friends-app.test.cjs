@@ -228,10 +228,8 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(await badge() === 1, "the Daydeck icon shows the same number");
   await p.click("#friends .fr-bell"); await p.waitForTimeout(800);
   const np = ".fr-page:last-child";
-  check(/Get notified when friends share/.test(await text(np)) && /never their photo or words/.test(await text(np)), "the bell page offers friend notifications, off until pressed");
+  check(!/Get notified/.test(await text(np)) && !(await p.$(`${np} .fr-ping`)), "no offer on the bell page: friend notifications start on (alex 2026-11-26)");
   check(await badge() === 0, "opening the bell clears the number on the icon");
-  await p.click(`${np} .fr-ping .fr-btn.soft`); await p.waitForTimeout(300);
-  check(!(await p.$(`${np} .fr-ping`)), "Not now puts the offer away");
   await p.focus(`${np} h1`);
   check(/Notifications/.test(await text(np)) && /New moments/.test(await text(np)) && /Slept in, no guilt/.test(await text(np)) && !/Walked to work/.test(await text(np)), "the bell opens Notifications with Sam's new moment, not Mia's own");
   await shot("15b-notifications");
@@ -239,9 +237,6 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(!(await p.$('#pill [data-tab="friends"][data-count]')) && !(await p.$("#friends .fr-bell-n")), "once seen, the number goes from the pill and the bell");
   await tab("you"); await tab("friends"); await p.waitForTimeout(1200);
   check(!(await p.$('#pill [data-tab="friends"][data-count]')), "and stays gone after looking at Friends again");
-  await p.click("#friends .fr-bell"); await p.waitForTimeout(800);
-  check(!(await p.$(".fr-page:last-child .fr-ping")), "the offer only shows once (Settings keeps the switch)");
-  await p.press(".fr-page:last-child", "Escape"); await p.waitForTimeout(600);
   const samPost = p.locator("#friends .mo-post", { hasText: "Slept in" });
   await samPost.locator(".mo-see").click(); await p.waitForTimeout(800);
   check((await sam.get("/a/f/feed")).moments.find((m) => m.cap === "Slept in, no guilt").seers.some((x) => x.username === "mia.k"), "Mia says I see you back");
