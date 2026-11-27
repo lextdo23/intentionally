@@ -12,6 +12,7 @@
 import { dayKey, addDays, keyDate, DAY_NAME, MONTH } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
+import * as plans from "./plans.js";
 // The second photo's name and note, as in js/photos.js (keyFor, has), without loading the photo screens.
 const keyFor = (k, from) => (from && from !== k ? `${k}~${from}` : k);
 const hasPhoto = (pk) => { const [k, f] = pk.split("~"), d = store.get().days[k]; return !!(d && (f ? d.xph && d.xph[f] : d.ph)); };
@@ -47,7 +48,7 @@ export function stack(k = dayKey()) {
     if (back < 0 || back > AHEAD + 1) continue;
     const c = cardAt(f), kd = c && kindOf(c.id);
     if (!kd) continue;
-    const base = { f, id: c.id, kind: kd.k, label: kd.l, pillar: (deck.card(c.id) || {}).pillar || "" };
+    const base = { f, id: c.id, kind: kd.k, label: kd.l, pillar: (deck.card(c.id) || {}).pillar || "", plan: kd.k === "date" ? plans.mineById(c.plan) : null };
     if (kd.k === "date") {
       if (c.when && /^\d{4}-\d{2}-\d{2}$/.test(c.when)) {
         const to = diff(k, c.when);   // days until the date
@@ -63,8 +64,22 @@ export function stack(k = dayKey()) {
       out.push({ ...base, ticks, n, tickedToday: ticks.includes(k), pk: keyFor(k, f), status: "This week" });
     }
   }
-  // The date that's today first, then the soonest dates, then week cards, then dates still to set.
-  const rank = (x) => (x.today ? 0 : x.when ? 1 : x.kind === "week" ? 2 : 3);
+  // Dates friends shared with you (alex 2026-11-27, js/plans.js): "From Mia" while it waits for an answer, then like
+  // your own date once you're in. Each one's key is "p:<plan>"; its photo goes on the date as a second photo, named
+  // by the day the friend drew the card.
+  for (const p of plans.invited()) {
+    const kd = LATER[p.card];
+    if (!kd || kd.k !== "date" || !/^\d{4}-\d{2}-\d{2}$/.test(p.day)) continue;
+    const to = diff(k, p.day), ask = p.state !== "in";
+    if (to < -1 || (ask && to < 0) || to > AHEAD + 7) continue;
+    const pk = keyFor(p.day, p.made);
+    if (to === -1 && hasPhoto(pk)) continue;
+    out.push({ f: "p:" + p.id, id: p.card, kind: "date", label: kd.l, pillar: (deck.card(p.card) || {}).pillar || "", when: p.day, guest: p, ask,
+      today: to === 0 && !ask, pk: to <= 0 && !ask ? pk : null, status: ask ? "From " + (p.by.name || p.by.username) : to === 0 ? "Today" : to === -1 ? "Yesterday" : shortDate(p.day) });
+  }
+  // The date that's today first, then the soonest dates, then week cards, then dates still to set, then invites
+  // still waiting for an answer (they count toward the three on home; with no room they wait on the bell page).
+  const rank = (x) => (x.today ? 0 : x.ask ? 4 : x.when ? 1 : x.kind === "week" ? 2 : 3);
   return out.sort((a, b) => rank(a) - rank(b) || (a.when || a.f).localeCompare(b.when || b.f)).slice(0, MAX_WAIT);
 }
 export const full = (k = dayKey()) => stack(k).length >= MAX_WAIT;
