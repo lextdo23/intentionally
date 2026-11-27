@@ -17,6 +17,7 @@ import * as account from "./account.js";
 import * as moments from "./moments.js";
 import * as notify from "./notify.js";
 import * as comments from "./comments.js";
+import * as plans from "./plans.js";
 
 const KEY = "daydeck-friends";
 let local = read();
@@ -81,10 +82,13 @@ export function openNotes() {
   page("Notifications", (redraw) => {
     const parts = [];
     if (data && data.asksYou.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Friend requests"), data.asksYou.map(requestRow)));
+    // Dates friends invited you to and you haven't answered (alex 2026-11-27): here too, for when home has no room.
+    const dates = data && data.me.adult ? plans.waiting() : [];
+    if (dates.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "Invites"), dates.map((x) => planRow(x, redraw))));
     if (talk.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New comments"), talk.map(commentNote)));
     if (list.length) parts.push(h("section.fr-sec", null, h("h2.fr-sec-head", null, "New moments"),
       moments.feedList(list, { onPerson: openPerson, onChange: (m, gone) => { if (gone) { list = list.filter((x) => x.id !== gone.id); again(); } } })));
-    if (!list.length && !talk.length && !(data && data.asksYou.length)) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
+    if (!list.length && !talk.length && !(data && data.asksYou.length) && !(data && data.me.adult && plans.waiting().length)) parts.push(h("div.tab-empty.small", null, h("h2", null, "Nothing new"), h("p", null, "You're all caught up.")));
     return h("div.fr-body", null, parts);
   });
   showCount();
@@ -162,6 +166,7 @@ export async function pingsOffForSignOut() {
   if (!local.pingSub && local.pings !== true) return;
   await account.call("/a/f/pings", { on: false }).catch(() => {});
   delete local.pings; delete local.pingSub; delete local.pingAsk; keep();
+  plans.forget();
 }
 account.beforeLeaving(pingsOffForSignOut);
 // Notifications just allowed (from Settings or setup): friend notifications follow straight away.
@@ -190,6 +195,7 @@ export async function load() {
     if (!r.ok || !r.me) { problem = r.error || "offline"; return null; }
     data = r; problem = null; lastCheck = Date.now();
     if (r.me.adult && r.friends.length) await moments.loadFeed();
+    if (r.me.adult) plans.load();   // shared dates (js/plans.js), quietly
     showCount();
     sendPic();
     checkPings();
@@ -368,6 +374,15 @@ function body() {
         h("button.btn-main.soft", { type: "button", onclick: openAdd }, "Add by username"))));
   }
   return h("div.fr-body", null, parts);
+}
+// A date a friend shared (alex 2026-11-27): "Mia invited you to Date night · Sat 5 Dec", Not this time / I'm in.
+const PLAN_NAMES = { 88: "Date night", 57: "Family meal", 60: "Family visit", 32: "Weekend plan", 563: "Weekend fun", 540: "Hobby class", 534: "Evening for fun", 523: "Careers chat", 482: "Holiday at home" };
+const dayWords = (k) => { const d = new Date(k + "T12:00:00"); return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }).replace(",", ""); };
+function planRow(x, redraw) {
+  const go = (yes) => (e) => busy(e.currentTarget, async () => { if (!(await plans.answer(x.id, yes, "bell"))) note(SAY.offline); redraw && redraw(); });
+  return h("div.fr-plan", null, pic(x.by, 40), h("div.fr-plan-col", null,
+    h("span.fr-plan-text", null, h("b", null, shown(x.by)), ` invited you to ${PLAN_NAMES[x.card] || "a plan"} · ${dayWords(x.day)}`),
+    h("span.fr-plan-btns", null, small("I'm in", go(true), "main"), small("Not this time", go(false)))));
 }
 function requestRow(p) {
   const yes = small("Accept", (e) => busy(e.currentTarget, () => answer(p, true)), "main"), no = small("Not now", (e) => busy(e.currentTarget, () => answer(p, false)));

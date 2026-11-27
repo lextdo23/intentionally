@@ -1351,3 +1351,34 @@ body.has-pill:not([data-tab="today"]) #home *, .in-flow #home *, .in-settings #h
 .stack-front { position: relative; z-index: 2; }
 .stack-ghost { position: absolute; z-index: 2; margin: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .stack-tops { animation: none; } }
+
+/* Shared dates (alex 2026-11-27, js/stack.js and js/plans.js): a date card shared with friends. */
+.st-status .st-face { margin-right: 8px; flex: none; }
+.home-card .plan-from { display: flex; align-items: center; gap: .35em; white-space: nowrap; min-width: 0; }
+.home-card .plan-from .pic { width: 1.3em !important; height: 1.3em !important; flex: none; }
+.home-card .plan-from .pic svg, .home-card .plan-from .pic img { width: 100%; height: 100%; }
+.home-card .plan-from b { color: var(--ink); font-weight: 600; }
+.home-card .plan-from + .did { white-space: nowrap; }
+.plan-with { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 0 var(--edge, 20px); box-sizing: border-box;
+  font-size: 15px; color: var(--dim); }
+.plan-with > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-with b { color: var(--ink); font-weight: 600; }
+.plan-with .pic { flex: none; }
+.plan-no { margin-top: 4px; color: var(--dim); font-size: 17px; }
+/* "When is it?": the row of friends to invite. Room around each face so the ring and tick never get cut or touch the name. */
+.plan-invite h3 { margin: 8px 0 0; font-size: 17px; font-weight: 600; }
+.plan-invite .sub { margin: 0; }
+.plan-ppl { display: flex; gap: 12px; overflow-x: auto; margin: 0 calc(-1 * var(--edge, 20px)); padding: 6px var(--edge, 20px) 4px; scrollbar-width: none; }
+.plan-ppl::-webkit-scrollbar { display: none; }
+.plan-face { background: none; border: 0; padding: 0; color: var(--ink2); font: inherit; font-size: 12px; min-height: 44px; }
+.plan-face:disabled { opacity: .4; }
+.plan-face.on > span:last-child { color: var(--ink); }
+.plan-pic { position: relative; display: block; width: 56px; height: 56px; border-radius: 50%; }
+.plan-face.on .plan-pic { box-shadow: 0 0 0 3px #141416, 0 0 0 5px var(--ink); }
+.plan-tick { position: absolute; right: -3px; bottom: -3px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #0a0a0b; font-style: normal;
+  font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px #141416; }
+.fr-plan { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; }
+.fr-plan-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.fr-plan-text { font-size: 15px; color: var(--ink2); }
+.fr-plan-text b { color: var(--ink); font-weight: 600; }
+.fr-plan-btns { display: flex; gap: 8px; flex: none; }
