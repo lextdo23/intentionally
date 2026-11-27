@@ -18,7 +18,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const days = {}; for (let i = 1; i < 9; i++) days[day(i)] = { sleep: { bed: 1380, wake: 420, rested: 3 }, mood: 3, card: { id: 1, done: true } };
     days[day(0)] = { sleep: { bed: 1380, wake: 420, rested: 3 }, card: { id: 1, at: Date.now() - 3600e3, hands: [[1, 460, 57]] } };
     extra(days);
-    await p.evaluate(({ days, s, test }) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: s, days, pillars: ["Love", "Move", "Friends"], focus: ["Love", "Move"],
+    await p.evaluate(({ days, s, test }) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: s, days, pillars: ["Love", "Move", "Friends"].map((name) => ({ name, mindsets: [] })), focus: ["Love", "Move"],
       seen: { note: "x", setup: 1, testInvite: 1, notifCard: 1 }, notes: { sleepHint: 1 }, levels: { reset: 2, base: 0, l1: 0, seen: 6, opened: 9, tips: { days: 1, friends: 1, cards: 1, recap: 1, own: 1, boxes: 1, library: 1 } }, boxes: { open: 9 }, ...test })), { days, s: day(8), test });
     await p.reload(); await p.waitForTimeout(3000);
     await p.evaluate(() => document.querySelectorAll(".tip-layer,.sheet-host,.lu").forEach((e) => e.remove()));
@@ -36,15 +36,18 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     d[day(6)].card = { id: 60, done: true, when: day(2) };           // a date two days ago: gone
   });
   let st = await L(() => { const later = window.__later; return later.stack().map((x) => [x.label, x.status, x.kind]); });
-  check(st.length === 3, `three cards wait (${JSON.stringify(st)})`);
+  check(st.length === 2, `two cards wait at most, three on home with today's (${JSON.stringify(st)})`);
   check(st.some((x) => x[0] === "Date night" && /\w{3} \d+ \w{3}/.test(x[1])), "the date shows with its day");
   check(st.some((x) => x[0] === "Walk or jog" && x[2] === "week"), "the week card waits with its ticks");
-  check(st.some((x) => x[0] === "Family meal" && x[1] === "Set the date"), "\"Not set yet\" waits as Set the date");
+  check(!st.some((x) => x[0] === "Family meal"), "with no room, a date not set yet waits its turn behind dated and week cards");
   check(!st.some((x) => x[0] === "Lunch walks" || x[0] === "Family visit"), "a week card past 7 days and a date before yesterday have gone");
-  check((await tops()).length === 3 && await p.$(".stack-front .did"), "home shows them as tops behind today's card, today's card in front");
+  check((await tops()).length === 2 && await p.$(".stack-front .did"), "home shows them as tops behind today's card, today's card in front");
+  const dl = await p.evaluate(async () => { const deck = await import("./js/deck.js"), later = await import("./js/later.js"); const ids = deck.dealable(); return { later: ids.filter((i) => later.kindOf(i)).length, any: ids.length }; });
+  check(dl.any > 0 && dl.later === 0, "while two wait, the morning hand leaves out date and week cards");
+  check(await p.$eval(".stack-tops", (e) => getComputedStyle(e).animationName) === "bob-soft", "the tops float, gently");
 
   // Tapping a top brings that card forward; today's card becomes a top.
-  await p.click('.stack-top[aria-label^="Walk or jog"]'); await p.waitForTimeout(900);
+  await p.click('.stack-top[aria-label^="Walk or jog"]', { force: true }); await p.waitForTimeout(900);
   check(/Walk or jog/.test(await p.innerText(".stack-front .ctag").catch(() => "")) || /1 of 3 days/.test(await p.innerText(".stack-front").catch(() => "")), "tapping a top brings that card to the front");
   check((await tops()).some((x) => /^Today's card/.test(x)), "and today's card waits as a top");
   await p.click('.stack-front button.did', { force: true }); await p.waitForTimeout(600);
@@ -54,7 +57,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
 
   // The last tick asks how it felt.
   await load((d) => { d[day(2)].card = { id: 460, done: true, ticks: [day(2), day(1)] }; });
-  await p.click('.stack-top[aria-label^="Walk or jog"]'); await p.waitForTimeout(900);
+  await p.click('.stack-top[aria-label^="Walk or jog"]', { force: true }); await p.waitForTimeout(900);
   await p.click('.stack-front button.did', { force: true }); await p.waitForTimeout(1500);
   check(!!(await p.$(".did-ask")), "the last tick asks \"How did doing it feel?\"");
   await p.click(".did-ask .pill >> nth=0", { force: true }); await p.click(".did-ask .ok", { force: true }); await p.waitForTimeout(5500);
@@ -62,6 +65,12 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(s.days[day(2)].card.ticks.length === 3 && (s.days[day(2)].card.felt || []).length === 1, "all three ticked, and how it felt is kept on the card's day");
   st = await L(() => { const later = window.__later; return later.stack().map((x) => x.label); });
   check(st.includes("Walk or jog"), "a finished week card stays for the rest of the day it finished");
+
+  // "Not set yet" waits as Set the date; with room, date and week cards can be dealt again.
+  await load((d) => { d[day(5)].card = { id: 57, done: true, nodate: 1 }; });
+  st = await L(() => window.__later.stack().map((x) => [x.label, x.status]));
+  check(st.some((x) => x[0] === "Family meal" && x[1] === "Set the date"), "\"Not set yet\" waits as Set the date");
+  check(await p.evaluate(async () => { const deck = await import("./js/deck.js"), later = await import("./js/later.js"); return deck.dealable().some((i) => later.kindOf(i)); }), "with room behind today's card, date and week cards are dealt again");
 
   // On the date: it comes to the front with just the camera in the middle.
   await load((d) => { d[day(3)].card = { id: 88, done: true, when: day(0) }; });

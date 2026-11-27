@@ -3,6 +3,9 @@
 // "Walk or jog · ●○○". Tapping a top brings that card to the front (the front card slips back, the new one comes
 // forward), and today's card becomes a top itself. On a planned date that card is in front when the day opens,
 // with a camera in the middle of its foot (alex 2026-11-27: just the camera, no words).
+// Three cards at most (today's and two waiting, later.MAX_WAIT). The tops float too, more gently than the front card,
+// with no glow (alex 2026-11-27). Switching feels like real cards: the tapped card slides out from behind the pile and
+// lands on top while the old front card tucks back into the pile, with no fading.
 import { h, dayKey, addDays, reduceMotion } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
@@ -12,8 +15,8 @@ import { homeCard, camBtn, tickEl } from "./draw.js";
 import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
 
-const MAX_TOPS = 3;
-let front = { day: "", f: null, picked: false }, entering = false;
+const MAX_TOPS = 2;
+let front = { day: "", f: null, picked: false }, pending = null;
 
 // Which card is in front on day k: one picked by tapping, else a date that's today, else today's card.
 export function frontOf(items, k = dayKey()) {
@@ -22,7 +25,7 @@ export function frontOf(items, k = dayKey()) {
   const t = items.find((x) => x.today);
   return t ? t.f : null;
 }
-export function bringForward(f) { front = { day: dayKey(), f, picked: true }; entering = true; }
+export function bringForward(f) { front = { day: dayKey(), f, picked: true }; }
 
 const dots = (it) => h("span.st-dots", { "aria-hidden": "true" }, Array.from({ length: it.n }, (_, i) => h(`i${i < it.ticks.length ? ".on" : ""}`)));
 const dot = (pillar) => h("i.st-pil", { style: { background: deck.PILLAR_COL[pillar] || "#a9a59d" }, "aria-hidden": "true" });
@@ -40,18 +43,21 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const wrap = h("div.stack");
   const go = (to, topEl) => {
     if (wrap.dataset.busy) return; wrap.dataset.busy = "1";
-    const rm = reduceMotion(), cur = wrap.querySelector(".stack-front");
+    const cur = wrap.querySelector(".stack-front");
     log("stack_front", to === null ? "today" : (later.kindOf((items.find((x) => x.f === to) || {}).id) || {}).k || "?");
-    if (rm || !cur) { bringForward(to); redraw(); return; }
-    // The front card slips back and up into the stack while the tapped top lifts away, then the new one comes forward.
-    cur.animate([{ transform: "none", opacity: 1 }, { transform: "translateY(-44px) scale(.9)", opacity: 0 }], { duration: 300, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
-    topEl.animate([{ transform: "none", opacity: 1 }, { transform: "translateY(16px)", opacity: 0 }], { duration: 220, easing: "ease-in", fill: "forwards" });
-    setTimeout(() => { bringForward(to); redraw(); }, 280);
+    if (!reduceMotion() && cur) {
+      // A copy of the front card stays where it is, so it can tuck back into the pile after home redraws.
+      const wr = wrap.getBoundingClientRect(), r = cur.getBoundingClientRect(), ghost = cur.cloneNode(true);
+      ghost.classList.add("stack-ghost"); ghost.classList.remove("stack-front");
+      Object.assign(ghost.style, { left: `${r.left - wr.left}px`, top: `${r.top - wr.top}px`, width: `${r.width}px` });
+      pending = { ghost, from: topEl.getBoundingClientRect(), wasTop: wr.top, oldF: f };
+    }
+    bringForward(to); redraw();
   };
   // Nearest the card is widest; each one further back is a little narrower, like cards in a pile.
   const topsEl = h("div.stack-tops", null, shown.slice().reverse().map((t, i, arr) => {
     const depth = arr.length - 1 - i;
-    const b = h("button.stack-top", { type: "button", style: { "--d": depth }, "aria-label": `${t.f === null ? "Today's card" : said(t)}. Bring it to the front.` },
+    const b = h("button.stack-top", { type: "button", "data-f": t.f === null ? "today" : t.f, style: { "--d": depth }, "aria-label": `${t.f === null ? "Today's card" : said(t)}. Bring it to the front.` },
       h("span.st-name", null, dot(t.pillar), h("span.st-label", null, t.label)), t.el);
     b.addEventListener("click", () => go(t.f, b));
     return b;
@@ -60,13 +66,39 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const card = it ? planCard(it, { redraw, hide }) : today;
   if (!card) return null;
   card.classList.add("stack-front");
-  if (entering && !reduceMotion()) {
-    entering = false;
-    card.animate([{ transform: "translateY(-64px) scale(.9)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 460, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" });
-    topsEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 360, delay: 120, fill: "backwards" });
-  } else entering = false;
   wrap.append(shown.length ? topsEl : "", card);
+  if (pending) { const pd = pending; pending = null; requestAnimationFrame(() => swap(pd, wrap)); }
   return wrap;
+}
+
+// The switch, like real cards (alex 2026-11-27): the new front card starts where its top was, behind the old card,
+// slides up out of the pile, then comes down on top; the old card (a copy, since home has redrawn) tucks back up into
+// the pile at the same time, narrowing into its top's place. Nothing fades.
+function swap(pd, wrap) {
+  const nf = wrap.querySelector(".stack-front");
+  if (!nf || !wrap.isConnected) return pd.ghost.remove();
+  const wr = wrap.getBoundingClientRect(), nr = nf.getBoundingClientRect(), g = pd.ghost;
+  // The copy goes back into the same pile, where the old card was (home may have shifted by a few points).
+  g.style.top = `${parseFloat(g.style.top) + (pd.wasTop - wr.top)}px`;
+  wrap.append(g);
+  const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`), sr = slot ? slot.getBoundingClientRect() : pd.from;
+  if (slot) slot.style.visibility = "hidden";
+  const D = 760;
+  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top, lift = -48;
+  nf.style.transformOrigin = "50% 0";
+  nf.animate([
+    { transform: `translateY(${dy0}px) scale(${s0})`, zIndex: 1, offset: 0 },
+    { transform: `translateY(${dy0 + lift}px) scale(${s0 + 0.03})`, zIndex: 1, offset: 0.42 },
+    { transform: `translateY(${dy0 + lift}px) scale(${s0 + 0.03})`, zIndex: 3, offset: 0.43 },
+    { transform: "none", zIndex: 3, offset: 1 },
+  ], { duration: D, easing: "cubic-bezier(.35,.1,.25,1)", fill: "backwards" });
+  const gr = g.getBoundingClientRect();
+  g.style.transformOrigin = "50% 0";
+  g.animate([
+    { transform: "none", offset: 0 },
+    { transform: `translateY(${(sr.top - gr.top) * 0.35}px) scale(${1 - (1 - sr.width / gr.width) * 0.5})`, offset: 0.42 },
+    { transform: `translateY(${sr.top - gr.top}px) scale(${sr.width / gr.width})`, offset: 1 },
+  ], { duration: D, easing: "cubic-bezier(.45,0,.3,1)", fill: "forwards" }).finished.then(() => { g.remove(); if (slot) slot.style.visibility = ""; });
 }
 
 // A card from the stack in front: the card itself, with its own foot.

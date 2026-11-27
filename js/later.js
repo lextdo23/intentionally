@@ -12,8 +12,11 @@
 import { dayKey, addDays, keyDate, DAY_NAME, MONTH } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
-import * as photos from "./photos.js";
-import { log } from "./tester.js";
+// The second photo's name and note, as in js/photos.js (keyFor, has), without loading the photo screens.
+const keyFor = (k, from) => (from && from !== k ? `${k}~${from}` : k);
+const hasPhoto = (pk) => { const [k, f] = pk.split("~"), d = store.get().days[k]; return !!(d && (f ? d.xph && d.xph[f] : d.ph)); };
+// Loaded only when something is logged, so the charts' sums (js/stats.js, through js/deck.js) still load outside the app.
+const log = (...a) => import("./tester.js").then((t) => t.log(...a)).catch(() => {});
 
 // card number -> kind, a short name for the stack, and for week cards how many days to tick.
 export const LATER = {
@@ -25,6 +28,9 @@ export const LATER = {
   470: { k: "week", l: "Act on it", n: 1 }, 531: { k: "week", l: "Applications", n: 1 },
 };
 export const AHEAD = 56, UNSET_DAYS = 14, WEEK = 7;
+// Three cards at most on home (alex 2026-11-27): today's card and up to two waiting behind it. While two wait, the
+// morning hand leaves out date and week cards (deck.dealable), so nothing is ever pushed out.
+export const MAX_WAIT = 2;
 export const kindOf = (id) => LATER[deck.tid(id)] || null;
 export const isDate = (id) => (kindOf(id) || {}).k === "date";
 export const isWeek = (id) => (kindOf(id) || {}).k === "week";
@@ -46,20 +52,21 @@ export function stack(k = dayKey()) {
       if (c.when && /^\d{4}-\d{2}-\d{2}$/.test(c.when)) {
         const to = diff(k, c.when);   // days until the date
         if (to < -1 || c.when === f) continue;   // gone after the next night; a date on the drawn day is just today's card
-        const pk = photos.keyFor(c.when, f);
-        if (to === -1 && photos.has(pk)) continue;   // the day after: only while there's still no photo
+        const pk = keyFor(c.when, f);
+        if (to === -1 && hasPhoto(pk)) continue;   // the day after: only while there's still no photo
         out.push({ ...base, when: c.when, today: to === 0, pk: to <= 0 ? pk : null, status: to === 0 ? "Today" : to === -1 ? "Yesterday" : shortDate(c.when) });
       } else if (c.done && c.nodate && back <= UNSET_DAYS) out.push({ ...base, unset: true, status: "Set the date" });
     } else if (back >= 1 && back < WEEK) {
       const ticks = c.ticks || [], n = kd.n || 1;
       if (ticks.length >= n && !ticks.includes(k)) continue;   // finished: stays for the rest of the day it was finished
-      out.push({ ...base, ticks, n, tickedToday: ticks.includes(k), pk: photos.keyFor(k, f), status: "This week" });
+      out.push({ ...base, ticks, n, tickedToday: ticks.includes(k), pk: keyFor(k, f), status: "This week" });
     }
   }
   // The date that's today first, then the soonest dates, then week cards, then dates still to set.
   const rank = (x) => (x.today ? 0 : x.when ? 1 : x.kind === "week" ? 2 : 3);
-  return out.sort((a, b) => rank(a) - rank(b) || (a.when || a.f).localeCompare(b.when || b.f));
+  return out.sort((a, b) => rank(a) - rank(b) || (a.when || a.f).localeCompare(b.when || b.f)).slice(0, MAX_WAIT);
 }
+export const full = (k = dayKey()) => stack(k).length >= MAX_WAIT;
 
 // "When is it?": a date (from the drawn day up to 8 weeks ahead), or null for "Not set yet".
 export function setDate(f, when, from = "home") {
