@@ -72,6 +72,11 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(st.some((x) => x[0] === "Family meal" && x[1] === "Set the date"), "\"Not set yet\" waits as Set the date");
   check(await p.evaluate(async () => { const deck = await import("./js/deck.js"), later = await import("./js/later.js"); return deck.dealable().some((i) => later.kindOf(i)); }), "with room behind today's card, date and week cards are dealt again");
 
+  // A date card done before dates existed (no date, no "Not set yet") still waits as Set the date.
+  await load((d) => { d[day(3)].card = { id: 88, done: true }; });
+  st = await L(() => window.__later.stack().map((x) => [x.label, x.status]));
+  check(st.some((x) => x[0] === "Date night" && x[1] === "Set the date"), "a date card done before this update waits as Set the date");
+
   // On the date: it comes to the front with just the camera in the middle.
   await load((d) => { d[day(3)].card = { id: 88, done: true, when: day(0) }; });
   check(/Today/.test(await p.innerText(".stack-front .ctag").catch(() => "")), "on the date, that card is in front when the day opens");
@@ -115,7 +120,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.fill(".sheet-host .when-date", day(-5)); await p.click(".sheet-host .btn-main"); await p.waitForTimeout(800);
   s = await store();
   check(s.days[day(0)].card.when === day(-5), "the date is kept on the card's day");
-  check((await tops()).some((x) => /^Date night/.test(x)), "and it shows behind today's card straight away");
+  check(!(await tops()).some((x) => /^Date night/.test(x)), "on the day it's drawn it stays today's card, never a top behind itself");
+  st = await L((k) => window.__later.stack(k).map((x) => x.label), day(-1));
+  check(st.includes("Date night"), "from the next day it waits behind today's card");
 
   // Your days offers Set the date for a recent set-a-date card with none.
   await load((d) => { d[day(4)].card = { id: 88, done: true }; });

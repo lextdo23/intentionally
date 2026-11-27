@@ -23,9 +23,16 @@ export const LATER = {
   88: { k: "date", l: "Date night" }, 57: { k: "date", l: "Family meal" }, 60: { k: "date", l: "Family visit" },
   32: { k: "date", l: "Weekend plan" }, 563: { k: "date", l: "Weekend fun" }, 540: { k: "date", l: "Hobby class" },
   534: { k: "date", l: "Evening for fun" }, 523: { k: "date", l: "Careers chat" }, 482: { k: "date", l: "Holiday at home" },
+  // More (alex 2026-11-27): existing cards that happen later, and new ones.
+  388: { k: "date", l: "Parkrun" }, 30: { k: "date", l: "Food at yours" }, 399: { k: "date", l: "Neighbours over" },
+  6: { k: "date", l: "Hang out" }, 586: { k: "date", l: "Sunrise or sunset" },
   460: { k: "week", l: "Walk or jog", n: 3 }, 504: { k: "week", l: "Lunch walks", n: 3 }, 182: { k: "week", l: "Phone away", n: 7 },
   135: { k: "week", l: "New exercise", n: 1 }, 29: { k: "week", l: "Call an old friend", n: 1 }, 390: { k: "week", l: "Find a group", n: 1 },
   470: { k: "week", l: "Act on it", n: 1 }, 531: { k: "week", l: "Applications", n: 1 },
+  559: { k: "week", l: "Social media break", n: 7 }, 428: { k: "week", l: "One app off", n: 7 }, 413: { k: "week", l: "Kind letters", n: 7 },
+  547: { k: "week", l: "Make something", n: 3 }, 63: { k: "week", l: "Thank them", n: 3 }, 83: { k: "week", l: "Break-up writing", n: 3 },
+  585: { k: "week", l: "New each day", n: 7 }, 587: { k: "week", l: "Something new together", n: 1 }, 588: { k: "week", l: "Get in touch", n: 2 },
+  589: { k: "week", l: "Avoided task", n: 3 },
 };
 export const AHEAD = 56, UNSET_DAYS = 14, WEEK = 7;
 // Three cards at most on home (alex 2026-11-27): today's card and up to two waiting behind it. While two wait, the
@@ -49,13 +56,15 @@ export function stack(k = dayKey()) {
     if (!kd) continue;
     const base = { f, id: c.id, kind: kd.k, label: kd.l, pillar: (deck.card(c.id) || {}).pillar || "" };
     if (kd.k === "date") {
+      if (back === 0) continue;   // on the day it's drawn it's today's card, never a top behind itself (alex 2026-11-27: the card jumped)
       if (c.when && /^\d{4}-\d{2}-\d{2}$/.test(c.when)) {
         const to = diff(k, c.when);   // days until the date
         if (to < -1 || c.when === f) continue;   // gone after the next night; a date on the drawn day is just today's card
         const pk = keyFor(c.when, f);
         if (to === -1 && hasPhoto(pk)) continue;   // the day after: only while there's still no photo
         out.push({ ...base, when: c.when, today: to === 0, pk: to <= 0 ? pk : null, status: to === 0 ? "Today" : to === -1 ? "Yesterday" : shortDate(c.when) });
-      } else if (c.done && c.nodate && back <= UNSET_DAYS) out.push({ ...base, unset: true, status: "Set the date" });
+      // No date yet: "Not set yet", or a card done before dates existed (before 27 Nov 2026), which has neither.
+      } else if (c.done && back <= UNSET_DAYS) out.push({ ...base, unset: true, status: "Set the date" });
     } else if (back >= 1 && back < WEEK) {
       const ticks = c.ticks || [], n = kd.n || 1;
       if (ticks.length >= n && !ticks.includes(k)) continue;   // finished: stays for the rest of the day it was finished

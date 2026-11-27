@@ -1351,3 +1351,5 @@ body.has-pill:not([data-tab="today"]) #home *, .in-flow #home *, .in-settings #h
 .stack-front { position: relative; z-index: 2; }
 .stack-ghost { position: absolute; z-index: 2; margin: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .stack-tops { animation: none; } }
+/* The side-to-side switch carries a card past the screen's edge for a moment: never let the page scroll sideways. */
+.home-mid:has(.stack) { overflow-x: clip; }

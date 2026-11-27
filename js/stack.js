@@ -4,8 +4,8 @@
 // forward), and today's card becomes a top itself. On a planned date that card is in front when the day opens,
 // with a camera in the middle of its foot (alex 2026-11-27: just the camera, no words).
 // Three cards at most (today's and two waiting, later.MAX_WAIT). The tops float too, more gently than the front card,
-// with no glow (alex 2026-11-27). Switching feels like real cards: the tapped card slides out from behind the pile and
-// lands on top while the old front card tucks back into the pile, with no fading.
+// with no glow (alex 2026-11-27). Switching feels like real cards, side to side: the tapped card slides out sideways from
+// behind the pile and sweeps in front while the old front card tucks back into the pile, with no fading.
 import { h, dayKey, addDays, reduceMotion } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
@@ -83,22 +83,24 @@ function swap(pd, wrap) {
   wrap.append(g);
   const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`), sr = slot ? slot.getBoundingClientRect() : pd.from;
   if (slot) slot.style.visibility = "hidden";
-  const D = 760;
-  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top, lift = -48;
-  nf.style.transformOrigin = "50% 0";
+  // Side to side (alex 2026-11-27): the card slides out sideways from behind the pile, then sweeps back in front;
+  // the old front card steps the other way and tucks back into the pile.
+  const D = 820, side = Math.round(nr.width * 0.62);
+  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top;
+  nf.style.transformOrigin = "50% 50%";
   nf.animate([
-    { transform: `translateY(${dy0}px) scale(${s0})`, zIndex: 1, offset: 0 },
-    { transform: `translateY(${dy0 + lift}px) scale(${s0 + 0.03})`, zIndex: 1, offset: 0.42 },
-    { transform: `translateY(${dy0 + lift}px) scale(${s0 + 0.03})`, zIndex: 3, offset: 0.43 },
+    { transform: `translate(0px, ${dy0}px) scale(${s0})`, zIndex: 1, offset: 0 },
+    { transform: `translate(${side}px, ${dy0 * 0.4}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 1, offset: 0.45 },
+    { transform: `translate(${side}px, ${dy0 * 0.4}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 3, offset: 0.46 },
     { transform: "none", zIndex: 3, offset: 1 },
-  ], { duration: D, easing: "cubic-bezier(.35,.1,.25,1)", fill: "backwards" });
+  ], { duration: D, easing: "cubic-bezier(.4,0,.2,1)", fill: "backwards" });
   const gr = g.getBoundingClientRect();
   g.style.transformOrigin = "50% 0";
   g.animate([
     { transform: "none", offset: 0 },
-    { transform: `translateY(${(sr.top - gr.top) * 0.35}px) scale(${1 - (1 - sr.width / gr.width) * 0.5})`, offset: 0.42 },
-    { transform: `translateY(${sr.top - gr.top}px) scale(${sr.width / gr.width})`, offset: 1 },
-  ], { duration: D, easing: "cubic-bezier(.45,0,.3,1)", fill: "forwards" }).finished.then(() => { g.remove(); if (slot) slot.style.visibility = ""; });
+    { transform: `translate(${-Math.round(side * 0.35)}px, 0px) scale(.96) rotate(-2deg)`, offset: 0.45 },
+    { transform: `translate(0px, ${sr.top - gr.top}px) scale(${sr.width / gr.width})`, offset: 1 },
+  ], { duration: D, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished.then(() => { g.remove(); if (slot) slot.style.visibility = ""; });
 }
 
 // A card from the stack in front: the card itself, with its own foot.
