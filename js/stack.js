@@ -49,8 +49,11 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
       // A copy of the front card stays where it is, so it can tuck back into the pile after home redraws.
       const wr = wrap.getBoundingClientRect(), r = cur.getBoundingClientRect(), ghost = cur.cloneNode(true);
       ghost.classList.add("stack-ghost"); ghost.classList.remove("stack-front");
+      ghost.style.animation = "none";   // the copy holds the angle the card had mid-sway, rather than restarting its sway
+      const tilt = getComputedStyle(cur).transform;
       Object.assign(ghost.style, { left: `${r.left - wr.left}px`, top: `${r.top - wr.top}px`, width: `${r.width}px` });
-      pending = { ghost, from: topEl.getBoundingClientRect(), wasTop: wr.top, oldF: f };
+      const tops = {}; wrap.querySelectorAll(".stack-top").forEach((t) => { tops[t.dataset.f] = t.getBoundingClientRect(); });
+      pending = { ghost, from: topEl.getBoundingClientRect(), wasTop: wr.top, oldF: f, tops, tilt: tilt && tilt !== "none" ? tilt : "none" };
     }
     bringForward(to); redraw();
   };
@@ -66,6 +69,7 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const card = it ? planCard(it, { redraw, hide }) : today;
   if (!card) return null;
   card.classList.add("stack-front");
+  topsEl.style.animationDelay = `-${Math.round(performance.now() % 7000)}ms`;   // the tops keep floating in step across a redraw
   wrap.append(shown.length ? topsEl : "", card);
   if (pending) { const pd = pending; pending = null; requestAnimationFrame(() => swap(pd, wrap)); }
   return wrap;
@@ -83,24 +87,50 @@ function swap(pd, wrap) {
   wrap.append(g);
   const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`), sr = slot ? slot.getBoundingClientRect() : pd.from;
   if (slot) slot.style.visibility = "hidden";
-  // Side to side (alex 2026-11-27): the card slides out sideways from behind the pile, then sweeps back in front;
-  // the old front card steps the other way and tucks back into the pile.
-  const D = 820, side = Math.round(nr.width * 0.62);
+  // Side to side (alex 2026-11-27): the card slides out sideways from behind the pile while the old front card steps
+  // the other way, so they part like cards being shuffled; once they're clear the new one is on top and sweeps back to
+  // the middle, and the old one tucks back into the pile. Nothing fades; only the warm light behind a card eases in
+  // and out, so it never vanishes in one frame.
+  const D = 900, w = nr.width;
   const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top;
+  const out = Math.round(w * 0.58), back = -Math.round(w * 0.3), mid = (s0 + 1) / 2;
+  const ease = "cubic-bezier(.45,.05,.25,1)";
   nf.style.transformOrigin = "50% 50%";
+  // Its own sway is timed to be level just as it lands (the sway is level a quarter of the way through its 11s), so
+  // there's no snap when the sway takes over.
+  nf.style.animationDelay = `${D - 2750}ms`;
   nf.animate([
     { transform: `translate(0px, ${dy0}px) scale(${s0})`, zIndex: 1, offset: 0 },
-    { transform: `translate(${side}px, ${dy0 * 0.4}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 1, offset: 0.45 },
-    { transform: `translate(${side}px, ${dy0 * 0.4}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 3, offset: 0.46 },
+    { transform: `translate(${out}px, ${Math.round(dy0 * 0.3)}px) scale(${mid}) rotate(5deg)`, zIndex: 1, offset: 0.5 },
+    { transform: `translate(${out}px, ${Math.round(dy0 * 0.3)}px) scale(${mid}) rotate(5deg)`, zIndex: 3, offset: 0.5 },
     { transform: "none", zIndex: 3, offset: 1 },
-  ], { duration: D, easing: "cubic-bezier(.4,0,.2,1)", fill: "backwards" });
+  ], { duration: D, easing: ease, fill: "backwards" });
+  const nGlow = nf.querySelector(".glow");
+  if (nGlow) nGlow.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: D + 500, easing: "ease-out", fill: "backwards" });
   const gr = g.getBoundingClientRect();
   g.style.transformOrigin = "50% 0";
   g.animate([
-    { transform: "none", offset: 0 },
-    { transform: `translate(${-Math.round(side * 0.35)}px, 0px) scale(.96) rotate(-2deg)`, offset: 0.45 },
-    { transform: `translate(0px, ${sr.top - gr.top}px) scale(${sr.width / gr.width})`, offset: 1 },
-  ], { duration: D, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }).finished.then(() => { g.remove(); if (slot) slot.style.visibility = ""; });
+    { transform: pd.tilt, zIndex: 2, offset: 0 },
+    { transform: `translate(${back}px, 6px) scale(.95) rotate(-3deg)`, zIndex: 2, offset: 0.5 },
+    { transform: `translate(${back}px, 6px) scale(.95) rotate(-3deg)`, zIndex: 1, offset: 0.5 },
+    { transform: `translate(0px, ${sr.top - gr.top}px) scale(${sr.width / gr.width})`, zIndex: 1, offset: 1 },
+  ], { duration: D, easing: ease, fill: "forwards" }).finished.then(() => g.remove());
+  // As the copy tucks in behind the new front card, its top hands over to the real one in the pile: a short blend in
+  // the last part of the move, so the card's big title never snaps into the small top.
+  const hand = { delay: D * 0.62, duration: D * 0.38, easing: "ease-in-out" };
+  g.animate([{ opacity: 1 }, { opacity: 0 }], { ...hand, fill: "forwards" });
+  if (slot) { slot.style.visibility = ""; slot.animate([{ opacity: 0 }, { opacity: 1 }], { ...hand, fill: "backwards" }); }
+  const gGlow = g.querySelector(".glow");
+  if (gGlow) gGlow.animate([{ opacity: getComputedStyle(gGlow).opacity }, { opacity: 0 }], { duration: D * 0.6, easing: "ease-in", fill: "forwards" });
+  // The other tops glide from where they were to their new places, instead of jumping.
+  wrap.querySelectorAll(".stack-top").forEach((t) => {
+    const was = pd.tops && pd.tops[t.dataset.f];
+    if (!was || t === slot) return;
+    const now = t.getBoundingClientRect();
+    if (Math.abs(was.top - now.top) < 1 && Math.abs(was.width - now.width) < 1) return;
+    t.style.transformOrigin = "50% 0";
+    t.animate([{ transform: `translateY(${was.top - now.top}px) scaleX(${was.width / now.width})` }, { transform: "none" }], { duration: D * 0.6, easing: ease, fill: "backwards" });
+  });
 }
 
 // A card from the stack in front: the card itself, with its own foot.
