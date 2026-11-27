@@ -21,6 +21,7 @@ import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
 import * as later from "./later.js";
 import * as stack from "./stack.js";
+import * as plans from "./plans.js";
 import { openLevels, notYet, notYetLabel, ring } from "./path.js";
 import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
@@ -492,6 +493,8 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
 // (Real time, not now(): test mode's time travel shouldn't decide how long someone was away.)
 const AWAY_LONG = 30 * 60e3;
 let awayAt = 0, updateWaiting = false, reloading = false;
+// Shared dates (js/plans.js) came in fresh from the service: home redraws if it isn't in the middle of something.
+plans.onChange(() => booted.then(() => { if (!busy()) render(); }));
 const busy = () => ["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage", "in-settings"].some((x) => document.body.classList.contains(x)) || !!document.querySelector(".sheet-host, .cam, .ph-viewer");
 function freshOpen() {
   if (reloading) return;

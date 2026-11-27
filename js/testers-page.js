@@ -83,6 +83,8 @@ const SHAPE = {
   // Cards that happen later (alex 2026-11-27, js/later.js): days ahead only, never the date.
   plan_date: (v) => isObj(v) && isNum(v.id) && isInt(v.d, -1, 60), week_tick: (v) => isObj(v) && isNum(v.id) && isInt(v.t, 1, 7) && isInt(v.n, 1, 7) && isInt(v.day, 0, 6),
   week_untick: isNum, stack_front: (v) => ["today", "date", "week"].includes(v), plan_photo: (v) => v === "date" || v === "week",
+  plan_invite: (v) => isObj(v) && isNum(v.id) && isInt(v.n, 0, 5) && isInt(v.f, 0, 1), plan_join: (v) => isObj(v) && isInt(v.y, 0, 1) && isInt(v.f, 0, 1),
+  plan_leave: (v) => v == null || v === true || v === 1, plan_off: (v) => v == null || v === true || v === 1,
   card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
   card_felt: (v) => isObj(v) && isNum(v.id) && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)),
   card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
@@ -392,6 +394,16 @@ function drawAll(D) {
         `<p class="note">Week cards: ${wt.length} days ticked, ${fin} finished. Photos on a tick: ${by("plan_photo").filter((e) => e.val === "week").length}. Brought a waiting card to the front: ${by("stack_front").filter((e) => e.val !== "today").length} times.</p>`
       : `<p class="sub">Nobody has drawn a set-a-date or week card yet.</p>`,
       "lots of \"Not set yet\" means people make the plan but don't want to pin it down in the app; few ticks after day one means the week card gets forgotten once it's behind today's card.");
+  }
+  // Shared dates (alex 2026-11-27, js/plans.js): how many friends were invited and how they answered. Never who.
+  {
+    const inv = by("plan_invite"), ans = by("plan_join"), yes = ans.filter((e) => e.val.y === 1);
+    html += sec("Do people share dates with friends?", "A set-a-date card can be shared with up to 5 friends from \"When is it?\". It lands on their home as \"From Mia\" with \"I'm in\" or \"Not this time\". Only how many were invited, never who.",
+      inv.length || ans.length ? bars([["Dates shared", inv.filter((e) => e.val.f === 0).length], ["More friends added later", inv.filter((e) => e.val.f === 1).length], ["Said I'm in", yes.length], ["Said Not this time", ans.length - yes.length],
+        ["Answered from the bell page", ans.filter((e) => e.val.f === 1).length], ["Couldn't make it after all", by("plan_leave").length], ["Called off", by("plan_off").length]]) +
+        (inv.length ? `<p class="note">Friends invited each time: ${(inv.reduce((a, e) => a + e.val.n, 0) / inv.length).toFixed(1)} on average</p>` : "")
+      : `<p class="sub">Nobody has shared a date yet.</p>`,
+      "lots of \"Not this time\" means invites feel like pressure; lots shared but few answered means the invite gets lost behind today's card.");
   }
   // Not for me (alex 2026-11-25): beside Draw again. Card numbers and which reason only.
   {
