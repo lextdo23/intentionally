@@ -55,7 +55,8 @@ export function stack(k = dayKey()) {
         const pk = keyFor(c.when, f);
         if (to === -1 && hasPhoto(pk)) continue;   // the day after: only while there's still no photo
         out.push({ ...base, when: c.when, today: to === 0, pk: to <= 0 ? pk : null, status: to === 0 ? "Today" : to === -1 ? "Yesterday" : shortDate(c.when) });
-      } else if (c.done && c.nodate && back <= UNSET_DAYS) out.push({ ...base, unset: true, status: "Set the date" });
+      // No date yet: "Not set yet", or a card done before dates existed (before 27 Nov 2026), which has neither.
+      } else if (c.done && (c.nodate || back >= 1) && back <= UNSET_DAYS) out.push({ ...base, unset: true, status: "Set the date" });
     } else if (back >= 1 && back < WEEK) {
       const ticks = c.ticks || [], n = kd.n || 1;
       if (ticks.length >= n && !ticks.includes(k)) continue;   // finished: stays for the rest of the day it was finished
