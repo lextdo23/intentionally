@@ -1000,7 +1000,8 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
    then its middle fills with a small bounce. Taking it back: the moon slides over and the marigold fades to white,
    ray by ray, the other way round. No ring. Nothing moves with reduce motion. */
 .mo-see svg { overflow: visible; }
-.mo-see svg, .see-core, .see-ray { transform-origin: 12px 12px; }
+.mo-see svg { transform-origin: center; }
+.see-core, .see-ray { transform-origin: 12px 12px; }
 .see-moon { fill: #0a0a0b; stroke: none; opacity: 0; }
 .mo-see[aria-pressed="true"] .see-core { fill: var(--sun); }
 .mo-see.see-on .see-moon { animation: moon-off .52s cubic-bezier(.5, 0, .2, 1); }
@@ -1044,7 +1045,9 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-seen-who b { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-seen-who span { color: var(--dim); }
 .mo-dimtext { color: var(--dim); font-weight: 400; }
-.mo-seers { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; color: var(--dim); min-width: 0; text-align: left; }
+/* Who said it: its own line under the sun and bubble, body-sized (alex 2026-11-27) */
+.mo-seers { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 21px; margin-top: -6px; font-size: 15px; line-height: 1.4; color: var(--ink2); min-width: 0; text-align: left; }
+.mo-seers b { font-weight: 600; color: var(--ink); }
 .mo-seers > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-faces { display: flex; }
 .mo-faces .pic { box-shadow: 0 0 0 2px var(--sky2); }
@@ -1055,13 +1058,17 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-end { margin: 8px 0 0; text-align: center; font-size: 15px; color: var(--dim); }
 /* Comments (alex 2026-11-26): a speech bubble beside "I see you", the latest comment under a post, and the Comments page */
 .mo-acts-l { display: flex; align-items: center; gap: 4px; flex: none; }
-.mo-acts-l > :first-child { margin-left: -10px; }
-.mo-acts-l .mo-talk { margin-left: -8px; }   /* the sun and the bubble sit close together (alex 2026-11-27) */
+.mo-acts-l > :first-child { margin-left: -7px; }
+.mo-acts-l .mo-talk { margin-left: -4px; }   /* the sun and the bubble sit close together (alex 2026-11-27) */
+/* Instagram-sized (alex 2026-11-27): the sun 30 and the bubble 27, so they read as the same size */
+.mo-acts .mo-see svg { width: 30px; height: 30px; }
+.mo-talk svg { width: 27px; height: 27px; }
 .mo-talk { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--ink); }
-.cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: -4px; }
-.cm-last { display: block; width: 100%; padding: 2px 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Even spacing (alex 2026-11-27): Seen by, caption, View comments, the comment, all 10 apart like the post's own gap */
+.cm-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.cm-last { display: block; width: 100%; padding: 0; text-align: left; font-size: 15px; line-height: 1.4; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cm-last b { color: var(--ink); font-weight: 600; }
-.cm-all { min-height: 32px; padding: 0; font-size: 15px; color: var(--dim); }
+.cm-all { padding: 0; font-size: 15px; line-height: 1.4; color: var(--dim); text-align: left; }
 /* The comments sheet: slides up over the feed, the list scrolls inside, the box sits at the bottom (lifted above the keyboard) */
 .sheet.cm-sheet { height: 60%; max-height: 60%; overflow: hidden; gap: 0; padding-bottom: 0; transition: height .25s ease; }
 .sheet.cm-sheet.kb { height: auto; max-height: calc(100% - var(--top)); }
