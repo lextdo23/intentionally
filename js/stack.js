@@ -16,7 +16,7 @@ import { openSheet } from "./ui.js";
 import { log } from "./tester.js";
 
 const MAX_TOPS = 2;
-let front = { day: "", f: null, picked: false }, pending = null;
+let front = { day: "", f: null, picked: false, prev: undefined }, pending = null;
 
 // Which card is in front on day k: one picked by tapping, else a date that's today, else today's card.
 export function frontOf(items, k = dayKey()) {
@@ -25,7 +25,9 @@ export function frontOf(items, k = dayKey()) {
   const t = items.find((x) => x.today);
   return t ? t.f : null;
 }
-export function bringForward(f) { front = { day: dayKey(), f, picked: true }; }
+// prev: the card that was in front before, so it sits right behind the new front card (a card you push back goes
+// just behind the one you pulled forward, not to the back of the pile).
+export function bringForward(f, prev) { front = { day: dayKey(), f, picked: true, prev }; }
 
 const dots = (it) => h("span.st-dots", { "aria-hidden": "true" }, Array.from({ length: it.n }, (_, i) => h(`i${i < it.ticks.length ? ".on" : ""}`)));
 const dot = (pillar) => h("i.st-pil", { style: { background: deck.PILLAR_COL[pillar] || "#a9a59d" }, "aria-hidden": "true" });
@@ -39,6 +41,8 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const tops = [];
   if (f !== null && today) tops.push({ f: null, label: "Today's card", pillar: todayCard ? (deck.card(todayCard.id) || {}).pillar : "", el: h("span.st-status", null, todayCard && (todayCard.done || todayCard.how >= 1) ? "Done" : "To do") });
   items.filter((x) => x.f !== f).forEach((x) => tops.push({ ...x, el: statusOf(x) }));
+  const pi = front.prev === undefined ? -1 : tops.findIndex((t) => t.f === front.prev);
+  if (pi > 0) tops.unshift(tops.splice(pi, 1)[0]);
   const shown = tops.slice(0, MAX_TOPS);
   const wrap = h("div.stack");
   const go = (to, topEl) => {
@@ -55,7 +59,7 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
       const tops = {}; wrap.querySelectorAll(".stack-top").forEach((t) => { tops[t.dataset.f] = t.getBoundingClientRect(); });
       pending = { ghost, from: topEl.getBoundingClientRect(), wasTop: wr.top, oldF: f, tops, tilt: tilt && tilt !== "none" ? tilt : "none" };
     }
-    bringForward(to); redraw();
+    bringForward(to, f); redraw();
   };
   // Nearest the card is widest; each one further back is a little narrower, like cards in a pile.
   const topsEl = h("div.stack-tops", null, shown.slice().reverse().map((t, i, arr) => {
@@ -109,11 +113,12 @@ function swap(pd, wrap) {
   if (nGlow) nGlow.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: D + 500, easing: "ease-out", fill: "backwards" });
   const gr = g.getBoundingClientRect();
   g.style.transformOrigin = "50% 50%";
+  const lvl = Math.round(nr.top - gr.top + 8);   // level with (just below) the new front card, so it never peeks over its top
   // The old card steps aside, then slides in behind the new front card and stays hidden there: no fade.
   g.animate([
     { transform: pd.tilt, zIndex: 2, offset: 0 },
-    { transform: `translate(${back}px, 6px) scale(.95) rotate(-3deg)`, zIndex: 2, offset: 0.5 },
-    { transform: `translate(${back}px, 6px) scale(.95) rotate(-3deg)`, zIndex: 1, offset: 0.5 },
+    { transform: `translate(${back}px, ${lvl}px) scale(.95) rotate(-3deg)`, zIndex: 2, offset: 0.5 },
+    { transform: `translate(${back}px, ${lvl}px) scale(.95) rotate(-3deg)`, zIndex: 1, offset: 0.5 },
     { transform: `translate(${Math.round(nr.left - gr.left)}px, ${Math.round(nr.top - gr.top + 10)}px) scale(.94)`, zIndex: 1, offset: 1 },
   ], { duration: D, easing: ease, fill: "forwards" }).finished.then(() => g.remove());
   // Then its top edge rises from behind the front card into its place in the pile, like a real card peeking out.
@@ -122,10 +127,10 @@ function swap(pd, wrap) {
     const hide = Math.round(nr.top - sr.top + 6);
     slot.animate([
       { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0 },
-      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0.72 },
-      { transform: `translateY(${hide}px)`, visibility: "visible", offset: 0.72 },
+      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0.8 },
+      { transform: `translateY(${hide}px)`, visibility: "visible", offset: 0.8 },
       { transform: "none", visibility: "visible", offset: 1 },
-    ], { duration: D + 250, easing: "cubic-bezier(.3,0,.2,1)", fill: "backwards" });
+    ], { duration: D + 150, easing: "cubic-bezier(.2,0,.1,1)", fill: "backwards" });
   }
   const gGlow = g.querySelector(".glow");
   if (gGlow) gGlow.animate([{ opacity: getComputedStyle(gGlow).opacity }, { opacity: 0 }], { duration: D * 0.6, easing: "ease-in", fill: "forwards" });
