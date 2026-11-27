@@ -34,9 +34,20 @@ const tx = async (mode, fn) => { const d = await db(); return new Promise((res, 
 const urls = new Map();   // day -> { thumb, full } object URLs, made once
 function forget(k) { const u = urls.get(k); if (u) { u.thumb && URL.revokeObjectURL(u.thumb); u.full && URL.revokeObjectURL(u.full); urls.delete(k); } }
 
-export const has = (k) => !!((store.get().days[k] || {}).ph);
-// Every day with a photo, newest first.
-export const keys = () => Object.keys(store.get().days).filter((k) => store.get().days[k].ph).sort().reverse();
+// A photo's key is its day ("2026-12-05"), or, for a second photo on a day, the day and the day of the card it
+// belongs to ("2026-12-05~2026-11-27": the photo on the planned date, or of a week card's tick; alex 2026-11-27,
+// js/later.js). The day's own photo note is d.ph; a second photo's note is d.xph[<card's day>].
+export const dayOf = (pk) => String(pk).slice(0, 10);
+const fromOf = (pk) => String(pk).split("~")[1] || null;
+export const keyFor = (k, from) => (from && from !== k ? `${k}~${from}` : k);
+export function note(pk) { const d = store.get().days[dayOf(pk)]; if (!d) return null; const f = fromOf(pk); return f ? (d.xph && d.xph[f]) || null : d.ph || null; }
+export const has = (pk) => !!note(pk);
+// Every photo, newest first: each day's own, then any second photo on it.
+export const keys = () => {
+  const days = store.get().days, out = [];
+  for (const k of Object.keys(days)) { const d = days[k]; if (d.ph) out.push(k); if (d.xph) Object.keys(d.xph).forEach((f) => out.push(`${k}~${f}`)); }
+  return out.sort().reverse();
+};
 
 // Photo backup (js/photo-backup.js) plugs in here: told when a photo is saved or removed, and asked for a backed-up
 // picture this phone doesn't have yet (a new phone). Kept loose so this file works without it.
@@ -70,7 +81,7 @@ export async function url(k, size = "thumb") {
   if (c[size]) return c[size];
   try {
     let rec = await tx("readonly", (s) => s.get(k));
-    if (!rec && store.get().days[k].ph.b && await fromBackup(k)) rec = await tx("readonly", (s) => s.get(k));
+    if (!rec && (note(k) || {}).b && await fromBackup(k)) rec = await tx("readonly", (s) => s.get(k));
     if (!rec || !rec[size]) return null;
     c[size] = URL.createObjectURL(rec[size]); urls.set(k, c);
     return c[size];
@@ -127,8 +138,9 @@ export async function save(k, canvas, { src = "cam", words = true } = {}) {
   const thumb = await blob(small, 0.78);
   await tx("readwrite", (s) => s.put({ full, thumb }, k));
   forget(k);
-  const d = store.day(k), had = !!d.ph;
-  d.ph = { w: words ? 1 : 0 };   // not backed up yet (no b): photo backup sends it, then marks it
+  const d = store.day(dayOf(k)), f = fromOf(k), had = !!note(k);
+  if (f) (d.xph = d.xph || {})[f] = { w: words ? 1 : 0 };
+  else d.ph = { w: words ? 1 : 0 };   // not backed up yet (no b): photo backup sends it, then marks it
   store.save();
   log(had ? "photo_change" : "photo_add", src);
   hooks.saved(k);
@@ -138,12 +150,13 @@ export async function save(k, canvas, { src = "cam", words = true } = {}) {
 export async function remove(k) {
   try { await tx("readwrite", (s) => s.delete(k)); } catch { /* already gone */ }
   forget(k);
-  const d = store.get().days[k], was = d && d.ph && d.ph.b;
-  if (d) { delete d.ph; store.save(); }
+  const d = store.get().days[dayOf(k)], n = note(k), was = n && n.b, f = fromOf(k);
+  if (d && f && d.xph) { delete d.xph[f]; if (!Object.keys(d.xph).length) delete d.xph; store.save(); }
+  else if (d && !f) { delete d.ph; store.save(); }
   log("photo_remove");
   hooks.removed(k, !!was);
 }
-export function setWords(k, on) { const d = store.get().days[k]; if (d && d.ph) { d.ph.w = on ? 1 : 0; store.save(); log("photo_words", on ? "on" : "off"); } }
+export function setWords(k, on) { const n = note(k); if (n) { n.w = on ? 1 : 0; store.save(); log("photo_words", on ? "on" : "off"); } }
 // "Delete everything": the whole picture store goes.
 export async function wipe() {
   urls.forEach((_, k) => forget(k));
@@ -177,7 +190,7 @@ function keep() {
 export async function files() {
   const out = [];
   for (const k of keys()) {
-    try { const rec = await tx("readonly", (s) => s.get(k)); const pic = rec && rec.full && await clean(rec.full); if (pic) out.push(new File([pic], `Daydeck ${k}.jpg`, { type: "image/jpeg" })); } catch { /* skip */ }
+    try { const rec = await tx("readonly", (s) => s.get(k)); const pic = rec && rec.full && await clean(rec.full); if (pic) out.push(new File([pic], `Daydeck ${k.replace("~", " for ")}.jpg`, { type: "image/jpeg" })); } catch { /* skip */ }
   }
   return out;
 }
@@ -199,7 +212,7 @@ const fromText = (t) => { const bin = atob(t.slice(JPEG.length)), a = new Uint8A
 export async function load(all) {
   let n = 0;
   for (const [k, rec] of Object.entries(all && typeof all === "object" ? all : {})) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !rec || typeof rec.full !== "string" || !rec.full.startsWith(JPEG)) continue;
+    if (!/^\d{4}-\d{2}-\d{2}(~\d{4}-\d{2}-\d{2})?$/.test(k) || !rec || typeof rec.full !== "string" || !rec.full.startsWith(JPEG)) continue;
     try {
       const full = await clean(fromText(rec.full));
       if (!full) continue;
@@ -213,7 +226,7 @@ export async function load(all) {
 
 async function shareOne(k) {
   try {
-    const rec = await tx("readonly", (s) => s.get(k)), f = new File([await clean(rec.full)], `Daydeck ${k}.jpg`, { type: "image/jpeg" });
+    const rec = await tx("readonly", (s) => s.get(k)), f = new File([await clean(rec.full)], `Daydeck ${k.replace("~", " for ")}.jpg`, { type: "image/jpeg" });
     log("photo_share");
     if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f] });
     else { const a = h("a", { href: URL.createObjectURL(f), download: f.name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
@@ -221,11 +234,12 @@ async function shareOne(k) {
 }
 
 // ---------------- Showing them ----------------
-const shortDay = (k) => { const d = keyDate(k); return `${DAY_NAME[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTH[d.getMonth()]}`; };
-const longDay = (k) => { const d = keyDate(k); return `${DAY_NAME[d.getDay()]} ${d.getDate()} ${MONTH_LONG[d.getMonth()]}`; };
+const shortDay = (k) => { const d = keyDate(dayOf(k)); return `${DAY_NAME[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTH[d.getMonth()]}`; };
+const longDay = (k) => { const d = keyDate(dayOf(k)); return `${DAY_NAME[d.getDay()]} ${d.getDate()} ${MONTH_LONG[d.getMonth()]}`; };
 const MONTH_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const dayWord = (m) => `${/^[AEIOU]/.test(MOODS[m]) ? "An" : "A"} ${MOODS[m].toLowerCase()} day`;
-const cardOf = (k) => { const d = store.get().days[k] || {}; return d.card && d.card.id ? deck.card(d.card.id) : null; };
+// A second photo shows the card it belongs to (from the day that card was drawn).
+const cardOf = (k) => { const d = store.get().days[fromOf(k) || dayOf(k)] || {}; return d.card && d.card.id ? deck.card(d.card.id) : null; };
 
 // The card's words as a layer over a photo: pillar and date, then the task. Never part of the picture itself.
 export function words(k) {
@@ -240,7 +254,7 @@ export function words(k) {
 export function fillBack(back, k, { develop = false } = {}) {
   back.classList.add("ph-back");
   const pic = img(k, "full", { class: develop && !reduceMotion() ? "develop" : "" });
-  back.replaceChildren(pic, (store.get().days[k].ph || {}).w ? words(k) || "" : "");
+  back.replaceChildren(pic, (note(k) || {}).w ? words(k) || "" : "");
 }
 
 // ---------------- Your photos: a page from home, zoomed by Week, Month or Year like Apple Photos ----------------
@@ -293,7 +307,7 @@ function setView(v, how, toMonth) {
   log("photos_view", { v, how });
   draw(toMonth);
 }
-const weekStart = (k) => addDays(k, -((keyDate(k).getDay() + 6) % 7));
+const weekStart = (k) => { k = dayOf(k); return addDays(k, -((keyDate(k).getDay() + 6) % 7)); };
 function weekLabel(w) {
   const now = weekStart(dayKey());
   if (w === now) return ["This week", ""];
@@ -330,7 +344,7 @@ function tile(k, list, label) {
   const c = cardOf(k);
   const b = h("button.ph-tile", { "aria-label": `${longDay(k)}${c ? `, ${c.pillar}` : ""}. Open the photo.`, onclick: () => openViewer(k, list, () => draw()) },
     h("span.ph-frame", null, img(k, "thumb", { loading: "lazy" })));
-  if (label) b.append(h("span.ph-day", null, h("i", { style: { background: c ? deck.PILLAR_COL[c.pillar] || "#a9a59d" : "transparent" } }), DAY_NAME[keyDate(k).getDay()].slice(0, 3)));
+  if (label) b.append(h("span.ph-day", null, h("i", { style: { background: c ? deck.PILLAR_COL[c.pillar] || "#a9a59d" : "transparent" } }), DAY_NAME[keyDate(dayOf(k)).getDay()].slice(0, 3)));
   return b;
 }
 
@@ -347,7 +361,7 @@ export function openViewer(k, list = keys(), changed) {
   host.append(pic, h("div.ph-top", null, x, h("div", { style: { display: "flex", gap: "8px" } }, share, more)), bar);
   const setOpen = (v) => { open = v; host.classList.toggle("open", v); bar.setAttribute("aria-expanded", String(v)); if (v) log("photo_info"); };
   function show() {
-    const k2 = list[i], d = store.get().days[k2] || {}, c = cardOf(k2);
+    const k2 = list[i], d = store.get().days[dayOf(k2)] || {}, c = cardOf(k2);
     pic.replaceChildren(img(k2, "full", { alt: c ? `Photo for ${c.text}` : "Photo" }));
     const rows = [];
     if (c) rows.push(h("div.ph-row.cd", null, h("span.ph-lab", null, h("i", { style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } }), `Your card · ${c.pillar}`), h("span.ph-val", null, c.text)));
@@ -386,8 +400,8 @@ export function openViewer(k, list = keys(), changed) {
         list.splice(i, 1); if (!list.length) return close();
         i = Math.min(i, list.length - 1); show();
       } }, "Remove photo");
-      const d = store.get().days[k2] || {};
-      const sw = h("button.switch", { role: "switch", "aria-checked": String(!!(d.ph && d.ph.w)), "aria-label": "Card words on the card" });
+      const n = note(k2) || {};
+      const sw = h("button.switch", { role: "switch", "aria-checked": String(!!n.w), "aria-label": "Card words on the card" });
       const wrow = h("button.set-row.set-toggle", { style: { borderRadius: "16px", background: "var(--fill2)" }, onclick: () => { const on = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(on)); setWords(k2, on); } }, h("span.set-label", null, "Card words on the card"), sw);
       panel.append(h("h2", null, longDay(k2)), wrow,
         h("button.btn-soft", { style: { minHeight: "52px" }, onclick: () => { closeS("change"); setTimeout(() => import("./camera.js").then((m) => m.openCamera(k2, { onSaved: () => show() })), 300); } }, "Change photo"),

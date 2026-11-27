@@ -19,6 +19,8 @@ import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
+import * as later from "./later.js";
+import * as stack from "./stack.js";
 import { openLevels, notYet, notYetLabel, ring } from "./path.js";
 import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
@@ -246,6 +248,7 @@ function render(moment) {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
     log("card_did", deck.tid(c.id)); notify.sync();
+    if (later.isWeek(c.id)) later.tick(k, k);   // a week card: today is its first day ticked (js/later.js)
     askFelt(card, c.id, { mid, hide: main,
       onPick: (list) => {
         const dd = store.day(k);
@@ -261,11 +264,12 @@ function render(moment) {
       // As the card lands (alex 2026-11-26): "Add a photo" and "Not done yet" fade in under it, in the space kept for
       // them, so the redraw that follows changes nothing you can see.
       onLand: () => { if (slotEl) slotEl.replaceChildren(...doneSlot()); },
-      onEnd: () => { turnPh = true; slotStill = true; render(); } });   // the level row is already back (it came back as the card landed)
+      onEnd: () => { turnPh = true; slotStill = true; render(); if (later.isDate(c.id)) stack.whenSheet(k, () => render(), "home"); } });   // the level row is already back (it came back as the card landed); a set-a-date card then asks "When is it?"
   };
   const undo = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     if (d.card.how != null) deck.unWent(c.id, d.card.how);
+    if (later.isWeek(c.id)) later.untick(k, k);
     d.card.done = false; delete d.card.how; delete d.card.felt; d.pil = (d.pil || []).filter((x) => x !== p || deck.madePil(d).includes(x)); store.save();
     log("card_undo", deck.tid(c.id)); notify.sync(); render();
   };
@@ -320,7 +324,12 @@ function render(moment) {
   }
   const still = slotStill; slotStill = false;
   const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null) : shareLink ? h("div.undo-slot", null, shareLink) : null;
-  const mid = h("div.home-mid", null, card, slotEl);
+  // Cards that happen later wait in a stack behind today's card (js/stack.js, alex 2026-11-27); tapping one brings it
+  // to the front. The space under the card ("Add a photo", "Not done yet") belongs to today's card only.
+  const waiting = later.stack(k);
+  const frontF = waiting.length ? stack.frontOf(waiting, k) : null;
+  const area = waiting.length ? stack.stackEl({ items: waiting, today: card, todayCard: c, k, redraw: () => render(), hide: main }) : card;
+  const mid = h("div.home-mid", null, area, frontF === null && card ? slotEl : null);
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
   // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
   const friendsOpen = testOn || levels.isOpen("friends");

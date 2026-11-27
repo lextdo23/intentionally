@@ -4,6 +4,7 @@
 import * as store from "./store.js";
 import { dayKey, keyDate, addDays } from "./util.js";
 import { card as cardOf, dayOfUse } from "./deck.js";
+import * as later from "./later.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const DAY = 864e5;
@@ -101,6 +102,15 @@ export function windTimes(s = store.get(), at = Date.now()) {
 // will really be there (from day 7 of use, like js/wrapped.js readyWeek). Always on, with no switch (alex 2026-11-26):
 // everyone whose phone allows notifications gets them, nudges on or off. When it lands on the same minute as the usual nudge, the service sends one ping and it gets these words.
 // evenIfDone keeps the ones no longer needed (marked done) so a ping already on its way stays quiet.
+// A planned date's morning (alex 2026-11-27, js/later.js): "Date night is today", under Card reminders, at the morning
+// nudge time (8am if mornings are off). With mornings on it lands on the same minute as that nudge, so it replaces it.
+export function dateTimes(s = store.get(), at = Date.now()) {
+  const n = prefs();
+  if (!n.card.on) return [];
+  const [hh, mm] = (n.am.on ? n.am.t : "08:00").split(":").map(Number);
+  return later.dateDays(dayKey(at)).map(({ k, l }) => { const x = keyDate(k); x.setHours(hh, mm, 0, 0); return { t: x.getTime(), l }; })
+    .filter((x) => x.t > at - 20 * 60e3).slice(0, 2);
+}
 export function recapTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
   const n = prefs();
   if (!s.started) return [];
@@ -125,6 +135,7 @@ async function keepCardPlan(s) {
     await (await caches.open("nudge-plan")).put("card", new Response(JSON.stringify({ at, task: at.length && c ? c.text : "", done: !!(d.card && d.card.done) })));
     await (await caches.open("nudge-plan")).put("wind", new Response(JSON.stringify({ at: windTimes(s) })));
     await (await caches.open("nudge-plan")).put("recap", new Response(JSON.stringify({ at: recapTimes(s, Date.now(), true) })));
+    await (await caches.open("nudge-plan")).put("dates", new Response(JSON.stringify({ at: dateTimes(s) })));
   } catch { /* no copy: a ping then gets the morning or evening words */ }
 }
 
@@ -147,7 +158,7 @@ export async function sync() {
       if (first) { sent = ""; allowed.forEach((f) => f()); }
     }
     // The service takes four one-off times at most: the weekly recap first, then card reminders, then wind-down.
-    const once = recapTimes().map((x) => x.t).concat(cardTimes(), windTimes()).slice(0, 4);
+    const once = recapTimes().map((x) => x.t).concat(n.am.on ? [] : dateTimes().map((x) => x.t), cardTimes(), windTimes()).slice(0, 4);
     await keepCardPlan(store.get());
     const sig = sub.endpoint + times.join(",") + "|" + once.join(",");
     if (sig === sent) return;

@@ -38,6 +38,13 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   let r = await call("POST", "/a/p/" + day(0), jpeg(), mia, "image/jpeg");
   check(r.ok && r.v > 0 && bucket.size === 1, "Mia backs up today's photo");
   const key = [...bucket.keys()][0];
+  // A second photo on a day (alex 2026-11-27, js/later.js): <day>~<card's day>, kept, read and deleted the same way.
+  { const pk = day(0) + "~" + day(3), n0 = bucket.size;
+    const r2 = await call("POST", "/a/p/" + pk, jpeg(9), mia, "image/jpeg");
+    check(r2.ok && bucket.size === n0 + 1 && [...bucket.keys()].some((x) => x.endsWith("/" + pk + ".jpg")), "a second photo on a day backs up under its own name");
+    check((await call("GET", "/a/p/" + pk, null, mia)).status === 200 && (await call("GET", "/a/p/" + pk, null, sam)).status === 404, "only its owner can get it back");
+    check((await call("POST", "/a/p/" + day(0) + "~junk", jpeg(), mia, "image/jpeg")).status === 404, "any other name after the day is refused");
+    check((await call("POST", "/a/p/del/" + pk, "{}", mia)).ok && bucket.size === n0, "and it can be deleted on its own"); }
   check(/^u\/[A-Za-z0-9_-]+\/\d{4}-\d{2}-\d{2}\.jpg$/.test(key) && !key.includes("mia"), "it's stored under her account's private code, not her name");
   check((await call("POST", "/a/p/" + day(1), jpeg(7, [0xff, 0xe1, 0, 12, 69, 120, 105, 102, 0, 0, 1, 2, 3, 4]), mia, "image/jpeg")).error === "bad_photo", "a photo still carrying details (location, time, camera) is refused");
   check((await call("POST", "/a/p/" + day(1), new TextEncoder().encode("<script>alert(1)</script>".repeat(10)), mia, "image/jpeg")).error === "bad_photo", "anything that isn't a picture is refused");

@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
   max = max || Math.max(1, ...rows.map((r) => r[1]));
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
-const GROUP = { "Which cards are \"Not for me\"?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
+const GROUP = { "Which cards are \"Not for me\"?": "cards", "Do dates and week cards get used?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do people comment?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 // The Usage tab (alex 2026-11-26, js/testers-usage.js): its sections all sit on that tab.
@@ -80,6 +80,9 @@ const SHAPE = {
   profile: (v) => isObj(v) && isInt(v.name, 0, 1) && isInt(v.season, 0, 1),
   card_draw: arrOrNone, card_redraw: arrOrNone, helps_seen: arrOrNone, pick_pillars: arrOrNone,
   card_keep: (v) => isObj(v) && isNum(v.id), card_did: isNum,
+  // Cards that happen later (alex 2026-11-27, js/later.js): days ahead only, never the date.
+  plan_date: (v) => isObj(v) && isNum(v.id) && isInt(v.d, -1, 60), week_tick: (v) => isObj(v) && isNum(v.id) && isInt(v.t, 1, 7) && isInt(v.n, 1, 7) && isInt(v.day, 0, 6),
+  week_untick: isNum, stack_front: (v) => ["today", "date", "week"].includes(v), plan_photo: (v) => v === "date" || v === "week",
   card_how: (v) => isObj(v) && isNum(v.id) && isInt(v.how, 0, 4),
   card_felt: (v) => isObj(v) && isNum(v.id) && isArr(v.f) && v.f.every((i) => isInt(i, 0, 9)),
   card_thumb: (v) => isObj(v) && isNum(v.id) && isNum(v.v) && arrOrNone(v.m),
@@ -378,6 +381,18 @@ function drawAll(D) {
       "if the second reminder gets done more often than the first, lunch may be too early; if few cards get done after either, the reminder words or times need a rethink.");
   }
 
+  // Dates and week cards (alex 2026-11-27, js/later.js): days ahead only, ticks, and the stack.
+  {
+    const pd = by("plan_date"), wt = by("week_tick"), set = pd.filter((e) => e.val.d >= 0);
+    const ahead = [["The same week", 0, 7], ["1 to 2 weeks", 7, 15], ["2 to 4 weeks", 15, 29], ["Further", 29, 61]];
+    const fin = wt.filter((e) => e.val.t >= e.val.n).length;
+    html += sec("Do dates and week cards get used?", "Set-a-date cards ask \"When is it?\" after \"I did it\", then wait behind today's card until the date, when they come to the front for a photo. Week cards run 7 days and tick a day at a time. Only how many days ahead, never the date.",
+      pd.length || wt.length ? bars([["Set a date", set.length], ["Chose \"Not set yet\"", pd.length - set.length], ["Set it later from Your days", pd.filter((e) => e.val.f === 1).length], ["Photos on a date", by("plan_photo").filter((e) => e.val === "date").length]]) +
+        (set.length ? `<p class="note">How far ahead</p>` + bars(ahead.map(([l, a, b]) => [l, set.filter((e) => e.val.d >= a && e.val.d < b).length]), set.length) : "") +
+        `<p class="note">Week cards: ${wt.length} days ticked, ${fin} finished. Photos on a tick: ${by("plan_photo").filter((e) => e.val === "week").length}. Brought a waiting card to the front: ${by("stack_front").filter((e) => e.val !== "today").length} times.</p>`
+      : `<p class="sub">Nobody has drawn a set-a-date or week card yet.</p>`,
+      "lots of \"Not set yet\" means people make the plan but don't want to pin it down in the app; few ticks after day one means the week card gets forgotten once it's behind today's card.");
+  }
   // Not for me (alex 2026-11-25): beside Draw again. Card numbers and which reason only.
   {
     const NFM = ["It doesn't fit my life", "I can't do this one", "I already do this", "Not where I'm at right now"];

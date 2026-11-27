@@ -24,7 +24,7 @@ import { log } from "./tester.js";
 const META = "daydeck-sync";
 const SKIP = new Set(["tester", "test", "notify", "ph", "v"]);       // this phone only
 const LIB_LOCAL = ["list", "at", "status", "pending"];              // the card library's caches and queue
-const DAY_LOCAL = ["ph"];                                            // a photo's note travels only once it's backed up (ph.b)
+const DAY_LOCAL = ["ph", "xph"];   // xph: second photos on a day (alex 2026-11-27), same rule as ph                                            // a photo's note travels only once it's backed up (ph.b)
 const GONE_KEEP = 90 * 864e5;
 const DAY_ID = /^d:\d{4}-\d{2}-\d{2}$/, KEY_ID = /^k:[a-zA-Z]{1,30}$/;
 
@@ -50,6 +50,8 @@ function pieces() {
   for (const [k, d] of Object.entries(s.days || {})) if (DAY_ID.test("d:" + k)) {
     const p = strip(d, DAY_LOCAL);
     if (d.ph && d.ph.b) p.ph = { b: 1, v: d.ph.v || 0, w: d.ph.w ? 1 : 0 };
+    const x = Object.entries(d.xph || {}).filter(([, n]) => n && n.b);
+    if (x.length) p.xph = Object.fromEntries(x.map(([f, n]) => [f, { b: 1, v: n.v || 0, w: n.w ? 1 : 0 }]));
     out["d:" + k] = p;
   }
   for (const [k, v] of Object.entries(s)) {
@@ -64,10 +66,19 @@ function put(id, v) {
   const s = store.get(), k = id.slice(2);
   if (id.startsWith("d:")) {
     if (v === undefined) { delete s.days[k]; return; }
-    const d = s.days[k] || (s.days[k] = {}), mine = d.ph, theirs = v && v.ph;
+    const d = s.days[k] || (s.days[k] = {}), mine = d.ph, theirs = v && v.ph, mineX = d.xph || {}, theirsX = (v && v.xph) || {};
     Object.keys(d).forEach((x) => delete d[x]);
     Object.assign(d, v);
-    delete d.ph;
+    delete d.ph; delete d.xph;
+    // Second photos on the day follow the same rule, one by one.
+    const xph = {};
+    for (const f of new Set([...Object.keys(mineX), ...Object.keys(theirsX)])) {
+      const a = mineX[f], b = theirsX[f], pk = `${k}~${f}`;
+      if (a && !a.b) xph[f] = a;
+      else if (b && b.b) { xph[f] = { ...b }; if (a && (a.v || 0) < (b.v || 0)) photoGone(pk); }
+      else if (a && a.b && !b) photoGone(pk);
+    }
+    if (Object.keys(xph).length) d.xph = xph;
     // The photo note: a photo only on this phone stays; a backed-up one follows the backup (newer replaces older;
     // removed elsewhere is removed here). photos.js is told, so it can drop a picture it no longer needs.
     if (mine && !mine.b) d.ph = mine;

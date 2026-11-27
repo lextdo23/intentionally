@@ -345,13 +345,13 @@ export function howStep(id, ans, back, done, label, { did = false, extra = null,
 // "skip" (the day ended without it: back in the deck, no guilt). flip = it was just done, so the tick fills in now.
 let timers = [];
 const T0 = performance.now();
-const tickEl = (c) => h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
+export const tickEl = (c) => h("span.tick-done", { "aria-hidden": "true", style: { background: deck.PILLAR_COL[c.pillar] || "#a9a59d" } },
   h("svg", { width: "11", height: "11", viewBox: "0 0 24 24", fill: "none", stroke: "#1d1e22", "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round" }, h("path", { d: "M5 12.5l4.5 4.5L19 7.5" })));
 // What they said doing it felt like, in gold where the size was: the first one, then "+2" for more.
 // The small camera on today's card, while you're doing it. Shows the photo once there is one.
 const CAM = () => h("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.1", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
   h("path", { d: "M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" }), h("circle", { cx: "12", cy: "12.5", r: "3.2" }));
-function camBtn(k, onCam) {
+export function camBtn(k, onCam) {
   const has = k && photos.has(k);
   const b = h("button.card-cam", { type: "button", "aria-label": has ? "Your photo for today. Change it." : "Take a photo" }, has ? photos.img(k, "thumb") : CAM());
   const stop = (e) => e.stopPropagation();
@@ -362,7 +362,9 @@ function camBtn(k, onCam) {
 // The card's thickness, in card points (about 5 on the phone), and one layer every quarter point so the edge looks solid.
 const EDGE = 3, EDGE_LAYERS = EDGE * 4 + 1;
 const feltEl = (felt) => h("span.felt-word", null, felt[0] + (felt.length > 1 ? ` +${felt.length - 1}` : ""));
-export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid, photo, develop = false, turn = false, onCam } = {}) {
+// foot (alex 2026-11-27, js/stack.js): a card from the stack builds its own foot in place of "I did it"; tag adds words
+// after the pillar ("Love · Sat 5 Dec").
+export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onDid, photo, develop = false, turn = false, onCam, foot: ownFoot, tag } = {}) {
   timers.forEach(clearTimeout); timers = [];
   const el = cardEl(id || null, { tag: "div", info: state === "up" || state === "done" }); el.classList.add("home-card");
   // A gilded edge (alex 2026-11-23, option B): thin gold layers between the two faces, so turning it shows a thickness.
@@ -398,7 +400,9 @@ export function homeCard(id, { state = "up", flip = false, felt = [], onTap, onD
   // The Daydeck back carries the day's date in its corner (alex 2026-11-23): Daydeck is a deck of days.
   if (state === "down") back.append(h("span.card-date", { "aria-hidden": "true" }, new Date(now()).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }).replace(/,/g, "")));
   if (state === "skip") { back.classList.add("marked"); back.append(h("span.dot", { "aria-hidden": "true" }), h("span.done-task", null, "Back in the deck for another day")); }
-  if (state === "up") {
+  if (tag) { const ct = el.querySelector(".front .ctag"); if (ct) ct.append(` · ${tag}`); }
+  if (state === "up" && ownFoot) { const size = el.querySelector(".front .size"), foot = h("span.card-foot.own-foot"); size.replaceWith(foot); ownFoot(foot, size); }
+  else if (state === "up") {
     const did = h("button.did", { type: "button", onclick: (e) => { e.stopPropagation(); onDid && onDid(); } }, "I did it");
     const size = el.querySelector(".front .size"), foot = h("span.card-foot");
     size.replaceWith(foot); foot.append(size, h("span.foot-right", null, onCam ? camBtn(photo, onCam) : null, did));
@@ -530,7 +534,7 @@ export function askFelt(lifter, id, { mid, hide, onPick, onLand, onEnd }) {
   if (moment) moment.classList.remove("moment");
   // The boxes line and the recap line fold away while the question is open, so the card and question get the room
   // (alex 2026-11-26), and come back as the card grows and settles. The level row and Your days stay.
-  const roomy = [...mid.parentElement.querySelectorAll(":scope > .box-row, :scope > .wr-lines")];
+  const roomy = [...mid.parentElement.querySelectorAll(":scope > .box-row, :scope > .wr-lines"), ...mid.querySelectorAll(".stack-tops")];   // and the stack's tops (js/stack.js)
   const sizes = roomy.map((e) => ({ e }));
   // They only fade: the card itself moves up into their space, so nothing on the page is re-laid out while it moves.
   const fold = (away, ms, delay = 0) => {

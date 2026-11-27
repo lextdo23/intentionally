@@ -3,6 +3,7 @@
 import { BANK, LIVE } from "./cards-data.js";
 import * as store from "./store.js";
 import { dayKey, keyDate, addDays } from "./util.js";
+import * as later from "./later.js";
 
 export const HOW = ["Didn't get to it", "Drained", "Okay", "Good", "Loved it"];
 // Pillar tints: one per group (people, body, doing, purpose, rest and learning).
@@ -85,7 +86,10 @@ export function hidden(id, k = dayKey()) {
   return !!x && (x.r !== "notnow" || dayN(k) - x.n < REST_WEEKS * 7);
 }
 // The cards that can be dealt today.
-export function dealable(k = dayKey()) { return deck().filter((id) => !notYet(id, k) && !hidden(id, k)); }
+export function dealable(k = dayKey()) {
+  const full = later.full(k);   // two cards already wait behind today's: no more date or week cards for now (js/later.js)
+  return deck().filter((id) => !notYet(id, k) && !hidden(id, k) && !(full && later.kindOf(id)));
+}
 export function notForMe(id, r, k = dayKey()) {
   const m = mem(); m.never[id] = { r, n: dayN(k) };
   if (r === "already") m.grow[card(id).pillar] = 1;
