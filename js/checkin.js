@@ -1,6 +1,6 @@
 // The morning sleep check-in and the evening mood + feelings check-in.
 // Transition: the sun stays where it is and grows a little; home fades away; each step's words fade through.
-import { h, dayKey, keyDate, clock12, hoursWords, MOODS, CHART_COL, LIFELINE } from "./util.js";
+import { h, dayKey, keyDate, clock12, hoursWords, MOODS, CHART_COL, LIFELINE, reduceMotion } from "./util.js";
 import * as store from "./store.js";
 import { SLEEP_TAGS, SLEEP_MORE, RESTED, band, firstSix, nearestOrder, rankRecent } from "./words.js";
 import { openSheet, pillPicker, roundBtn } from "./ui.js";
@@ -32,7 +32,10 @@ export function show(step) {
   requestAnimationFrame(() => requestAnimationFrame(() => step.classList.add("in")));
   const f = step.querySelector("[data-focus]"); if (f) setTimeout(() => f.focus({ preventScroll: true }), 250);
 }
+let setT = 0;
 export function close(saved) {
+  // Leaving a check-in or the draw, the glow sinks back down below the screen as it fades (alex 2026-11-27), never drifts up.
+  if (document.body.classList.contains("in-flow") && !reduceMotion()) { document.body.classList.add("sunset"); clearTimeout(setT); setT = setTimeout(() => document.body.classList.remove("sunset"), 1400); }
   document.body.classList.remove("in-flow");
   document.documentElement.style.removeProperty("--glow");
   if (current) { current.classList.remove("in"); current.classList.add("out"); const c = current; setTimeout(() => c.remove(), 300); current = null; }
