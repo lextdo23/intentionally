@@ -73,6 +73,20 @@ const SHOTS = process.env.SHOTS === "1";
   check(/With Mia · Waiting for Josh/.test(await p.innerText(".plan-with").catch(() => "")), "in front: With Mia · Waiting for Josh");
   await shot("2-sender");
 
+  // ---- Inviting after the date is set (alex 2026-11-27) ----
+  check(!!(await p.$(".stack-front .plan-add")), "a shared date in front has an invite button beside Change the date");
+  await p.click(".stack-front .plan-add", { force: true }); await p.waitForTimeout(800);
+  check(/Invite friends/.test(await p.innerText(".sheet-host h2").catch(() => "")) && !(await p.$(".sheet-host .when-date")), "it opens just the friends, no date to pick again");
+  check(!!(await p.$('.plan-face.on[aria-label="Invite Mia"]')) && !!(await p.$('.plan-face.on[aria-label="Invite Josh"]')), "those already invited show ticked");
+  check(await p.$eval(".sheet-host .btn-main", (b) => b.disabled), "nothing to send until someone new is picked");
+  await p.click('.plan-face[aria-label="Invite sam"]');
+  check(/^Invite sam$/.test((await p.innerText(".sheet-host .btn-main")).trim()), "the button names who's being added");
+  const before = sent.length;
+  await p.click(".sheet-host .btn-main"); await p.waitForTimeout(1200);
+  const add = sent.slice(before).find((x) => x[0] === "plan");
+  check(add && add[1].id === "pAAAA" && add[1].guests.sort().join() === "josh_r,mia.k,sam", "it adds them to the same plan");
+  await shot("2b-invite-later");
+
   // ---- An invite on the friend's home ----
   svc = { mine: [], invited: [{ id: "pB", card: 88, day: day(-8), made: day(2), state: "ask", by: pals[0], others: [] }] };
   await load(() => {});
@@ -98,6 +112,7 @@ const SHOTS = process.env.SHOTS === "1";
   svc = { mine: [], invited: [{ id: "pD", card: 88, day: day(0), made: day(4), state: "in", by: pals[0], others: [pals[1]] }] };
   await load(() => {});
   check(/With Mia and Josh/.test(await p.innerText(".plan-with").catch(() => "")) && await p.$(".stack-front .cam, .stack-front [aria-label*='photo' i]"), "on the day it's in front with the camera, With Mia and Josh");
+  check(!(await p.$(".stack-front .plan-add")), "a friend's date has no invite button: only the person who made it invites");
   await shot("4-day");
 
   // ---- Full stack: the invite waits on the bell page ----
@@ -117,6 +132,26 @@ const SHOTS = process.env.SHOTS === "1";
   await p.click(".sheet-host .btn-quiet"); await p.waitForTimeout(800);
   s = await p.evaluate(() => JSON.parse(localStorage.getItem("daydeck")));
   check(sent.some((x) => x[0] === "drop" && x[1].id === "pF") && !s.days[day(0)].card.plan, "Not set yet calls it off");
+
+  // ---- On the day, your own: invite on the left, the camera on the right ----
+  svc = { mine: [{ id: "pG", card: 88, day: day(0), made: day(3), guests: [] }], invited: [] };
+  await load((d) => { d[day(3)].card = { id: 88, done: true, when: day(0), plan: "pG" }; });
+  const foot = await p.evaluate(() => { const a = document.querySelector(".stack-front .plan-add"), c = document.querySelector(".stack-front .card-cam:not(.plan-add)"); return a && c ? a.getBoundingClientRect().right <= c.getBoundingClientRect().left : null; });
+  check(foot === true, "on the day your own date has the invite button, with the camera to its right");
+  await shot("6-day-own");
+
+  // ---- Your days: Invite friends beside Change the date ----
+  svc = { mine: [], invited: [] };
+  await load((d) => { d[day(1)].card = { id: 88, done: true, when: day(-5) }; });
+  await p.evaluate(async (k) => (await import("./js/days.js")).openDay(k), day(1)); await p.waitForTimeout(800);
+  const dayBtns = await p.$$eval(".sheet-host button.btn-soft", (b) => b.map((x) => x.textContent));
+  check(dayBtns.includes("Change the date") && dayBtns.includes("Invite friends"), "Your days has Invite friends beside Change the date");
+  await shot("7-your-days");
+  await p.click('.sheet-host button.btn-soft:has-text("Invite friends")'); await p.waitForTimeout(800);
+  check(/Invite friends/.test(await p.innerText(".sheet-host h2 >> nth=-1").catch(() => "")), "and it opens the Invite friends sheet");
+  await load((d) => { d[day(8)].card = { id: 88, done: true, when: day(6) }; });
+  await p.evaluate(async (k) => (await import("./js/days.js")).openDay(k), day(8)); await p.waitForTimeout(800);
+  check(!(await p.$$eval(".sheet-host button.btn-soft", (b) => b.map((x) => x.textContent))).includes("Invite friends"), "a date that's been and gone has no Invite friends");
 
   check(!errors.length, `no errors (${errors.join("; ")})`);
   await b.close(); server.close(); done();

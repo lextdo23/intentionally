@@ -14,7 +14,8 @@ import * as crumbs from "./crumbs.js";
 
 import { img, openViewer } from "./photos.js";
 import * as later from "./later.js";
-import { whenSheet } from "./stack.js";
+import { whenSheet, inviteSheet } from "./stack.js";
+import { canShare } from "./friends.js";
 import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
 export { PILLAR_COL };
 const NAME = { A: "Your moods", B: "Mood and sleep", E: "What lifts you", C: "Mood and activities", D: "What seems to help you" };
@@ -378,12 +379,15 @@ function planLine(k, c, redraw) {
   if (!later.isDate(c.id) || !c.done) return null;
   const set = later.canSetDate(k);
   const line = c.when ? `On ${later.shortDate(c.when)}` : "No date set yet";
-  const btn = set || (c.when && c.when >= dayKey()) ? h("button.btn-soft", { style: { alignSelf: "flex-start" }, onclick: () => whenSheet(k, redraw, "days", c.when || null) }, c.when ? "Change the date" : "Set the date") : null;
-  return h("div.col", { style: { gap: "8px" } }, h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, line), btn);
+  const btn = set || (c.when && c.when >= dayKey()) ? h("button.btn-soft", { onclick: () => whenSheet(k, redraw, "days", c.when || null) }, c.when ? "Change the date" : "Set the date") : null;
+  // Inviting friends after the date is set (alex 2026-11-27), beside "Change the date".
+  const inv = c.when && c.when >= dayKey() && canShare() ? h("button.btn-soft", { onclick: () => inviteSheet(k, redraw, "days") }, "Invite friends") : null;
+  return h("div.col", { style: { gap: "8px" } }, h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, line),
+    btn || inv ? h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, btn, inv) : null);
 }
 const dayPhoto = (k) => h("button.day-photo", { "aria-label": "Open the photo", onclick: () => openViewer(k) }, img(k, "thumb"));
 const REST_LINE = ["Didn't feel rested", "Felt a little rested", "Felt okay", "Felt well rested", "Felt very well rested"];
-function openDay(k) {
+export function openDay(k) {
   log("day_tap");
   openSheet((panel) => {
     const body = h("div.col", { style: { gap: "16px" } });
