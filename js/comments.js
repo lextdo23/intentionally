@@ -167,11 +167,13 @@ export function openComments(m, { from = "feed", changed, focus = false } = {}) 
   // the page shorter: it shrinks the visible part and may slide it up, so both are measured.
   const vv = window.visualViewport;
   let topGap = 75;
+  // The full height comes from the page, not innerHeight: on iPhone innerHeight shrinks with the keyboard too.
   const lift = () => {
     if (!panelEl || !vv) return;
-    const up = innerHeight - vv.height > 120 || (field && document.activeElement === field && innerHeight - vv.height > 40);
+    const H = document.documentElement.clientHeight || innerHeight;
+    const up = H - vv.height > 120 || (field && document.activeElement === field && H - vv.height > 40);
     panelEl.classList.toggle("kb", up);
-    panelEl.style.bottom = up ? Math.max(0, innerHeight - vv.height - vv.offsetTop) + "px" : "";
+    panelEl.style.bottom = up ? Math.max(0, H - vv.height - vv.offsetTop) + "px" : "";
     panelEl.style.maxHeight = up ? Math.max(200, vv.height - topGap) + "px" : "";
   };
 

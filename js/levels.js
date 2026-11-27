@@ -56,6 +56,17 @@ export function sixToStart(st = store.get()) {
   m.l1 = (m.seen || 1) >= 2 ? 2 : 0;
   store.save();
 }
+// alex can send someone back to level 1 by hand, with every feature kept open (the service names a restart for their
+// account; alex 2026-11-27, @sherrie and @alex). Once for each restart: points count again from now, boxes come again
+// as they climb, and keepAll keeps everything open (it travels with the backup, so their other phones follow).
+// Nothing is deleted.
+export function restart(id, st = store.get()) {
+  const m = (st.levels = st.levels || {});
+  if (!id || m.restart === id) return false;
+  m.restart = id; m.base = earned(st); m.l1 = 0; m.seen = 1; m.opened = 0; m.keepAll = true;
+  store.save();
+  return true;
+}
 export function total(st = store.get()) {
   const m = st.levels || {};
   return Math.max(0, earned(st) - (m.base || 0) + (m.l1 || 0));

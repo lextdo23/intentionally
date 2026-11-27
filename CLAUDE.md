@@ -130,6 +130,7 @@ Full one-pager: https://claude.ai/artifact/3YMBhpwDit9UNVWP2V2qHY
 - **Night one stays quiet:** Crumbs is offered after the third evening, the tester invite after the second.
 - **Your levels** (`js/path.js`) names every level with what it opens, open or not (so people know what's coming), then "Something new". No "Always open" line.
 - Anything already opened for someone stays open. `node tests/levels.test.cjs`.
+- **Sent back to level 1 by hand** (alex 2026-11-27: @sherrie and @alex): `RESTART_NAMES` and `RESTART` in `push/accounts.js` (usernames). The service tells their phones `restart`; once per restart the phone counts points from zero (`restart()` in `js/levels.js`), sets `keepAll` so every level feature stays open, and boxes come again as they climb. Nothing is deleted, and it travels with the backup so their other phones follow. To do it again, add the name and change the date. A username change drops them off. Tester log `level_restart`. `node tests/level-restart.test.cjs`.
 
 ## Design rules (agreed with alex; don't drift from these)
 - **The new look's rules live in `DESIGN.md`** (alex 2026-11-24): numbered rules plus the list of screens still to rework. Check every screen against all of them before it's called done, show alex what it breaks first, and mark it off there.
