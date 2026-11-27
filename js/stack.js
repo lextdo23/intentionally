@@ -145,11 +145,13 @@ function planCard(it, { redraw, hide }) {
       f.classList.add("mid-foot");
       f.append(h("button.did", { type: "button", onclick: (e) => { e.stopPropagation(); whenSheet(it.f, redraw, "stack"); } }, "Set the date"));
     } else if (it.kind === "date" && pk) {
-      f.classList.add("mid-foot");   // on the date (and the day after): just the camera, in the middle
-      f.append(camBtn(pk, cam));
+      // On the date (and the day after): just the camera, in the middle; with the invite button on the left on the
+      // day itself, the camera moves to the right (alex 2026-11-27).
+      const inv = it.when >= k ? inviteBtn(it, redraw) : null;
+      if (inv) f.append(inv, camBtn(pk, cam)); else { f.classList.add("mid-foot"); f.append(camBtn(pk, cam)); }
     } else if (it.kind === "date") {
-      f.classList.add("mid-foot");
-      f.append(h("button.did.quiet", { type: "button", onclick: (e) => { e.stopPropagation(); whenSheet(it.f, redraw, "stack", it.when); } }, "Change the date"));
+      const inv = inviteBtn(it, redraw), change = h("button.did.quiet", { type: "button", onclick: (e) => { e.stopPropagation(); whenSheet(it.f, redraw, "stack", it.when); } }, "Change the date");
+      if (inv) f.append(inv, change); else { f.classList.add("mid-foot"); f.append(change); }
     } else {
       const c = deck.card(it.id);
       const right = h("span.foot-right", null, it.tickedToday ? camBtn(pk, cam) : null,
@@ -173,6 +175,44 @@ function planCard(it, { redraw, hide }) {
   return lifter;
 }
 
+// Inviting friends after the date is set (alex 2026-11-27, "after the fact"): a round button in your own date card's
+// foot, any time up to and on the date, once Friends is ready (signed in, 18+ ticked, friends to ask).
+const ADD_ICON = () => friends.svg(22, [["circle", { cx: "10", cy: "8.5", r: "3.4" }], ["path", { d: "M3.5 19.5c.8-3.3 3.4-5.2 6.5-5.2s5.7 1.9 6.5 5.2" }], ["path", { d: "M18.5 7.5v6M15.5 10.5h6" }]], { width: "55%", height: "55%" });
+function inviteBtn(it, redraw) {
+  if (it.guest || !it.when || it.unset || !friends.canShare()) return null;
+  const b = h("button.card-cam.plan-add", { type: "button", "aria-label": it.plan && it.plan.guests.length ? "Invite more friends" : "Invite friends" }, ADD_ICON());
+  const stop = (e) => e.stopPropagation();
+  b.addEventListener("pointerdown", stop); b.addEventListener("touchstart", stop, { passive: true });
+  b.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); inviteSheet(it.f, redraw, "stack"); });
+  return b;
+}
+// "Invite friends": just the row of friends for a date already set. Those already invited show ticked; untick
+// someone to take them off (told only if they'd said "I'm in", as when the date is called off for them).
+export function inviteSheet(f, done, from = "stack") {
+  const c = (store.get().days[f] || {}).card, kd = c && later.kindOf(c.id);
+  if (!c || !c.when || !kd || kd.k !== "date") return;
+  const plan = plans.mineById(c.plan), before = plan ? plan.guests.map((g) => g.username) : [];
+  let guests = before.slice();
+  log("plan_invite_open", from === "days" ? 1 : 0);
+  openSheet((panel, close) => {
+    const d = friends.loaded(), nm = (u) => { const p = d && d.friends.find((x) => x.username === u); return p ? friends.shown(p) : u; };
+    const btn = h("button.btn-main", { disabled: true, onclick: async () => {
+      btn.disabled = true;
+      if (await plans.save(f, guests)) close("done");
+      else { btn.disabled = false; friends.note("Couldn't send the invite. Check your connection and try again."); }
+    } }, "Invite");
+    const fresh = () => {
+      const add = guests.filter((u) => !before.includes(u)), gone = before.some((u) => !guests.includes(u));
+      btn.disabled = !add.length && !gone;
+      btn.textContent = add.length === 1 ? `Invite ${nm(add[0])}` : add.length > 1 ? `Invite ${add.length} friends` : "Save";
+    };
+    const row = friendRow(before, (list) => { guests = list; fresh(); }, { head: false });
+    panel.append(h("div.col", { style: { gap: "4px" } }, h("h2", null, "Invite friends"),
+      h("p.sub", null, `${kd.l} · ${later.shortDate(c.when)}. They'll get an invite. It lands on their home if they say yes.`)), row || "", btn);
+    fresh();
+  }, { label: "Invite friends", onClose: () => done && done() });
+}
+
 // "Can't make it" on a friend's date you said yes to: asks first, since the friend is told.
 function cantMake(it, redraw) {
   const who = friends.shown(it.guest.by);
@@ -186,7 +226,7 @@ function cantMake(it, redraw) {
 // Friends you can invite to a date, as a row of faces to tick (alex 2026-11-27, up to 5). Only once Friends is open
 // and you've ticked 18+ and have friends. picked: usernames already invited.
 const MAX_GUESTS = 5;
-function friendRow(picked, onChange) {
+function friendRow(picked, onChange, { head = true } = {}) {
   const d = friends.loaded();
   if (!friends.canShare() || !d) return null;
   const chosen = new Set(picked);
@@ -199,6 +239,7 @@ function friendRow(picked, onChange) {
     h("span.plan-pic", null, friends.pic(p, 56), on ? h("i.plan-tick", { "aria-hidden": "true" }, "✓") : null), h("span", null, friends.shown(p)));
   }));
   draw();
+  if (!head) return row;
   return h("div.col.plan-invite", { style: { gap: "8px" } }, h("h3", null, "Doing it with a friend?"),
     h("p.sub", null, "They'll get an invite. It lands on their home if they say yes."), row);
 }
