@@ -271,12 +271,30 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.click(`${sh} .mo-day[data-day="${day(1)}"]`); await p.waitForTimeout(800);
   const firstPick = await p.$eval(`${sh} .mo-pick`, (e) => e.textContent);
   check(/Your photo/.test(firstPick) && await p.getAttribute(`${sh} .mo-pick`, "aria-checked") === "true", "the photo comes first, already picked; the card is there if they'd rather");
-  // The card on the photo (alex 2026-11-25, written on it 2026-11-26): one quiet line, with a way to leave it off.
-  check(/Your card goes on the photo for friends/.test(await text(sh)), "sharing a photo says the day's card goes on it");
-  await p.click(`${sh} .mo-cardline-btn`); await p.waitForTimeout(300);
-  check(/Your card stays private/.test(await text(sh)), "Leave it off keeps the card private");
-  await p.click(`${sh} .mo-cardline-btn`); await p.waitForTimeout(300);
-  check(/Your card goes on the photo/.test(await text(sh)), "and Add it back puts it back");
+  // The preview (alex 2026-11-27): the post exactly as friends will see it, under the choices.
+  const pv = `${sh} .mo-prev`;
+  check(!!(await p.$(`${pv} .mo-photo .mo-tile.photo img`)) && /How friends will see it/.test(await text(sh)), "the share page shows the post as friends will see it");
+  check(!!(await p.$(`${pv} .mo-stamp:not(.low)`)), "with the day's card on the photo, at the top to start");
+  // The card on the photo: Top, Bottom or Off (alex 2026-11-27).
+  await p.click(`${sh} .mo-pos[data-v="off"]`); await p.waitForTimeout(200);
+  check(!(await p.$(`${pv} .mo-stamp`)), "Off leaves the card off the photo");
+  await p.click(`${sh} .mo-pos[data-v="bottom"]`); await p.waitForTimeout(200);
+  check(!!(await p.$(`${pv} .mo-stamp.low`)) && await p.getAttribute(`${sh} .mo-pos[data-v="bottom"]`, "aria-checked") === "true", "Bottom moves it to the bottom of the photo");
+  await p.fill(`${sh} .mo-cap`, "Golden hour"); await p.waitForTimeout(150);
+  check(/Golden hour/.test(await p.$eval(`${pv} .mo-cap-text`, (e) => e.textContent)), "the caption fills in on the preview as it's typed");
+  // Adjust: drag to move, pinch (or scroll) to zoom inside the feed's frame.
+  await p.click(`${pv} .mo-tool`); await p.waitForTimeout(500);
+  check(!!(await p.$(".adj.in .adj-win .adj-img")) && !!(await p.$(".adj .mo-stamp.low")), "Adjust opens the photo full screen, with the card where it'll sit");
+  const wr = await p.$eval(".adj-win", (e) => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await p.mouse.move(wr.x, wr.y); await p.mouse.wheel(0, -300); await p.waitForTimeout(150);
+  await p.mouse.down(); await p.mouse.move(wr.x + 40, wr.y + 60, { steps: 5 });
+  check(await p.$eval(".adj", (e) => e.classList.contains("touching")), "thirds lines show while a finger is down");
+  await p.mouse.up();
+  const imW = await p.$eval(".adj-img", (e) => e.getBoundingClientRect().width), winW = await p.$eval(".adj-win", (e) => e.getBoundingClientRect().width);
+  check(imW > winW * 1.3, "zooming makes the photo bigger than the window");
+  await shot("18a-adjust");
+  await p.click(".adj-done"); await p.waitForTimeout(500);
+  check(!(await p.$(".adj")) && (await p.$eval(`${pv} .mo-tile.photo img`, (e) => e.getBoundingClientRect().width)) > 440, "Done brings the framing back to the preview");
   await shot("18-share-photo");
   await p.click(`${sh} .fr-main`); await p.waitForTimeout(2200);
   const ph = (await sam.get("/a/f/feed")).moments.find((m) => m.kind === "photo");
@@ -294,7 +312,11 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.waitForTimeout(3000); slowPhoto = 0;
   check(!(await p.$("#friends .mo-ring")) && !!(await p.$("#friends .mo-tile.photo img.in[src^='data:image/jpeg']")), "and when it's in, the ring goes and the photo shows");
   check(ph && ph.text && ph.status === "Done", "the card goes with the photo to Sam");
+  check(ph && ph.pos === "bottom" && ph.crop && ph.crop.z > 1.3 && ph.cap === "Golden hour", "with the card at the bottom and the framing kept");
+  const dims = got && await p.evaluate((u) => new Promise((res) => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.src = u; }), got.data);
+  check(dims && dims[0] * 5 === dims[1] * 4, `the photo goes framed, in the feed's 4 by 5 (${dims})`);
   const fp = "#friends .mo-photo:has(.mo-stamp)";
+  check(!!(await p.$("#friends .mo-photo .mo-stamp.low")), "and the card sits at the bottom in the feed");
   check(await p.$eval(`${fp} .mo-stamp-text`, (e, t) => e.textContent === t, ph.text) && !(await p.$("#friends .mo-car, #friends .mo-dots")), "in the feed, the card's words sit on the photo itself (no swipe to a second slide)");
   check(await p.$eval(fp, (e) => e.getBoundingClientRect().width) >= 430, "the photo runs wall to wall");
   const lines = () => p.$eval(`${fp} .mo-stamp-text`, (e) => Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)));
@@ -318,6 +340,23 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await shot("19c-feed-zoom");
   await pinch("touchend", 0); await p.waitForTimeout(600);
   check(!(await p.$(".mo-zoom, .mo-zoom-shade")), "letting go springs it back, leaving nothing behind");
+  // Edit (alex 2026-11-27): ••• on your own moment, Edit, the same page with everything on it.
+  await sam.post("/a/f/see", { id: ph.id });
+  const before = (await sam.get("/a/f/feed")).moments.find((m) => m.id === ph.id);
+  await p.evaluate(() => document.querySelector("#friends .mo-post:has(.mo-photo) .mo-more").scrollIntoView({ block: "center" }));
+  await p.click("#friends .mo-post:has(.mo-photo) .mo-more"); await p.waitForTimeout(500);
+  await p.click(".sheet button:has-text('Edit')"); await p.waitForTimeout(900);
+  const ed = ".fr-page:last-child";
+  check(/Edit moment/.test(await text(ed)) && !(await p.$(`${ed} .mo-days`)) && !(await p.$(`${ed} .mo-picks`)), "Edit opens the share page without the day and the choices");
+  check(await p.$eval(`${ed} .mo-cap`, (e) => e.value) === "Golden hour" && await p.getAttribute(`${ed} .mo-pos[data-v="bottom"]`, "aria-checked") === "true", "with the caption and the card's place as shared");
+  check(await p.$$eval(`${ed} .mo-tool`, (els) => els.map((e) => e.textContent).join()) === "Adjust,Replace", "and Adjust and Replace on the photo");
+  await shot("19d-edit");
+  await p.fill(`${ed} .mo-cap`, "Golden hour, again"); await p.click(`${ed} .mo-pos[data-v="top"]`);
+  await p.click(`${ed} .fr-main`); await p.waitForTimeout(1800);
+  const after = (await sam.get("/a/f/feed")).moments.find((m) => m.id === ph.id);
+  check(after && after.cap === "Golden hour, again" && !after.pos && after.text, "Save changes it for friends");
+  check(after && after.at === before.at && after.seers.length === before.seers.length && before.seers.length === 1, "keeping its time, its place and its I see yous");
+  check(/Golden hour, again/.test(await text("#friends")), "and Mia's feed shows the new version");
 
 
   // Your friends, A to Z, with search: from the friends count on You

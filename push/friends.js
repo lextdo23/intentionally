@@ -419,9 +419,15 @@ export const friendMethods = {
     const mood = MOOD_WORDS.includes(body.mood) ? body.mood : null;
     const look = (kind === "card" || kind === "own") && LOOK_IDS.includes(body.look) ? body.look : null;
     const feel = mood && Array.isArray(body.feel) ? body.feel.map((f) => tidyText(f, 24)).filter(Boolean).slice(0, 6) : [];
+    // An edit (alex 2026-11-27) may leave the photo out to keep the one already shared.
     let photo = null;
-    if (kind === "photo" || kind === "week") { photo = photoOK(body.photo); if (!photo) return null; }
-    return { day, item, photo, data: { kind, text, pillar, col, status, cap, mood, feel, ph: !!photo, look } };
+    if (kind === "photo" || kind === "week") { photo = body.photo == null && body.edit ? null : photoOK(body.photo); if (!photo && !body.edit) return null; }
+    // A photo's card can sit at the bottom instead of the top, and how it was framed (move and zoom) comes back when edited.
+    const pos = kind === "photo" && text && body.pos === "bottom" ? "bottom" : null;
+    const num = (v, lo, hi) => (typeof v === "number" && isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v * 1000) / 1000)) : null);
+    const c = kind === "photo" && body.crop && typeof body.crop === "object" ? body.crop : null;
+    const crop = c && num(c.z, 1, 4) != null ? { x: num(c.x, 0, 1) ?? 0.5, y: num(c.y, 0, 1) ?? 0.5, z: num(c.z, 1, 4) } : null;
+    return { day, item, photo, edit: !!body.edit, data: { kind, text, pillar, col, status, cap, mood, feel, ph: kind === "photo" || kind === "week", look, pos, crop } };
   },
   mOut(row, meId, owner, extra = {}) {
     // Who said "I see you": the person who shared sees everyone; others see only themselves and their own friends.
@@ -438,11 +444,15 @@ export const friendMethods = {
     const me = g.u, m = this.mClean(body || {});
     if (!m) return { error: "bad_moment" };
     if (this.one("SELECT 1 AS x FROM paused WHERE user = ?", me.id)) return { error: "paused" };
-    const t = Date.now(), had = this.one("SELECT id FROM moments WHERE owner = ? AND day = ? AND item = ?", me.id, m.day, m.item);
+    const t = Date.now(), had = this.one("SELECT id, at FROM moments WHERE owner = ? AND day = ? AND item = ?", me.id, m.day, m.item);
+    // Editing (alex 2026-11-27): only a moment that's still there; it keeps its time, place in the feed, "I see you"s and
+    // comments, and friends aren't told. Without a new photo it keeps the one it has.
+    if (m.edit && !had) return { error: "not_found", status: 404 };
+    if (m.data.ph && !m.photo && !this.one("SELECT 1 AS x FROM mphotos WHERE moment = ?", had.id)) return { error: "bad_moment" };
     if (!had && this.one("SELECT COUNT(*) AS n FROM moments WHERE owner = ? AND at > ?", me.id, t - DAY).n >= LIMITS.perDay) return { error: "too_many_shares" };
     const id = had ? had.id : this.newToken().slice(0, 16);
     // Sharing the same thing again updates it (and brings it back to the top), keeping its "I see you"s.
-    this.sql.exec("INSERT OR REPLACE INTO moments (id, owner, day, item, data, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, m.day, m.item, JSON.stringify(m.data), t);
+    this.sql.exec("INSERT OR REPLACE INTO moments (id, owner, day, item, data, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, m.day, m.item, JSON.stringify(m.data), m.edit ? had.at : t);
     if (m.photo) this.sql.exec("INSERT OR REPLACE INTO mphotos (moment, data) VALUES (?, ?)", id, m.photo);
     if (!had) await this.pQueue(me.id, id);   // a new moment, not an update: friends who asked get told (in time)
     return { ok: true, moment: this.mOut(this.one("SELECT * FROM moments WHERE id = ?", id), me.id, me), again: !!had };
