@@ -1435,3 +1435,23 @@ body.has-pill:not([data-tab="today"]) #home *, .in-flow #home *, .in-settings #h
 .fr-plan-text { font-size: 15px; color: var(--ink2); }
 .fr-plan-text b { color: var(--ink); font-weight: 600; }
 .fr-plan-btns { display: flex; gap: 8px; flex: none; }
+
+/* ---------- Today's card through the morning (alex 2026-11-27, thread "Map the choppy morning flow") ---------- */
+/* Start your day: while the card sinks, the glow rises a moment later, as if the card became it; the check-in's words wait for it to pass. */
+body.sinking.in-flow #sun { transition: transform 1s var(--ease) .25s, opacity .9s ease .3s, left 1.6s var(--ease), top 1.6s var(--ease); }
+body.sinking .step .rise { transition-delay: calc(var(--i, 0) * 30ms + 380ms); }
+/* The soft light the card turns into (or comes out of): a copy of the card, blurred once (js/main.js softPatch). */
+.card-soft { filter: blur(22px); will-change: transform, opacity; }
+/* The line under the hand always keeps its space (tall enough for "Got it… Undo"), so the cards never move. */
+.hand-hint { min-height: 44px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; column-gap: 4px; }
+/* Coming back to home with the card moving on its own: home fades in without moving. */
+body.rising #home { transform: none; transition: opacity .5s var(--ease) .3s; }
+body.landing #home { transform: none; transition: opacity .45s var(--ease) .1s; }
+/* Leaving a check-in or the draw, the glow sinks down and fades; it only goes back to its resting place once it can't be seen. */
+body.sunset #sun { left: 50%; top: 118%; transform: scale(1.6, .9); opacity: 0;
+  transition: top 1s cubic-bezier(.4, 0, .6, 1), opacity .9s ease .1s, transform 1s var(--ease); }
+body.sunset.rising #sun { transition: top 1.1s cubic-bezier(.4, 0, .6, 1) .15s, opacity 1s ease .3s, transform 1s var(--ease); }
+/* The kept card is home's card; its "I did it" and camera wait for home. Its copy is set down on home above everything. */
+.kept-holder { display: flex; justify-content: center; }
+.kept-holder .foot-right { opacity: 0; pointer-events: none; }
+.card-ghost { position: fixed; z-index: 41; pointer-events: none; }
