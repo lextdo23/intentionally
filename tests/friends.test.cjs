@@ -20,7 +20,8 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
     if (body) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = "Bearer " + token;
     const res = await worker.fetch(new Request("https://service.example" + path, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
-    return { status: res.status, ...(await res.json()) };
+    const txt = await res.text();
+    return { status: res.status, size: res.headers.get("X-Size"), expose: res.headers.get("Access-Control-Expose-Headers"), bytes: Buffer.byteLength(txt), ...JSON.parse(txt) };
   };
   // A made-up person signs up (email code, username; Face ID skipped).
   const person = async (username) => {
@@ -217,6 +218,8 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   seen = (await sam.get("/a/f/feed")).moments.find((x) => x.id === pm);
   check(r.ok && seen && seen.text === "", "sharing it again with the card left off takes the card away");
   check((await sam.get("/a/f/photo?id=" + pm)).data === jpeg(), "a friend can fetch the photo");
+  { const g = await sam.get("/a/f/photo?id=" + pm);   // the loading ring (alex 2026-11-27) closes against this
+    check(Number(g.size) === g.bytes && /X-Size/.test(g.expose || ""), "the photo says how big it is, so the feed's loading ring can close as it arrives"); }
   check((await stranger.get("/a/f/photo?id=" + pm)).status === 404, "someone who isn't a friend can't");
   await mia.post("/a/f/unshare", { id: pm });
   check((await sam.get("/a/f/photo?id=" + pm)).status === 404 && made.Accountsbook.sql.exec("SELECT COUNT(*) AS n FROM mphotos").toArray()[0].n === 0, "removing the moment removes the photo from the service");

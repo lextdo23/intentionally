@@ -57,17 +57,60 @@ export const canShareDay = (k = dayKey(now())) => dayItems(k).items.length > 0;
 
 // ---------------- A moment's picture: the card, or the rest day (photos come in step 4) ----------------
 const moon = () => friends.svg(30, [["path", { d: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" }]], { fill: "currentColor", stroke: "none" });
-// A shared photo, fetched once (only friends can), kept for this visit.
-const pics = new Map();
+// A shared photo, fetched once (only friends can), kept for this visit. While it comes in, got counts how much of it
+// has arrived (0 to 1, or -1 until the size is known), so its loading ring can close to match (alex 2026-11-27).
+const pics = new Map();   // id -> { done: Promise<url|null>, url, got, subs: Set }
 function photoFor(id) {
-  if (!pics.has(id)) pics.set(id, account.call("/a/f/photo?id=" + encodeURIComponent(id)).then((r) => (r.ok ? r.data : null)));
-  return pics.get(id);
+  if (pics.has(id)) return pics.get(id);
+  const p = { url: undefined, got: -1, subs: new Set() };
+  const tell = () => p.subs.forEach((fn) => fn(p.got));
+  p.done = (async () => {
+    const r = await account.raw("/a/f/photo?id=" + encodeURIComponent(id));
+    if (!r || !r.ok) return null;
+    const size = Number(r.headers.get("X-Size")) || 0;
+    let text;
+    if (size && r.body && r.body.getReader) {
+      const rd = r.body.getReader(), parts = []; let n = 0;
+      for (;;) {
+        const { done, value } = await rd.read();
+        if (done) break;
+        parts.push(value); n += value.length; p.got = Math.min(1, n / size); tell();
+      }
+      const all = new Uint8Array(n); let at = 0;
+      for (const v of parts) { all.set(v, at); at += v.length; }
+      text = new TextDecoder().decode(all);
+    } else text = await r.text();
+    try { const j = JSON.parse(text); return j && j.ok ? j.data : null; } catch { return null; }
+  })().catch(() => null).then((u) => { p.url = u; p.got = 1; tell(); p.subs.clear(); return u; });
+  pics.set(id, p);
+  return p;
+}
+// The loading ring: a thin off-white circle that closes as the photo arrives (alex 2026-11-27, option A on the
+// "Feed photo loading ring" mockup). Nothing for the first moment, so a quick photo never flashes one; a short arc
+// turns while nothing has arrived yet; the photo fades in once it's all here.
+function loadRing(size, w) {
+  const r = (size - w) / 2, c = 2 * Math.PI * r, mid = size / 2;
+  const fill = h("circle.mo-ring-fill", { cx: mid, cy: mid, r, "stroke-width": w, "stroke-dasharray": c, "stroke-dashoffset": c * 0.88 });
+  const el = h("svg.mo-ring.wait", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, "aria-hidden": "true" },
+    h("circle.mo-ring-track", { cx: mid, cy: mid, r, "stroke-width": w }), fill);
+  return { el, set: (got) => { if (got < 0) return; el.classList.remove("wait"); fill.setAttribute("stroke-dashoffset", c * (1 - got)); } };
 }
 function photoImg(m, size) {
   if (m.photoDay) return photos.img(m.photoDay, size);
   const el = h("img", { alt: "", decoding: "async", draggable: "false" });
-  photoFor(m.id).then((u) => { if (u) el.src = u; });
-  return el;
+  const p = photoFor(m.id);
+  if (p.url !== undefined) { if (p.url) el.src = p.url; return el; }   // already here this visit: no ring
+  const ring = size === "full" ? loadRing(28, 2.5) : loadRing(20, 2);
+  el.classList.add("mo-wait");
+  const show = setTimeout(() => ring.el.classList.add("on"), 150);
+  ring.set(p.got); p.subs.add(ring.set);
+  p.done.then((u) => {
+    clearTimeout(show);
+    if (!u) { ring.el.remove(); return; }
+    el.addEventListener("load", () => { el.classList.add("in"); ring.el.classList.remove("on"); setTimeout(() => ring.el.remove(), 400); }, { once: true });
+    el.src = u;
+  });
+  return [el, ring.el];
 }
 // The day's photo, made small and clean to share: 720 by 1008, nothing but the picture.
 async function photoData(k) {

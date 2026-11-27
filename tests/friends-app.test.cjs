@@ -40,6 +40,7 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- The app, on a pretend iPhone, talking to that service ----
   const server = await serve(), b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 2, hasTouch: true });
+  let slowPhoto = 0;   // a slow signal for friends' photos, to see the loading ring
   await ctx.route("https://intentionally-push.lextdo.workers.dev/**", async (route) => {
     const req = route.request(), u = new URL(req.url());
     if (!u.pathname.startsWith("/a/")) return route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}', headers: { "access-control-allow-origin": "*" } });
@@ -47,7 +48,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
     const auth = req.headers().authorization; if (auth) headers.Authorization = auth;
     if (req.postData()) headers["Content-Type"] = "application/json";
     const res = await worker.fetch(new Request("https://svc.example" + u.pathname + u.search, { method: req.method(), headers, body: req.postData() || undefined }), env);
-    route.fulfill({ status: res.status, contentType: "application/json", body: await res.text(), headers: { "access-control-allow-origin": "*" } });
+    const extra = res.headers.get("X-Size") ? { "x-size": res.headers.get("X-Size"), "access-control-expose-headers": "X-Size" } : {};
+    if (slowPhoto && u.pathname === "/a/f/photo") await new Promise((r) => setTimeout(r, slowPhoto));
+    route.fulfill({ status: res.status, contentType: "application/json", body: await res.text(), headers: { "access-control-allow-origin": "*", ...extra } });
   });
   // The number on the app icon (alex 2026-11-25): notifications allowed, and the icon's number noted instead of shown.
   await ctx.addInitScript(() => { Object.defineProperty(Notification, "permission", { get: () => "granted" }); window.__badge = []; navigator.setAppBadge = (n) => (window.__badge.push(n), Promise.resolve()); navigator.clearAppBadge = () => (window.__badge.push(0), Promise.resolve()); });
@@ -283,6 +286,13 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check(bytes && !bytes.includes(Buffer.from("Exif")) && !bytes.includes(Buffer.from("http://ns.adobe.com")), "with nothing but the picture (no Exif or other details)");
   await p.waitForTimeout(800);
   check(!!(await p.$("#friends .mo-tile.photo img[src^='data:image/jpeg']")), "and it shows in the feed");
+  check(!(await p.$("#friends .mo-ring")) && await p.$eval("#friends .mo-tile.photo img[src^='data:image/jpeg']", (e) => getComputedStyle(e).opacity === "1"), "once it's in, the loading ring is gone and the photo shows");
+  // On a slow signal (alex 2026-11-27): a thin ring in the grey space until the photo is in, then the photo fades in.
+  slowPhoto = 2500; await p.reload(); await p.waitForTimeout(1500); await quiet(); await tab("friends"); await p.waitForTimeout(700);
+  check(await p.$eval("#friends .mo-tile.photo.big", (t) => { const r = t.querySelector(".mo-ring.on"), i = t.querySelector("img"); return !!r && getComputedStyle(i).opacity === "0"; }).catch(() => false), "while a friend's photo is on its way, a loading ring shows in its place");
+  await shot("18b-photo-loading");
+  await p.waitForTimeout(3000); slowPhoto = 0;
+  check(!(await p.$("#friends .mo-ring")) && !!(await p.$("#friends .mo-tile.photo img.in[src^='data:image/jpeg']")), "and when it's in, the ring goes and the photo shows");
   check(ph && ph.text && ph.status === "Done", "the card goes with the photo to Sam");
   const fp = "#friends .mo-photo:has(.mo-stamp)";
   check(await p.$eval(`${fp} .mo-stamp-text`, (e, t) => e.textContent === t, ph.text) && !(await p.$("#friends .mo-car, #friends .mo-dots")), "in the feed, the card's words sit on the photo itself (no swipe to a second slide)");
