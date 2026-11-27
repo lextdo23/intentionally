@@ -73,7 +73,7 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const card = it ? planCard(it, { redraw, hide }) : today;
   if (!card) return null;
   card.classList.add("stack-front");
-  topsEl.style.animationDelay = `-${Math.round(performance.now() % 7000)}ms`;   // the tops keep floating in step across a redraw
+  topsEl.querySelectorAll(".stack-top").forEach((t) => { t.style.animationDelay = `-${Math.round(performance.now() % 7000)}ms`; });   // each keeps drifting in step across a redraw
   wrap.append(shown.length ? topsEl : "", card);
   if (pending) { const pd = pending; pending = null; requestAnimationFrame(() => swap(pd, wrap)); }
   return wrap;
