@@ -1353,3 +1353,9 @@ body.has-pill:not([data-tab="today"]) #home *, .in-flow #home *, .in-settings #h
 @media (prefers-reduced-motion: reduce) { .stack-tops { animation: none; } }
 /* The side-to-side switch carries a card past the screen's edge for a moment: never let the page scroll sideways. */
 .home-mid:has(.stack) { overflow-x: clip; }
+/* Each top is the top of a whole card: its body carries on down behind the cards in front of it, so when a card in
+   front moves away mid-switch, the one behind shows as a card, never an open-ended bar (alex 2026-11-27). */
+.stack-top { position: relative; }
+.stack-top::after { content: ""; position: absolute; left: -1px; right: -1px; top: 100%; height: 140px; pointer-events: none;
+  background: #161618; border: 1px solid rgba(239, 237, 233, .16); border-top: none; border-bottom: none; }
+.stack-top:active::after { background: #1d1d20; }
