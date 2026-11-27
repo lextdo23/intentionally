@@ -60,7 +60,8 @@ const KEEP_DONE = 90 * DAY, HOLD_AT = 3;
 // Add a new look here as well as in js/looks.js, or its shared cards fall back to the plain Daydeck one.
 const LOOK_IDS = ["daydeck", "cherry", "mono", "matcha", "mushroom", "pals", "chrome"];
 // Set-a-date cards that can be shared (card number -> its short name, as LATER in js/later.js). A new one goes in both.
-export const PLAN_CARDS = { 88: "Date night", 57: "Family meal", 60: "Family visit", 32: "Weekend plan", 563: "Weekend fun", 540: "Hobby class", 534: "Evening for fun", 523: "Careers chat", 482: "Holiday at home" };
+export const PLAN_CARDS = { 88: "Date night", 57: "Family meal", 60: "Family visit", 32: "Weekend plan", 563: "Weekend fun", 540: "Hobby class", 534: "Evening for fun", 523: "Careers chat", 482: "Holiday at home",
+  388: "Parkrun", 30: "Food at yours", 399: "Neighbours over", 6: "Hang out", 586: "Sunrise or sunset" };
 export const PLAN_LIMITS = { guests: 5, ahead: 60, keep: 3, owned: 20 };
 const ymd = (t) => new Date(t).toISOString().slice(0, 10);
 const shortDay = (k) => { const d = new Date(k + "T12:00:00Z"); return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]} ${d.getUTCDate()} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()]}`; };

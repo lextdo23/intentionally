@@ -376,7 +376,8 @@ function body() {
   return h("div.fr-body", null, parts);
 }
 // A date a friend shared (alex 2026-11-27): "Mia invited you to Date night · Sat 5 Dec", Not this time / I'm in.
-const PLAN_NAMES = { 88: "Date night", 57: "Family meal", 60: "Family visit", 32: "Weekend plan", 563: "Weekend fun", 540: "Hobby class", 534: "Evening for fun", 523: "Careers chat", 482: "Holiday at home" };
+const PLAN_NAMES = { 88: "Date night", 57: "Family meal", 60: "Family visit", 32: "Weekend plan", 563: "Weekend fun", 540: "Hobby class", 534: "Evening for fun", 523: "Careers chat", 482: "Holiday at home",
+  388: "Parkrun", 30: "Food at yours", 399: "Neighbours over", 6: "Hang out", 586: "Sunrise or sunset" };
 const dayWords = (k) => { const d = new Date(k + "T12:00:00"); return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }).replace(",", ""); };
 function planRow(x, redraw) {
   const go = (yes) => (e) => busy(e.currentTarget, async () => { if (!(await plans.answer(x.id, yes, "bell"))) note(SAY.offline); redraw && redraw(); });
