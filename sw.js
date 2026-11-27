@@ -1,10 +1,10 @@
 // Keeps Daydeck working offline. Daydeck is the whole site (the old Intentionally app is retired).
 // Bump VERSION whenever any file below changes. (icons/launch-*.png are left out on purpose: the iPhone fetches its one
 // launch picture itself when Daydeck is added to the home screen, so keeping all ten here would only cost space.)
-const VERSION = "d142";
+const VERSION = "d143";
 const FILES = [
   "./", "index.html", "privacy.html", "guidelines.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css", "css/box.css", "css/photos.css", "css/library.css", "css/looks.css",
-  "js/main.js", "js/notif-card.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/setup.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/comments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js",
+  "js/main.js", "js/notif-card.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/setup.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/comments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js", "js/later.js", "js/stack.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "img/looks/cherry/0.webp", "img/looks/matcha/0.webp", "img/looks/matcha/1.webp", "img/looks/matcha/2.webp", "img/looks/matcha/3.webp", "img/looks/mushroom/0.webp", "img/looks/mushroom/1.webp", "img/looks/mushroom/2.webp", "img/looks/mushroom/3.webp", "img/looks/mushroom/4.webp", "img/looks/pals/0.webp", "img/looks/pals/1.webp", "img/looks/pals/2.webp", "img/looks/pals/3.webp", "img/looks/pals/4.webp", "img/chrome/heart.webp", "img/chrome/moon.webp", "img/chrome/sparkle.webp", "img/chrome/spiky.webp", "img/chrome/sun.webp",
 ];
@@ -49,6 +49,12 @@ async function show() {
       icon: "icons/icon-192.png", tag: "daydeck-recap", data: { kind: near.kind },
     });
     return note([t, "sent", near.kind]);
+  }
+  // A planned date's morning (alex 2026-11-27): "Date night is today".
+  const dp = await cardPlan("dates"), dn = (dp && dp.at || []).find((x) => Math.abs(x.t - t) < 20 * 60e3);
+  if (dn) {
+    await self.registration.showNotification(`${String(dn.l || "Your plan").slice(0, 40)} is today`, { body: "Add a photo in Daydeck, if you like.", icon: "icons/icon-192.png", tag: "daydeck-date", data: { kind: "date" } });
+    return note([t, "sent", "date"]);
   }
   if (p && (p.at || []).some((x) => Math.abs(x - t) < 20 * 60e3) && p.task) {
     if (p.done) return; // done since this was planned: stay quiet

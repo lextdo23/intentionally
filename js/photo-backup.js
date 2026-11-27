@@ -21,8 +21,9 @@ export const on = () => account.signedIn() && st().backup !== false;
 let timer = 0, running = false;
 
 // Waiting to go up: days with a photo on this phone that isn't backed up yet, newest first.
-const waiting = () => Object.keys(store.get().days || {}).filter((k) => { const p = store.get().days[k].ph; return p && !p.b; }).sort().reverse();
-export const counts = () => { const days = store.get().days || {}; const all = Object.keys(days).filter((k) => days[k].ph); return { all: all.length, up: all.filter((k) => days[k].ph.b).length }; };
+// A second photo on a day (photos.js keys like "2026-12-05~2026-11-27") goes up the same way.
+const waiting = () => photos.keys().filter((k) => !photos.note(k).b);
+export const counts = () => { const all = photos.keys(); return { all: all.length, up: all.filter((k) => photos.note(k).b).length }; };
 
 // A data address (the profile photo) as a picture, without fetch (the page's safety rules only allow fetching the service).
 function dataBlob(d) {
@@ -67,7 +68,7 @@ export async function run() {
       const b = await photos.fullBlob(k);
       if (!b) continue;
       const r = await send(k, b);
-      if (r.ok) { const d = store.get().days[k]; if (d && d.ph) { d.ph.b = 1; d.ph.v = r.v; store.save(); } log("photo_backed", 1); continue; }
+      if (r.ok) { const n = photos.note(k); if (n) { n.b = 1; n.v = r.v; store.save(); } log("photo_backed", 1); continue; }
       if (r.error === "offline") return;
       if (r.error === "daily_limit" || r.error === "photos_full" || r.error === "photos_off") { s.until = Date.now() + (r.error === "daily_limit" ? 6 : 24) * 3600e3; store.save(); log("photo_backup_wait", r.error); return soon(s.until - Date.now() + 1000); }
       if (r.error === "signed_out") return;
@@ -150,7 +151,7 @@ function turnOff(done) {
       const r = await account.raw("/a/p/del/*", { method: "POST", body: "{}", type: "application/json" });
       if (!r || !r.ok) { go.removeAttribute("aria-busy"); go.textContent = "Couldn't reach Daydeck. Try again"; return; }
       st().backup = false; st().del = []; st().pic = "";
-      Object.values(store.get().days || {}).forEach((d) => { if (d.ph) delete d.ph.b; });
+      Object.values(store.get().days || {}).forEach((d) => { if (d.ph) delete d.ph.b; Object.values(d.xph || {}).forEach((x) => delete x.b); });
       store.save(); log("photo_backup", "off"); close("done"); done && done();
     } }, "Turn off and delete copies");
     panel.append(h("h2", null, "Turn off photo backup?"),

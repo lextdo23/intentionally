@@ -13,6 +13,8 @@ import * as tips from "./tips.js";
 import * as crumbs from "./crumbs.js";
 
 import { img, openViewer } from "./photos.js";
+import * as later from "./later.js";
+import { whenSheet } from "./stack.js";
 import { PILLAR_COL, card as cardOf, HOW, ownCard } from "./deck.js";
 export { PILLAR_COL };
 const NAME = { A: "Your moods", B: "Mood and sleep", E: "What lifts you", C: "Mood and activities", D: "What seems to help you" };
@@ -371,6 +373,14 @@ function arrange() {
 
 // ---------- Tap a day ----------
 // The day's photo, small, under "Today's card". Tapping it opens the photo.
+// A set-a-date card (js/later.js): when it is, and "Set the date" for one done in the last 2 weeks with no date yet.
+function planLine(k, c, redraw) {
+  if (!later.isDate(c.id) || !c.done) return null;
+  const set = later.canSetDate(k);
+  const line = c.when ? `On ${later.shortDate(c.when)}` : "No date set yet";
+  const btn = set || (c.when && c.when >= dayKey()) ? h("button.btn-soft", { style: { alignSelf: "flex-start" }, onclick: () => whenSheet(k, redraw, "days", c.when || null) }, c.when ? "Change the date" : "Set the date") : null;
+  return h("div.col", { style: { gap: "8px" } }, h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, line), btn);
+}
 const dayPhoto = (k) => h("button.day-photo", { "aria-label": "Open the photo", onclick: () => openViewer(k) }, img(k, "thumb"));
 const REST_LINE = ["Didn't feel rested", "Felt a little rested", "Felt okay", "Felt well rested", "Felt very well rested"];
 function openDay(k) {
@@ -393,6 +403,7 @@ function openDay(k) {
       else if (d.card && d.card.id && cardOf(d.card.id)) { const c = cardOf(d.card.id); parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, k === dayKey() ? "Today's card" : "That day's card"),
         d.ph ? dayPhoto(k) : null,
         h("span", null, c.text), d.card.how != null ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, d.card.felt && d.card.felt.length ? d.card.felt.join(", ") : HOW[d.card.how]) : null,
+        planLine(k, d.card, draw),
         d.pil && d.pil.length ? h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p))) : null)); }
       else if (d.pil && d.pil.length) parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, "You gave time to"), h("div.pills", null, d.pil.map((p) => h("span.chip", null, h("span.sq", { style: { background: PILLAR_COL[p] || "#a9a59d" } }), p)))));
       const made = (d.made || []).map((id) => ownCard(id)).filter(Boolean);   // cards made that evening (alex 2026-11-17)
@@ -400,6 +411,9 @@ function openDay(k) {
         ...made.map((o) => h("div.col", { style: { gap: "4px" } }, h("span", null, o.text),
           o.felt && o.felt.length ? h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, o.felt.join(", ")) : null,
           h("span.chip", { style: { alignSelf: "flex-start" } }, h("span.sq", { style: { background: PILLAR_COL[o.pillar] || "#a9a59d" } }), o.pillar)))));
+      // A second photo on this day: the planned date's, or a week card's tick (js/later.js, alex 2026-11-27).
+      Object.keys(d.xph || {}).forEach((f) => { const fc = (store.get().days[f] || {}).card, kd = fc && later.kindOf(fc.id);
+        parts.push(h("div.col", { style: { gap: "8px" } }, h("span.note", { style: { textAlign: "left" } }, kd ? kd.l : "Another photo"), dayPhoto(`${k}~${f}`))); });
       if (d.sleep) parts.push(h("div.col", { style: { gap: "4px" } }, h("span.note", { style: { textAlign: "left" } }, "The night before"),
         h("span", null, `Slept ${hoursWords(sleepMins(d.sleep))}, ${clock12(d.sleep.bed)} to ${clock12(d.sleep.wake)}`),
         h("span", { style: { fontSize: "15px", color: "#cfcac1" } }, REST_LINE[d.sleep.rested]),

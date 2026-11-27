@@ -1321,3 +1321,26 @@ body.has-pill:not([data-tab="today"]) #home *, .in-flow #home *, .in-settings #h
 .nfm-reasons { display: flex; flex-direction: column; gap: 8px; }
 .nfm-reasons .pill { display: flex; align-items: center; width: 100%; justify-content: flex-start; text-align: left; }
 .nfm-undo { color: var(--ink); font-weight: 600; margin-left: 6px; min-height: 44px; padding: 0 6px; }
+
+/* The stack behind today's card (alex 2026-11-27, js/stack.js): cards that happen later wait behind it, only their
+   tops showing; the one nearest the card is widest. Tap a top to bring that card to the front. */
+.stack { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.stack-tops { display: flex; flex-direction: column; align-items: center; width: 100%; margin-bottom: -2px; }
+.stack-top { --w: calc(150px * var(--k, 1) * 1.376 * 1.14 * var(--fit, 1)); width: calc(var(--w) - 16px - var(--d, 0) * 16px); min-height: 44px; margin-top: -2px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px; box-sizing: border-box;
+  background: #161618; border: 1px solid rgba(239, 237, 233, .16); border-bottom: none; border-radius: 16px 16px 0 0; color: var(--ink); font-size: 15px; text-align: left; }
+.stack-top:active { background: #1d1d20; }
+.stack-top .st-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.stack-top .st-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-pil { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.st-status { color: var(--dim); white-space: nowrap; display: flex; align-items: center; }
+.st-dots { display: inline-flex; gap: 4px; }
+.st-dots i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid rgba(239, 237, 233, .45); box-sizing: border-box; }
+.st-dots i.on { background: var(--ink); border-color: var(--ink); }
+.home-card .st-dots.big { gap: 3px; }
+.home-card .st-dots.big i { width: 6px; height: 6px; border-width: 1px; }
+.home-card .card-foot.mid-foot { justify-content: center; }
+.home-card .did.quiet { background: none; color: var(--dim); }
+.when-date { width: 100%; min-height: 48px; padding: 0 16px; box-sizing: border-box; border-radius: 12px; border: 1px solid rgba(239, 237, 233, .18);
+  background: rgba(239, 237, 233, .06); color: var(--ink); font: inherit; font-size: 17px; color-scheme: dark; }
+@media (prefers-reduced-motion: reduce) { .stack-top { transition: none; } }

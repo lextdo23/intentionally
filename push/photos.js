@@ -11,7 +11,7 @@
 
 export const PLIMITS = { perDay: 25, backfillPerDay: 200, maxBytes: 700000, total: 50e9, warnAt: 40e9, writes: 1e6, reads: 10e6 };
 const DAY = 86400000;
-const KEY = /^(\d{4}-\d{2}-\d{2}|profile)$/;
+const KEY = /^(\d{4}-\d{2}-\d{2}(~\d{4}-\d{2}-\d{2})?|profile)$/;   // a second photo on a day: <day>~<card's day> (alex 2026-11-27)
 
 // Nothing but the picture: a JPEG whose details before the picture are only the basic ones (no EXIF, XMP,
 // comments or other extras). Returns true if it's clean.
@@ -94,14 +94,14 @@ export const photoMethods = {
 export async function photoRoutes(req, env, path, b, token, reply, tellAlex) {
   if (!env.PHOTOS) return reply({ error: "photos_off" }, 503);
   if (req.method === "GET" && path === "/a/p") { const r = await b.pList(token); return reply(r, r.error ? r.status || 400 : 200); }
-  const del = /^\/a\/p\/del\/(\d{4}-\d{2}-\d{2}|profile|\*)$/.exec(path);
+  const del = /^\/a\/p\/del\/(\d{4}-\d{2}-\d{2}(?:~\d{4}-\d{2}-\d{2})?|profile|\*)$/.exec(path);
   if (req.method === "POST" && del) {
     const r = await b.pForget(token, del[1]);
     if (r.error) return reply(r, r.status || 400);
     if (r.keys.length) await env.PHOTOS.delete(r.keys.map((k) => obj(r.user, k)));
     return reply({ ok: true });
   }
-  const m = /^\/a\/p\/(\d{4}-\d{2}-\d{2}|profile)$/.exec(path);
+  const m = /^\/a\/p\/(\d{4}-\d{2}-\d{2}(?:~\d{4}-\d{2}-\d{2})?|profile)$/.exec(path);
   if (!m) return reply({ error: "not_found" }, 404);
   const k = m[1];
   if (req.method === "GET") {
