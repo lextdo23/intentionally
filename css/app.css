@@ -903,6 +903,17 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-tile.photo { padding: 0; aspect-ratio: 5 / 7; background: #18191c; }
 .mo-tile.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .mo-tile.photo.big { min-height: 0; aspect-ratio: 4 / 5; }
+/* A friend's photo on its way: a thin off-white ring that closes as it arrives, then the photo fades in (alex 2026-11-27). */
+.mo-tile.photo img.mo-wait { opacity: 0; transition: opacity .35s ease; }
+.mo-tile.photo img.mo-wait.in { opacity: 1; }
+.mo-ring { position: absolute; left: 50%; top: 50%; translate: -50% -50%; opacity: 0; transition: opacity .25s ease; pointer-events: none; }
+.mo-ring.on { opacity: 1; }
+.mo-ring circle { fill: none; stroke-linecap: round; }
+.mo-ring-track { stroke: rgba(239, 237, 233, .16); }
+.mo-ring-fill { stroke: var(--ink); transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset .15s linear; }
+.mo-ring.wait .mo-ring-fill { animation: mo-ring-turn 1.1s linear infinite; }
+@keyframes mo-ring-turn { to { transform: rotate(270deg); } }
+@media (prefers-reduced-motion: reduce) { .mo-tile.photo img.mo-wait, .mo-ring, .mo-ring-fill { transition: none; } .mo-ring.wait .mo-ring-fill { animation: none; } }
 /* A day photo in a feed runs wall to wall: edge to edge of the screen, no border or rounded corners (alex 2026-11-25). */
 .mo-photo { position: relative; flex-shrink: 0; }
 .mo-photo:not(:has(.week)) { margin: 0 calc(-1 * var(--edge)); }

@@ -131,7 +131,13 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "GET /a/f/moments": return out(b.mOf(token, q.get("u") || ""));
     case "POST /a/f/see": return out(b.mSee(token, String(body.id || ""), body.undo === true));
     case "POST /a/f/report": return out(b.rReport(token, body));
-    case "GET /a/f/photo": return out(b.mPhoto(token, q.get("id") || ""));
+    // A shared photo says how big it is (X-Size, before any compression on the way), so the phone can close its
+    // loading ring as the photo arrives (alex 2026-11-27).
+    case "GET /a/f/photo": {
+      const r = await b.mPhoto(token, q.get("id") || "");
+      if (r && r.error) return reply(r, r.status || 400);
+      return reply(r, 200, { "X-Size": String(new TextEncoder().encode(JSON.stringify(r)).length), "Access-Control-Expose-Headers": "X-Size" });
+    }
     case "GET /a/f/face": return out(b.fFace(token, q.get("u") || ""));
     case "POST /a/f/pings": return out(b.pSet(token, body));
     case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
