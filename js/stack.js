@@ -93,7 +93,7 @@ function swap(pd, wrap) {
   wrap.append(g);
   const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`);
   if (slot) slot.style.visibility = "hidden";
-  const D1 = 520, D2 = 300, D3 = 340, ease = "cubic-bezier(.45,.05,.25,1)";
+  const D1 = 360, D2 = 200, D3 = 240, ease = "cubic-bezier(.45,.05,.25,1)";
   // 1. Switch.
   const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top, out = Math.round(nr.width * 0.6);
   nf.style.transformOrigin = "50% 50%";
