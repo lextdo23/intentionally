@@ -914,6 +914,9 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-stamp-pil i { width: 8px; height: 8px; border-radius: 2px; }
 .mo-stamp-text { font-size: 20px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 .mo-stamp.open .mo-stamp-text { -webkit-line-clamp: unset; }
+/* At the bottom instead, if they chose it (alex 2026-11-27): the fade rises from the bottom edge. */
+.mo-stamp.low { top: auto; bottom: 0; padding: 44px var(--edge) 16px; background: linear-gradient(0deg, rgba(0, 0, 0, .55) 0%, rgba(0, 0, 0, .32) 55%, rgba(0, 0, 0, 0) 100%); }
+.mo-stamp.low.open { padding-top: 64px; padding-bottom: 16px; background: linear-gradient(0deg, rgba(0, 0, 0, .66) 0%, rgba(0, 0, 0, .42) 60%, rgba(0, 0, 0, 0) 100%); }
 .mo-stamp.open { padding-bottom: 64px; background: linear-gradient(180deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .4) 60%, rgba(0, 0, 0, 0) 100%); }
 /* Pinch to zoom: a copy of the photo lifted above everything, springing back when let go. */
 .mo-zoom { position: fixed; z-index: 90; object-fit: cover; pointer-events: none; will-change: transform; }
@@ -979,11 +982,50 @@ body:has(.sheet-host) .fr-toast { bottom: auto; top: calc(env(safe-area-inset-to
 .mo-none { font-size: 11px; color: var(--faint); text-align: center; }
 .mo-day-name { font-size: 13px; color: var(--dim); }
 .mo-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: -8px; }
-.mo-pick { display: flex; flex-direction: column; gap: 4px; padding: 8px 8px 12px; border-radius: 16px; background: rgba(239, 237, 233, .05); border: 2px solid transparent; text-align: left; }
+/* The choices are one small row; the preview under them shows the real thing (alex 2026-11-27). */
+.mo-pick { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px; border-radius: 14px; background: rgba(239, 237, 233, .05); border: 2px solid transparent; text-align: left; }
 .mo-pick[aria-checked="true"] { border-color: #efede9; }
-.mo-pick .mo-tile { margin-bottom: 6px; }
-.mo-pick-label { font-size: 15px; font-weight: 600; padding: 0 4px; }
-.mo-pick-sub { font-size: 13px; color: var(--dim); padding: 0 4px; }
+.mo-pick-pic { position: relative; flex: none; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: #232428; }
+.mo-pick-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mo-pick-pic .mo-dot { width: 10px; height: 10px; }
+.mo-pick-pic .mo-moon.small svg { width: 22px; height: 22px; }
+.mo-pick-words { display: flex; flex-direction: column; min-width: 0; }
+.mo-pick-label { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mo-pick-sub { font-size: 13px; color: var(--dim); }
+/* The preview: the post as friends will see it. */
+.mo-prev { display: flex; flex-direction: column; gap: 10px; margin-top: -8px; }
+.mo-prev .mo-who { pointer-events: none; }
+.mo-prev [hidden] { display: none; }
+.mo-tile.photo.framed img { inset: auto; max-width: none; object-fit: fill; }
+.mo-tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; }
+.mo-stamp.low ~ .mo-tools { top: 12px; bottom: auto; }
+.mo-tool { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px 0 12px; border-radius: 22px; font-size: 15px; font-weight: 500; color: #fff; background: rgba(20, 20, 22, .45); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), inset 0 0 0 1px rgba(255, 255, 255, .1); }
+.mo-pos-set { display: flex; }
+.mo-pos { min-height: 44px; padding: 0 8px; font-size: 13px; color: var(--faint); }
+.mo-pos[aria-checked="true"] { color: var(--ink); font-weight: 600; }
+.mo-rep { display: flex; flex-direction: column; }
+.mo-rep-row { display: flex; align-items: center; gap: 14px; min-height: 52px; font-size: 17px; text-align: left; color: var(--ink); }
+/* Adjust: drag and pinch the photo inside the feed's frame; outside it is dimmed. */
+.adj { position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column; padding: var(--top) 0 var(--bot); background: var(--sky3); opacity: 0; transition: opacity .28s ease; }
+.adj.in { opacity: 1; }
+.adj-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 var(--edge); }
+.adj-title { margin: 0; font-size: 17px; font-weight: 600; }
+.adj-cancel { justify-self: start; min-height: 44px; font-size: 17px; color: var(--dim); }
+.adj-done { justify-self: end; min-height: 44px; font-size: 17px; font-weight: 600; color: var(--ink); }
+.adj-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; overflow: hidden; touch-action: none; cursor: grab; }
+.adj-win { position: relative; width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 4 / 5; max-height: 100%; }
+.adj-win::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, .55), 0 0 0 2000px rgba(10, 10, 11, .72); }
+.adj-plane { position: absolute; inset: 0; }
+.adj-img { position: absolute; max-width: none; pointer-events: none; -webkit-user-select: none; user-select: none; }
+.adj-grid { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .2s;
+  background: linear-gradient(90deg, transparent calc(33.33% - .5px), rgba(255, 255, 255, .4) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.67% - .5px), rgba(255, 255, 255, .4) calc(66.67% - .5px) calc(66.67% + .5px), transparent calc(66.67% + .5px)),
+    linear-gradient(180deg, transparent calc(33.33% - .5px), rgba(255, 255, 255, .4) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.67% - .5px), rgba(255, 255, 255, .4) calc(66.67% - .5px) calc(66.67% + .5px), transparent calc(66.67% + .5px)); }
+.adj.touching .adj-grid { opacity: 1; }
+.adj .mo-stamp { z-index: 2; pointer-events: none; }
+.adj-hint { margin: 16px 0 8px; text-align: center; font-size: 15px; color: var(--dim); }
+.adj-row { display: flex; gap: 12px; justify-content: center; }
+.adj-btn { min-height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(239, 237, 233, .1); font-size: 15px; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .adj, .adj-grid { transition: none; } }
 .mo-cap { min-height: 96px; padding: 12px 14px; resize: none; font: inherit; font-size: 17px; line-height: 1.4; }
 .mo-only { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .mo-feed { display: flex; flex-direction: column; gap: 32px; }
