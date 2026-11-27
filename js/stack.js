@@ -108,18 +108,25 @@ function swap(pd, wrap) {
   const nGlow = nf.querySelector(".glow");
   if (nGlow) nGlow.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: D + 500, easing: "ease-out", fill: "backwards" });
   const gr = g.getBoundingClientRect();
-  g.style.transformOrigin = "50% 0";
+  g.style.transformOrigin = "50% 50%";
+  // The old card steps aside, then slides in behind the new front card and stays hidden there: no fade.
   g.animate([
     { transform: pd.tilt, zIndex: 2, offset: 0 },
     { transform: `translate(${back}px, 6px) scale(.95) rotate(-3deg)`, zIndex: 2, offset: 0.5 },
     { transform: `translate(${back}px, 6px) scale(.95) rotate(-3deg)`, zIndex: 1, offset: 0.5 },
-    { transform: `translate(0px, ${sr.top - gr.top}px) scale(${sr.width / gr.width})`, zIndex: 1, offset: 1 },
+    { transform: `translate(${Math.round(nr.left - gr.left)}px, ${Math.round(nr.top - gr.top + 10)}px) scale(.94)`, zIndex: 1, offset: 1 },
   ], { duration: D, easing: ease, fill: "forwards" }).finished.then(() => g.remove());
-  // As the copy tucks in behind the new front card, its top hands over to the real one in the pile: a short blend in
-  // the last part of the move, so the card's big title never snaps into the small top.
-  const hand = { delay: D * 0.62, duration: D * 0.38, easing: "ease-in-out" };
-  g.animate([{ opacity: 1 }, { opacity: 0 }], { ...hand, fill: "forwards" });
-  if (slot) { slot.style.visibility = ""; slot.animate([{ opacity: 0 }, { opacity: 1 }], { ...hand, fill: "backwards" }); }
+  // Then its top edge rises from behind the front card into its place in the pile, like a real card peeking out.
+  if (slot) {
+    slot.style.visibility = "";
+    const hide = Math.round(nr.top - sr.top + 6);
+    slot.animate([
+      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0 },
+      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0.72 },
+      { transform: `translateY(${hide}px)`, visibility: "visible", offset: 0.72 },
+      { transform: "none", visibility: "visible", offset: 1 },
+    ], { duration: D + 250, easing: "cubic-bezier(.3,0,.2,1)", fill: "backwards" });
+  }
   const gGlow = g.querySelector(".glow");
   if (gGlow) gGlow.animate([{ opacity: getComputedStyle(gGlow).opacity }, { opacity: 0 }], { duration: D * 0.6, easing: "ease-in", fill: "forwards" });
   // The other tops glide from where they were to their new places, instead of jumping.
