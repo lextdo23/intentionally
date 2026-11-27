@@ -79,70 +79,56 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   return wrap;
 }
 
-// The switch, like real cards (alex 2026-11-27): the new front card starts where its top was, behind the old card,
-// slides up out of the pile, then comes down on top; the old card (a copy, since home has redrawn) tucks back up into
-// the pile at the same time, narrowing into its top's place. Nothing fades.
+// The switch, one move at a time like a real pile (alex 2026-11-27):
+// 1. Switch: the tapped card slides out sideways from the pile and lands in front. The old front card stays still and
+//    ends up hidden behind it (a copy, since home has redrawn; same size and place, so it's exactly covered).
+// 2. Make room: if the back card was tapped, the middle card's top slides back into the place it left.
+// 3. Rise: the old front card's top rises from behind the front card into the place right behind it.
+// Nothing fades; only the warm light behind a card eases in, so it never pops on.
 function swap(pd, wrap) {
   const nf = wrap.querySelector(".stack-front");
   if (!nf || !wrap.isConnected) return pd.ghost.remove();
   const wr = wrap.getBoundingClientRect(), nr = nf.getBoundingClientRect(), g = pd.ghost;
-  // The copy goes back into the same pile, where the old card was (home may have shifted by a few points).
   g.style.top = `${parseFloat(g.style.top) + (pd.wasTop - wr.top)}px`;
   wrap.append(g);
-  const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`), sr = slot ? slot.getBoundingClientRect() : pd.from;
+  const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`);
   if (slot) slot.style.visibility = "hidden";
-  // Side to side (alex 2026-11-27): the card slides out sideways from behind the pile while the old front card steps
-  // the other way, so they part like cards being shuffled; once they're clear the new one is on top and sweeps back to
-  // the middle, and the old one tucks back into the pile. Nothing fades; only the warm light behind a card eases in
-  // and out, so it never vanishes in one frame.
-  const D = 900, w = nr.width;
-  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top;
-  const out = Math.round(w * 0.58), back = -Math.round(w * 0.3), mid = (s0 + 1) / 2;
-  const ease = "cubic-bezier(.45,.05,.25,1)";
+  const D1 = 520, D2 = 300, D3 = 340, ease = "cubic-bezier(.45,.05,.25,1)";
+  // 1. Switch.
+  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top, out = Math.round(nr.width * 0.6);
   nf.style.transformOrigin = "50% 50%";
-  // Its own sway is timed to be level just as it lands (the sway is level a quarter of the way through its 11s), so
-  // there's no snap when the sway takes over.
-  nf.style.animationDelay = `${D - 2750}ms`;
+  nf.style.animationDelay = `${D1 - 2750}ms`;   // its sway is level just as it lands, so there's no snap
   nf.animate([
-    { transform: `translate(0px, ${dy0}px) scale(${s0})`, zIndex: 1, offset: 0 },
-    { transform: `translate(${out}px, ${Math.round(dy0 * 0.3)}px) scale(${mid}) rotate(5deg)`, zIndex: 1, offset: 0.5 },
-    { transform: `translate(${out}px, ${Math.round(dy0 * 0.3)}px) scale(${mid}) rotate(5deg)`, zIndex: 3, offset: 0.5 },
+    { transform: `translate(0px, ${dy0}px) scale(${s0})`, zIndex: 0, offset: 0 },
+    { transform: `translate(${out}px, ${Math.round(dy0 * 0.35)}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 0, offset: 0.5 },
+    { transform: `translate(${out}px, ${Math.round(dy0 * 0.35)}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 3, offset: 0.5 },
     { transform: "none", zIndex: 3, offset: 1 },
-  ], { duration: D, easing: ease, fill: "backwards" });
+  ], { duration: D1, easing: ease, fill: "backwards" }).finished.then(() => g.remove(), () => g.remove());
   const nGlow = nf.querySelector(".glow");
-  if (nGlow) nGlow.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: D + 500, easing: "ease-out", fill: "backwards" });
-  const gr = g.getBoundingClientRect();
-  g.style.transformOrigin = "50% 50%";
-  const lvl = Math.round(nr.top - gr.top + 8);   // level with (just below) the new front card, so it never peeks over its top
-  // The old card steps aside, then slides in behind the new front card and stays hidden there: no fade.
-  g.animate([
-    { transform: pd.tilt, zIndex: 2, offset: 0 },
-    { transform: `translate(${back}px, ${lvl}px) scale(.95) rotate(-3deg)`, zIndex: 2, offset: 0.5 },
-    { transform: `translate(${back}px, ${lvl}px) scale(.95) rotate(-3deg)`, zIndex: 1, offset: 0.5 },
-    { transform: `translate(${Math.round(nr.left - gr.left)}px, ${Math.round(nr.top - gr.top + 10)}px) scale(.94)`, zIndex: 1, offset: 1 },
-  ], { duration: D, easing: ease, fill: "forwards" }).finished.then(() => g.remove());
-  // Then its top edge rises from behind the front card into its place in the pile, like a real card peeking out.
-  if (slot) {
-    slot.style.visibility = "";
-    const hide = Math.round(nr.top - sr.top + 6);
-    slot.animate([
-      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0 },
-      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0.8 },
-      { transform: `translateY(${hide}px)`, visibility: "visible", offset: 0.8 },
-      { transform: "none", visibility: "visible", offset: 1 },
-    ], { duration: D + 150, easing: "cubic-bezier(.2,0,.1,1)", fill: "backwards" });
-  }
-  const gGlow = g.querySelector(".glow");
-  if (gGlow) gGlow.animate([{ opacity: getComputedStyle(gGlow).opacity }, { opacity: 0 }], { duration: D * 0.6, easing: "ease-in", fill: "forwards" });
-  // The other tops glide from where they were to their new places, instead of jumping.
+  if (nGlow) nGlow.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: D1 + 500, easing: "ease-out", fill: "backwards" });
+  g.style.zIndex = "1";   // above the new card until it's out to the side, always below it once it's in front
+  g.style.transform = pd.tilt;   // holds the angle it had mid-sway
+  // 2. Make room: tops that changed place glide there once the switch is done.
+  let moved = false;
   wrap.querySelectorAll(".stack-top").forEach((t) => {
     const was = pd.tops && pd.tops[t.dataset.f];
     if (!was || t === slot) return;
     const now = t.getBoundingClientRect();
     if (Math.abs(was.top - now.top) < 1 && Math.abs(was.width - now.width) < 1) return;
+    moved = true;
     t.style.transformOrigin = "50% 0";
-    t.animate([{ transform: `translateY(${was.top - now.top}px) scaleX(${was.width / now.width})` }, { transform: "none" }], { duration: D * 0.6, easing: ease, fill: "backwards" });
+    t.animate([{ transform: `translateY(${was.top - now.top}px) scaleX(${was.width / now.width})` }, { transform: "none" }], { delay: D1, duration: D2, easing: ease, fill: "backwards" });
   });
+  // 3. Rise.
+  if (slot) {
+    const sr = slot.getBoundingClientRect(), hide = Math.round(nr.top - sr.top + 4), at = D1 + (moved ? D2 : 0);
+    slot.style.visibility = "";
+    slot.animate([
+      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0 },
+      { transform: `translateY(${hide}px)`, visibility: "visible", offset: at / (at + D3), easing: "cubic-bezier(.2,0,.1,1)" },
+      { transform: "none", visibility: "visible", offset: 1 },
+    ], { duration: at + D3, easing: "linear", fill: "backwards" });
+  }
 }
 
 // A card from the stack in front: the card itself, with its own foot.
