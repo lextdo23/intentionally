@@ -39,6 +39,12 @@
 // answered gets "Mia replied to your comment" (same Friends switch and rules) and it counts on their number. The sun
 // is "I see you" for a comment: never counted, never a notification; the writer sees which of their friends said it.
 // Removing a comment takes its replies and suns with it.
+// Shared dates (alex 2026-11-27): a set-a-date card ("Date night", js/later.js) can be shared with friends, up to 5.
+// Kept: which card (its number), the date, the day it was drawn, who's invited and whether they said "I'm in". Never
+// the card's words, a photo or a feeling. A friend gets "Mia invited you to Date night on Sat 5 Dec" (same Friends
+// switch and rules); "I'm in" tells the person who invited; "Not this time" tells nobody. Moving the date or calling
+// it off tells those invited; someone who said "I'm in" and then can't make it tells the person who invited.
+// Removing or blocking a friend takes them off each other's dates. All of it goes 3 days after the date.
 
 import { ping, pushable } from "./webpush.js";
 
@@ -53,6 +59,12 @@ const KEEP_DONE = 90 * DAY, HOLD_AT = 3;
 // The card looks a shared card can come from (alex 2026-11-25): each shows its own feed card on Friends.
 // Add a new look here as well as in js/looks.js, or its shared cards fall back to the plain Daydeck one.
 const LOOK_IDS = ["daydeck", "cherry", "mono", "matcha", "mushroom", "pals", "chrome"];
+// Set-a-date cards that can be shared (card number -> its short name, as LATER in js/later.js). A new one goes in both.
+export const PLAN_CARDS = { 88: "Date night", 57: "Family meal", 60: "Family visit", 32: "Weekend plan", 563: "Weekend fun", 540: "Hobby class", 534: "Evening for fun", 523: "Careers chat", 482: "Holiday at home",
+  388: "Parkrun", 30: "Food at yours", 399: "Neighbours over", 6: "Hang out", 586: "Sunrise or sunset" };
+export const PLAN_LIMITS = { guests: 5, ahead: 60, keep: 3, owned: 20 };
+const ymd = (t) => new Date(t).toISOString().slice(0, 10);
+const shortDay = (k) => { const d = new Date(k + "T12:00:00Z"); return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]} ${d.getUTCDate()} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()]}`; };
 const MOOD_WORDS = ["awful", "rough", "low", "okay", "good", "really good", "great"];   // the app's own mood words, in words only
 
 // A shared photo must be a small JPEG with nothing but the picture: no location, time, phone or camera details
@@ -94,7 +106,9 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, moment TEXT, who TEXT, text TEXT, at INTEGER);
     CREATE INDEX IF NOT EXISTS comments_moment ON comments (moment, at);
     CREATE TABLE IF NOT EXISTS cheld (comment TEXT PRIMARY KEY, at INTEGER);
-    CREATE TABLE IF NOT EXISTS csees (comment TEXT, who TEXT, at INTEGER, PRIMARY KEY (comment, who));`);
+    CREATE TABLE IF NOT EXISTS csees (comment TEXT, who TEXT, at INTEGER, PRIMARY KEY (comment, who));
+    CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, owner TEXT, card INTEGER, day TEXT, made TEXT, at INTEGER);
+    CREATE TABLE IF NOT EXISTS pguests (plan TEXT, who TEXT, state TEXT, at INTEGER, PRIMARY KEY (plan, who));`);
   // Reports can be about a comment (2026-11-26). Books made before then get the column added once.
   try { sql.exec("ALTER TABLE reports ADD COLUMN comment TEXT"); } catch { /* already there */ }
   // Replies (alex 2026-11-26): parent is the comment a reply sits under, rto who it answers. Added once to older books.
@@ -131,7 +145,13 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "GET /a/f/moments": return out(b.mOf(token, q.get("u") || ""));
     case "POST /a/f/see": return out(b.mSee(token, String(body.id || ""), body.undo === true));
     case "POST /a/f/report": return out(b.rReport(token, body));
-    case "GET /a/f/photo": return out(b.mPhoto(token, q.get("id") || ""));
+    // A shared photo says how big it is (X-Size, before any compression on the way), so the phone can close its
+    // loading ring as the photo arrives (alex 2026-11-27).
+    case "GET /a/f/photo": {
+      const r = await b.mPhoto(token, q.get("id") || "");
+      if (r && r.error) return reply(r, r.status || 400);
+      return reply(r, 200, { "X-Size": String(new TextEncoder().encode(JSON.stringify(r)).length), "Access-Control-Expose-Headers": "X-Size" });
+    }
     case "GET /a/f/face": return out(b.fFace(token, q.get("u") || ""));
     case "POST /a/f/pings": return out(b.pSet(token, body));
     case "POST /a/f/hide": return out(b.mHide(token, String(body.username || ""), body.undo === true));
@@ -139,6 +159,10 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/comment": return out(b.cAdd(token, String(body.id || ""), body.text, body.parent ? String(body.parent) : ""));
     case "POST /a/f/csee": return out(b.cSee(token, String(body.id || ""), body.undo === true));
     case "POST /a/f/uncomment": return out(b.cDrop(token, String(body.id || "")));
+    case "GET /a/f/plans": return out(b.plList(token));
+    case "POST /a/f/plan": return out(b.plSave(token, body));
+    case "POST /a/f/plan/answer": return out(b.plAnswer(token, String(body.id || ""), body.yes === true));
+    case "POST /a/f/plan/drop": return out(b.plDrop(token, String(body.id || "")));
   }
   return null;
 }
@@ -201,6 +225,8 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM comments WHERE (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?)) OR (who = ? AND moment IN (SELECT id FROM moments WHERE owner = ?))", a, b, b, a);
     this.sql.exec("DELETE FROM csees WHERE (who = ? AND comment IN (SELECT id FROM comments WHERE who = ?)) OR (who = ? AND comment IN (SELECT id FROM comments WHERE who = ?))", a, b, b, a);
     this.cTidy();
+    // And off each other's shared dates, quietly.
+    this.sql.exec("DELETE FROM pguests WHERE (who = ? AND plan IN (SELECT id FROM plans WHERE owner = ?)) OR (who = ? AND plan IN (SELECT id FROM plans WHERE owner = ?))", a, b, b, a);
   },
 
   // Signed in and ticked "I'm 18 or over"? Most things need both.
@@ -393,9 +419,15 @@ export const friendMethods = {
     const mood = MOOD_WORDS.includes(body.mood) ? body.mood : null;
     const look = (kind === "card" || kind === "own") && LOOK_IDS.includes(body.look) ? body.look : null;
     const feel = mood && Array.isArray(body.feel) ? body.feel.map((f) => tidyText(f, 24)).filter(Boolean).slice(0, 6) : [];
+    // An edit (alex 2026-11-27) may leave the photo out to keep the one already shared.
     let photo = null;
-    if (kind === "photo" || kind === "week") { photo = photoOK(body.photo); if (!photo) return null; }
-    return { day, item, photo, data: { kind, text, pillar, col, status, cap, mood, feel, ph: !!photo, look } };
+    if (kind === "photo" || kind === "week") { photo = body.photo == null && body.edit ? null : photoOK(body.photo); if (!photo && !body.edit) return null; }
+    // A photo's card can sit at the bottom instead of the top, and how it was framed (move and zoom) comes back when edited.
+    const pos = kind === "photo" && text && body.pos === "bottom" ? "bottom" : null;
+    const num = (v, lo, hi) => (typeof v === "number" && isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v * 1000) / 1000)) : null);
+    const c = kind === "photo" && body.crop && typeof body.crop === "object" ? body.crop : null;
+    const crop = c && num(c.z, 1, 4) != null ? { x: num(c.x, 0, 1) ?? 0.5, y: num(c.y, 0, 1) ?? 0.5, z: num(c.z, 1, 4) } : null;
+    return { day, item, photo, edit: !!body.edit, data: { kind, text, pillar, col, status, cap, mood, feel, ph: kind === "photo" || kind === "week", look, pos, crop } };
   },
   mOut(row, meId, owner, extra = {}) {
     // Who said "I see you": the person who shared sees everyone; others see only themselves and their own friends.
@@ -412,11 +444,15 @@ export const friendMethods = {
     const me = g.u, m = this.mClean(body || {});
     if (!m) return { error: "bad_moment" };
     if (this.one("SELECT 1 AS x FROM paused WHERE user = ?", me.id)) return { error: "paused" };
-    const t = Date.now(), had = this.one("SELECT id FROM moments WHERE owner = ? AND day = ? AND item = ?", me.id, m.day, m.item);
+    const t = Date.now(), had = this.one("SELECT id, at FROM moments WHERE owner = ? AND day = ? AND item = ?", me.id, m.day, m.item);
+    // Editing (alex 2026-11-27): only a moment that's still there; it keeps its time, place in the feed, "I see you"s and
+    // comments, and friends aren't told. Without a new photo it keeps the one it has.
+    if (m.edit && !had) return { error: "not_found", status: 404 };
+    if (m.data.ph && !m.photo && !this.one("SELECT 1 AS x FROM mphotos WHERE moment = ?", had.id)) return { error: "bad_moment" };
     if (!had && this.one("SELECT COUNT(*) AS n FROM moments WHERE owner = ? AND at > ?", me.id, t - DAY).n >= LIMITS.perDay) return { error: "too_many_shares" };
     const id = had ? had.id : this.newToken().slice(0, 16);
     // Sharing the same thing again updates it (and brings it back to the top), keeping its "I see you"s.
-    this.sql.exec("INSERT OR REPLACE INTO moments (id, owner, day, item, data, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, m.day, m.item, JSON.stringify(m.data), t);
+    this.sql.exec("INSERT OR REPLACE INTO moments (id, owner, day, item, data, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, m.day, m.item, JSON.stringify(m.data), m.edit ? had.at : t);
     if (m.photo) this.sql.exec("INSERT OR REPLACE INTO mphotos (moment, data) VALUES (?, ?)", id, m.photo);
     if (!had) await this.pQueue(me.id, id);   // a new moment, not an update: friends who asked get told (in time)
     return { ok: true, moment: this.mOut(this.one("SELECT * FROM moments WHERE id = ?", id), me.id, me), again: !!had };
@@ -677,6 +713,95 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM paused WHERE user = ?", id);
     this.sql.exec("DELETE FROM reports WHERE reporter = ? OR who = ?", id, id);
     this.sql.exec("DELETE FROM fpings WHERE user = ?", id);
+    this.sql.exec("DELETE FROM pguests WHERE who = ? OR plan IN (SELECT id FROM plans WHERE owner = ?)", id, id);
+    this.sql.exec("DELETE FROM plans WHERE owner = ?", id);
+  },
+
+  // ---------------- Shared dates (alex 2026-11-27) ----------------
+  plTidy() {
+    const cut = ymd(Date.now() - PLAN_LIMITS.keep * DAY);
+    this.sql.exec("DELETE FROM pguests WHERE plan IN (SELECT id FROM plans WHERE day < ?)", cut);
+    this.sql.exec("DELETE FROM plans WHERE day < ?", cut);
+  },
+  plGuests(planId, meId) {
+    return this.rows("SELECT who, state, at FROM pguests WHERE plan = ? ORDER BY at", planId)
+      .map((g) => ({ g, u: this.one("SELECT * FROM users WHERE id = ?", g.who) })).filter((x) => x.u && (!meId || x.u.id === meId || this.fIsPal(meId, x.u.id)))
+      .map((x) => this.fCard(x.u, { state: x.g.state }));
+  },
+  plOut(p, meId) { return { id: p.id, card: p.card, day: p.day, made: p.made, guests: this.plGuests(p.id, meId) }; },
+  // Your own shared dates (with who's in and who hasn't answered), and the ones friends invited you to.
+  async plList(token) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u; this.plTidy();
+    const mine = this.rows("SELECT * FROM plans WHERE owner = ? ORDER BY day", me.id).map((p) => this.plOut(p, me.id));
+    const invited = this.rows("SELECT p.*, g.state FROM pguests g JOIN plans p ON p.id = g.plan WHERE g.who = ? ORDER BY p.day", me.id)
+      .filter((p) => this.fIsPal(me.id, p.owner) && !this.fBlocked(me.id, p.owner))
+      .map((p) => ({ id: p.id, card: p.card, day: p.day, made: p.made, state: p.state, by: this.fCard(this.one("SELECT * FROM users WHERE id = ?", p.owner)),
+        others: this.plGuests(p.id, me.id).filter((x) => x.username !== me.name && x.state === "in") }));
+    return { ok: true, mine, invited };
+  },
+  // Make or change a shared date: { id (to change one), card, day, made (the day the card was drawn), guests: [usernames] }.
+  // Only friends who ticked 18+ can be invited, up to 5. New guests get an invite; a new date tells everyone invited;
+  // someone taken off the list is told only if they had said "I'm in".
+  async plSave(token, body) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, card = Number(body && body.card), day = String((body && body.day) || ""), made = String((body && body.made) || "");
+    if (!PLAN_CARDS[card] || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^\d{4}-\d{2}-\d{2}$/.test(made)) return { error: "bad_plan" };
+    const t = Date.now();
+    if (day < ymd(t - 2 * DAY) || day > ymd(t + PLAN_LIMITS.ahead * DAY)) return { error: "bad_plan" };
+    this.plTidy();
+    let p = body.id ? this.one("SELECT * FROM plans WHERE id = ? AND owner = ?", String(body.id), me.id) : null;
+    if (!p && this.one("SELECT COUNT(*) AS n FROM plans WHERE owner = ?", me.id).n >= PLAN_LIMITS.owned) return { error: "too_many" };
+    const want = [...new Set((Array.isArray(body.guests) ? body.guests : []).map((n) => String(n || "").toLowerCase()))].slice(0, PLAN_LIMITS.guests)
+      .map((n) => this.fByName(n)).filter((u) => u && u.id !== me.id && this.fIsPal(me.id, u.id) && !this.fBlocked(me.id, u.id) && this.fProf(u.id).adult);
+    if (!p) {
+      const id = "p" + this.newToken().replace(/[^A-Za-z0-9]/g, "").slice(0, 15);
+      this.sql.exec("INSERT INTO plans (id, owner, card, day, made, at) VALUES (?, ?, ?, ?, ?, ?)", id, me.id, card, day, made, t);
+      p = this.one("SELECT * FROM plans WHERE id = ?", id);
+    } else if (p.day !== day || p.card !== card) {
+      this.sql.exec("UPDATE plans SET day = ?, card = ? WHERE id = ?", day, card, p.id);
+      for (const x of this.rows("SELECT who FROM pguests WHERE plan = ?", p.id)) await this.pPlan(x.who, `pm:${p.id}`);
+    }
+    const had = this.rows("SELECT who, state FROM pguests WHERE plan = ?", p.id), keep = new Set(want.map((u) => u.id));
+    for (const x of had) if (!keep.has(x.who)) {
+      this.sql.exec("DELETE FROM pguests WHERE plan = ? AND who = ?", p.id, x.who);
+      if (x.state === "in") await this.pPlan(x.who, `px:${card}:${me.id}:${day}`);
+    }
+    for (const u of want) if (!had.some((x) => x.who === u.id)) {
+      this.sql.exec("INSERT OR IGNORE INTO pguests (plan, who, state, at) VALUES (?, ?, 'ask', ?)", p.id, u.id, t);
+      await this.pPlan(u.id, `pi:${p.id}`);
+    }
+    return { ok: true, plan: this.plOut(this.one("SELECT * FROM plans WHERE id = ?", p.id), me.id) };
+  },
+  // "I'm in" (the person who invited is told) or "Not this time" (nobody is told; the invite just goes).
+  async plAnswer(token, id, yes) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u, row = this.one("SELECT g.state, p.owner FROM pguests g JOIN plans p ON p.id = g.plan WHERE g.plan = ? AND g.who = ?", id, me.id);
+    if (!row) return { error: "not_found", status: 404 };
+    if (!yes) { this.sql.exec("DELETE FROM pguests WHERE plan = ? AND who = ?", id, me.id); return { ok: true, state: "none" }; }
+    if (row.state !== "in") {
+      this.sql.exec("UPDATE pguests SET state = 'in' WHERE plan = ? AND who = ?", id, me.id);
+      await this.pPlan(row.owner, `pj:${id}:${me.id}`);
+    }
+    return { ok: true, state: "in" };
+  },
+  // The person who made it calls it off (everyone invited is told), or a guest leaves (told only if they'd said "I'm in").
+  async plDrop(token, id) {
+    const g = await this.fGate(token, false); if (g.error) return g;
+    const me = g.u, p = this.one("SELECT * FROM plans WHERE id = ?", id);
+    if (!p) return { ok: true };
+    if (p.owner === me.id) {
+      const guests = this.rows("SELECT who FROM pguests WHERE plan = ?", id);
+      this.sql.exec("DELETE FROM pguests WHERE plan = ?", id);
+      this.sql.exec("DELETE FROM plans WHERE id = ?", id);
+      for (const x of guests) await this.pPlan(x.who, `px:${p.card}:${me.id}:${p.day}`);
+      return { ok: true };
+    }
+    const row = this.one("SELECT state FROM pguests WHERE plan = ? AND who = ?", id, me.id);
+    if (!row) return { ok: true };
+    this.sql.exec("DELETE FROM pguests WHERE plan = ? AND who = ?", id, me.id);
+    if (row.state === "in") await this.pPlan(p.owner, `pl:${id}:${me.id}`);
+    return { ok: true };
   },
 
   // ---------------- Friend notifications ----------------
@@ -700,7 +825,8 @@ export const friendMethods = {
   pNote(news) {
     const m = news.names.length ? this.pWords(news) : "", a = news.asks.length ? this.pAskWords(news.asks) : "", c = news.commenters.length ? this.pCommentWords(news) : "";
     const s = news.seers.length ? this.pSeeWords(news.seers) : "", y = news.repliers.length ? this.pReplyWords(news) : "";
-    const lines = [a, y, c, s, m].filter(Boolean);
+    // Shared dates come right after requests (an invite waits on an answer too). Never counted on the number.
+    const lines = [a, ...(news.plans || []), y, c, s, m].filter(Boolean);
     return { kind: "friends", title: lines[0] || "", body: lines.slice(1).join("\n"), n: news.moments + news.asks.length + news.comments + news.replies };
   },
   // When this phone may next be pinged: an hour after the last one, and never in its night (10pm to 8am).
@@ -757,13 +883,53 @@ export const friendMethods = {
     this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
     await this.pWake();
   },
+  // Shared dates (alex 2026-11-27): kept in the same waiting list, marked "p?:", told by the same rules.
+  async pPlan(toId, key) {
+    const r = this.one("SELECT * FROM fpings WHERE user = ?", toId);
+    if (!r) return;
+    const pend = JSON.parse(r.pend || "[]").filter((x) => x !== key).concat(key).slice(-50);
+    this.sql.exec("UPDATE fpings SET pend = ?, due = ? WHERE user = ?", JSON.stringify(pend), r.due || this.pDue(r), r.user);
+    await this.pWake();
+  },
+  // The words for shared dates still worth telling, one line each: "Mia invited you to Date night on Sat 5 Dec",
+  // "Mia moved Date night to Sun 6 Dec", "Date night with Mia on Sat 5 Dec is off", "Mia is in for Date night",
+  // "Mia can't make Date night now". Never the card's words.
+  pPlanLines(row) {
+    const all = JSON.parse(row.pend || "[]").filter((x) => /^p[imxjl]:/.test(String(x))), out = [];
+    const nameOf = (id) => { const u = this.one("SELECT * FROM users WHERE id = ?", id); return u && this.fIsPal(row.user, id) ? this.fProf(u.id).name || "@" + u.name : null; };
+    const plan = (id) => this.one("SELECT * FROM plans WHERE id = ?", id);
+    const joined = new Map();
+    for (const k of all) {
+      const [kind, a, b, c] = String(k).split(":");
+      if (kind === "pi" || kind === "pm") {
+        const p = plan(a), gst = p && this.one("SELECT state FROM pguests WHERE plan = ? AND who = ?", a, row.user), who = p && nameOf(p.owner);
+        if (!gst || !who) continue;
+        if (kind === "pi" && gst.state === "ask") out.push(`${who} invited you to ${PLAN_CARDS[p.card]} on ${shortDay(p.day)}`);
+        if (kind === "pm" && !all.includes(`pi:${a}`)) out.push(`${who} moved ${PLAN_CARDS[p.card]} to ${shortDay(p.day)}`);
+      } else if (kind === "px") {
+        const who = nameOf(b);
+        if (who && PLAN_CARDS[a] && /^\d{4}-\d{2}-\d{2}$/.test(c)) out.push(`${PLAN_CARDS[a]} with ${who} on ${shortDay(c)} is off`);
+      } else if (kind === "pj") {
+        const p = plan(a), who = nameOf(b);
+        if (p && p.owner === row.user && who && this.one("SELECT 1 AS x FROM pguests WHERE plan = ? AND who = ? AND state = 'in'", a, b)) { if (!joined.has(a)) joined.set(a, { p, names: [] }); joined.get(a).names.push(who); }
+      } else if (kind === "pl") {
+        const p = plan(a), who = nameOf(b);
+        if (p && p.owner === row.user && who && !this.one("SELECT 1 AS x FROM pguests WHERE plan = ? AND who = ?", a, b)) out.push(`${who} can't make ${PLAN_CARDS[p.card]} now`);
+      }
+    }
+    for (const { p, names } of joined.values()) {
+      const [x, y] = names, n = names.length, what = PLAN_CARDS[p.card];
+      out.push(n === 1 ? `${x} is in for ${what}` : n === 2 ? `${x} and ${y} are in for ${what}` : `${x} and ${n - 1} others are in for ${what}`);
+    }
+    return [...new Set(out)];
+  },
   async pWake() {
     const next = this.one("SELECT MIN(due) AS t FROM fpings WHERE due IS NOT NULL");
     if (next && next.t && this.ctx && this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(next.t);
   },
   // The waiting moments still worth telling: still there, still a friend's, not hidden, paused or held back by reports.
   pNews(row) {
-    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !/^[rcsy]:/.test(String(x)));
+    const all = JSON.parse(row.pend || "[]"), ids = all.filter((x) => !/^(?:[rcsy]|p[imxjl]):/.test(String(x)));
     // Requests still waiting (not answered, taken back or blocked since), newest first.
     const askers = [...new Set(all.filter((x) => String(x).startsWith("r:")).map((x) => x.slice(2)).reverse())]
       .filter((id) => this.one("SELECT 1 AS x FROM asks WHERE f = ? AND t = ?", id, row.user) && !this.fBlocked(id, row.user))
@@ -788,7 +954,7 @@ export const friendMethods = {
       this.fIsPal(row.user, who) && !this.one("SELECT 1 AS x FROM paused WHERE user = ?", who)).map(([, who]) => who))]
       .map((id) => this.one("SELECT * FROM users WHERE id = ?", id)).filter(Boolean).map(nameOf);
     return { moments: moms.length, names: people.map(nameOf), asks: askers.map(nameOf), seers, comments: cms.length, commenters: commenters.map(nameOf), on: new Set(cms.map((c) => c.moment)).size,
-      replies: yms.length, repliers: repliers.map(nameOf), to: new Set(yms.map((c) => c.parent)).size };
+      replies: yms.length, repliers: repliers.map(nameOf), to: new Set(yms.map((c) => c.parent)).size, plans: this.pPlanLines(row) };
   },
   // "Sam commented on your moment", "Sam left 3 comments", "Sam and Priya commented on your moments", "Sam and 2 others commented".
   pCommentWords(news) {
@@ -825,7 +991,7 @@ export const friendMethods = {
     const now = Date.now();
     for (const row of this.rows("SELECT * FROM fpings WHERE due IS NOT NULL AND due <= ?", now + 30000)) {
       const news = this.pNews(row);
-      if (!news.names.length && !news.asks.length && !news.commenters.length && !news.seers.length && !news.repliers.length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
+      if (!news.names.length && !news.asks.length && !news.commenters.length && !news.seers.length && !news.repliers.length && !(news.plans || []).length) { this.sql.exec("UPDATE fpings SET due = NULL, pend = '[]' WHERE user = ?", row.user); continue; }
       const sub = JSON.parse(row.sub);
       let gone = false;
       try { gone = await ping(this.env, sub.endpoint, this.pNote(news), sub.keys, PINGS.ttl / 1000); } catch { /* tried again with the next moment */ }

@@ -15,6 +15,15 @@ import { pickSteps, needsRepick, repickSteps } from "./pillars.js";
 import * as library from "./library.js";
 import { now } from "./clock.js";
 
+// Today's card moving between home and the draw (alex 2026-11-27, thread "Map the choppy morning flow"):
+// fly = home's card on its way into the hand; kept = the kept card on its way back down onto home.
+export const handOff = { fly: null, kept: null };
+// A copy of a swaying card sways exactly in step with the real one (same point in each animation).
+export function keepTime(from, to) {
+  const a = [from, ...from.querySelectorAll("*")], b = [to, ...to.querySelectorAll("*")];
+  a.forEach((e, i) => { const A = e.getAnimations(), B = b[i] ? b[i].getAnimations() : []; B.forEach((x, j) => { if (A[j]) x.currentTime = A[j].currentTime; }); });
+}
+
 const SIZE = { Tiny: "Tiny", Small: "Small", Bigger: "Bigger" };
 const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion() ? 0 : ms));
 
@@ -104,7 +113,7 @@ export function drawSteps() {
 function hand(st, dealIn) {
   const k = dayKey(), d = store.day(k);
   const stage = h("div.stage", { role: "group", "aria-label": "Today's three cards" });
-  const hint = h("p.note", { "aria-live": "polite" });
+  const hint = h("p.note.hand-hint", { "aria-live": "polite" });   // keeps its space, so the hand never moves when it fills
   const keep = mainBtn("Keep this one", st.pick != null, () => {
     const id = st.ids[st.pick];
     deck.passed(st.ids.filter((x) => x !== id));
@@ -151,7 +160,7 @@ function hand(st, dealIn) {
   const pile = () => order.forEach((e, i) => { place(e, 0); e.style.zIndex = i + 1; e.style.transform = P(i); });
 
   // The top card goes straight to the middle with the deck tucked behind it; the side cards slide out from behind it.
-  const deal = (instant) => {
+  const deal = (instant, split = false) => {
     const mid = order[N - 1], sides = [order[N - 2], order[N - 3]];
     handEls = [sides[0], mid, sides[1]];
     handEls.forEach((e, j) => { e.classList.toggle("up", st.up[j]); e.classList.toggle("sel", st.pick === j); fill(e, st.ids[j]); });
@@ -163,6 +172,12 @@ function hand(st, dealIn) {
     const done = () => { handEls.forEach((e) => (e.style.pointerEvents = "auto")); busy = false; say(); };
     if (instant) return done();
     busy = true;
+    if (split) {
+      // Today's card has just landed on the middle spot: the other two fan straight out from behind it.
+      setTimeout(() => sides.forEach((e, i) => { e.style.transitionDelay = "0s"; place(e, 0.7); e.style.transform = H(i ? 2 : 0); }), 40);
+      setTimeout(done, 800);
+      return;
+    }
     setTimeout(() => sides.forEach((e, i) => { place(e, 0.7); e.style.transform = H(i ? 2 : 0); }), reduceMotion() ? 0 : 90);
     setTimeout(done, reduceMotion() ? 0 : 850);
   };
@@ -252,7 +267,24 @@ function hand(st, dealIn) {
     [roundBtn("close", "Not now", () => { log("card_later"); close(false); }), where("Today's card"), rest || spacer()],
     [h("h1.q.rise", null, "Pick one for today"), h("div.rise", null, stage), h("div.rise", null, hint), testerOn() ? h("p.note.rise", null, "Testers: thumbs up if a card fits your pillar and where you're at with it. One go per card.") : null],
     foot));
-  if (dealIn && !reduceMotion()) { pile(); requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => deal(false), 260))); }
+  const fly = handOff.fly; handOff.fly = null;
+  if (dealIn && !reduceMotion() && fly) {
+    // From home (alex 2026-11-27): today's card shrinks to exactly the size and spot of the middle hand card while home
+    // fades around it, its date, edge and light fading as it goes; it's swapped for that card, then the other two fan out.
+    order.forEach((e, i) => { place(e, 0); e.style.zIndex = i + 1; e.style.transform = i === N - 1 ? H(1) : AWAY(); });
+    const wrap = stage.parentElement;
+    wrap.style.transition = "none"; wrap.style.opacity = "0"; wrap.style.transform = "none";   // there, but unseen, so nothing has to be built at the swap
+    requestAnimationFrame(() => {
+      const t = order[N - 1].getBoundingClientRect(), r = fly.r, cx = t.left + t.width / 2, cy = t.top + t.height / 2;
+      // match the card's own face (not the box around it with its edge and light) to the hand card exactly
+      const d = (fly.c.querySelector(".dcard") || fly.c).getBoundingClientRect(), ox = r.left + r.width / 2, oy = r.top + r.height / 2;
+      const sx = t.width / d.width, sy = t.height / d.height;
+      const dx = cx - ox - sx * (d.left + d.width / 2 - ox), dy = cy - oy - sy * (d.top + d.height / 2 - oy);
+      const a = fly.c.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }], { duration: 560, easing: "cubic-bezier(.3,0,.2,1)", fill: "forwards" });
+      fly.c.querySelectorAll(".glow, .card-date, .edge").forEach((x) => x.animate([{ opacity: getComputedStyle(x).opacity }, { opacity: 0 }], { duration: 400, fill: "forwards" }));
+      a.onfinish = () => { wrap.style.opacity = "1"; fly.c.remove(); deal(false, true); };
+    });
+  } else if (dealIn && !reduceMotion()) { if (fly) fly.c.remove(); pile(); requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => deal(false), 260))); }
   else { pile(); deal(true); }
 }
 
@@ -275,8 +307,11 @@ function pickMine(onPick) {
 
 function big(st, id, { own = false } = {}) {
   const k = dayKey(), d = store.day(k);
-  const face = cardEl(id, { big: true, tag: "div" }); face.classList.add("up");
-  const holder = h("div.big-holder", null, face);
+  // The kept card is today's card exactly as it will sit on home (alex 2026-11-27), so Done just places it there.
+  // Its "I did it" and camera wait until it's on home. A card picked from your own (Pick my own) keeps the big card.
+  const fit = getComputedStyle(document.getElementById("home")).getPropertyValue("--fit") || 1;
+  let face = own ? cardEl(id, { big: true, tag: "div" }) : homeCard(id, { state: "up" }); if (own) face.classList.add("up");
+  const holder = own ? h("div.big-holder", null, face) : h("div.kept-holder", { style: { "--fit": fit } }, face);
   const helpers = h("div.helpers");
   const draw = () => {
     if (own) return;
@@ -290,7 +325,7 @@ function big(st, id, { own = false } = {}) {
   const swap = () => {
     if (reduceMotion()) { fill(face, id, true); draw(); return; }
     face.classList.add("turning");
-    setTimeout(() => { fill(face, id, true); draw(); face.classList.remove("turning"); }, 280);
+    setTimeout(() => { if (own) fill(face, id, true); else { const f = homeCard(id, { state: "up" }); face.replaceWith(f); face = f; } draw(); face.classList.remove("turning"); }, 280);
   };
   draw();
   show(step(
@@ -298,7 +333,15 @@ function big(st, id, { own = false } = {}) {
     [h("div.rise", null, holder), h("div.rise", null, helpers)],
     [mainBtn("Done", true, () => {
       if (own) { if (!boxes.useExtra("pick")) return; d.card.own = true; deck.shown([id], k); log("card_keep", { id: deck.tid(id), draw: 0, own: 1 }); }
-      d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id); close(true);
+      d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id);
+      // A copy of the card stays exactly where it is, above everything, so home can set it down in its place.
+      if (!reduceMotion() && !own) {
+        const r = face.getBoundingClientRect(), w = h("div.card-ghost", { style: { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" } });
+        const c = face.cloneNode(true); c.style.setProperty("--fit", fit); c.querySelectorAll(".foot-right").forEach((x) => (x.style.opacity = "0"));
+        w.append(c); document.body.append(w); keepTime(face, c);
+        face.style.visibility = "hidden"; handOff.kept = { w, c };
+      }
+      close(true);
     }), LIFELINE()]));
 }
 
