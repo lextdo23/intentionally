@@ -19,6 +19,7 @@ import * as wrapped from "./wrapped.js";
 import { openBox, waiting as boxesWaiting } from "./boxes.js";
 import * as crumbs from "./crumbs.js";
 import * as notifCard from "./notif-card.js";
+import * as later from "./later.js";
 
 export const isDev = () => { const u = account.user(); return !!(u && u.dev); };
 
@@ -66,6 +67,38 @@ export function removeSimulated() {
   return n;
 }
 
+// ---------- Cards waiting behind today's card (js/later.js) ----------
+// The stack is worked out from earlier days' cards, so a waiting card is made by putting a date or week card on an
+// earlier day: one that's free (no card, or only made-up data), and recent enough for that kind to still wait.
+function freeDay(k, maxBack) {
+  const days = store.get().days;
+  for (let i = 1; i <= maxBack; i++) { const f = addDays(k, -i), d = days[f]; if (!d || !(d.card && d.card.id) || (d.dev && !later.kindOf(d.card.id))) return f; }
+  return null;
+}
+const laterIds = (kind) => Object.keys(later.LATER).map(Number).filter((n) => later.LATER[n].k === kind && deck.card(n));
+// whenIn: days from k to the date (0 = today), or null for "Not set yet".
+export function addDateCard(k, whenIn) {
+  const f = freeDay(k, whenIn == null ? later.UNSET_DAYS : 6); if (!f) return false;
+  const used = later.stack(k).map((x) => x.id), id = pick(laterIds("date").filter((n) => !used.includes(n)));
+  const d = day(f); delete d.rest;
+  d.card = { id, hands: [[id]], done: true, felt: ["Enjoyed it"], how: deck.howFromFelt(["Enjoyed it"]) };
+  if (whenIn == null) d.card.nodate = 1; else d.card.when = addDays(k, whenIn);
+  return true;
+}
+export function addWeekCard(k) {
+  const f = freeDay(k, later.WEEK - 1); if (!f) return false;
+  const used = later.stack(k).map((x) => x.id), id = pick(laterIds("week").filter((n) => !used.includes(n) && (later.LATER[n].n || 1) > 1));
+  const d = day(f); delete d.rest;
+  d.card = { id, hands: [[id]], done: true, ticks: [f], felt: ["Enjoyed it"], how: deck.howFromFelt(["Enjoyed it"]) };
+  return true;
+}
+// Takes away waiting cards made here (only on made-up days), so the stack can be built again.
+export function clearStack(k) {
+  const days = store.get().days; let n = 0;
+  for (const x of later.stack(k)) { const d = days[x.f]; if (d && d.dev && d.card) { delete d.card; n++; } }
+  return n;
+}
+
 // ---------- Levels ----------
 // Points needed to stand at the start of level lv.
 const startOf = (lv) => { let p = 0; for (let i = 1; i < lv; i++) p += levels.need(i); return p; };
@@ -96,8 +129,8 @@ export function open(rerender) {
   openSheet((panel, close) => {
     const act = (fn, { shut = false } = {}) => () => { fn(); store.save(); redo(); shut ? close("done") : draw(); };
     const b = (label, fn, opts) => h("button.dev-chip", { onclick: act(fn, opts) }, label);
-    const later = (fn) => () => { close("done"); setTimeout(fn, 350); };
-    const chip = (label, fn) => h("button.dev-chip", { onclick: later(fn) }, label);
+    const afterClose = (fn) => () => { close("done"); setTimeout(fn, 350); };
+    const chip = (label, fn) => h("button.dev-chip", { onclick: afterClose(fn) }, label);
     const sec = (title, ...rows) => h("div.dev-sec", null, h("h3", null, title), ...rows);
     const row = (...kids) => h("div.dev-row", null, ...kids);
     const draw = () => {
@@ -115,6 +148,9 @@ export function open(rerender) {
         sec("Today", h("p.dev-now", null, today),
           row(b("Morning check-in", () => morningFor(k)), b("Draw card", () => drawFor(k)), b("Card done", () => cardDoneFor(k)), b("Evening check-in", () => eveningFor(k))),
           row(b("Full day", () => fullDay(k)), b("Rest day", () => restFor(k)), b("Full day, then next day", () => { fullDay(k); shift(1); }), b("Clear today", () => clearDay(k)))),
+        sec("Cards on home", h("p.dev-now", null, (() => { const w = later.stack(k); return w.length ? `${w.length} of ${later.MAX_WAIT} waiting: ${w.map((x) => `${x.label} (${x.status})`).join(", ")}` : `None waiting (up to ${later.MAX_WAIT} behind today's card)`; })()),
+          row(b("Date card today", () => addDateCard(k, 0)), b("Date in 3 days", () => addDateCard(k, 3)), b("Date not set yet", () => addDateCard(k, null)), b("Week card", () => addWeekCard(k))),
+          row(b("Clear waiting cards", () => clearStack(k)))),
         sec("Past days", h("p.dev-now", null, `${Object.keys(st.days).length} days kept · ${sims} made up`),
           row(b("Last 7 days", () => { for (let i = 7; i >= 1; i--) fullDay(addDays(k, -i)); }), b("Last 28 days", () => { for (let i = 28; i >= 1; i--) fullDay(addDays(k, -i)); }),
             b("2 months (no points)", () => { Object.assign(st.days, makeSample(60)); if (!st.started) st.started = Object.keys(st.days).sort()[0]; })),

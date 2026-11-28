@@ -48,7 +48,7 @@ const fs = require("fs"), path = require("path");
   const p = await page({ username: "test", email: "test@example.com", test: true, dev: true });
   check(!!(await p.$(".devbtn")), "@test sees the Dev button on home");
   await p.click(".devbtn"); await p.waitForTimeout(600);
-  check(await p.isVisible("text=Dev tools"), "it opens the Dev tools sheet");
+  check(await p.isVisible("text=Dev tools"), "it opens the Dev tools sheet" + (p.errors.length ? ": " + p.errors.join("; ") : ""));
 
   const r = await p.evaluate(async () => {
     const dev = await import("./js/dev.js"), levels = await import("./js/levels.js"), util = await import("./js/util.js"), store = await import("./js/store.js"), clock = await import("./js/clock.js");
@@ -66,6 +66,12 @@ const fs = require("fs"), path = require("path");
     out.hour = new Date(clock.now()).getHours() === 20 && util.dayKey() === util.addDays(k0, 1);
     [...document.querySelectorAll(".dev-chip")].find((x) => x.textContent === "Real time").click();
     out.real = util.dayKey() === k0 && store.get().test.offset === 0;
+    // Cards waiting on home
+    const later = await import("./js/later.js");
+    dev.addDateCard(k0, 0); dev.addWeekCard(k0);
+    const w = later.stack(k0);
+    out.stack = w.length === 2 && w[0].today && w.some((x) => x.kind === "week");
+    out.cleared = dev.clearStack(k0) === 2 && later.stack(k0).length === 0;
     // Levels
     dev.setLevel(5); out.lv5 = levels.level().level === 5 && levels.level().into === 0;
     out.libOpen = levels.isOpen("library");
@@ -84,6 +90,8 @@ const fs = require("fs"), path = require("path");
   check(r.dayMoved, "+ 1 day moves the app's clock to tomorrow");
   check(r.hour, "8 pm sets the hour on the simulated day");
   check(r.real, "Real time brings the clock back");
+  check(r.stack, "Date card today and Week card put two cards behind today's card (the date in front)");
+  check(r.cleared, "Clear waiting cards takes them away again");
   check(r.lv5, "Level 5 jumps straight to the start of level 5");
   check(r.libOpen, "with everything open by default for a dev account");
   check(r.strict, "Real levels locks each feature until its level, like a new person");
