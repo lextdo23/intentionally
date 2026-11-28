@@ -124,7 +124,10 @@ const early = new Set();
 export function openEarly(ids) { ids.forEach((id) => early.add(id)); }
 export function isOpen(id) {
   const u = UNLOCKS.find((x) => x.id === id);
-  if (!u || mem().keepAll || early.has(id) || (id === "friends" && mem().invited)) return true;
+  if (!u) return true;
+  // Dev tools' "Real levels" (js/dev.js, dev accounts only): opens only at its level, so locks can be seen as a new person would.
+  if ((store.get().test || {}).strict) return level().level >= u.level;
+  if (mem().keepAll || early.has(id) || (id === "friends" && mem().invited)) return true;
   return level().level >= u.level || !!(mem().tips || {})[id];
 }
 // What opened at this level (for the level-up moment), or null.

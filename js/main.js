@@ -28,6 +28,7 @@ import * as tips from "./tips.js";
 import * as library from "./library.js";
 import * as account from "./account.js";
 import * as sync from "./sync.js";
+import * as dev from "./dev.js";
 import * as pill from "./pill.js";
 import * as friends from "./friends.js";
 import * as moments from "./moments.js";
@@ -466,6 +467,10 @@ const alertLine = () => { const g = document.querySelector(".greet-line"); if (g
 // Test mode (?test, or tap the greeting 5 times): fill made-up days, move a day forward, start again.
 function testBar() {
   document.querySelector(".testbar")?.remove();
+  document.querySelector(".devbtn")?.remove();
+  // Dev accounts only (the service says which; js/dev.js): one small button for the dev tools.
+  const devBtn = dev.button(() => render());
+  if (devBtn) document.body.append(devBtn);
   if (!testOn) return;
   const st = store.get();
   let armed = false;
@@ -505,7 +510,7 @@ if (store.get().lib) library.refresh();
 library.finishUnshare();
 // Asks the service about this account; if it's one of the early ones (Friends straight away), redraw now so the pill
 // shows without waiting for the next time home redraws (alex 2026-11-21: "it's not showing").
-const acctReady = account.refresh().then(() => { const u = account.user(); if (u && ((u.early && !(store.get().levels || {}).early) || (u.test && !levels.isOpen("months")) || (u.restart && (store.get().levels || {}).restart !== u.restart))) render(); }).catch(() => {});
+const acctReady = account.refresh().then(() => { const u = account.user(); if (u && ((u.early && !(store.get().levels || {}).early) || (u.test && !levels.isOpen("months")) || (u.dev && !document.querySelector(".devbtn")) || (u.restart && (store.get().levels || {}).restart !== u.restart))) render(); }).catch(() => {});
 
 // Opening Daydeck (alex 2026-11-21, "like other social apps"): a fresh open shows the logo on a blank sky (the splash
 // in index.html) while home gets ready behind it, then the splash fades and home rises in. It stays at least a moment,
