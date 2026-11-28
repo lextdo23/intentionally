@@ -20,7 +20,8 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
     if (body) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = "Bearer " + token;
     const res = await worker.fetch(new Request("https://service.example" + path, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
-    return { status: res.status, ...(await res.json()) };
+    const txt = await res.text();
+    return { status: res.status, size: res.headers.get("X-Size"), expose: res.headers.get("Access-Control-Expose-Headers"), bytes: Buffer.byteLength(txt), ...JSON.parse(txt) };
   };
   // A made-up person signs up (email code, username; Face ID skipped).
   const person = async (username) => {
@@ -216,7 +217,23 @@ const { checker, loadWorker, fakeSql } = require("./helpers.cjs");
   r = await mia.post("/a/f/share", { day: today, item: "photo", kind: "photo", photo: jpeg(), pillar: "Health", col: "#a9c4b5" });
   seen = (await sam.get("/a/f/feed")).moments.find((x) => x.id === pm);
   check(r.ok && seen && seen.text === "", "sharing it again with the card left off takes the card away");
+  // Framing, the card's place, and editing (alex 2026-11-27).
+  const wp = { day: today, item: "photo", kind: "photo", text: "Take a slow walk somewhere new.", pillar: "Health", status: "Done" };
+  r = await mia.post("/a/f/share", { ...wp, photo: jpeg(), pos: "bottom", crop: { x: 0.2, y: 2, z: 9, extra: "<b>" } });
+  check(r.ok && r.moment.pos === "bottom" && JSON.stringify(r.moment.crop) === '{"x":0.2,"y":1,"z":4}', "a photo keeps its card at the bottom and its framing (kept within bounds)");
+  check((await mia.post("/a/f/share", { ...wp, text: "", photo: jpeg(), pos: "bottom" })).moment.pos === null, "a photo without its card has no card place");
+  check((await mia.post("/a/f/share", { day: today, item: "12", kind: "card", text: "Text an old friend", pos: "bottom", crop: { x: 0, y: 0, z: 2 } })).moment.crop === null, "only photos are framed");
+  await sam.post("/a/f/see", { id: pm });
+  const atBefore = (await sam.get("/a/f/feed")).moments.find((x) => x.id === pm).at;
+  await new Promise((res) => setTimeout(res, 15));
+  r = await mia.post("/a/f/share", { ...wp, edit: 1, cap: "Edited words", pos: "bottom" });
+  seen = (await sam.get("/a/f/feed")).moments.find((x) => x.id === pm);
+  check(r.ok && seen.cap === "Edited words" && seen.at === atBefore && seen.seen === true, "an edit keeps the moment's time and its I see yous");
+  check((await sam.get("/a/f/photo?id=" + pm)).data === jpeg(), "an edit without a new photo keeps the one already shared");
+  check((await mia.post("/a/f/share", { day: "2026-11-01", item: "photo", kind: "photo", edit: 1 })).status === 404, "an edit can only change a moment that's still there");
   check((await sam.get("/a/f/photo?id=" + pm)).data === jpeg(), "a friend can fetch the photo");
+  { const g = await sam.get("/a/f/photo?id=" + pm);   // the loading ring (alex 2026-11-27) closes against this
+    check(Number(g.size) === g.bytes && /X-Size/.test(g.expose || ""), "the photo says how big it is, so the feed's loading ring can close as it arrives"); }
   check((await stranger.get("/a/f/photo?id=" + pm)).status === 404, "someone who isn't a friend can't");
   await mia.post("/a/f/unshare", { id: pm });
   check((await sam.get("/a/f/photo?id=" + pm)).status === 404 && made.Accountsbook.sql.exec("SELECT COUNT(*) AS n FROM mphotos").toArray()[0].n === 0, "removing the moment removes the photo from the service");

@@ -3,7 +3,7 @@ import { h, CHART_COL as MOOD_COL, moodWord, dayKey, keyDate, smoothPath, DAY_NA
 import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
-import { openDraw, cardDue, homeCard, askFelt } from "./draw.js";
+import { openDraw, cardDue, homeCard, askFelt, handOff, keepTime } from "./draw.js";
 import { openDays } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
@@ -21,6 +21,7 @@ import * as photos from "./photos.js";
 import { openCamera } from "./camera.js";
 import * as later from "./later.js";
 import * as stack from "./stack.js";
+import * as plans from "./plans.js";
 import { openLevels, notYet, notYetLabel, ring } from "./path.js";
 import * as levelup from "./levelup.js";
 import * as tips from "./tips.js";
@@ -141,8 +142,9 @@ function boxRow() {
 // After each step, home says so in place for a few seconds: the greeting turns gold with what's next, the card lifts
 // and glows, then it all softens back. No separate screen, no confetti (alex 2026-11-15, "words in place").
 const MOMENT = {
-  sleep: ["That's last night.", "Next, your card."],
-  card: ["Your card for today.", "Do your card any time today."],
+  // No words after the sleep check-in or keeping the card (alex 2026-11-27): the card moving says it, and nothing jumps later.
+  sleep: null,
+  card: null,
   rest: ["Rest day.", "No card today."],
   end: ["That's today.", null],
   photo: ["Photo added.", "It's in Your photos."],
@@ -209,6 +211,75 @@ function notYetBtn(kind, id) {
   return b;
 }
 
+// ---------- Today's card moving through the morning (alex 2026-11-27, thread "Map the choppy morning flow") ----------
+// Start your day: the card sinks into the glow at the bottom. Draw your card: it shrinks into the hand (js/draw.js).
+// Back from the sleep check-in: it rises out of the glow. Done on the kept card: it's set down in its place (js/draw.js).
+// Each one moves a copy of the card above everything while home fades, then hands back to the real card.
+let todayL = null;   // today's card on home, when it's the one in front (not behind a stack of waiting cards)
+const pinned = (L, r) => `;position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:40;pointer-events:none;--fit:${getComputedStyle(home).getPropertyValue("--fit") || 1}`;
+function liftCopy() {
+  const L = todayL; if (!L || !L.isConnected || reduceMotion()) return null;
+  const r = L.getBoundingClientRect(), c = L.cloneNode(true);
+  c.style.cssText += pinned(L, r);
+  document.body.append(c); keepTime(L, c); L.style.visibility = "hidden";
+  return { c, r };
+}
+// The softness as the card turns into light: a blurred copy of the card, blurred once and held still inside, that
+// travels with it while the two cross-fade. Moving a blur that's already drawn is cheap on a phone; changing how
+// blurred something is every frame is not.
+function softPatch(f) {
+  const p = f.c.cloneNode(true), src = [f.c, ...f.c.querySelectorAll("*")], dst = [p, ...p.querySelectorAll("*")];
+  src.forEach((e, i) => { const cs = getComputedStyle(e); if (cs.animationName !== "none") { dst[i].style.animation = "none"; dst[i].style.transform = cs.transform === "none" ? "" : cs.transform; } });
+  p.classList.add("card-soft"); p.style.zIndex = "39"; p.style.opacity = "0";
+  document.body.append(p); return p;
+}
+const GLOW_PATH = (dy, k) => [{ transform: "none" }, { offset: .5, transform: `translateY(${dy * k}px) scale(1.05, .85)` }, { transform: `translateY(${dy}px) scale(2.4, .3)` }];
+function sinkCard() {
+  const f = liftCopy(); if (!f) return;
+  const dy = innerHeight + 40 - (f.r.top + f.r.height / 2), p = softPatch(f), T = { duration: 950, easing: "cubic-bezier(.45,0,.3,1)", fill: "forwards" };
+  document.body.classList.add("sinking");
+  const path = GLOW_PATH(dy, .55);
+  f.c.animate(path, T);
+  f.c.animate([{ opacity: 1 }, { offset: .2, opacity: 1 }, { offset: .5, opacity: 0 }, { opacity: 0 }], { duration: 950, fill: "forwards" });
+  const a = p.animate(path, T);
+  p.animate([{ opacity: 0 }, { offset: .2, opacity: 0 }, { offset: .45, opacity: 1 }, { offset: .7, opacity: .35 }, { opacity: 0 }], { duration: 950, fill: "forwards" });
+  a.onfinish = () => { f.c.remove(); p.remove(); document.body.classList.remove("sinking"); };
+}
+function flyCard() { handOff.fly = liftCopy(); }
+function riseCard() {
+  if (!todayL || reduceMotion()) return;
+  document.body.classList.add("rising");
+  requestAnimationFrame(() => {
+    const f = liftCopy(); if (!f) return document.body.classList.remove("rising");
+    const dy = innerHeight + 40 - (f.r.top + f.r.height / 2), p = softPatch(f), T = { duration: 1000, easing: "cubic-bezier(.3,0,.25,1)", fill: "forwards" };
+    const path = GLOW_PATH(dy, .45).reverse();
+    f.c.animate(path, T);
+    f.c.animate([{ opacity: 0 }, { offset: .5, opacity: 0 }, { offset: .8, opacity: 1 }, { opacity: 1 }], { duration: 1000, fill: "forwards" });
+    const a = p.animate(path, T);
+    p.animate([{ opacity: 0 }, { offset: .25, opacity: .8 }, { offset: .55, opacity: 1 }, { offset: .8, opacity: 0 }, { opacity: 0 }], { duration: 1000, fill: "forwards" });
+    a.onfinish = () => { todayL.style.visibility = ""; f.c.remove(); p.remove(); document.body.classList.remove("rising"); };
+  });
+}
+// Done on the kept card: the very same card is set down in its place on home. It only moves (the two are the same
+// size and sway in step); once it's down, its "I did it" and camera fade in.
+function landCard() {
+  const K = handOff.kept; handOff.kept = null; if (!K) return;
+  const L = todayL, H = L && L.querySelector(".home-card");
+  if (!H || reduceMotion()) { K.w.remove(); return; }
+  document.body.classList.add("landing");
+  const fr = H.querySelector(".foot-right"); if (fr) fr.style.opacity = "0";
+  L.style.visibility = "hidden";
+  requestAnimationFrame(() => {
+    // measured in the same frame, so the sway is the same on both and the distance is exact
+    const t = L.getBoundingClientRect(), k = K.c.getBoundingClientRect(), dx = t.left + t.width / 2 - (k.left + k.width / 2), dy = t.top + t.height / 2 - (k.top + k.height / 2);
+    const a = K.w.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)` }], { duration: 640, easing: "cubic-bezier(.3,.1,.2,1)", fill: "forwards" });
+    a.onfinish = () => {
+      L.style.visibility = ""; K.w.remove(); document.body.classList.remove("landing");
+      if (fr) { fr.style.transition = "opacity .35s ease"; requestAnimationFrame(() => (fr.style.opacity = "1")); }
+    };
+  });
+}
+
 function render(moment) {
   early();
   wrapped.applyPlan();   // a rest day kept for this week arrives on its own
@@ -222,13 +293,15 @@ function render(moment) {
   const canDraw = !needAM && !ended && cardDue(k);
 
   // One main button, always in the same place: Start your day, Draw your card, End your day, then Change today.
+  // Start your day and Draw your card each start from the card itself too (alex 2026-11-27): tap the face-down card.
+  const startDay = () => { sinkCard(); go(morning, "sleep")(); }, drawNow = () => { flyCard(); go(openDraw, "card")(); };
   let main;
   // Once the day is ended, in the evening the main button's last job is bedtime (alex 2026-11-16).
   const bedtime = ended && (hr >= 17 || hr < 4);
   if (bedtime) main = h("button.btn-main.with-ico", { onclick: () => goToSleep(() => render()) }, moonIcon(), h("span", null, "Going to sleep"));
   else if (ended) main = h("button.btn-main.soft", { onclick: changeToday }, "Change today");
-  else if (needAM && hr < 15) main = h("button.btn-main", { onclick: go(morning, "sleep") }, "Start your day");
-  else if (canDraw && hr < 15) main = h("button.btn-main", { onclick: go(openDraw, "card") }, "Draw your card");
+  else if (needAM && hr < 15) main = h("button.btn-main", { onclick: startDay }, "Start your day");
+  else if (canDraw && hr < 15) main = h("button.btn-main", { onclick: drawNow }, "Draw your card");
   else main = h("button.btn-main", { onclick: go(evening, "end") }, "End your day");
 
   // The line under the greeting says where the day is.
@@ -280,7 +353,7 @@ function render(moment) {
   const felt = c && c.felt || [];
   const ph = { photo: k, develop: moment === "photo", turn: turnPh }; turnPh = false;
   if (c) card = homeCard(c.id, ended ? { state: did ? "done" : "skip", felt, ...ph } : did ? { state: "done", flip: moment === "did", felt, ...ph } : { state: "up", onDid: markDid, onCam: cam, photo: k });
-  else if (!today.rest && !ended && deck.dealable().length >= 3) card = homeCard(null, { state: "down", onTap: canDraw ? go(openDraw, "card") : null });
+  else if (!today.rest && !ended && deck.dealable().length >= 3) card = homeCard(null, { state: "down", onTap: needAM && hr < 15 ? () => { log("card_tap_start", "am"); startDay(); } : canDraw ? () => { log("card_tap_start", "draw"); drawNow(); } : null });
 
   // A new level takes the moment: the greeting turns gold, "Level 4."
   const lvFirst = !store.get().levels || store.get().levels.seen == null, lvNew = levels.newLevel();
@@ -333,6 +406,7 @@ function render(moment) {
   // up or down when cards are switched (alex 2026-11-27).
   if (frontF !== null && card && slotEl) { slotEl.style.visibility = "hidden"; slotEl.setAttribute("aria-hidden", "true"); slotEl.inert = true; }
   const mid = h("div.home-mid", null, area, card ? slotEl : null);
+  todayL = card && frontF === null ? card : null;
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
   // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
   const friendsOpen = testOn || levels.isOpen("friends");
@@ -356,6 +430,8 @@ function render(moment) {
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
+  if (moment === "sleep") riseCard();   // back from the sleep check-in: the card rises out of the glow
+  if (moment === "card") landCard();    // Done on the kept card: it's set down in its place
   look = lookNow();
 
   // A moment: the greeting turns gold with what just happened, then softens back to "head" and "after".
@@ -495,6 +571,8 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
 // (Real time, not now(): test mode's time travel shouldn't decide how long someone was away.)
 const AWAY_LONG = 30 * 60e3;
 let awayAt = 0, updateWaiting = false, reloading = false;
+// Shared dates (js/plans.js) came in fresh from the service: home redraws if it isn't in the middle of something.
+plans.onChange(() => booted.then(() => { if (!busy()) render(); }));
 const busy = () => ["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage", "in-settings"].some((x) => document.body.classList.contains(x)) || !!document.querySelector(".sheet-host, .cam, .ph-viewer");
 function freshOpen() {
   if (reloading) return;

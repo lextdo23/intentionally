@@ -86,7 +86,7 @@ export function openCamera(k, { onSaved, onClosed } = {}) {
     const f = file.files && file.files[0]; file.value = "";
     if (!f) return;
     try {
-      const bmp = await load(f);
+      const bmp = await loadPhoto(f);
       src = "lib"; stop();
       show(photos.toCard(bmp, bmp.width || bmp.naturalWidth, bmp.height || bmp.naturalHeight));
     } catch { msg.hidden = false; msg.replaceChildren(h("p", null, "That photo didn't open. Try another one.")); }
@@ -102,7 +102,7 @@ export function openCamera(k, { onSaved, onClosed } = {}) {
   start();
 }
 // A photo from the phone, turned the right way up.
-async function load(f) {
+export async function loadPhoto(f) {
   if (window.createImageBitmap) { try { return await createImageBitmap(f, { imageOrientation: "from-image" }); } catch { /* older Safari */ } }
   const u = URL.createObjectURL(f);
   try { return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); }
