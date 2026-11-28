@@ -1,6 +1,6 @@
 // Settings: a full page that slides in from the right (like the iPhone's own Settings), opened by the round
 // gear on home. Grouped rows: Nudges, Your data, Support, About, then Delete everything at the bottom.
-import { h, dayKey, keyDate, DAY_NAME, reduceMotion } from "./util.js";
+import { h, dayKey, keyDate, DAY_NAME, reduceMotion, clock12 } from "./util.js";
 import * as deck from "./deck.js";
 import * as store from "./store.js";
 import * as notify from "./notify.js";
@@ -152,8 +152,10 @@ function nudges() {
       n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; cardShow(); store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
       if (on) await askPhone();
     });
-    time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
-    return h("div.set-row.set-toggle", null, label(name), time, sw);
+    // Choosing a morning time yourself keeps it (alex 2026-11-28): the morning notification stops learning your usual time.
+    time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; if (key === "am") n.am.fixed = true; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); render(); } });
+    const learned = key === "am" && n.am.on && !n.am.fixed ? notify.usualAM() : null;
+    return h("div.set-row.set-toggle", null, label(name, learned ? `Comes about ${clock12(Number(learned.slice(0, 2)) * 60 + Number(learned.slice(3)))}, after your usual check-in` : null), time, sw);
   };
   // Card reminders: on/off only. Times follow the day (see cardTimes in notify.js).
   // It only works alongside a morning or evening nudge, so it shows off (and can't be pressed) while both are off.

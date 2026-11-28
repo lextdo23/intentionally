@@ -190,6 +190,8 @@ async function nudges() {
     if (!on()) return;
     const q = t().queue;
     for (const [at, what, kind] of list) if (Number.isFinite(at) && (what === "sent" || what === "tap") && ["am", "pm", "card", "recap-sun", "recap-mon"].includes(kind)) q.push([at, "nudge_" + what, kind]);
+    // Which words the morning notification used (alex 2026-11-28): friends, a finding, plain, or quiet (friends just pinged).
+    for (const [at, what, kind] of list) if (Number.isFinite(at) && (what === "line" || what === "line-tap") && ["social", "social-quiet", "finding", "plain"].includes(kind)) q.push([at, what === "line" ? "am_line" : "am_line_tap", kind]);
     store.save();
   } catch { /* try again next open */ }
 }

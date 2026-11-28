@@ -267,6 +267,10 @@ function drawAll(D) {
     bars([["Morning nudge on", amOn], ["Evening nudge on", pmOn]], T) +
     `<p class="note">Nudges that reached phones, and how many were tapped</p>` +
     bars([["Morning: sent", sAm], ["Morning: tapped", tAm], ["Evening: sent", sPm], ["Evening: tapped", tPm]]) +
+    // The morning's words (alex 2026-11-28): friends, a finding about themselves, or plain words; and which get tapped.
+    (by("am_line").length ? `<p class="note">Which morning words were sent, and tapped</p>` + bars([["social", "Friends"], ["finding", "A finding about them"], ["plain", "Plain words"]].flatMap(([k, l]) =>
+      [[l + ": sent", by("am_line").filter((e) => e.val === k).length], [l + ": tapped", by("am_line_tap").filter((e) => e.val === k).length]]).concat([["Stayed quiet (friends had just pinged)", by("am_line").filter((e) => e.val === "social-quiet").length]])) +
+      (by("find_seen").length ? `<p class="note">Findings seen on home: ${by("find_seen").length}</p>` : "") : "") +
     bars([["Morning: checked in within an hour of the nudge", pct(wa, aa)], ["Evening: checked in within an hour of the nudge", pct(wp, ap)]], 100, "%") +
     `<p class="note">The app was opened from a nudge ${fromNudge} time${fromNudge === 1 ? "" : "s"}.</p>
      <p class="note">When mornings get done</p>${bars(hRows(hours("am_done")))}<p class="note">When evenings get done</p>${bars(hRows(hours("pm_done")))}`,

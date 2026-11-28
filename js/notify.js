@@ -5,6 +5,7 @@ import * as store from "./store.js";
 import { dayKey, keyDate, addDays } from "./util.js";
 import { card as cardOf, dayOfUse } from "./deck.js";
 import * as later from "./later.js";
+import * as findings from "./findings.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const DAY = 864e5;
@@ -67,6 +68,19 @@ function nextAt(hhmm, done) {
   return t;
 }
 
+// The morning notification comes about 10 minutes after they usually do the morning check-in (alex 2026-11-28),
+// when they're most likely already on their phone: the middle of their last 2 weeks of check-in times, once there are
+// 7. Until then, the time they set in Settings. Never before 5am or after 2pm (a late morning still gets one).
+export const USUAL_NEED = 7;
+export function usualAM(s = store.get(), at = Date.now()) {
+  const from = addDays(dayKey(at), -14), mins = Object.keys(s.days).filter((k) => k >= from && s.days[k].sleep && s.days[k].sleep.at)
+    .map((k) => { const d = new Date(s.days[k].sleep.at); return d.getHours() * 60 + d.getMinutes(); }).filter((m) => m >= 240 && m < 840).sort((a, b) => a - b);
+  if (mins.length < USUAL_NEED) return null;
+  const m = Math.min(840, Math.max(300, mins[Math.floor(mins.length / 2)] + 10)), r = Math.round(m / 5) * 5;
+  return `${String(Math.floor(r / 60)).padStart(2, "0")}:${String(r % 60).padStart(2, "0")}`;
+}
+const amTime = (s = store.get()) => (!prefs().am.fixed && usualAM(s)) || prefs().am.t;   // a time they chose themselves wins
+
 // Card reminders (alex 2026-11-17): up to two on a day you kept a card and haven't done it yet. "Lunch and after
 // work": 12:30pm, then 3 hours before your evening nudge. Kept the card after 12:30? Then 3 hours after keeping
 // it, and 3 hours after that. Never within an hour of the evening nudge, never on a rest day, and none at all
@@ -107,7 +121,7 @@ export function windTimes(s = store.get(), at = Date.now()) {
 export function dateTimes(s = store.get(), at = Date.now()) {
   const n = prefs();
   if (!n.card.on) return [];
-  const [hh, mm] = (n.am.on ? n.am.t : "08:00").split(":").map(Number);
+  const [hh, mm] = (n.am.on ? amTime(s) : "08:00").split(":").map(Number);
   return later.dateDays(dayKey(at)).map(({ k, l }) => { const x = keyDate(k); x.setHours(hh, mm, 0, 0); return { t: x.getTime(), l }; })
     .filter((x) => x.t > at - 20 * 60e3).slice(0, 2);
 }
@@ -121,7 +135,7 @@ export function recapTimes(s = store.get(), at = Date.now(), evenIfDone = false)
     if (dayOfUse(sun) < 7) continue;
     const noted = Array.from({ length: 7 }, (_, i) => s.days[addDays(w, i)]).some((x) => x && x.mood != null);
     out.push({ t: on(sun, n.pm.on ? n.pm.t : "19:00"), kind: "recap-sun", done: !!seen[w] || d.mood != null });
-    out.push({ t: on(addDays(w, 7), n.am.on ? n.am.t : "08:00"), kind: "recap-mon", done: !!seen[w] || !noted });
+    out.push({ t: on(addDays(w, 7), n.am.on ? amTime(s) : "08:00"), kind: "recap-mon", done: !!seen[w] || !noted });
   }
   return out.filter((x) => x.t > at && (evenIfDone || !x.done));
 }
@@ -136,6 +150,12 @@ async function keepCardPlan(s) {
     await (await caches.open("nudge-plan")).put("wind", new Response(JSON.stringify({ at: windTimes(s) })));
     await (await caches.open("nudge-plan")).put("recap", new Response(JSON.stringify({ at: recapTimes(s, Date.now(), true) })));
     await (await caches.open("nudge-plan")).put("dates", new Response(JSON.stringify({ at: dateTimes(s) })));
+    // The morning's finding (js/findings.js), settled now so the notification and home say the same thing.
+    const n = prefs();
+    if (n.am.on) {
+      const t = nextAt(amTime(s), (d) => !!d.sleep), k = dayKey(t), f = findings.forMorning(k, s);
+      await (await caches.open("nudge-plan")).put("morning", new Response(JSON.stringify(f ? { k, t, id: f.id, title: f.title, body: f.body } : { k, t })));
+    }
   } catch { /* no copy: a ping then gets the morning or evening words */ }
 }
 
@@ -144,7 +164,7 @@ let resub = null;   // one sign-up at a time, however many times sync runs while
 export async function sync() {
   if (!supported() || Notification.permission !== "granted") return;
   const n = prefs(), times = [];
-  if (n.am.on) times.push(nextAt(n.am.t, (d) => !!d.sleep));
+  if (n.am.on) times.push(nextAt(amTime(), (d) => !!d.sleep));
   if (n.pm.on) times.push(nextAt(n.pm.t, (d) => d.mood != null));
   try {
     let sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();

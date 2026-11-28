@@ -6,7 +6,7 @@
 
 // Not things a person does: the app's own bookkeeping. Lifeline taps stay out on purpose, so they're never
 // tied to anything else a tester did (they're counted only in Safety).
-const SYS = new Set(["open", "close", "nudge_sent", "nudge_tap", "sync", "sync_in", "sync_error", "error", "join",
+const SYS = new Set(["open", "close", "nudge_sent", "nudge_tap", "am_line", "am_line_tap", "find_seen", "sync", "sync_in", "sync_error", "error", "join",
   "consent_again", "update_note", "badge", "tab", "lifeline_tap"]);
 // A return within a minute of leaving (checking a text, the code in Mail) is the same visit.
 export const SAME_VISIT = 60e3;

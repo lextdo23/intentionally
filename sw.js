@@ -1,10 +1,10 @@
 // Keeps Daydeck working offline. Daydeck is the whole site (the old Intentionally app is retired).
 // Bump VERSION whenever any file below changes. (icons/launch-*.png are left out on purpose: the iPhone fetches its one
 // launch picture itself when Daydeck is added to the home screen, so keeping all ten here would only cost space.)
-const VERSION = "d163";
+const VERSION = "d164";
 const FILES = [
   "./", "index.html", "privacy.html", "guidelines.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css", "css/box.css", "css/photos.css", "css/library.css", "css/looks.css",
-  "js/main.js", "js/notif-card.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/setup.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/comments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js", "js/later.js", "js/stack.js", "js/plans.js", "js/dev.js",
+  "js/main.js", "js/notif-card.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/setup.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/comments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js", "js/later.js", "js/stack.js", "js/plans.js", "js/dev.js", "js/findings.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "img/looks/cherry/0.webp", "img/looks/matcha/0.webp", "img/looks/matcha/1.webp", "img/looks/matcha/2.webp", "img/looks/matcha/3.webp", "img/looks/mushroom/0.webp", "img/looks/mushroom/1.webp", "img/looks/mushroom/2.webp", "img/looks/mushroom/3.webp", "img/looks/mushroom/4.webp", "img/looks/pals/0.webp", "img/looks/pals/1.webp", "img/looks/pals/2.webp", "img/looks/pals/3.webp", "img/looks/pals/4.webp", "img/chrome/heart.webp", "img/chrome/moon.webp", "img/chrome/sparkle.webp", "img/chrome/spiky.webp", "img/chrome/sun.webp",
 ];
@@ -68,17 +68,40 @@ async function show() {
     return note([t, "sent", "wind"]);
   }
   const morning = new Date().getHours() < 14, kind = morning ? "am" : "pm";
+  if (morning) return showMorning(t);
   // The phone adds "from Daydeck" itself, so the bold title is a greeting rather than the app's name (alex 2026-11-17).
-  await self.registration.showNotification(morning ? "Good morning" : "Good evening", {
-    body: morning ? "How did you sleep?" : "How was today?",
+  await self.registration.showNotification("Good evening", {
+    body: "How was today?",
     icon: "icons/icon-192.png", tag: "daydeck-" + kind, // own tag each, so an unread morning nudge isn't replaced by the evening one
   });
   return note([t, "sent", kind]);
+}
+// The morning notification (alex 2026-11-28, thread "Build choosing when to do cards"): something worth opening,
+// never the card ("they'll flip the card because it's there"). The first that's true:
+// 1. friends: people reacting to them, then friends' moments (the words of the latest friend notification the app
+//    hasn't been opened since; they're already in that order). If that came in the last 90 minutes it already is the
+//    reason to open, so this one stays quiet rather than buzz twice.
+// 2. a finding about themselves (js/findings.js), worded so the answer is only on home.
+// 3. plain words.
+const PLAIN = [["How did last night go?", "Two taps, and today starts."], ["Today's a fresh one", "Two taps about last night first."], ["Morning check-in", "Two taps about how you slept."]];
+async function showMorning(t) {
+  const social = await cardPlan("social"), m = await cardPlan("morning");
+  let title, body, line;
+  if (social && social.title && t - social.t < 16 * 36e5) {
+    if (t - social.t < 90 * 60e3) return note([t, "line", "social-quiet"]);
+    title = social.title; body = social.body || ""; line = "social";
+  } else if (m && m.title && Math.abs(m.t - t) < 6 * 36e5) { title = m.title; body = m.body; line = "finding"; }
+  else { const p = PLAIN[Math.floor(t / 864e5) % PLAIN.length]; title = p[0]; body = p[1]; line = "plain"; }
+  await self.registration.showNotification(title.slice(0, 80), { body: String(body).slice(0, 120), icon: "icons/icon-192.png", tag: "daydeck-am", data: { kind: "am", line } });
+  await note([t, "sent", "am"]);
+  return note([t, "line", line]);
 }
 // Friend notifications (alex 2026-11-25): these carry their own words, sealed for this phone by the service:
 // "Mia shared a moment" and how many moments, and friend requests ("Sam wants to be friends", alex 2026-11-26). Never a photo, caption or mood. The number on the app icon goes up by
 // that many (opening Daydeck puts the real number back: friend requests plus moments not seen yet).
 async function friendNote(w) {
+  // Kept for the morning notification until the app is next opened (js/main.js clears it).
+  try { await (await caches.open("nudge-plan")).put("social", new Response(JSON.stringify({ t: Date.now(), title: String(w.title || "").slice(0, 80), body: String(w.body || "").slice(0, 80) }))); } catch { /* the morning just uses its other words */ }
   await self.registration.showNotification(String(w.title || "").slice(0, 80), { body: String(w.body || "").slice(0, 80), icon: "icons/icon-192.png", tag: "daydeck-friends", data: { kind: "friends" } });
   try {
     if (self.navigator.setAppBadge) {
@@ -100,5 +123,6 @@ self.addEventListener("notificationclick", (e) => {
   const recap = kind === "recap-mon"; // Monday's opens the recap itself; Sunday's opens home, to end the day
   const fr = kind === "friends";        // a friend notification opens the bell page on Friends
   // Tells the app a nudge opened it, and which one (counted only for testers who joined tester mode).
-  e.waitUntil(note([Date.now(), "tap", kind]).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1, recap, friends: fr }), open[0].focus()) : self.clients.openWindow(recap ? "./?from=nudge&open=recap" : fr ? "./?from=nudge&open=friends" : "./?from=nudge"))));
+  const line = e.notification.data && e.notification.data.line;
+  e.waitUntil(note([Date.now(), "tap", kind]).then(() => line && note([Date.now(), "line-tap", line])).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1, recap, friends: fr }), open[0].focus()) : self.clients.openWindow(recap ? "./?from=nudge&open=recap" : fr ? "./?from=nudge&open=friends" : "./?from=nudge"))));
 });
