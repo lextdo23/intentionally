@@ -17,20 +17,11 @@ Last updated: 2026-11-28.
 
 1. Friends from day one: `js/levels.js` (UNLOCKS, BASICS line), comments in `js/main.js`, `js/pill.js`, `js/friends.js`. Tests updated: `tests/levels.test.cjs`, `tests/pill.test.cjs`, `tests/friends-app.test.cjs`.
 2. Starter deck: `STARTER`, `STARTER_DAYS` and `starterPool()` in `js/deck.js`, used by `draw3`. Days 1 to 3 deal only starter cards from the person's own deck; if fewer than three, other tiny cards from their deck fill in; then the whole deck. Test: `tests/starter.test.cjs`. Every mindset has at least one starter card.
-3. `CLAUDE.md` updated (Social, Levels, Cards). `sw.js` VERSION d162.
+3. Starter list approved by alex as it is (2026-11-28).
+4. Card with a friend, the day 2 "Add a friend" sheet (option A) and the quiet row now and then (option C), all as agreed with alex on 2026-11-28: `js/together.js`, service `push/friends.js` ("Card with a friend", table `kept`), hand in `js/draw.js`, home in `js/main.js`. Details in `CLAUDE.md` ("Card with a friend"). Tests: `tests/kept-cards.test.cjs`, `tests/together-app.test.cjs`. Privacy policy has a line for it.
+5. `CLAUDE.md` updated (Social, Levels, Cards).
 
 ## Left to do
 
-1. **Starter list: get alex's yes** (or changes). Cards are listed in `js/deck.js` by number, grouped by pillar.
-2. **Day 2 "Add a friend" moment** (not started). Plan: a gentle moment on day 2 with the friend card as the reason to invite someone. Ideas not yet agreed: when home is quiet after the day-2 card is kept, a sheet with one reason ("some days you and a friend draw the same card"), Invite a friend / Add by username / Not now; never if they already have a friend or no account; once only (`seen.*`); tester log. alex cares that the reason actually makes people tap, so show a mockup first (iPhone 15 Pro Max frame, `/mnt/project-files/phone-frame/`).
-3. **People you may know** (build 6), after alex's Add friends changes. Agreed shape: up to 5 under the search box, each with picture, name, @username, the existing "Friends with Sam" line, Add, and × to dismiss for good. Order: friends of friends (most in common first, reuse `fCommon` data in `push/friends.js`), then the invite chain (who invited you, who they invited). No friends yet: alex and partner (usernames still needed from alex). Respect "Show my friends", skip people with requests off and blocked people, 18+ only. Remind alex to pull up the Add friends page first (they asked for that reminder).
-4. **Card with a friend** (build 8, not started): at most once a week, two friends who both drew that day get the same card, offered in the hand ("You and Sam drew this today"), never forced. Needs a service side in `push/friends.js` (who drew today, which card) and the hand in `js/draw.js`. Tester logs: offered and done.
-5. Before merging: check main and open PRs for the highest `sw.js` VERSION (two other threads bump it too), update from main, run `tools/test-all.sh`.
-
-## Open questions for alex
-
-- Usernames for alex and partner (suggestions for brand-new people).
-- The changes they want on the Add friends page.
-- Yes or changes to the starter card list.
-- A "People you may know ›" line at the end of the feed: yes or no.
-- The day 2 moment's words and reason (mockup first).
+- People you may know moved to its own thread (merged separately).
+- Open question: the quiet row stops after 4 times in total (alex asked "4 times a week??"; answered 4 in total, no reply yet).

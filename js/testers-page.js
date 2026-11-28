@@ -73,6 +73,9 @@ const SHAPE = {
   // People you may know (alex 2026-11-28): where it showed (Add friends or the Friends tab), how many, whether it was alex
   // alone; and each Add or × with how many friends in common. Never who.
   pymk_seen: (v) => isObj(v) && ["add", "tab"].includes(v.w) && isInt(v.n, 1, 50) && isInt(v.m, 0, 1),
+  // Card with a friend (alex 2026-11-28): which card number and spot, never who. pal_line: how many friends on the line.
+  pal_offer: (v) => isObj(v) && isNum(v.id) && isInt(v.at, 0, 2), pal_keep: isNum, pal_done: isNum, pal_line: (v) => isInt(v, 1, 150),
+  pal_sheet: (v) => ["seen", "invite", "username", "later"].includes(v), pal_row: (v) => ["seen", "tap", "away"].includes(v),
   pymk_add: (v) => isObj(v) && isInt(v.m, 0, 1) && isInt(v.n, 0, 150), pymk_hide: (v) => isObj(v) && isInt(v.m, 0, 1) && isInt(v.n, 0, 150),
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from) && (v.card === undefined || isInt(v.card, 0, 1)) && (v.pos === undefined || ["t", "b", "o"].includes(v.pos)) && (v.crop === undefined || isInt(v.crop, 0, 1)) && (v.look === undefined || ["daydeck", "cherry", "mono", "matcha", "mushroom", "pals", "chrome"].includes(v.look)),
   report: (v) => isObj(v) && ["moment", "comment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "comment", "person"].includes(v),
@@ -412,6 +415,14 @@ function drawAll(D) {
       : `<p class="sub">Nobody has shared a date yet.</p>`,
       "lots of \"Not this time\" means invites feel like pressure; lots shared but few answered means the invite gets lost behind today's card.");
   }
+  // Card with a friend (alex 2026-11-28): a card a friend kept today, now and then in the morning hand. Never who.
+  { const off = by("pal_offer"), kp = by("pal_keep"), dn = by("pal_done"), ln = by("pal_line");
+    html += sec("Do people do a card with a friend?", "At most once a week, a card a friend already kept today can be one of the three, with \"Sam drew this one too\". Keep it, and home says \"You and Sam are both doing this today\" (the friend sees it too). Only card numbers, never who.",
+      off.length || ln.length ? bars([["Friend's card dealt", off.length], ["Kept it", kp.length], ["Done, with a friend on the same card", dn.length], ["Saw \"both doing this today\"", ln.length]])
+        + (off.length ? `<p class="note">Kept ${Math.round(100 * kp.length / off.length)}% of the times it was dealt. Spot in the hand: left ${off.filter((e) => e.val.at === 0).length}, middle ${off.filter((e) => e.val.at === 1).length}, right ${off.filter((e) => e.val.at === 2).length}.</p>` : "")
+        : `<p class="sub">No friend's card has been dealt yet.</p>`,
+      "kept far more often than other cards means doing it with a friend helps; rarely kept means it reads as pressure.");
+  }
   // Not for me (alex 2026-11-25): beside Draw again. Card numbers and which reason only.
   {
     const NFM = ["It doesn't fit my life", "I can't do this one", "I already do this", "Not where I'm at right now"];
@@ -519,6 +530,8 @@ function drawAll(D) {
         `<p class="note">${adults} ticked "I'm 18 or over"; ${askers} have reached out to someone. Profiles edited: ${P.length} (${P.filter((v) => v.name).length} with a name, ${P.filter((v) => v.season).length} with a This season line). Turned requests off: ${quiet.requests || 0}. Hid their friends: ${quiet.count || 0}. Opened "Friends you both have": ${by("common_open").length}.</p>`
         + (() => { const seen = who("pymk_seen"), adds = by("pymk_add"), hides = by("pymk_hide"), mk = (l) => l.filter((e) => e.val.m).length;
           return `<p class="note">People you may know: seen by ${seen} (${by("pymk_seen").filter((e) => e.val.m).length} times as just alex). Added from it: ${adds.length} (${mk(adds)} of them alex). Hidden with ×: ${hides.length} (${mk(hides)} of them alex).</p>`; })()
+        + (() => { const n = (name, v) => by(name).filter((e) => v == null || e.val === v).length;
+          return `<p class="note">Day 2's "Add a friend" sheet: seen ${n("pal_sheet", "seen")}, Invite a friend ${n("pal_sheet", "invite")}, Add by username ${n("pal_sheet", "username")}, Not now ${n("pal_sheet", "later")}. The quiet row under the card: seen ${n("pal_row", "seen")} times, tapped ${n("pal_row", "tap")}, swiped away ${n("pal_row", "away")}.</p>`; })()
         : `<p class="sub">Nobody has opened Friends yet.</p>`,
       "lots of ticks but few requests means adding friends is too hard, or people aren't sure who to add. Blocks are worth a look if they climb."); }
   // Moments (social step 3): what kind of thing, and whether words or a mood came with it. Never the words.

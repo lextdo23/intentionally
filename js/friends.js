@@ -436,7 +436,7 @@ export function note(text) {
 
 // ---------------- Invite link ----------------
 // Daydeck.day/?add=…: lasts 14 days and works for a few friends; kept so sharing twice sends the same link.
-async function invite(btn) {
+export async function invite(btn) {
   return busy(btn, async () => {
     const u = (account.user() || {}).username;
     let inv = local.inv;

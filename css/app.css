@@ -1513,3 +1513,27 @@ body.sunset.rising #sun { transition: top 1.1s cubic-bezier(.4, 0, .6, 1) .15s, 
 .dev-switch { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; color: rgba(239, 237, 233, .7); }
 .dev-switch b { font-size: 17px; font-weight: 500; color: var(--ink); }
 .dev-switch input { width: 24px; height: 24px; margin-top: 2px; accent-color: var(--sun); flex: none; }
+
+/* Card with a friend (alex 2026-11-28, js/together.js). The bubble comes out from behind the friend's card, settles just
+   under it, then opens evenly from its middle into "Sam drew this one too". No pointer or tail. */
+.pal-bub { position: absolute; z-index: 0; display: flex; align-items: center; padding: 4px; border-radius: 20px; background: #efede9; color: #0a0a0b; font-size: 15px; font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); pointer-events: none; transform: translate(-50%, 0); transition: padding .4s ease; }
+.pal-bub.moving { transition: padding .4s ease, transform .45s cubic-bezier(.25, 1.2, .4, 1); }
+.pal-bub .pal-words { display: inline-block; max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width .4s cubic-bezier(.3, .9, .3, 1), opacity .25s ease .1s, margin .4s ease; }
+.pal-bub.open { padding: 4px 14px 4px 4px; }
+.pal-bub.open .pal-words { margin-left: 8px; opacity: 1; }
+.pal-bub.still, .pal-bub.still .pal-words { transition: none; }
+.pal-words.probe { position: absolute; visibility: hidden; font-size: 15px; font-weight: 600; white-space: nowrap; }
+/* On home: just under today's card, above "Add a photo". */
+.pal-line { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; margin: 0 16px 4px; font-size: 15px; color: var(--ink); text-align: left; }
+.pal-line b { font-weight: 600; }
+.pal-row { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 0 4px; max-width: 100%; white-space: nowrap; padding: 8px 14px; border-radius: 22px; background: rgba(239, 237, 233, .08); color: var(--ink); font-size: 15px; touch-action: pan-y; }
+.pal-row b { font-weight: 600; }
+.undo-slot:has(.pal-line), .undo-slot:has(.pal-row) { flex-direction: column; align-items: center; }
+/* Day 2's sheet: two card backs with two faces. */
+.pal-sheet { gap: 16px; text-align: center; }
+.pal-pair { position: relative; height: 118px; width: 170px; margin: 4px auto 0; }
+.pal-back { position: absolute; left: 18px; top: 6px; width: 72px; height: 104px; border-radius: 10px; background: var(--sun); transform: rotate(-8deg); box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
+.pal-back.r { left: auto; right: 18px; transform: rotate(8deg); }
+.pal-face { position: absolute; bottom: -4px; }
+.pal-face.l { left: 8px; } .pal-face.r { right: 8px; }
+@media (prefers-reduced-motion: reduce) { .pal-bub, .pal-bub .pal-words, .pal-row { transition: none !important; } }
