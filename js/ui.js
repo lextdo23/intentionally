@@ -25,23 +25,27 @@ function tracker() {
 }
 const rubber = (d) => -Math.pow(-d, 0.7) * 1.6; // pulling up stretches a little, then resists
 
-// The same spring, worked out ahead of time as a timing curve (alex 2026-11-27: sheets lagged as they slid up). Handed
-// to the browser, the motion runs on its own and stays smooth even while the app is busy building the sheet or the
-// page behind it. Returns { ms, easing }, or null when there's nowhere to go. Older phones get a close plain curve.
-const LINEAR_OK = typeof CSS !== "undefined" && !!CSS.supports && CSS.supports("transition-timing-function", "linear(0, 1)");
+// The same spring, worked out ahead of time and handed to the browser, so the motion runs on its own and stays smooth
+// even while the app is busy building the sheet or the page behind it (alex 2026-11-27: sheets lagged as they slid up).
+// It's given as a plain cubic-bezier curve on purpose: on iPhone, Safari only runs cubic-bezier animations off the app's
+// thread. A linear(...) curve, which can trace the spring exactly, quietly runs on the app's thread instead, frame by
+// frame, and stutters just like before (alex 2026-11-28: still not smooth on Comments and Crumbs). The curve starts as
+// fast as the finger was moving and settles with no bounce. Returns { ms, easing }, or null when there's nowhere to go.
 function springCurve(from, to, v, response = 0.42) {
   const d = to - from;
   if (Math.abs(d) < 0.5) return null;
+  // How long the spring takes to settle within half a pixel.
   const k = (2 * Math.PI / response) ** 2, c = 4 * Math.PI / response, dt = 1 / 240;
-  let x = 0, vel = (v || 0) / d, t = 0, n = 0;
-  const pts = [0];
-  while (t < 1.6) {
-    const a = -k * (x - 1) - c * vel; vel += a * dt; x += vel * dt; t += dt; n++;
+  let x = 0, vel = (v || 0) / d, t = 0;
+  while (t < 1.2) {
+    const a = -k * (x - 1) - c * vel; vel += a * dt; x += vel * dt; t += dt;
     if (Math.abs(x - 1) * Math.abs(d) < 0.4 && Math.abs(vel * d) < 8) break;
-    if (n % 4 === 0) pts.push(+x.toFixed(4));
   }
-  pts.push(1);
-  return { ms: Math.round(t * 1000), easing: LINEAR_OK ? `linear(${pts.join(", ")})` : "cubic-bezier(.2, .8, .2, 1)" };
+  const ms = Math.round(Math.max(0.32, t) * 1000);
+  // The app's sheet curve (quick start, calm finish). A fast flick starts steeper, to carry the finger's speed.
+  const s = Math.max(0, (v || 0) / d) * (ms / 1000);   // starting speed, in "whole distance per whole duration"
+  const x1 = s > 0.72 / 0.32 ? Math.max(0.04, 0.72 / s) : 0.32;
+  return { ms, easing: `cubic-bezier(${x1.toFixed(3)}, 0.72, 0, 1)` };
 }
 
 export function openSheet(build, { onClose, label } = {}) {
