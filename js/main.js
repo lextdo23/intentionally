@@ -402,7 +402,10 @@ function render(moment) {
   const waiting = later.stack(k);
   const frontF = waiting.length ? stack.frontOf(waiting, k) : null;
   const area = waiting.length ? stack.stackEl({ items: waiting, today: card, todayCard: c, k, redraw: () => render(), hide: main }) : card;
-  const mid = h("div.home-mid", null, area, frontF === null && card ? slotEl : null);
+  // With a waiting card in front, the space under today's card is kept (empty and untouchable), so the pile never moves
+  // up or down when cards are switched (alex 2026-11-27).
+  if (frontF !== null && card && slotEl) { slotEl.style.visibility = "hidden"; slotEl.setAttribute("aria-hidden", "true"); slotEl.inert = true; }
+  const mid = h("div.home-mid", null, area, card ? slotEl : null);
   todayL = card && frontF === null ? card : null;
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
   // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.

@@ -44,7 +44,8 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   check((await tops()).length === 2 && await p.$(".stack-front .did"), "home shows them as tops behind today's card, today's card in front");
   const dl = await p.evaluate(async () => { const deck = await import("./js/deck.js"), later = await import("./js/later.js"); const ids = deck.dealable(); return { later: ids.filter((i) => later.kindOf(i)).length, any: ids.length }; });
   check(dl.any > 0 && dl.later === 0, "while two wait, the morning hand leaves out date and week cards");
-  check(await p.$eval(".stack-tops", (e) => getComputedStyle(e).animationName) === "bob-soft", "the tops float, gently");
+  const drift = await p.$$eval(".stack-top", (x) => x.map((e) => getComputedStyle(e).animationName));
+  check(drift.includes("drift-a") && drift.includes("drift-b"), `the two cards behind drift in opposite directions (${drift})`);
 
   // Tapping a top brings that card forward; today's card becomes a top.
   await p.click('.stack-top[aria-label^="Walk or jog"]', { force: true }); await p.waitForTimeout(900);
@@ -120,7 +121,9 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.fill(".sheet-host .when-date", day(-5)); await p.click(".sheet-host .btn-main"); await p.waitForTimeout(800);
   s = await store();
   check(s.days[day(0)].card.when === day(-5), "the date is kept on the card's day");
-  check((await tops()).some((x) => /^Date night/.test(x)), "and it shows behind today's card straight away");
+  check(!(await tops()).some((x) => /^Date night/.test(x)), "on the day it's drawn it stays today's card, never a top behind itself");
+  st = await L((k) => window.__later.stack(k).map((x) => x.label), day(-1));
+  check(st.includes("Date night"), "from the next day it waits behind today's card");
 
   // Your days offers Set the date for a recent set-a-date card with none.
   await load((d) => { d[day(4)].card = { id: 88, done: true }; });

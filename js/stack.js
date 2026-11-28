@@ -4,8 +4,8 @@
 // forward), and today's card becomes a top itself. On a planned date that card is in front when the day opens,
 // with a camera in the middle of its foot (alex 2026-11-27: just the camera, no words).
 // Three cards at most (today's and two waiting, later.MAX_WAIT). The tops float too, more gently than the front card,
-// with no glow (alex 2026-11-27). Switching feels like real cards: the tapped card slides out from behind the pile and
-// lands on top while the old front card tucks back into the pile, with no fading.
+// with no glow (alex 2026-11-27). Switching feels like real cards, side to side: the tapped card slides out sideways from
+// behind the pile and sweeps in front while the old front card tucks back into the pile, with no fading.
 import { h, dayKey, addDays, reduceMotion } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
@@ -18,7 +18,7 @@ import * as plans from "./plans.js";
 import * as friends from "./friends.js";
 
 const MAX_TOPS = 2;
-let front = { day: "", f: null, picked: false }, pending = null;
+let front = { day: "", f: null, picked: false, prev: undefined }, pending = null;
 
 // Which card is in front on day k: one picked by tapping, else a date that's today, else today's card.
 export function frontOf(items, k = dayKey()) {
@@ -27,7 +27,9 @@ export function frontOf(items, k = dayKey()) {
   const t = items.find((x) => x.today);
   return t ? t.f : null;
 }
-export function bringForward(f) { front = { day: dayKey(), f, picked: true }; }
+// prev: the card that was in front before, so it sits right behind the new front card (a card you push back goes
+// just behind the one you pulled forward, not to the back of the pile).
+export function bringForward(f, prev) { front = { day: dayKey(), f, picked: true, prev }; }
 
 const dots = (it) => h("span.st-dots", { "aria-hidden": "true" }, Array.from({ length: it.n }, (_, i) => h(`i${i < it.ticks.length ? ".on" : ""}`)));
 const dot = (pillar) => h("i.st-pil", { style: { background: deck.PILLAR_COL[pillar] || "#a9a59d" }, "aria-hidden": "true" });
@@ -45,6 +47,8 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const tops = [];
   if (f !== null && today) tops.push({ f: null, label: "Today's card", pillar: todayCard ? (deck.card(todayCard.id) || {}).pillar : "", el: h("span.st-status", null, todayCard && (todayCard.done || todayCard.how >= 1) ? "Done" : "To do") });
   items.filter((x) => x.f !== f).forEach((x) => tops.push({ ...x, el: statusOf(x) }));
+  const pi = front.prev === undefined ? -1 : tops.findIndex((t) => t.f === front.prev);
+  if (pi > 0) tops.unshift(tops.splice(pi, 1)[0]);
   const shown = tops.slice(0, MAX_TOPS);
   const wrap = h("div.stack");
   const go = (to, topEl) => {
@@ -55,10 +59,13 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
       // A copy of the front card stays where it is, so it can tuck back into the pile after home redraws.
       const wr = wrap.getBoundingClientRect(), r = cur.getBoundingClientRect(), ghost = cur.cloneNode(true);
       ghost.classList.add("stack-ghost"); ghost.classList.remove("stack-front");
+      ghost.style.animation = "none";   // the copy holds the angle the card had mid-sway, rather than restarting its sway
+      const tilt = getComputedStyle(cur).transform;
       Object.assign(ghost.style, { left: `${r.left - wr.left}px`, top: `${r.top - wr.top}px`, width: `${r.width}px` });
-      pending = { ghost, from: topEl.getBoundingClientRect(), wasTop: wr.top, oldF: f };
+      const tops = {}; wrap.querySelectorAll(".stack-top").forEach((t) => { tops[t.dataset.f] = t.getBoundingClientRect(); });
+      pending = { ghost, from: topEl.getBoundingClientRect(), wasTop: wr.top, oldF: f, tops, tilt: tilt && tilt !== "none" ? tilt : "none" };
     }
-    bringForward(to); redraw();
+    bringForward(to, f); redraw();
   };
   // Nearest the card is widest; each one further back is a little narrower, like cards in a pile.
   const topsEl = h("div.stack-tops", null, shown.slice().reverse().map((t, i, arr) => {
@@ -72,39 +79,63 @@ export function stackEl({ items, today, todayCard, k = dayKey(), redraw, hide })
   const card = it ? planCard(it, { redraw, hide }) : today;
   if (!card) return null;
   card.classList.add("stack-front");
-  wrap.append(shown.length ? topsEl : "", card, it ? under(it, redraw) || "" : "");
+  topsEl.querySelectorAll(".stack-top").forEach((t) => { t.style.animationDelay = `-${Math.round(performance.now() % 7000)}ms`; });   // each keeps drifting in step across a redraw
+  const und = it ? under(it, redraw) : null;
+  wrap.append(shown.length ? topsEl : "", card, und ? h("div.stack-under", null, und) : "");
   if (pending) { const pd = pending; pending = null; requestAnimationFrame(() => swap(pd, wrap)); }
   return wrap;
 }
 
-// The switch, like real cards (alex 2026-11-27): the new front card starts where its top was, behind the old card,
-// slides up out of the pile, then comes down on top; the old card (a copy, since home has redrawn) tucks back up into
-// the pile at the same time, narrowing into its top's place. Nothing fades.
+// The switch, one move at a time like a real pile (alex 2026-11-27):
+// 1. Switch: the tapped card slides out sideways from the pile and lands in front. The old front card stays still and
+//    ends up hidden behind it (a copy, since home has redrawn; same size and place, so it's exactly covered).
+// 2. Make room: if the back card was tapped, the middle card's top slides back into the place it left.
+// 3. Rise: the old front card's top rises from behind the front card into the place right behind it.
+// Nothing fades; only the warm light behind a card eases in, so it never pops on.
 function swap(pd, wrap) {
   const nf = wrap.querySelector(".stack-front");
   if (!nf || !wrap.isConnected) return pd.ghost.remove();
   const wr = wrap.getBoundingClientRect(), nr = nf.getBoundingClientRect(), g = pd.ghost;
-  // The copy goes back into the same pile, where the old card was (home may have shifted by a few points).
   g.style.top = `${parseFloat(g.style.top) + (pd.wasTop - wr.top)}px`;
   wrap.append(g);
-  const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`), sr = slot ? slot.getBoundingClientRect() : pd.from;
+  const slot = wrap.querySelector(`.stack-top[data-f="${pd.oldF === null ? "today" : pd.oldF}"]`);
   if (slot) slot.style.visibility = "hidden";
-  const D = 760;
-  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top, lift = -48;
-  nf.style.transformOrigin = "50% 0";
+  const D1 = 360, D2 = 160, D3 = 160, ease = "cubic-bezier(.45,.05,.25,1)";
+  // 1. Switch.
+  const s0 = Math.min(1, pd.from.width / nr.width), dy0 = pd.from.top - nr.top, out = Math.round(nr.width * 0.6);
+  nf.style.transformOrigin = "50% 50%";
+  nf.style.animationDelay = `${D1 - 2750}ms`;   // its sway is level just as it lands, so there's no snap
   nf.animate([
-    { transform: `translateY(${dy0}px) scale(${s0})`, zIndex: 1, offset: 0 },
-    { transform: `translateY(${dy0 + lift}px) scale(${s0 + 0.03})`, zIndex: 1, offset: 0.42 },
-    { transform: `translateY(${dy0 + lift}px) scale(${s0 + 0.03})`, zIndex: 3, offset: 0.43 },
+    { transform: `translate(0px, ${dy0}px) scale(${s0})`, zIndex: 0, offset: 0 },
+    { transform: `translate(${out}px, ${Math.round(dy0 * 0.35)}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 0, offset: 0.5 },
+    { transform: `translate(${out}px, ${Math.round(dy0 * 0.35)}px) scale(${(s0 + 1) / 2}) rotate(4deg)`, zIndex: 3, offset: 0.5 },
     { transform: "none", zIndex: 3, offset: 1 },
-  ], { duration: D, easing: "cubic-bezier(.35,.1,.25,1)", fill: "backwards" });
-  const gr = g.getBoundingClientRect();
-  g.style.transformOrigin = "50% 0";
-  g.animate([
-    { transform: "none", offset: 0 },
-    { transform: `translateY(${(sr.top - gr.top) * 0.35}px) scale(${1 - (1 - sr.width / gr.width) * 0.5})`, offset: 0.42 },
-    { transform: `translateY(${sr.top - gr.top}px) scale(${sr.width / gr.width})`, offset: 1 },
-  ], { duration: D, easing: "cubic-bezier(.45,0,.3,1)", fill: "forwards" }).finished.then(() => { g.remove(); if (slot) slot.style.visibility = ""; });
+  ], { duration: D1, easing: ease, fill: "backwards" }).finished.then(() => g.remove(), () => g.remove());
+  const nGlow = nf.querySelector(".glow");
+  if (nGlow) nGlow.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], { duration: D1 + 500, easing: "ease-out", fill: "backwards" });
+  g.style.zIndex = "1";   // above the new card until it's out to the side, always below it once it's in front
+  g.style.transform = pd.tilt;   // holds the angle it had mid-sway
+  // 2. Make room: tops that changed place glide there once the switch is done.
+  let moved = false;
+  wrap.querySelectorAll(".stack-top").forEach((t) => {
+    const was = pd.tops && pd.tops[t.dataset.f];
+    if (!was || t === slot) return;
+    const now = t.getBoundingClientRect();
+    if (Math.abs(was.top - now.top) < 1 && Math.abs(was.width - now.width) < 1) return;
+    moved = true;
+    t.style.transformOrigin = "50% 0";
+    t.animate([{ transform: `translateY(${was.top - now.top}px) scaleX(${was.width / now.width})` }, { transform: "none" }], { delay: D1, duration: D2, easing: ease, fill: "backwards" });
+  });
+  // 3. Rise.
+  if (slot) {
+    const sr = slot.getBoundingClientRect(), hide = Math.round(nr.top - sr.top + 4), at = D1 + (moved ? D2 : 0);
+    slot.style.visibility = "";
+    slot.animate([
+      { transform: `translateY(${hide}px)`, visibility: "hidden", offset: 0 },
+      { transform: `translateY(${hide}px)`, visibility: "visible", offset: at / (at + D3), easing: "cubic-bezier(.2,0,.1,1)" },
+      { transform: "none", visibility: "visible", offset: 1 },
+    ], { duration: at + D3, easing: "linear", fill: "backwards" });
+  }
 }
 
 // One quiet line under a shared date in front (alex 2026-11-27): who's in ("With Mia", "With Mia and Josh"), who
