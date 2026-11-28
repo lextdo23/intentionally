@@ -45,7 +45,7 @@ function bars(rows, max, unit = "") {
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
 const GROUP = { "Which cards are \"Not for me\"?": "cards", "Do dates and week cards get used?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
-  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Which morning lines get tapped?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do people comment?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 // The Usage tab (alex 2026-11-26, js/testers-usage.js): its sections all sit on that tab.
 ["How long has each tester been on Daydeck?", "Do people come back after day one?", "How often do people open it?", "How long do people stay?", "What do people do each visit?", "When do people do their card?", "Recent visits", "Does it run smoothly?"].forEach((t) => (GROUP[t] = "usage"));
@@ -267,6 +267,20 @@ function drawAll(D) {
     `<p class="note">The app was opened from a nudge ${fromNudge} time${fromNudge === 1 ? "" : "s"}.</p>
      <p class="note">When mornings get done</p>${bars(hRows(hours("am_done")))}<p class="note">When evenings get done</p>${bars(hRows(hours("pm_done")))}`,
     "if most check-ins happen well after the nudge time, the default time should move closer to when people really check in.");
+
+  // The morning line (alex 2026-11-28, js/morning.js): which kind each morning got, and how often each was tapped.
+  { const NAME = { friends: "Friend news", memory4: "Four weeks ago today", memory1: "This time last week", sleep: "Sleep finding", helps: "What seems to help", acts: "Mood and activities", lifts: "What lifts you", harder: "Helped on harder days",
+      look: "A look nearly open", level: "A level about to open", yesterday: "Yesterday, in a line", plain: "How did you sleep?" };
+    const sent = {}, tap = {};
+    by("am_line").forEach((e) => (sent[e.val] = (sent[e.val] || 0) + 1)); by("am_line_tap").forEach((e) => (tap[e.val] = (tap[e.val] || 0) + 1));
+    const kinds = Object.keys(NAME).filter((k) => sent[k]);
+    html += sec("Which morning lines get tapped?", "Each morning notification says one thing. How often each kind went out, and how many of those were tapped.",
+      kinds.length ? `<div class="tbl"><table><thead><tr><th>Line</th><th>Sent</th><th>Tapped</th><th>Tapped %</th></tr></thead><tbody>${kinds.sort((a, b) => sent[b] - sent[a]).map((k) =>
+        `<tr><td>${NAME[k]}</td><td>${sent[k]}</td><td>${tap[k] || 0}</td><td>${Math.round((tap[k] || 0) / sent[k] * 100)}%</td></tr>`).join("")}</tbody></table></div>` +
+        `<p class="note">Landed on the answer in Your days ${by("am_open").filter((e) => e.val !== "day").length} times, opened a past day ${by("am_open").filter((e) => e.val === "day").length} times.</p>`
+        : `<p class="sub">No morning lines yet.</p>`,
+      "kinds that are rarely tapped can go, so the mornings keep only what people want to open (research: fresh, useful messages get tapped; repeats get notifications switched off).");
+  }
 
   // 7. Words never picked
   const allDays = testers.flatMap((t) => Object.values(days[t.code] || {}));

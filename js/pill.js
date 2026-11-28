@@ -137,6 +137,8 @@ export function go(t, quiet) {
   if (was === "friends" && t !== "friends") friends.leftTab();
   if (t === "friends") nav.querySelector('[data-tab="friends"]').classList.remove("quiet");   // on Friends: the number
   if (t === "friends") drawFriends();
+  // Friend news seen: the morning notification no longer needs to wait for it or say it again (sw.js).
+  if (t === "friends" && "caches" in window) caches.open("nudge-plan").then((c) => c.delete("friend-last")).catch(() => {});
   if (t === "you") drawYou();
   // Straight away, no slide: switch the screens with their movement turned off for a moment.
   document.body.classList.add("tab-now");

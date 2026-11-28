@@ -5,6 +5,7 @@ import * as store from "./store.js";
 import { dayKey, keyDate, addDays } from "./util.js";
 import { card as cardOf, dayOfUse } from "./deck.js";
 import * as later from "./later.js";
+import * as morning from "./morning.js";
 
 const SERVICE = "https://intentionally-push.lextdo.workers.dev";
 const DAY = 864e5;
@@ -18,6 +19,10 @@ export const blocked = () => supported() && Notification.permission === "denied"
 export const needsInstall = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !matchMedia("(display-mode: standalone)").matches;
 
 export function prefs() { const s = store.get(); s.notify = Object.assign(defaults(), s.notify || {}); return s.notify; }
+// The morning nudge's time (alex 2026-11-28): about 10 minutes after they usually start their day, once there's a
+// week of mornings; the Settings time until then (js/morning.js usualTime). The recap and date mornings follow it,
+// so they still land on the same minute and replace it.
+export const amTime = (s = store.get()) => morning.usualTime(s);
 
 // Asks permission (must come straight from a tap), then signs this phone up for pings. Returns the sign-up, or null.
 // Also used by friend notifications (js/friends.js), which hand it to the service with the account.
@@ -107,7 +112,7 @@ export function windTimes(s = store.get(), at = Date.now()) {
 export function dateTimes(s = store.get(), at = Date.now()) {
   const n = prefs();
   if (!n.card.on) return [];
-  const [hh, mm] = (n.am.on ? n.am.t : "08:00").split(":").map(Number);
+  const [hh, mm] = (n.am.on ? amTime(s) : "08:00").split(":").map(Number);
   return later.dateDays(dayKey(at)).map(({ k, l }) => { const x = keyDate(k); x.setHours(hh, mm, 0, 0); return { t: x.getTime(), l }; })
     .filter((x) => x.t > at - 20 * 60e3).slice(0, 2);
 }
@@ -121,7 +126,7 @@ export function recapTimes(s = store.get(), at = Date.now(), evenIfDone = false)
     if (dayOfUse(sun) < 7) continue;
     const noted = Array.from({ length: 7 }, (_, i) => s.days[addDays(w, i)]).some((x) => x && x.mood != null);
     out.push({ t: on(sun, n.pm.on ? n.pm.t : "19:00"), kind: "recap-sun", done: !!seen[w] || d.mood != null });
-    out.push({ t: on(addDays(w, 7), n.am.on ? n.am.t : "08:00"), kind: "recap-mon", done: !!seen[w] || !noted });
+    out.push({ t: on(addDays(w, 7), n.am.on ? amTime(s) : "08:00"), kind: "recap-mon", done: !!seen[w] || !noted });
   }
   return out.filter((x) => x.t > at && (evenIfDone || !x.done));
 }
@@ -136,6 +141,13 @@ async function keepCardPlan(s) {
     await (await caches.open("nudge-plan")).put("wind", new Response(JSON.stringify({ at: windTimes(s) })));
     await (await caches.open("nudge-plan")).put("recap", new Response(JSON.stringify({ at: recapTimes(s, Date.now(), true) })));
     await (await caches.open("nudge-plan")).put("dates", new Response(JSON.stringify({ at: dateTimes(s) })));
+    // The next morning's words and where a tap goes (js/morning.js). The service worker uses them only on that day.
+    const n = prefs();
+    if (n.am.on) {
+      const k = dayKey(nextAt(amTime(s), (d) => !!d.sleep)), was = (n.lines || {})[k], line = morning.pick(s, k);
+      if (was !== line.group) store.save();
+      await (await caches.open("nudge-plan")).put("morning", new Response(JSON.stringify({ k, title: line.title, body: line.body, go: line.go, kind: line.kind })));
+    }
   } catch { /* no copy: a ping then gets the morning or evening words */ }
 }
 
@@ -144,7 +156,7 @@ let resub = null;   // one sign-up at a time, however many times sync runs while
 export async function sync() {
   if (!supported() || Notification.permission !== "granted") return;
   const n = prefs(), times = [];
-  if (n.am.on) times.push(nextAt(n.am.t, (d) => !!d.sleep));
+  if (n.am.on) times.push(nextAt(amTime(), (d) => !!d.sleep));
   if (n.pm.on) times.push(nextAt(n.pm.t, (d) => d.mood != null));
   try {
     let sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();

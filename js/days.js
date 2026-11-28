@@ -45,13 +45,38 @@ function to(target, vel, done) {
   if (reduceMotion()) { draw(target); const a = root().animate([{ opacity: target ? 0 : 1 }, { opacity: target ? 1 : 0 }], { duration: 150 }); a.finished.then(() => done && done()); return; }
   stop = spring(p, target, (vel || 0) / innerWidth, draw, done);
 }
-export function openDays(fromEl, closed) {
+// focus (from the morning notification, js/morning.js): { sec: "B" | "C" | "D" | "E", id (a help line), tab ("harder") }.
+export function openDays(fromEl, closed, focus) {
   onClosed = closed; origin = fromEl; back = 0; log("days_open"); helpsSeen = false; actsSeen = false; liftsSeen = false; sleepSeen = false; sleepSlid = false; sleepSel = null;
-  const el = root(); render();
-  el.querySelector(".scroll").scrollTop = 0;
+  if (focus && focus.sec === "E") liftsView = focus.tab === "harder" ? "harder" : "any";
+  const el = root(); clearTimeout(spotT); el.classList.remove("spot", "spotting"); render();
+  const sc = el.querySelector(".scroll");
+  sc.scrollTop = 0;
+  const target = focus ? spotTarget(focus) : null;
+  if (target) sc.scrollTop = Math.max(0, target.getBoundingClientRect().top - sc.getBoundingClientRect().top - 140);
   draw(0); el.classList.add("open");
   document.body.classList.add("in-days");
-  to(1);
+  to(1, 0, target ? () => spotlight(target) : null);
+}
+// The spotlight (alex 2026-11-28, picked over an outline or a glow): for about 2 seconds everything except the
+// answer dims, then the page comes back. No new colour and no glow. A touch ends it early.
+const SPOT = { B: ".card.slp p.lead", C: ".card.acts p.lead", E: ".card.lifts p.lead" };
+function spotTarget(f) {
+  const el = root();
+  if (f.sec === "D") { const all = [...el.querySelectorAll(".helps-card .help")]; return all.find((x) => x.dataset.id === f.id) || null; }
+  return SPOT[f.sec] ? el.querySelector(SPOT[f.sec]) : null;
+}
+let spotT = 0;
+function spotlight(target) {
+  const el = root(), card = target.closest(".card");
+  if (!card || !el.classList.contains("open")) return;
+  let part = target; while (part.parentElement && part.parentElement !== card) part = part.parentElement;
+  el.querySelectorAll(".spot-card, .spot-on").forEach((x) => x.classList.remove("spot-card", "spot-on"));
+  card.classList.add("spot-card"); part.classList.add("spot-on");
+  el.classList.add("spotting"); void el.offsetWidth; el.classList.add("spot");
+  const end = () => { clearTimeout(spotT); el.classList.remove("spot"); el.removeEventListener("pointerdown", end, true); spotT = setTimeout(() => el.classList.remove("spotting"), 500); };
+  clearTimeout(spotT); spotT = setTimeout(end, 2000);
+  el.addEventListener("pointerdown", end, true);
 }
 function closeDays(vel) {
   if (!document.body.classList.contains("in-days")) return;
@@ -324,13 +349,13 @@ function secHelps(s) {
   items.forEach((it) => {
     const hide = h("button", { style: { alignSelf: "flex-start", minHeight: "44px", color: "#8d8981", fontSize: "13px" }, onclick: () => { s.hidden[it.id] = true; s.notes.hid = true; store.save(); redraw(); log("help_hide", String(it.id).slice(0, 60)); } }, "That's not it");
     if (it.research) {
-      card.append(h("div.help", null, h("span.tag-gold", null, "From research · your own pattern shows here in a few days"), h("p.lead", null, ...it.text()), hide));
+      card.append(h("div.help", { "data-id": it.id }, h("span.tag-gold", null, "From research · your own pattern shows here in a few days"), h("p.lead", null, ...it.text()), hide));
       return;
     }
     // Most lines count good days; "rested" counts rested mornings (Well or Very well) and names its hours in sun.
     const rested = it.measure === "rested", t = it.text("");
     const lead = rested ? h("p.lead", null, t[0], h("b", { style: { color: "#ffa51f", fontWeight: "600" } }, t[1]), t[2]) : h("p.lead", null, t[0], coloured(it.top), t[2]);   // t[1] is the slot for the coloured word
-    card.append(h("div.help", null, lead,
+    card.append(h("div.help", { "data-id": it.id }, lead,
       h("div", { style: { display: "flex", justifyContent: "flex-end" } }, h("span", { style: { textAlign: "right", fontSize: "11px", color: "#8d8981" } }, rested ? "Rested mornings" : "Good days")),
       it.rows.map(([l, ms]) => { const g = rested ? ms.filter((r) => r >= 3).length : goodCount(ms), p = Math.round(g / ms.length * 100);
         return h("div.prow", null, h("span.l", null, l), h("span.bar", { style: { background: `linear-gradient(90deg, #7ab57a ${p}%, rgba(239,237,233,0.10) ${p}%)` } }), h("span.c", null, `${g} of ${ms.length}`)); }),

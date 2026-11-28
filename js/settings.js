@@ -145,15 +145,17 @@ function nudges() {
   const n = notify.prefs();
   const row = (key, name) => {
     const sw = h("button.switch", { role: "switch", "aria-checked": String(n[key].on), "aria-label": name });
-    const time = h("input.time-pill", { type: "time", step: "300", value: n[key].t, "aria-label": `${name} time` });
+    // Start your day follows their usual morning once there's a week of them (js/morning.js), until a time is picked here.
+    const usual = key === "am" && !n.am.fixed && notify.amTime() !== n.am.t;
+    const time = h("input.time-pill", { type: "time", step: "300", value: usual ? notify.amTime() : n[key].t, "aria-label": `${name} time` });
     time.disabled = !n[key].on;
     sw.addEventListener("click", async () => {
       const on = !n[key].on;
       n[key].on = on; sw.setAttribute("aria-checked", String(on)); time.disabled = !on; cardShow(); store.save(); notify.sync(); tester.log("nudge_" + key, on ? n[key].t : "off");
       if (on) await askPhone();
     });
-    time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
-    return h("div.set-row.set-toggle", null, label(name), time, sw);
+    time.addEventListener("change", () => { if (time.value) { n[key].t = time.value; if (key === "am") n.am.fixed = true; store.save(); notify.sync(); tester.log("nudge_" + key, time.value); } });
+    return h("div.set-row.set-toggle", null, label(name, usual ? "Your usual time" : null), time, sw);
   };
   // Card reminders: on/off only. Times follow the day (see cardTimes in notify.js).
   // It only works alongside a morning or evening nudge, so it shows off (and can't be pressed) while both are off.

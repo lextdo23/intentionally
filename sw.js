@@ -4,7 +4,7 @@
 const VERSION = "d161";
 const FILES = [
   "./", "index.html", "privacy.html", "guidelines.html", "manifest.webmanifest", "css/app.css", "css/wrapped.css", "css/box.css", "css/photos.css", "css/library.css", "css/looks.css",
-  "js/main.js", "js/notif-card.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/setup.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/comments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js", "js/later.js", "js/stack.js", "js/plans.js", "js/dev.js",
+  "js/main.js", "js/notif-card.js", "js/wordmark.js", "js/levelup.js", "js/standalone.js", "js/util.js", "js/clock.js", "js/store.js", "js/words.js", "js/stats.js", "js/ui.js", "js/checkin.js", "js/days.js", "js/sample.js", "js/notify.js", "js/tester.js", "js/tester-sheet.js", "js/settings.js", "js/cards-data.js", "js/deck.js", "js/draw.js", "js/pillars.js", "js/sleep.js", "js/own.js", "js/levels.js", "js/path.js", "js/tips.js", "js/wrapped.js", "js/boxes.js", "js/looks.js", "js/photos.js", "js/camera.js", "js/library.js", "js/account.js", "js/setup.js", "js/sync.js", "js/pill.js", "js/friends.js", "js/moments.js", "js/comments.js", "js/photo-backup.js", "js/pdf.js", "js/doctor.js", "js/later.js", "js/morning.js", "js/stack.js", "js/plans.js", "js/dev.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
   "img/looks/cherry/0.webp", "img/looks/matcha/0.webp", "img/looks/matcha/1.webp", "img/looks/matcha/2.webp", "img/looks/matcha/3.webp", "img/looks/mushroom/0.webp", "img/looks/mushroom/1.webp", "img/looks/mushroom/2.webp", "img/looks/mushroom/3.webp", "img/looks/mushroom/4.webp", "img/looks/pals/0.webp", "img/looks/pals/1.webp", "img/looks/pals/2.webp", "img/looks/pals/3.webp", "img/looks/pals/4.webp", "img/chrome/heart.webp", "img/chrome/moon.webp", "img/chrome/sparkle.webp", "img/chrome/spiky.webp", "img/chrome/sun.webp",
 ];
@@ -36,6 +36,8 @@ async function note(entry) {
 async function cardPlan(key = "card") {
   try { const r = await (await caches.open("nudge-plan")).match(key); return r ? await r.json() : null; } catch { return null; }
 }
+// The day a time belongs to, like dayKey in js/util.js: a day runs until 4am.
+function dayOf(t) { const d = new Date(t - 4 * 3600e3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 async function show() {
   const p = await cardPlan(), t = Date.now();
   // Weekly recap (Sunday heads-up, Monday catch-up), unless a card reminder was planned closer to now.
@@ -68,6 +70,23 @@ async function show() {
     return note([t, "sent", "wind"]);
   }
   const morning = new Date().getHours() < 14, kind = morning ? "am" : "pm";
+  if (morning) {
+    // The morning line (alex 2026-11-28, js/morning.js). Friend news first: if a friend notification came in the last
+    // 90 minutes and Daydeck hasn't been to Friends since, stay quiet (it's already on the lock screen); if it's older
+    // and still not seen, its words become the morning's. Then the line the app worked out for today.
+    const fl = await cardPlan("friend-last");
+    if (fl && fl.t && t - fl.t < 90 * 60e3) return;
+    if (fl && fl.t && t - fl.t < 20 * 3600e3 && fl.title) {
+      try { await (await caches.open("nudge-plan")).delete("friend-last"); } catch { /* shown once either way */ }
+      await self.registration.showNotification(String(fl.title).slice(0, 80), { body: String(fl.body || "").slice(0, 80), icon: "icons/icon-192.png", tag: "daydeck-friends", data: { kind: "friends" } });
+      return note([t, "sent", "am", "friends"]);
+    }
+    const m = await cardPlan("morning");
+    if (m && m.k === dayOf(t) && m.title) {
+      await self.registration.showNotification(String(m.title).slice(0, 80), { body: String(m.body || "").slice(0, 80), icon: "icons/icon-192.png", tag: "daydeck-am", data: { kind: "am", go: m.go, line: m.kind } });
+      return note([t, "sent", "am", m.kind]);
+    }
+  }
   // The phone adds "from Daydeck" itself, so the bold title is a greeting rather than the app's name (alex 2026-11-17).
   await self.registration.showNotification(morning ? "Good morning" : "Good evening", {
     body: morning ? "How did you sleep?" : "How was today?",
@@ -80,6 +99,8 @@ async function show() {
 // that many (opening Daydeck puts the real number back: friend requests plus moments not seen yet).
 async function friendNote(w) {
   await self.registration.showNotification(String(w.title || "").slice(0, 80), { body: String(w.body || "").slice(0, 80), icon: "icons/icon-192.png", tag: "daydeck-friends", data: { kind: "friends" } });
+  // Kept until Friends is next opened, so the morning can stay quiet or say it again (see show()).
+  try { await (await caches.open("nudge-plan")).put("friend-last", new Response(JSON.stringify({ t: Date.now(), title: String(w.title || "").slice(0, 80), body: String(w.body || "").slice(0, 80) }))); } catch { /* the morning line then goes ahead */ }
   try {
     if (self.navigator.setAppBadge) {
       const c = await caches.open("nudge-plan"), r = await c.match("badge"), n = (r ? Number(await r.text()) || 0 : 0) + Math.max(1, Number(w.n) || 1);
@@ -99,6 +120,8 @@ self.addEventListener("notificationclick", (e) => {
   const kind = (e.notification.data && e.notification.data.kind) || { "daydeck-am": "am", "daydeck-card": "card", "daydeck-wind": "wind" }[e.notification.tag] || "pm";
   const recap = kind === "recap-mon"; // Monday's opens the recap itself; Sunday's opens home, to end the day
   const fr = kind === "friends";        // a friend notification opens the bell page on Friends
+  // The morning line says where it lands: a part of Your days, a day, or Today (js/morning.js).
+  const d = e.notification.data || {}, go = kind === "am" && typeof d.go === "string" ? d.go.slice(0, 60) : "";
   // Tells the app a nudge opened it, and which one (counted only for testers who joined tester mode).
-  e.waitUntil(note([Date.now(), "tap", kind]).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1, recap, friends: fr }), open[0].focus()) : self.clients.openWindow(recap ? "./?from=nudge&open=recap" : fr ? "./?from=nudge&open=friends" : "./?from=nudge"))));
+  e.waitUntil(note([Date.now(), "tap", kind].concat(d.line ? [String(d.line).slice(0, 20)] : [])).then(() => self.clients.matchAll({ type: "window" })).then((open) => (open[0] ? (open[0].postMessage({ nudge: 1, recap, friends: fr, go }), open[0].focus()) : self.clients.openWindow(recap ? "./?from=nudge&open=recap" : fr ? "./?from=nudge&open=friends" : go ? "./?from=nudge&go=" + encodeURIComponent(go) : "./?from=nudge"))));
 });

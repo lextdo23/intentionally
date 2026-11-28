@@ -181,6 +181,7 @@ document.addEventListener("click", (e) => { if (e.target.closest && e.target.clo
 
 // Nudges that reached the phone, and which ones were tapped. The service worker notes them while the app is
 // closed; here they become nudge_sent / nudge_tap ("am", "pm", "card", or "recap-sun" / "recap-mon" for the weekly recap) at the time they really happened.
+const LINE_KINDS = ["friends", "memory4", "memory1", "sleep", "helps", "acts", "lifts", "harder", "look", "level", "yesterday", "plain"];
 async function nudges() {
   try {
     const c = await caches.open("nudge-log"), r = await c.match("log");
@@ -189,7 +190,11 @@ async function nudges() {
     await c.delete("log");
     if (!on()) return;
     const q = t().queue;
-    for (const [at, what, kind] of list) if (Number.isFinite(at) && (what === "sent" || what === "tap") && ["am", "pm", "card", "recap-sun", "recap-mon"].includes(kind)) q.push([at, "nudge_" + what, kind]);
+    for (const [at, what, kind, line] of list) if (Number.isFinite(at) && (what === "sent" || what === "tap") && ["am", "pm", "card", "recap-sun", "recap-mon"].includes(kind)) {
+      q.push([at, "nudge_" + what, kind]);
+      // Which morning line it was (alex 2026-11-28, js/morning.js): am_line when shown, am_line_tap when tapped.
+      if (kind === "am" && typeof line === "string" && LINE_KINDS.includes(line)) q.push([at, what === "sent" ? "am_line" : "am_line_tap", line]);
+    }
     store.save();
   } catch { /* try again next open */ }
 }

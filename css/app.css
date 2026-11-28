@@ -169,6 +169,11 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 #days .bg { position: absolute; inset: 0; background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 30%, var(--sky3) 100%); }
 #days .scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 #days .page { max-width: 520px; margin: 0 auto; padding: var(--top) var(--edge) calc(var(--bot) + 24px); display: flex; flex-direction: column; gap: 16px; transform-origin: 20px 120px; }
+/* The spotlight (alex 2026-11-28): landing from the morning notification, everything but the answer dims for about
+   2 seconds, then comes back. Opacity only: no new colour, no glow (js/days.js spotlight). */
+#days.spotting .page > *, #days.spotting .sections > *, #days.spotting .spot-card > * { transition: opacity .45s ease; }
+#days.spot .page > :not(.sections), #days.spot .sections > :not(.spot-card) { opacity: .32; }
+#days.spot .spot-card > :not(.spot-on):not(h3) { opacity: .35; }
 .page-head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
 .big-title { font-size: 34px; font-weight: 600; }
 .seg { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--fill2); }

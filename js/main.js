@@ -4,7 +4,7 @@ import { now, greeting, setOffsetDays } from "./clock.js";
 import * as store from "./store.js";
 import { morning, evening } from "./checkin.js";
 import { openDraw, cardDue, homeCard, askFelt, handOff, keepTime } from "./draw.js";
-import { openDays } from "./days.js";
+import { openDays, openDay } from "./days.js";
 import { moodSeries, mostlyWord } from "./stats.js";
 import { makeSample } from "./sample.js";
 import { openSheet, roundBtn } from "./ui.js";
@@ -579,7 +579,20 @@ if (new URLSearchParams(location.search).get("open") === "friends") {
   const u = new URL(location.href); u.searchParams.delete("open"); history.replaceState(null, "", u.pathname + u.search);
   booted.then(() => setTimeout(openFriendNews, 300));
 }
-if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.recap) setTimeout(openRecap, 300); if (e.data && e.data.friends) setTimeout(openFriendNews, 300); });
+// The morning notification (alex 2026-11-28, js/morning.js) lands straight on its answer: a part of Your days,
+// scrolled to it with the spotlight, or that day for a memory. Lines that need nothing more open Today as usual.
+// Closing goes back to Today. Only while nothing else is open over home.
+function openMorning(go) {
+  const [what, a, b] = String(go || "").split(":");
+  if ((what !== "days" && what !== "day") || busy() || document.body.classList.contains("in-days")) return;
+  pill.go("today", true);
+  log("am_open", what === "day" ? "day" : a);
+  if (what === "day" && /^\d{4}-\d\d-\d\d$/.test(a || "")) return openDay(a);
+  if (what === "days" && levels.isOpen("days") && "BCDE".includes(a || "x")) openDays(document.querySelector("button.peek"), () => render(), { sec: a, id: a === "D" ? go.slice(7) : null, tab: a === "E" ? b : null });
+}
+{ const go = new URLSearchParams(location.search).get("go");
+  if (go) { const u = new URL(location.href); u.searchParams.delete("go"); history.replaceState(null, "", u.pathname + u.search); booted.then(() => setTimeout(() => openMorning(go), 300)); } }
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.recap) setTimeout(openRecap, 300); if (e.data && e.data.friends) setTimeout(openFriendNews, 300); if (e.data && e.data.go) setTimeout(() => openMorning(e.data.go), 300); });
 
 // Coming back to Daydeck (alex 2026-11-21): it shows just as it was left, with no redraw and no reload. Home only
 // redraws if what it shows has moved on (a new day, or morning turned to afternoon), and never mid-way through

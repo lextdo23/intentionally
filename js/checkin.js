@@ -126,7 +126,11 @@ export function morning(onDone) {
 
   const done = mainBtn("Done", st.rested != null, () => {
     const s2 = store.get(), d = store.day(k), n = dayNum(k);
+    // at: when the morning check-in was done, so the morning nudge can come at their usual time (js/morning.js).
+    // Changing an old night later keeps its first time; a night first noted on a later day gets none.
+    const at = d.sleep && d.sleep.at ? d.sleep.at : k === dayKey() ? now() : undefined;
     d.sleep = { bed: st.bed, wake: st.wake, rested: st.rested, tags: [...st.tags] };
+    if (at) d.sleep.at = at;
     st.tags.forEach((t) => (s2.sleepTags.last[t] = n));
     if (!s2.started) s2.started = k;
     if (fromBtn) { markUsed(); log("sleep_prefill", { moved: st.bed !== fromBtn.bed || st.wake !== fromBtn.wake }); }
