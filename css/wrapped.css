@@ -151,6 +151,7 @@
 .wr-home { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 15px; color: var(--ink2); text-align: left; }
 .wr-home i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .wr-home .chev { color: var(--dim); }
+.wr-home.find { color: var(--ink); padding: 10px 0; } .wr-home.find i { align-self: flex-start; margin-top: 6px; }
 .wr-home.ready { color: var(--sun); font-weight: 600; } .wr-home.ready .chev { color: var(--sun); }
 .wr-from { font-size: 13px; font-weight: 600; color: var(--dim); margin-top: 8px; }
 .wr-sheet-sub { font-size: 15px; color: var(--ink2); }

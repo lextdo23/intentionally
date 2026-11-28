@@ -126,7 +126,11 @@ export function morning(onDone) {
 
   const done = mainBtn("Done", st.rested != null, () => {
     const s2 = store.get(), d = store.day(k), n = dayNum(k);
+    // When the morning check-in was done (alex 2026-11-28): the morning notification learns their usual time from it.
+    // Only the first time, on the day itself, so changing it later in the day doesn't move it.
+    const at = d.sleep ? d.sleep.at : k === dayKey() ? now() : undefined;
     d.sleep = { bed: st.bed, wake: st.wake, rested: st.rested, tags: [...st.tags] };
+    if (at) d.sleep.at = at;
     st.tags.forEach((t) => (s2.sleepTags.last[t] = n));
     if (!s2.started) s2.started = k;
     if (fromBtn) { markUsed(); log("sleep_prefill", { moved: st.bed !== fromBtn.bed || st.wake !== fromBtn.wake }); }

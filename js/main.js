@@ -37,6 +37,7 @@ import * as crumbs from "./crumbs.js";
 import * as notifCard from "./notif-card.js";
 import { wordmark } from "./wordmark.js";
 import * as setup from "./setup.js";
+import * as findings from "./findings.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -436,7 +437,7 @@ function render(moment) {
     levelRow(lvNew),
     weekRow(),
     boxRow(),
-    wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
+    findLine(needAM && !ended && hr < 15, k) || wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     words,
     mid,
     h("div.col", { style: { gap: "4px" } }));   // keeps the gap above the pill the card is centred against
@@ -466,6 +467,22 @@ function render(moment) {
   if (lvNew) levelUpMoment(lvNew);
   tips.soon(mo ? 4200 : 1500);   // a new thing a level opened gets its tip once home is quiet (alex 2026-11-18)
 }
+
+// The answer to this morning's notification (alex 2026-11-28, js/findings.js): the first thing on home, in the
+// recap line's place (never both, so the card never moves; the recap line comes back once the morning check-in is
+// done), until then.
+let findLogged = "";
+function findLine(show, k) {
+  const f = show ? findings.today(store.get(), k) : null;
+  if (!f) return null;
+  if (findLogged !== k) { findLogged = k; log("find_seen", String(f.id).split(":")[0]); }
+  return h("div.wr-lines", null, h("div.wr-home.find", null, h("i", { style: { background: "var(--sun)", borderRadius: "50%" } }), h("span", null, f.answer)));
+}
+
+// Friend news the morning notification was keeping (sw.js friendNote): seen once the app is open.
+function seenSocial() { if ("caches" in window) caches.open("nudge-plan").then((c) => c.delete("social")).catch(() => {}); }
+seenSocial();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") seenSocial(); });
 
 function changeToday() {
   openSheet((panel, close) => {
