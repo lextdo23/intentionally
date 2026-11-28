@@ -155,14 +155,14 @@ async function fit(cards, drafts) {
 }
 
 (async () => {
-  const data = await import(path.join(root, "js", "cards-data.js"));
+  const data = await import(path.join(root, "js", "cards-data.js")), W = await import(path.join(root, "js", "card-when.js"));
   // pillars.js needs a browser, so its list of mindsets is read straight from the file.
   const src = fs.readFileSync(path.join(root, "js", "pillars.js"), "utf8"), MINDSETS = new Function(`return ${src.match(/export const MINDSETS = (\{[\s\S]*?\n\});/)[1]}`)();
   const live = data.LIVE.map((r) => ({ key: "#" + r[0], n: r[0], pillar: r[1], size: r[2], for: r[3], card: r[4], why: r[5], src: r[6] }));
   let cards = limit ? live.slice(0, limit) : live, drafts = false, mindsets;
   if (file) {
     const j = JSON.parse(fs.readFileSync(path.resolve(file), "utf8")), list = j.cards || j;
-    cards = list.map((c) => ({ key: `${c.pillar || j.pillar}-${c.id}`, pillar: c.pillar || j.pillar, size: c.size, for: c.for, card: c.card, why: c.why, src: c.src, chk: c.chk, draft: true }));
+    cards = list.map((c) => ({ key: `${c.pillar || j.pillar}-${c.id}`, pillar: c.pillar || j.pillar, size: c.size, for: c.for, card: c.card, why: c.why, src: c.src, chk: c.chk, when: c.when, draft: true }));
     drafts = true; mindsets = j.mindsets ? { [j.pillar]: j.mindsets } : null;
   }
   if (!mindsets) mindsets = Object.fromEntries(Object.entries(MINDSETS || {}).map(([p, l]) => [p, l.map(([, k]) => k)]));
@@ -173,6 +173,10 @@ async function fit(cards, drafts) {
     const issues = wordChecks(c), f = byKey[c.key];
     if (f) for (const [place, ok] of Object.entries(f.fits)) if (!ok) issues.push({ level: place === "lifts" ? "warning" : "problem", rule: "F1",
       msg: `${{ hand: "cut off in the hand", kept: "scrolls on the kept card", home: "stretches today's card on home", lifts: "cut off in What lifts you" }[place]} (${-f.room[place]} letters too long)` });
+    // When it fits in the day (rule C11): every card needs a tag in js/card-when.js (a draft carries it as "when").
+    const when = c.draft ? c.when : W.WHEN[c.n];
+    if (!when) issues.push({ level: "problem", rule: "C11", msg: c.draft ? 'no "when" tag (a, n, t:<moment>, d, c or s; see js/card-when.js)' : "no when tag in js/card-when.js" });
+    else if (!W.validTag(when)) issues.push({ level: "problem", rule: "C11", msg: `"${when}" isn't a when tag (a, n, t:<moment>, d, c or s)` });
     if (near[c.key]) for (const o of near[c.key]) issues.push({ level: "warning", rule: "B4", msg: `looks like ${o.key} (${o.pillar}): "${o.card}"` });
     return { ...c, issues, fits: f && f.fits, room: f && f.room };
   });
