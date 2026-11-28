@@ -148,7 +148,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
 .ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); }
 
 /* ---------- Sheets rise from the bottom. New look (alex 2026-11-24): near-black like the card face, a fine light top edge. ---------- */
-.sheet-dim { position: fixed; inset: 0; background: rgba(0, 0, 0, .62); opacity: 0; }
+.sheet-dim { position: fixed; inset: 0; background: rgba(0, 0, 0, .62); opacity: 0; will-change: opacity; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; max-height: 92%; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: 16px; padding: 8px var(--edge) var(--bot); border-radius: 26px 26px 0 0; background: #141416;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 0 1px rgba(255, 255, 255, .06), 0 -12px 40px rgba(0, 0, 0, .6);
