@@ -76,7 +76,7 @@ const fs = require("fs"), path = require("path");
     dev.setLevel(5); out.lv5 = levels.level().level === 5 && levels.level().into === 0;
     out.libOpen = levels.isOpen("library");
     dev.setStrict(true); dev.setLevel(2);
-    out.strict = levels.isOpen("days") && !levels.isOpen("friends") && !levels.isOpen("library");
+    out.strict = levels.isOpen("days") && levels.isOpen("friends") && !levels.isOpen("library");   // Friends is open from day one (alex 2026-11-28)
     dev.setStrict(false); out.allBack = levels.isOpen("library");
     // Simulated past days count, and come off again
     for (let i = 7; i >= 1; i--) dev.fullDay(util.addDays(k0, -i));

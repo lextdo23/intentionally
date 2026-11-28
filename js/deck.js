@@ -123,10 +123,35 @@ function weight(id, k) {
 }
 const pick = (ids, ws) => { let t = ws.reduce((a, b) => a + b, 0), r = Math.random() * t; for (let i = 0; i < ids.length; i++) { r -= ws[i]; if (r <= 0) return ids[i]; } return ids[ids.length - 1]; };
 
+// The starter deck (alex 2026-11-28, plan "Daydeck: getting people to do their card", The first days): on days 1 to 3
+// the hand comes from tiny cards picked to be easy and likely to lift, so the first cards are wins. Only cards in the
+// person's own deck (their pillars and mindsets) are dealt; if fewer than three of them are starters, other tiny cards
+// from their deck fill in, and only then the rest. Card numbers only, so nothing changes in tester data.
+export const STARTER_DAYS = 3;
+export const STARTER = new Set([
+  1, 10, 12, 369, 574,              // Friends
+  37, 38, 40, 43, 44, 371,          // Family
+  65, 66, 378, 379, 385,            // Love
+  122, 131, 463, 464,               // Move
+  166, 167, 173, 175, 570, 572, 582,   // Rest
+  392, 397, 400, 575,               // Community
+  412, 416, 418, 424, 427, 432, 433, 438, 580,   // Self
+  468, 476, 477, 479, 484, 497,     // Meaning
+  498, 499, 508, 510, 525, 526,     // Work and study
+  535, 543, 546, 549, 555, 571, 583,   // Play and create
+]);
+export function starterPool(all, k = dayKey()) {
+  if (dayOfUse(k) > STARTER_DAYS) return all;
+  const st = all.filter((id) => STARTER.has(id));
+  if (st.length >= 3) return st;
+  const tiny = all.filter((id) => STARTER.has(id) || card(id).size === "Tiny");
+  return tiny.length >= 3 ? tiny : all;
+}
+
 // Three different cards. At most one bigger card, and never two from the same pillar if it can be helped.
 export function draw3(exclude = [], k = dayKey()) {
   const m = mem(), out = [];
-  let all = dealable(k).filter((id) => !exclude.includes(id));
+  let all = starterPool(dealable(k).filter((id) => !exclude.includes(id)), k);
   if (planItems(k).some((it) => it.kind === "tiny")) { const t = all.filter((id) => card(id).size === "Tiny"); if (t.length >= 3) all = t; }   // "Only tiny cards"
   const saved = m.saved.find((id) => all.includes(id));
   if (saved) out.push(saved);                                 // a card saved for later comes back first

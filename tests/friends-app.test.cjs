@@ -1,6 +1,6 @@
 // Friends in the app (js/friends.js, social step 2; alex 2026-11-20). Runs the real Daydeck service (push/) inside
-// the test, with a pretend iPhone 15 Pro Max as Mia and made-up friends (Josh, Sam). Checks: Friends opens at level 3
-// (with its tip), the 18+ tick, requests and the small dot, adding by @username, a friend's profile, remove and
+// the test, with a pretend iPhone 15 Pro Max as Mia and made-up friends (Josh, Sam). Checks: Friends is open from day one
+// (alex 2026-11-28), the 18+ tick, requests and the small dot, adding by @username, a friend's profile, remove and
 // block, invite links, Edit profile, Privacy, and no orange on the friends screens. SHOTS=1 saves pictures.
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -65,22 +65,14 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   const tab = async (t) => { await p.click(`#pill [data-tab="${t}"]`); await p.waitForTimeout(700); };
   const text = (sel) => p.textContent(sel);
 
-  // ---- Before level 3: the pill is there, Friends waits as a dashed ring (alex 2026-11-25) ----
+  // ---- Day one (alex 2026-11-28): Friends is open from the start, no longer a level ----
   await p.goto(server.url);
-  await signIn(mia.tok, mia.user); await setDays(1, { seen: 2 }); await p.reload(); await p.waitForTimeout(1500);
-  check(!!(await p.$('#pill [data-tab="friends"].not-yet')), "before level 3: Friends is a dashed ring in the pill");
-
-  // ---- Level 3 (the end of the second full day): Friends opens, with its moment ----
+  await signIn(mia.tok, mia.user); await setDays(1, { seen: 2 }); await p.reload(); await p.waitForTimeout(1500); await quiet();
+  check(!!(await p.$("#pill")) && !(await p.$('#pill [data-tab="friends"].not-yet')), "on the first days Friends is already open in the pill");
   await setDays(2, { seen: 2 }); await p.reload(); await p.waitForTimeout(1500);
-  check(/Level 3/.test(await text(".lu-title")), "two full days reach level 3: the level-up moment shows");
-  check(!!(await p.$("#pill")) && !(await p.$('#pill [data-tab="friends"].not-yet')), "at level 3 Friends opens in the pill");
+  check(/Level 3/.test(await text(".lu-title")) && !(await p.$(".lu-card")), "level 3 brings only a box now: no card for Friends");
   check(!(await p.$('#home button[aria-label="Cards"]')), "Cards is at level 5, so it isn't open yet");
-  await p.waitForTimeout(4600);
-  check(/Friends/.test(await text(".lu-front")) && /Open Friends/.test(await text(".lu-btns")), "its card shows Friends, with Open Friends (in place of the old tip)");
-  await shot("1-tip");
-  await p.click(".lu-btns .btn-quiet"); await p.waitForTimeout(2600);
-  check(!(await p.$(".lu")) && !(await p.$(".tip-box")), "Later closes it, and the old pointing tip doesn't follow");
-  await quiet();
+  await p.waitForTimeout(3500); await quiet();
 
   // Someone who already had the card library open keeps it (nothing is ever taken away).
   await setDays(2, { seen: 3, tips: { days: 1, own: 1, library: 1 } }); await p.reload(); await p.waitForTimeout(1500); await quiet();

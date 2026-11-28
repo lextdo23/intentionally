@@ -4,6 +4,7 @@
 import { h, dayKey, reduceMotion, LIFELINE } from "./util.js";
 import * as store from "./store.js";
 import * as deck from "./deck.js";
+import * as together from "./together.js";
 import * as looks from "./looks.js";
 import { roundBtn, pillPicker, openSheet } from "./ui.js";
 import * as boxes from "./boxes.js";
@@ -102,8 +103,8 @@ export function drawSteps() {
   const k = dayKey(), d = store.day(k);
   // Leaving and coming back keeps the same three (and the same number of draws).
   if (!d.card || !d.card.hands || !d.card.hands.length) {
-    const ids = deck.draw3([], k);
-    d.card = { hands: [ids] }; deck.shown(ids, k); store.save();
+    const { ids, pal } = together.forHand(k, deck.draw3([], k));   // now and then, a card a friend kept today (js/together.js)
+    d.card = { hands: [ids] }; if (pal) together.note(k, 0, pal); deck.shown(ids, k); store.save();
     log("card_draw", ids.map(deck.tid));
   }
   const st = { ids: d.card.hands[d.card.hands.length - 1].slice(), up: [false, false, false], pick: null, smaller: null };
@@ -152,8 +153,11 @@ function hand(st, dealIn) {
   const els = Array.from({ length: N }, () => { const e = cardEl(null); e.classList.add("hc"); stage.append(e); return e; });
   order = els.slice();
   const allUp = () => handEls.every((e) => e.classList.contains("up"));
+  // A friend's card in this hand (js/together.js): a bubble comes out from behind it when it's turned over.
+  const palHere = () => { const p = together.palIn(k, d.card.hands.length - 1); return p && st.ids.includes(p.id) ? p : null; };
+  const palBub = (e, still) => { const p = palHere(); if (p && e.dataset.id === String(p.id)) together.bubble(e, p.who, { still }); };
   const say = () => {
-    hint.textContent = !allUp() ? "Turn over all three cards" : st.pick == null ? "Tap a card to choose it" : "Keep it, or tap another";
+    hint.textContent = !allUp() ? "Turn over all three cards" : st.pick == null ? (palHere() ? together.TOGETHER_HINT : "Tap a card to choose it") : "Keep it, or tap another";
   };
   const place = (e, t) => { e.style.transitionDuration = t + "s"; };
   const apply = (t = 0.45) => handEls.forEach((e, j) => { place(e, t); e.style.transform = H(j, j === st.pick ? 12 : 0); });
@@ -169,7 +173,7 @@ function hand(st, dealIn) {
     mid.style.zIndex = 55; place(mid, T); mid.style.transform = H(1, st.pick === 1 ? 12 : 0);
     order.slice(0, N - 3).forEach((e, i) => { e.style.zIndex = i + 1; place(e, T); e.style.transform = AWAY(); });
     sides.forEach((e, i) => { e.style.zIndex = 50 + i; if (instant) { place(e, 0); e.style.transform = H(i ? 2 : 0, st.pick === (i ? 2 : 0) ? 12 : 0); } else { place(e, T); e.style.transform = AWAY(); } });
-    const done = () => { handEls.forEach((e) => (e.style.pointerEvents = "auto")); busy = false; say(); };
+    const done = () => { handEls.forEach((e) => (e.style.pointerEvents = "auto")); busy = false; say(); handEls.forEach((e, j) => { if (st.up[j]) palBub(e, true); }); };
     if (instant) return done();
     busy = true;
     if (split) {
@@ -186,7 +190,7 @@ function hand(st, dealIn) {
     const j = handEls.indexOf(e);
     if (busy || j < 0) return;
     e.style.zIndex = ++z;                                              // the one you tapped last sits on top, in its place
-    if (!e.classList.contains("up")) { e.classList.add("up"); st.up[j] = true; fill(e, st.ids[j]); log("card_turn", deck.tid(st.ids[j])); say(); return; }
+    if (!e.classList.contains("up")) { e.classList.add("up"); st.up[j] = true; fill(e, st.ids[j]); log("card_turn", deck.tid(st.ids[j])); say(); setTimeout(() => palBub(e), reduceMotion() ? 0 : 380); return; }
     if (!allUp()) { hint.textContent = "Turn the other cards over first"; return; }
     st.pick = j; handEls.forEach((x, i) => x.classList.toggle("sel", i === j)); apply();
     keep.setAttribute("aria-disabled", "false"); nfm.setAttribute("aria-disabled", "false"); say();
@@ -197,8 +201,9 @@ function hand(st, dealIn) {
     if (busy || d.card.hands.length >= allowed()) return;
     busy = true; keep.setAttribute("aria-disabled", "true"); hint.textContent = "Shuffling…";
     deck.passed(st.ids);
-    const ids = deck.draw3(d.card.hands.flat(), k);
-    d.card.hands.push(ids); deck.shown(ids, k); store.save();
+    stage.parentElement.querySelector(".pal-bub")?.remove();
+    const { ids, pal } = together.forHand(k, deck.draw3(d.card.hands.flat(), k), d.card.hands.flat());
+    d.card.hands.push(ids); if (pal) together.note(k, d.card.hands.length - 1, pal); deck.shown(ids, k); store.save();
     log("card_redraw", ids.map(deck.tid));
     if (d.card.hands.length >= allowed()) again.replaceWith(outOfDraws());
     nfm.setAttribute("aria-disabled", "true");
@@ -251,11 +256,12 @@ function hand(st, dealIn) {
     st.pick = null; handEls.forEach((x) => x.classList.remove("sel")); apply();
     keep.setAttribute("aria-disabled", "true"); nfm.setAttribute("aria-disabled", "true");
     if (to) fill(e, to); else { e.classList.remove("up"); e.style.visibility = "hidden"; }
+    if (!palHere()) stage.parentElement.querySelector(".pal-bub")?.remove();
     const undo = h("button.nfm-undo", { onclick: () => {
       clearTimeout(undoT);
       deck.undoNotForMe(id, grew);
       if (to) { st.ids[j] = id; hd[hd.indexOf(to)] = id; } else e.style.visibility = "";
-      store.save(); fill(e, id); e.classList.add("up"); log("card_never_undo", deck.tid(id)); say();
+      store.save(); fill(e, id); e.classList.add("up"); log("card_never_undo", deck.tid(id)); say(); palBub(e, true);
     } }, "Undo");
     hint.replaceChildren(r === "notnow" ? "Got it. That one will rest for a while." : "Got it. You won't see that one again.", undo);
     clearTimeout(undoT); undoT = setTimeout(() => { if (hint.contains(undo)) say(); }, 8000);
@@ -333,7 +339,7 @@ function big(st, id, { own = false } = {}) {
     [h("div.rise", null, holder), h("div.rise", null, helpers)],
     [mainBtn("Done", true, () => {
       if (own) { if (!boxes.useExtra("pick")) return; d.card.own = true; deck.shown([id], k); log("card_keep", { id: deck.tid(id), draw: 0, own: 1 }); }
-      d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id);
+      d.card.id = id; d.card.at = Date.now(); together.kept(k, id, d.card); store.save(); deck.unsave(id);
       // A copy of the card stays exactly where it is, above everything, so home can set it down in its place.
       if (!reduceMotion() && !own) {
         const r = face.getBoundingClientRect(), w = h("div.card-ghost", { style: { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" } });

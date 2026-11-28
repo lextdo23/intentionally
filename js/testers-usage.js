@@ -18,7 +18,7 @@ export function area(n) {
   if (n === "own_word" || n === "show_more") return "A check-in";
   if (/^sleep_(button|sound|len|pause|cancel|prefill)$/.test(n)) return "Going to sleep";
   if (/^(sleep_|days_|day_tap|acts_|lifts_|helps_|help_hide|arrange|doctor_)/.test(n)) return "Your days";
-  if (/^(card_|nfm_|rest_ask|plan_|week_|stack_)/.test(n)) return "Today's card";
+  if (/^(card_|nfm_|rest_ask|plan_|week_|stack_|pal_offer|pal_keep|pal_done|pal_line)/.test(n)) return "Today's card";
   if (/^(pick_|repick)/.test(n)) return "Pillars";
   if (/^(box_|look_)/.test(n)) return "Boxes and looks";
   if (/^(lib_|own_|extra_use)/.test(n)) return "Cards and own cards";
@@ -27,7 +27,7 @@ export function area(n) {
   if (/^crumb/.test(n)) return "Crumbs";
   if (/^wrap_/.test(n)) return "Weekly recap";
   if (/^(level|unlock|locked_tap)/.test(n)) return "Levels";
-  if (/^(friend|share|see$|unshare|edit_open|moment_edit|hide$|unhide|report|grid_open|common_open|pymk_|notes_open|profile|avatar|comment|uncomment|seen_by|csee$)/.test(n)) return "Friends";
+  if (/^(friend|share|see$|unshare|edit_open|moment_edit|hide$|unhide|report|grid_open|common_open|pymk_|pal_sheet|pal_row|notes_open|profile|avatar|comment|uncomment|seen_by|csee$)/.test(n)) return "Friends";
   if (/^(setup|signup_|signin)/.test(n)) return "Setup and sign-up";
   if (/^(settings_open|rename|name$|signout|account_delete|restore|save_copy|nudge_allow|notif_)/.test(n)) return "Settings";
   return "Other";

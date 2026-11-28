@@ -31,12 +31,18 @@ import * as sync from "./sync.js";
 import * as dev from "./dev.js";
 import * as pill from "./pill.js";
 import * as friends from "./friends.js";
+import * as together from "./together.js";
 import * as moments from "./moments.js";
 import * as photoBackup from "./photo-backup.js";
 import * as crumbs from "./crumbs.js";
 import * as notifCard from "./notif-card.js";
 import { wordmark } from "./wordmark.js";
 import * as setup from "./setup.js";
+
+// Card with a friend (js/together.js): what home last showed for it, so a fresh look at the service redraws only on a change.
+// What home shows for it: the line, or the quiet row for people with no friends yet (which needs Friends loaded).
+const palLook = (k) => { const c = (store.get().days[k] || {}).card; return JSON.stringify([c && c.id ? together.withMe(k, c.id) : [], together.rowDue(k)]); };
+let palShown = "";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -200,6 +206,15 @@ function weekRow() {
   return h("div.peek-row", null, pk, cb);
 }
 // Crumbs is offered once, after an evening check-in, when home is quiet (same wait as the photos note).
+// Day 2's "Add a friend" sheet (js/together.js): once the kept card has landed and home is quiet.
+function palSheetWhenFree(k, tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer, .lu");
+    if (busy && tries < 40) return palSheetWhenFree(k, tries + 1);
+    if (!busy && together.sheetDue(k)) together.openSheetA();
+  }, tries ? 1500 : 2400);
+}
+
 function crumbsWhenFree(tries = 0) {
   setTimeout(() => {
     const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer");
@@ -324,7 +339,7 @@ function render(moment) {
   const markDid = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
-    log("card_did", deck.tid(c.id)); notify.sync();
+    log("card_did", deck.tid(c.id)); notify.sync(); together.done(k, c.id);
     if (later.isWeek(c.id)) later.tick(k, k);   // a week card: today is its first day ticked (js/later.js)
     askFelt(card, c.id, { mid, hide: main,
       onPick: (list) => {
@@ -390,6 +405,10 @@ function render(moment) {
   const shareCould = (testOn || levels.isOpen("friends")) && friends.canShare() && moments.canShareDay(k);
   const two = c && !ended && (addPhoto || shareLink || (!did && (photos.offerOK(k) || shareCould)));
   const undoBtn = () => h("button.btn-text.undo", { onclick: undo }, "Not done yet");
+  // Card with a friend (js/together.js, alex 2026-11-28): "You and Sam are both doing this today" just under the card,
+  // above "Add a photo". With no friends yet, a quiet "Same card as a friend some days?" row now and then instead.
+  const palLine = c ? (together.homeLine(k, c.id) || (!ended ? together.quietRow(k) : null)) : null;
+  palShown = palLook(k);
   // What the slot holds once the card is done; used as it lands, then again by the redraw.
   function doneSlot() {
     const pOK = photos.offerOK(k);
@@ -397,14 +416,14 @@ function render(moment) {
     const first = pOK ? h("button.add-photo.fade-in", { onclick: cam }, photos.camIcon(), "Add a photo")
       : shareCould ? h("button.add-photo.share-link.fade-in", { onclick: () => moments.openShare({ day: k, item: "card", from: "home" }) },
         friends.svg(18, [["path", { d: "M12 15V4M8 8l4-4 4 4" }], ["path", { d: "M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" }]]), "Share with friends") : null;
-    return [first, undoBtn()].filter(Boolean);
+    return [palLine, first, undoBtn()].filter(Boolean);
   }
   const still = slotStill; slotStill = false;
   // Once the day is ended, "Change today" sits in the same spot under the card (it used to sit below the middle and
   // pushed the card up).
   const changeBtn = bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null;
-  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null)
-    : shareLink || changeBtn ? h(`div.undo-slot${shareLink && changeBtn ? ".two" : ""}`, null, shareLink, changeBtn) : null;
+  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, palLine, addPhoto || shareLink, did ? undoBtn() : null)
+    : palLine || shareLink || changeBtn ? h(`div.undo-slot${shareLink && changeBtn ? ".two" : ""}`, null, palLine, shareLink, changeBtn) : null;
   // Cards that happen later wait in a stack behind today's card (js/stack.js, alex 2026-11-27); tapping one brings it
   // to the front. The space under the card ("Add a photo", "Not done yet") belongs to today's card only.
   const waiting = later.stack(k);
@@ -421,7 +440,7 @@ function render(moment) {
   const mid = h("div.home-mid", null, h("div.home-hold", null, area, under));
   todayL = card && frontF === null ? card : null;
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
-  // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
+  // home never rearranges. Friends is open from day one (alex 2026-11-28; it used to wait for level 3 as a dashed ring).
   const friendsOpen = testOn || levels.isOpen("friends");
   pill.start(() => render()); pill.setFriends(friendsOpen); pill.setAction(main);
   // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
@@ -445,6 +464,7 @@ function render(moment) {
   testBar();
   if (moment === "sleep") riseCard();   // back from the sleep check-in: the card rises out of the glow
   if (moment === "card") landCard();    // Done on the kept card: it's set down in its place
+  if (moment === "card" && together.sheetDue(k)) palSheetWhenFree(k);   // day 2: "Some mornings, you'll both draw the same card"
   look = lookNow();
 
   // A moment: the greeting turns gold with what just happened, then softens back to "head" and "after".
@@ -590,6 +610,19 @@ const AWAY_LONG = 30 * 60e3;
 let awayAt = 0, updateWaiting = false, reloading = false;
 // Shared dates (js/plans.js) came in fresh from the service: home redraws if it isn't in the middle of something.
 plans.onChange(() => booted.then(() => { if (!busy()) render(); }));
+// Card with a friend (js/together.js): friends' kept cards for today, on opening and coming back (at most once a
+// minute). Home redraws only if "You and Sam are both doing this today" changed.
+let palAt = 0;
+async function palCheck() {
+  if (Date.now() - palAt < 60e3) return;
+  palAt = Date.now();
+  const k = dayKey();
+  if (!friends.loaded()) await friends.load();
+  together.catchUp(k);
+  await together.refresh(k);
+  if (palLook(k) !== palShown) { const redraw = (n = 0) => { if (!busy()) render(); else if (n < 30) setTimeout(() => redraw(n + 1), 2000); }; redraw(); }
+}
+booted.then(() => setTimeout(palCheck, 1200));
 const busy = () => ["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage", "in-settings"].some((x) => document.body.classList.contains(x)) || !!document.querySelector(".sheet-host, .cam, .ph-viewer");
 function freshOpen() {
   if (reloading) return;
@@ -600,6 +633,7 @@ function freshOpen() {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") { awayAt = Date.now(); return; }
   notify.sync();   // notifications may have been switched back on in the phone's Settings (alex 2026-11-27)
+  palCheck();
   const wasLong = awayAt && Date.now() - awayAt >= AWAY_LONG;
   if (updateWaiting && wasLong && !busy()) return freshOpen();
   if (lookNow() !== look && !["in-flow", "in-ask", "in-wrap", "in-photos", "in-levels", "in-cards", "in-acct", "in-fpage"].some((x) => document.body.classList.contains(x))) render();
