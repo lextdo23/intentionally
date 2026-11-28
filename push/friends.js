@@ -112,7 +112,8 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS csees (comment TEXT, who TEXT, at INTEGER, PRIMARY KEY (comment, who));
     CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, owner TEXT, card INTEGER, day TEXT, made TEXT, at INTEGER);
     CREATE TABLE IF NOT EXISTS pguests (plan TEXT, who TEXT, state TEXT, at INTEGER, PRIMARY KEY (plan, who));
-    CREATE TABLE IF NOT EXISTS nosuggest (owner TEXT, who TEXT, at INTEGER, PRIMARY KEY (owner, who));`);
+    CREATE TABLE IF NOT EXISTS nosuggest (owner TEXT, who TEXT, at INTEGER, PRIMARY KEY (owner, who));
+    CREATE TABLE IF NOT EXISTS kept (user TEXT, day TEXT, card INTEGER, at INTEGER, PRIMARY KEY (user, day));`);
   // Reports can be about a comment (2026-11-26). Books made before then get the column added once.
   try { sql.exec("ALTER TABLE reports ADD COLUMN comment TEXT"); } catch { /* already there */ }
   // Replies (alex 2026-11-26): parent is the comment a reply sits under, rto who it answers. Added once to older books.
@@ -169,6 +170,8 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "POST /a/f/plan": return out(b.plSave(token, body));
     case "POST /a/f/plan/answer": return out(b.plAnswer(token, String(body.id || ""), body.yes === true));
     case "POST /a/f/plan/drop": return out(b.plDrop(token, String(body.id || "")));
+    case "POST /a/f/kept": return out(b.kSet(token, body));
+    case "GET /a/f/kept": return out(b.kList(token, q.get("day") || ""));
   }
   return null;
 }
@@ -762,6 +765,41 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM fpings WHERE user = ?", id);
     this.sql.exec("DELETE FROM pguests WHERE who = ? OR plan IN (SELECT id FROM plans WHERE owner = ?)", id, id);
     this.sql.exec("DELETE FROM plans WHERE owner = ?", id);
+    this.sql.exec("DELETE FROM kept WHERE user = ?", id);
+  },
+
+  // ---------------- Card with a friend (alex 2026-11-28) ----------------
+  // Which deck card someone kept today: the card's number and the day, never its words, gone after 2 days. Friends
+  // read it so the morning hand can now and then hold a card a friend is doing too, and home can say "You and Sam
+  // are both doing this today". Never who finished it.
+  kTidy() { this.sql.exec("DELETE FROM kept WHERE day < ?", ymd(Date.now() - 2 * DAY)); },
+  kDay(day) {
+    const t = Date.now();
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= ymd(t - 2 * DAY) && day <= ymd(t + DAY);
+  },
+  // { day, card }: card 0 (or none) takes it back, e.g. when today's card changes to one of their own.
+  async kSet(token, body) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const day = String((body && body.day) || ""), card = Math.floor(Number(body && body.card) || 0);
+    if (!this.kDay(day) || card < 0 || card > 99999) return { error: "bad_kept" };
+    this.kTidy();
+    if (!card) this.sql.exec("DELETE FROM kept WHERE user = ? AND day = ?", g.u.id, day);
+    else this.sql.exec("INSERT OR REPLACE INTO kept (user, day, card, at) VALUES (?, ?, ?, ?)", g.u.id, day, card, Date.now());
+    return { ok: true };
+  },
+  // Friends' kept cards for a day: only friends who ticked 18+, never someone blocked either way, someone whose
+  // moments you hid, or a paused account.
+  async kList(token, day) {
+    const g = await this.fGate(token); if (g.error) return g;
+    if (!this.kDay(day)) return { error: "bad_kept" };
+    const me = g.u.id;
+    const rows = this.rows(`SELECT k.user, k.card FROM kept k JOIN pals p ON p.a = ? AND p.b = k.user WHERE k.day = ?
+      AND k.user NOT IN (SELECT who FROM hides WHERE owner = ?) AND k.user NOT IN (SELECT user FROM paused)
+      AND k.user NOT IN (SELECT who FROM blocks WHERE owner = ?) AND k.user NOT IN (SELECT owner FROM blocks WHERE who = ?)`, me, day, me, me, me);
+    const kept = rows.filter((r) => this.fProf(r.user).adult)
+      .map((r) => ({ u: this.one("SELECT * FROM users WHERE id = ?", r.user), card: r.card })).filter((x) => x.u)
+      .map((x) => this.fCard(x.u, { card: x.card }));
+    return { ok: true, kept };
   },
 
   // ---------------- Shared dates (alex 2026-11-27) ----------------
