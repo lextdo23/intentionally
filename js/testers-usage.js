@@ -17,7 +17,7 @@ export function area(n) {
   if (/^pm_/.test(n)) return "Evening check-in";
   if (n === "own_word" || n === "show_more") return "A check-in";
   if (/^sleep_(button|sound|len|pause|cancel|prefill)$/.test(n)) return "Going to sleep";
-  if (/^(sleep_|days_|day_tap|acts_|lifts_|helps_|help_hide|arrange|doctor_)/.test(n)) return "Your days";
+  if (/^(sleep_|days_|day_tap|acts_|lifts_|helps_|help_hide|arrange|doctor_|first3_)/.test(n)) return "Your days";
   if (/^(card_|nfm_|rest_ask|plan_|week_|stack_)/.test(n)) return "Today's card";
   if (/^(pick_|repick)/.test(n)) return "Pillars";
   if (/^(box_|look_)/.test(n)) return "Boxes and looks";

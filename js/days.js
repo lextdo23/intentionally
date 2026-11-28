@@ -4,7 +4,7 @@ import { h, MOODS, CHART_COL as MOOD_COL, moodWord, dayKey, addDays, dayTitle, c
 import { weeksSection } from "./wrapped.js";
 import { doctorButton } from "./doctor.js";
 import * as store from "./store.js";
-import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, inSleepBand, helps, goodCount, moodActivities, lifts, whenWords, KIND_WORD, FELT_KIND } from "./stats.js";
+import { moodSeries, mostlyWord, oldestBack, sleepPattern, sleepHours, sleepFirst, sleepFirstWords, inSleepBand, helps, goodCount, moodActivities, lifts, whenWords, KIND_WORD, FELT_KIND } from "./stats.js";
 import { RESTED } from "./words.js";
 import { openSheet, roundBtn, spring } from "./ui.js";
 import { log } from "./tester.js";
@@ -144,7 +144,8 @@ const PX_H = 14.5;   // column height per hour of sleep (12 hours fills the char
 let sleepView = "hours", sleepSel = null, sleepT = 0, sleepSlid = false, sleepSeen = false;
 function secSleep(s) {
   const P = sleepPattern(s.days), card = h("div.card.slp", null, h("h3", null, "Mood and sleep"));
-  if (!sleepSeen) { sleepSeen = true; log("sleep_seen", P.kind); }
+  const F = sleepFirst(P);   // the first week: what the nights so far show, worded "So far" (alex 2026-11-28)
+  if (!sleepSeen) { sleepSeen = true; log("sleep_seen", F ? "first_" + F.kind : P.kind); }
   const DAYS3 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const hw = (hr) => { const m = Math.round(hr * 60); return `${Math.floor(m / 60)}h${m % 60 ? " " + (m % 60) + "m" : ""}`; };
   const dayLabel = (k) => { const d = keyDate(k); return `${DAYS3[d.getDay()]} ${d.getDate()} ${MONTH[d.getMonth()]}`; };
@@ -155,11 +156,14 @@ function secSleep(s) {
       tabs.querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.id === "slp-" + v))); update();
     } }, l)));
   const so = (t) => (P.early ? "So far, " + t.charAt(0).toLowerCase() + t.slice(1) : t);
-  const lead = P.kind === "empty" ? h("p.lead", null, "This fills in after your first few ", h("b", null, "mornings and evenings"), ".")
+  const lead = F ? (F.kind === "same"
+      ? h("p.lead", null, "So far, your days have felt ", coloured(F.m), ", after ", h("b", null, sleepFirstWords(F)), " a night.")
+      : h("p.lead", null, F.kind === "one" ? "So far, your best day came after " : "So far, your best days came after ", h("b", null, sleepFirstWords(F)), " of sleep."))
+    : P.kind === "empty" ? h("p.lead", null, "This fills in after your first few ", h("b", null, "mornings and evenings"), ".")
     : P.kind === "steady" ? h("p.lead", null, "Your sleep has been ", h("b", null, "steady"), ", so there’s little to compare.")
     : P.kind === "none" ? h("p.lead", null, so("No clear link between "), h("b", null, "sleep and mood"), " yet.")
     : h("p.lead", null, so("Your best days came after "), h("b", null, sleepHours(P)), ".");
-  const more = P.kind === "none" || P.kind === "steady" ? h("p.more", null, "Your mood may hang more on other things. ",
+  const more = !F && (P.kind === "none" || P.kind === "steady") ? h("p.more", null, "Your mood may hang more on other things. ",
     h("button", { onclick: () => { const t = root().querySelector(".helps-card"); t && t.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); log("sleep_to_helps"); } }, "See what seems to help ›")) : null;
   const read = h("div.read", { "aria-live": "polite" });
   const chart = h("div.slp-chart", { id: "slp-chart", role: "tabpanel" });

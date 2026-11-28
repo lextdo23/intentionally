@@ -37,6 +37,7 @@ import * as crumbs from "./crumbs.js";
 import * as notifCard from "./notif-card.js";
 import { wordmark } from "./wordmark.js";
 import * as setup from "./setup.js";
+import * as first3 from "./first3.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -198,6 +199,15 @@ function weekRow() {
   const pk = levels.isOpen("days") ? peek() : null, cb = crumbs.isOn() ? crumbs.button(() => render(), { closed: ((store.get().days[dayKey()] || {}).mood != null) }) : null;
   if (!cb) return pk || "";
   return h("div.peek-row", null, pk, cb);
+}
+// "Your first three days" (alex 2026-11-28, js/first3.js): once, after a new person's third End your day, when home
+// is quiet. It goes before the Crumbs offer, which then waits for another evening (crumbs.offerOK).
+function first3WhenFree(tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct", "in-days"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer, .lu");
+    if (busy && tries < 40) return first3WhenFree(tries + 1);
+    if (!busy && first3.due()) first3.open(() => render());
+  }, tries ? 1500 : 3400);
 }
 // Crumbs is offered once, after an evening check-in, when home is quiet (same wait as the photos note).
 function crumbsWhenFree(tries = 0) {
@@ -441,7 +451,8 @@ function render(moment) {
     mid,
     h("div.col", { style: { gap: "4px" } }));   // keeps the gap above the pill the card is centred against
   placeSun(t, ended);
-  if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
+  if (moment === "end" && first3.due()) first3WhenFree();
+  else if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();
   if (moment === "sleep") riseCard();   // back from the sleep check-in: the card rises out of the glow
   if (moment === "card") landCard();    // Done on the kept card: it's set down in its place
@@ -552,6 +563,8 @@ else if (!viaLink && setup.due()) booted.then(() => setTimeout(() => setup.openS
 else if (!viaLink && tester.inviteDue()) booted.then(() => setTimeout(inviteWhenFree, 300));
 else if (askAccount) booted.then(() => setTimeout(() => account.openSignup(() => render()), 200));
 else if (store.get().seen.note !== NEW_NOTE && !new URLSearchParams(location.search).has("tester")) booted.then(() => setTimeout(whatsNew, 300));
+// "Your first three days" missed because Daydeck closed after the third End your day: it comes on the next open.
+else if (!viaLink && first3.due()) booted.then(() => first3WhenFree());
 // Nothing else to ask this open: the one-time "Turn on notifications?" card, if it's due (alex 2026-11-26).
 else if (!viaLink) booted.then(() => setTimeout(() => notifCard.whenFree(() => render()), 300));
 // A friend's invite link (…/?add=…): kept until there's an account, then it waits in Friends as their request.
