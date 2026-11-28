@@ -70,6 +70,10 @@ const SHAPE = {
   extra_use: (v) => ["draw", "rest", "pick", "send"].includes(v),
   friend: (v) => ["ask", "accept", "decline", "cancel", "remove", "block", "unblock", "invite", "join", "find"].includes(v),
   friends_adult: (v) => v === 1, friends_add_open: (v) => v === 1, notes_open: (v) => Number.isInteger(v) && v >= 0 && v <= 50, friend_profile: (v) => v === 0 || v === 1, common_open: (v) => v === 1,
+  // People you may know (alex 2026-11-28): where it showed (Add friends or the Friends tab), how many, whether it was alex
+  // alone; and each Add or × with how many friends in common. Never who.
+  pymk_seen: (v) => isObj(v) && ["add", "tab"].includes(v.w) && isInt(v.n, 1, 50) && isInt(v.m, 0, 1),
+  pymk_add: (v) => isObj(v) && isInt(v.m, 0, 1) && isInt(v.n, 0, 150), pymk_hide: (v) => isObj(v) && isInt(v.m, 0, 1) && isInt(v.n, 0, 150),
   share: (v) => isObj(v) && ["photo", "card", "own", "rest", "week"].includes(v.kind) && isInt(v.ago, 0, 4) && isInt(v.mood, 0, 1) && isInt(v.cap, 0, 1) && isInt(v.again, 0, 1) && ["pill", "home", "recap"].includes(v.from) && (v.card === undefined || isInt(v.card, 0, 1)) && (v.pos === undefined || ["t", "b", "o"].includes(v.pos)) && (v.crop === undefined || isInt(v.crop, 0, 1)) && (v.look === undefined || ["daydeck", "cherry", "mono", "matcha", "mushroom", "pals", "chrome"].includes(v.look)),
   report: (v) => isObj(v) && ["moment", "comment", "person"].includes(v.kind) && isInt(v.why, 0, 4), report_open: (v) => ["moment", "comment", "person"].includes(v),
   comment: (v) => isObj(v) && isInt(v.own, 0, 1) && ["feed", "button", "bell"].includes(v.from) && (v.reply == null || isInt(v.reply, 0, 1)), csee: (v) => v === 0 || v === 1, comment_open: (v) => ["feed", "button", "bell"].includes(v), uncomment: (v) => v === "own" || v === "theirs",
@@ -513,6 +517,8 @@ function drawAll(D) {
     html += sec("Do people add friends?", "Friends opens at level 4. Only what people do is counted: never names, usernames or what they type.",
       adults ? bars([["Requests sent", f.ask || 0], ["Accepted", f.accept || 0], ["Not now", f.decline || 0], ["Invite links shared", f.invite || 0], ["Invite links opened", f.join || 0], ["Removed a friend", f.remove || 0], ["Blocked someone", f.block || 0]]) +
         `<p class="note">${adults} ticked "I'm 18 or over"; ${askers} have reached out to someone. Profiles edited: ${P.length} (${P.filter((v) => v.name).length} with a name, ${P.filter((v) => v.season).length} with a This season line). Turned requests off: ${quiet.requests || 0}. Hid their friends: ${quiet.count || 0}. Opened "Friends you both have": ${by("common_open").length}.</p>`
+        + (() => { const seen = who("pymk_seen"), adds = by("pymk_add"), hides = by("pymk_hide"), mk = (l) => l.filter((e) => e.val.m).length;
+          return `<p class="note">People you may know: seen by ${seen} (${by("pymk_seen").filter((e) => e.val.m).length} times as just alex). Added from it: ${adds.length} (${mk(adds)} of them alex). Hidden with ×: ${hides.length} (${mk(hides)} of them alex).</p>`; })()
         : `<p class="sub">Nobody has opened Friends yet.</p>`,
       "lots of ticks but few requests means adding friends is too hard, or people aren't sure who to add. Blocks are worth a look if they climb."); }
   // Moments (social step 3): what kind of thing, and whether words or a mood came with it. Never the words.

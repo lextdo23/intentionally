@@ -27,7 +27,7 @@ export function area(n) {
   if (/^crumb/.test(n)) return "Crumbs";
   if (/^wrap_/.test(n)) return "Weekly recap";
   if (/^(level|unlock|locked_tap)/.test(n)) return "Levels";
-  if (/^(friend|share|see$|unshare|edit_open|moment_edit|hide$|unhide|report|grid_open|common_open|notes_open|profile|avatar|comment|uncomment|seen_by|csee$)/.test(n)) return "Friends";
+  if (/^(friend|share|see$|unshare|edit_open|moment_edit|hide$|unhide|report|grid_open|common_open|pymk_|notes_open|profile|avatar|comment|uncomment|seen_by|csee$)/.test(n)) return "Friends";
   if (/^(setup|signup_|signin)/.test(n)) return "Setup and sign-up";
   if (/^(settings_open|rename|name$|signout|account_delete|restore|save_copy|nudge_allow|notif_)/.test(n)) return "Settings";
   return "Other";
