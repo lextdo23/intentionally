@@ -128,7 +128,10 @@ function fitCard() {
   const card = home.querySelector(".home-mid .home-card");
   if (!card) return;
   const floor = home.getBoundingClientRect().bottom - parseFloat(getComputedStyle(home).paddingBottom);
-  const over = Math.max(...[...home.children].map((x) => x.getBoundingClientRect().bottom)) - floor;
+  // The space under the card hangs below the middle, so it may reach down to just above the pill.
+  const slot = home.querySelector(".home-hold > .undo-slot"), pillEl = document.body.classList.contains("has-pill") && document.getElementById("pill");
+  const slotFloor = pillEl ? pillEl.getBoundingClientRect().top - 8 : floor;
+  const over = Math.max(Math.max(...[...home.children].map((x) => x.getBoundingClientRect().bottom)) - floor, slot ? slot.getBoundingClientRect().bottom - slotFloor : -1);
   if (over <= 1) return;
   const ch = card.getBoundingClientRect().height;
   if (ch) home.style.setProperty("--fit", Math.max(0.7, (ch - over - 8) / ch).toFixed(3));
@@ -397,16 +400,25 @@ function render(moment) {
     return [first, undoBtn()].filter(Boolean);
   }
   const still = slotStill; slotStill = false;
-  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null) : shareLink ? h("div.undo-slot", null, shareLink) : null;
+  // Once the day is ended, "Change today" sits in the same spot under the card (it used to sit below the middle and
+  // pushed the card up).
+  const changeBtn = bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null;
+  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null)
+    : shareLink || changeBtn ? h(`div.undo-slot${shareLink && changeBtn ? ".two" : ""}`, null, shareLink, changeBtn) : null;
   // Cards that happen later wait in a stack behind today's card (js/stack.js, alex 2026-11-27); tapping one brings it
   // to the front. The space under the card ("Add a photo", "Not done yet") belongs to today's card only.
   const waiting = later.stack(k);
   const frontF = waiting.length ? stack.frontOf(waiting, k) : null;
   const area = waiting.length ? stack.stackEl({ items: waiting, today: card, todayCard: c, k, redraw: () => render(), hide: main }) : card;
-  // With a waiting card in front, the space under today's card is kept (empty and untouchable), so the pile never moves
-  // up or down when cards are switched (alex 2026-11-27).
-  if (frontF !== null && card && slotEl) { slotEl.style.visibility = "hidden"; slotEl.setAttribute("aria-hidden", "true"); slotEl.inert = true; }
-  const mid = h("div.home-mid", null, area, card ? slotEl : null);
+  // The card sits in the same place in every state (alex 2026-11-28, "the card sits too high"): it's centred in the
+  // middle on its own, and the space under it ("Add a photo", "Not done yet", "Change today") hangs below it without
+  // pushing it up. Before, a card being done was lifted by the space kept under it, about 48 points higher than the
+  // face-down card in the morning, so the card jumped up once drawn.
+  // With a waiting card in front, the space under today's card is kept (empty and untouchable), so the pile never
+  // shrinks or moves when cards are switched (alex 2026-11-27).
+  if (frontF !== null && card && slotEl && !ended) { slotEl.style.visibility = "hidden"; slotEl.setAttribute("aria-hidden", "true"); slotEl.inert = true; }
+  const under = card || changeBtn ? slotEl : null;
+  const mid = h("div.home-mid", null, h("div.home-hold", null, area, under));
   todayL = card && frontF === null ? card : null;
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
   // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
@@ -427,7 +439,7 @@ function render(moment) {
     wrapped.homeLines(() => render()) || "",   // nothing to say: leave the space out (replaceChildren would print "null")
     words,
     mid,
-    h("div.col", { style: { gap: "4px" } }, bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null));
+    h("div.col", { style: { gap: "4px" } }));   // keeps the gap above the pill the card is centred against
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
   testBar();

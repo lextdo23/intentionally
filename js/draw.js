@@ -608,9 +608,20 @@ export function askFelt(lifter, id, { mid, hide, onPick, onLand, onEnd }) {
   // used to sit on home and set this limit; since alex 2026-11-23 it lives in check-ins, draws, Your days and Friends.)
   const lifeline = document.body.classList.contains("has-pill") && mid.parentElement.querySelector(".lifeline");
   const floor = () => (lifeline ? lifeline.getBoundingClientRect().top - 8 : hide.getBoundingClientRect().bottom);
-  const shift = (open) => Math.max(0, Math.round(m.top + top + h0 + (open ? extra : 0) - floor()));
-  const up = (s) => `translateY(${lift - s}px) scale(.5)`;
-  let at = up(shift(false));
+  // How the card and the question sit (alex 2026-11-28). With "Show 5 more" open, the card is at half size, 24 under
+  // Your days. Closed, the card is bigger instead, so Done and Not now sit where they sit when it's open, with no empty
+  // space at the bottom: the card grows by the height the extra feelings take (at most to 80%). Anything that still
+  // won't fit moves everything up together, as before.
+  const H = lifter.offsetHeight;
+  const pose = (open) => {
+    const over = Math.round(m.top + top + h0 + extra - floor());   // where the bottom is with the feelings open
+    const s = Math.max(0, over);
+    if (open || !extra) return { s: open ? s : Math.max(0, Math.round(m.top + top + h0 - floor())), g: 0 };
+    return { s: 0, g: Math.max(0, Math.min(extra - 8 - s, Math.round(H * 0.3))) };
+  };
+  const up = ({ s, g }) => `translateY(${lift - s}px) scale(${(0.5 + g / H).toFixed(4)})`;
+  const askAt = ({ s, g }) => `translateY(${g - s}px)`;
+  let at = up(pose(false));
   const move = (to, ms) => {
     const from = getComputedStyle(lifter).transform;
     lifter.getAnimations().forEach((a) => a.cancel());
@@ -618,14 +629,14 @@ export function askFelt(lifter, id, { mid, hide, onPick, onLand, onEnd }) {
     at = to;
   };
   move(at, 800);
-  ask.style.transform = `translateY(${-shift(false)}px)`;
+  ask.style.transform = askAt(pose(false));
   requestAnimationFrame(() => requestAnimationFrame(() => ask.classList.add("on")));
   setTimeout(() => ask.classList.add("settled"), D(1300));
   hide.classList.add("soft-gone");
   const label = pp.el.querySelector(":scope > .btn-text");
   if (label) label.addEventListener("click", () => {
-    const open = label.getAttribute("aria-expanded") === "true", s = shift(open);
-    move(up(s), 550); ask.style.transform = `translateY(${-s}px)`;
+    const p = pose(label.getAttribute("aria-expanded") === "true");
+    move(up(p), 550); ask.style.transform = askAt(p);
   });
 
   let gone = false;
