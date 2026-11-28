@@ -187,12 +187,13 @@ export async function afterShare() { mine = null; moments.resetFeed(); goTab("fr
 
 // Everything the Friends screen needs, from the service. Quietly does nothing without an account.
 export async function load() {
-  if (!account.signedIn()) { data = null; problem = null; dotFn(0); setBadge(0); return null; }
+  if (!account.signedIn()) { data = null; problem = null; suggest = null; dotFn(0); setBadge(0); return null; }
   if (loading) return loading;
   loading = (async () => {
     const r = await account.call("/a/f");
     loading = null;
     if (!r.ok || !r.me) { problem = r.error || "offline"; return null; }
+    if (!data || data.friends.length !== r.friends.length || data.me.username !== r.me.username) suggestAt = 0;   // suggestions follow your friends
     data = r; problem = null; lastCheck = Date.now();
     if (r.me.adult && r.friends.length) await moments.loadFeed();
     if (r.me.adult) plans.load();   // shared dates (js/plans.js), quietly
@@ -372,6 +373,9 @@ function body() {
       h("div.fr-start-btns", null,
         h("button.btn-main.fr-main", { type: "button", onclick: (e) => invite(e.currentTarget) }, "Invite a friend"),
         h("button.btn-main.soft", { type: "button", onclick: openAdd }, "Add by username"))));
+    // People you may know, under the two buttons (alex 2026-11-28).
+    if (suggest) parts.push(suggestions("tab", () => fScreen && fScreen.isConnected && drawFriends(fScreen)));
+    if (!suggest || Date.now() - suggestAt > 60000) loadSuggest().then((r) => r && r.length && fScreen && fScreen.isConnected && !data.friends.length && drawFriends(fScreen));
   }
   return h("div.fr-body", null, parts);
 }
@@ -489,16 +493,19 @@ export function page(title, build, { right, label, x } = {}) {
 export const closeAll = () => [...pages].reverse().forEach((p) => p.close());
 
 // ---------------- Add friends ----------------
+// alex 2026-11-28: one rounded search box (the keyboard's Search finds them, no Find button), People you may know
+// straight under it, the invite link as a plain row, and the Friend requests switch.
 const cleanName = (s) => String(s || "").trim().replace(/^@/, "").toLowerCase();
+const MAG = () => svg(18, [["circle", { cx: "11", cy: "11", r: "6.5" }], ["path", { d: "M16 16l4.5 4.5" }]], { "stroke-width": "2" });
 export function openAdd() {
   if (!data || !data.me.adult) return;
   log("friends_add_open", 1);
   let found = null, msg = "", typed = "";
-  page("Add friends", (redraw) => {
-    const input = h("input.fr-field", { type: "text", inputmode: "text", autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false", enterkeyhint: "search", maxlength: "21", placeholder: "Their @username", "aria-label": "Their username", value: typed });
-    const find = h("button.fr-btn.soft.fr-find", { type: "button" }, "Find");
-    const look = () => busy(find, async () => {
+  const pg = page("Add friends", (redraw) => {
+    const input = h("input.fr-field.fr-search-box", { type: "search", inputmode: "search", autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false", enterkeyhint: "search", maxlength: "21", placeholder: "Search by @username", "aria-label": "Search by username", value: typed });
+    const look = async () => {
       typed = input.value; const n = cleanName(typed);
+      if (!n) { found = null; msg = ""; return redraw(); }
       if (!/^[a-z0-9._]{3,20}$/.test(n)) { found = null; msg = "Usernames are 3 to 20 letters, numbers, full stops or underscores."; return redraw(); }
       const r = await account.call("/a/f/find?u=" + encodeURIComponent(n));
       log("friend", "find");
@@ -506,45 +513,98 @@ export function openAdd() {
       else if (!r.found) { found = null; msg = SAY.not_found; }
       else { found = r.person; msg = ""; }
       redraw();
-    });
-    find.addEventListener("click", look);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") look(); });
-    input.addEventListener("input", () => { typed = input.value; });
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); input.blur(); look(); } });
+    input.addEventListener("input", () => { typed = input.value; if (!typed && (found || msg)) { found = null; msg = ""; redraw(); } });
     const result = found ? h("div.fr-found", null, row(found, stateBtn(found, redraw), found.state === "friends" ? () => openPerson(found.username) : null))
       : msg ? h("p.fr-msg", { role: "status" }, msg) : null;
     const reqs = data.asksYou.length ? h("section.fr-sec", null, h("h2.fr-sec-head", null, "Requests"), data.asksYou.map(requestRow)) : null;
     const waiting = data.asked.length ? h("section.fr-sec", null, h("h2.fr-sec-head", null, "Waiting for them"),
-      data.asked.map((p) => row(p, small("Asked", (e) => takeBack(e.currentTarget, p))))) : null;
-    const inviteRow = h("button.fr-card-row", { type: "button", onclick: (e) => invite(e.currentTarget) },
+      data.asked.map((p) => row(p, sentBtn(p)))) : null;
+    const inviteRow = h("button.fr-plain-row", { type: "button", onclick: (e) => invite(e.currentTarget) },
       h("span.fr-ico", null, ICON.link()), h("span.fr-who", null, h("span.fr-name", null, "Invite friends to Daydeck"), h("span.fr-handle", null, "Send your link in any app")), h("span.set-chev", { "aria-hidden": "true" }, "›"));
     return h("div.fr-stack", null,
-      h("div.fr-search", null, input, find), result, reqs, waiting, inviteRow,
+      h("label.fr-search-wrap", null, h("span.fr-search-ico", { "aria-hidden": "true" }, MAG()), input), result, reqs,
+      suggestions("add", () => pg && pg.refresh()), waiting, inviteRow,
       switchRow("Friend requests", "Let anyone with your username send a request.", !data.me.closed, async (on) => {
         const r = await account.call("/a/f/profile", { closed: !on }); if (!r.ok) { note(say(r)); return false; }
         data.me.closed = !on; log("friend_set", { requests: on ? 1 : 0 }); return true;
-      }),
-      h("p.fr-foot", null, "Friends only see the moments you choose to share."));
+      }));
   });
+  loadSuggest().then(() => pg.refresh());
+}
+
+// ---------------- People you may know (alex 2026-11-28) ----------------
+// Someone nobody invited, with no friends yet, sees only alex, with "Made Daydeck. Let's cheer each other on :)".
+// Everyone else sees friends of friends, grouped by how many friends they share, most first. Add sends a request
+// (the button then says "Sent", and tapping it takes it back); × hides that person for good, and nobody is told.
+// Shown on Add friends, and on the Friends tab while it has no friends yet.
+const MAKER_LINE = "Made Daydeck. Let's cheer each other on :)";
+let suggest = null, suggestAt = 0;
+const sent = new Set();    // asked from this list this visit, so the row stays put and says Sent
+async function loadSuggest(force) {
+  if (!force && suggest && Date.now() - suggestAt < 60000) return suggest;
+  const r = await account.call("/a/f/suggest");
+  if (r.ok && Array.isArray(r.people)) { suggest = r.people; suggestAt = Date.now(); }
+  return suggest;
+}
+const smallPill = (text, onclick, kind) => h(`button.fr-pill${kind ? "." + kind : ""}`, { type: "button", onclick }, text);
+const hideX = (onclick) => h("button.fr-x", { type: "button", "aria-label": "Don't suggest them", onclick },
+  svg(14, [["path", { d: "M6 6l12 12M18 6L6 18" }]], { "stroke-width": "2.2" }));
+function suggestions(where, redraw) {
+  if (!suggest || !suggest.length) return null;
+  if (!suggestions.logged || suggestions.logged !== where + suggest.length) { suggestions.logged = where + suggest.length; log("pymk_seen", { w: where, n: suggest.length, m: suggest[0].maker ? 1 : 0 }); }
+  const groups = [];
+  for (const p of suggest) {
+    const k = p.maker ? 0 : p.commonN;
+    if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, people: [] });
+    groups[groups.length - 1].people.push(p);
+  }
+  const many = groups.length > 1 || (groups[0] && groups[0].k > 1);
+  const one = (p) => {
+    const asked = sent.has(p.username);
+    const btn = asked ? sentBtn(p, () => { sent.delete(p.username); redraw(); })
+      : smallPill("Add", (e) => busy(e.currentTarget, async () => {
+        const r = await account.call("/a/f/ask", { username: p.username });
+        if (!r.ok) return note(say(r));
+        log("pymk_add", { m: p.maker ? 1 : 0, n: p.commonN || 0 });
+        sent.add(p.username); await load(); redraw();
+      }), "main");
+    const x = hideX(() => {
+      suggest = suggest.filter((q) => q !== p); redraw();
+      log("pymk_hide", { m: p.maker ? 1 : 0, n: p.commonN || 0 });
+      account.call("/a/f/nosuggest", { username: p.username });
+    });
+    const who = h("div.fr-who", null, h("span.fr-name", null, shown(p)), h("span.fr-handle", null, "@" + p.username),
+      p.maker ? h("span.fr-maker", null, MAKER_LINE) : commonSmall(p));
+    return h("div.fr-row.fr-sugg", null, h("div.fr-open", null, pic(p, 48), who), h("div.fr-right", null, btn, x));
+  };
+  return h("section.fr-sec.fr-pymk", null, h("h2.fr-sec-head", null, "People you may know"),
+    groups.map((g) => [many && g.k ? h("h3.fr-pymk-group", null, `${g.k} ${g.k === 1 ? "friend" : "friends"} in common`) : null, g.people.map(one)]));
+}
+// "Sent" (alex 2026-11-28, replacing "Asked"): a request is waiting. Tapping it offers to take it back.
+function sentBtn(p, after) {
+  return smallPill("Sent", (e) => takeBack(e.currentTarget, p, after), "soft");
 }
 // The button beside someone you looked up, by where things stand between you.
 function stateBtn(p, redraw) {
   if (p.state === "you") return h("span.fr-chip", null, "That's you");
   if (p.state === "friends") return h("span.fr-chip", null, "Friends");
-  if (p.state === "asked") return h("span.fr-chip", null, "Asked");
-  if (p.state === "asks_you") return small("Accept", (e) => busy(e.currentTarget, async () => { await answer(p, true); p.state = "friends"; redraw(); }), "main");
+  if (p.state === "asked") return sentBtn(p, () => { p.state = "none"; redraw(); });
+  if (p.state === "asks_you") return smallPill("Accept", (e) => busy(e.currentTarget, async () => { await answer(p, true); p.state = "friends"; redraw(); }), "main");
   if (p.closed) return h("span.fr-chip.two", null, "Not taking requests");   // two short lines, so it keeps the button size
-  return small("Add", (e) => busy(e.currentTarget, async () => {
+  return smallPill("Add", (e) => busy(e.currentTarget, async () => {
     const r = await account.call("/a/f/ask", { username: p.username });
     if (!r.ok) return note(say(r));
     log("friend", r.state === "friends" ? "accept" : "ask");
     p.state = r.state; await load(); redraw();
   }), "main");
 }
-function takeBack(btn, p) {
+function takeBack(btn, p, after) {
   openSheet((panel, close) => {
     panel.append(h("h2", null, `Take back your request to ${shown(p)}?`),
       h("p.fr-sheet-text", null, "They won't be told."),
-      h("button.btn-main.fr-main", { type: "button", onclick: () => busy(btn, async () => { close("done"); const r = await account.call("/a/f/cancel", { username: p.username }); if (!r.ok) return note(say(r)); log("friend", "cancel"); await again(); }) }, "Take it back"),
+      h("button.btn-main.fr-main", { type: "button", onclick: () => busy(btn, async () => { close("done"); const r = await account.call("/a/f/cancel", { username: p.username }); if (!r.ok) return note(say(r)); log("friend", "cancel"); if (after) after(); await again(); }) }, "Take it back"),
       h("button.btn-quiet", { type: "button", onclick: () => close("cancel") }, "Keep it"));
   }, { label: "Take back request" });
 }

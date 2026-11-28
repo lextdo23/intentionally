@@ -51,9 +51,12 @@ import { ping, pushable } from "./webpush.js";
 const DAY = 86400000;
 const HOUR = 3600000;
 export const PINGS = { gap: HOUR, quietFrom: 22, quietTo: 8, ttl: 6 * HOUR };
-export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, feedMax: 100, profileMax: 120, text: 200, caption: 280, comment: 280, commentsPerDay: 60, photo: 450000, face: 60000 };
+export const LIMITS = { friends: 150, waiting: 50, lookups: 60, invite: 14 * DAY, name: 30, season: 60, perDay: 10, feedDays: 14, suggest: 50, feedMax: 100, profileMax: 120, text: 200, caption: 280, comment: 280, commentsPerDay: 60, photo: 450000, face: 60000 };
 const PICS = ["flower", "smile", "frog", "cat", "bunny", "bear", "chick", "sprout"];
 const TINTS = ["#d9b3a6", "#cfc59b", "#a9c4b5", "#a9b9d6", "#c4b4c9", "#a9c9cf"];
+// The one person suggested to someone who found Daydeck on their own (alex 2026-11-28): alex, who made it.
+// A username change means changing it here too.
+export const MAKER = "alex";
 export const REASONS = ["hurtful", "sexual", "risk", "spam", "else"];
 const KEEP_DONE = 90 * DAY, HOLD_AT = 3;
 // The card looks a shared card can come from (alex 2026-11-25): each shows its own feed card on Friends.
@@ -108,7 +111,8 @@ export function friendTables(sql) {
     CREATE TABLE IF NOT EXISTS cheld (comment TEXT PRIMARY KEY, at INTEGER);
     CREATE TABLE IF NOT EXISTS csees (comment TEXT, who TEXT, at INTEGER, PRIMARY KEY (comment, who));
     CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, owner TEXT, card INTEGER, day TEXT, made TEXT, at INTEGER);
-    CREATE TABLE IF NOT EXISTS pguests (plan TEXT, who TEXT, state TEXT, at INTEGER, PRIMARY KEY (plan, who));`);
+    CREATE TABLE IF NOT EXISTS pguests (plan TEXT, who TEXT, state TEXT, at INTEGER, PRIMARY KEY (plan, who));
+    CREATE TABLE IF NOT EXISTS nosuggest (owner TEXT, who TEXT, at INTEGER, PRIMARY KEY (owner, who));`);
   // Reports can be about a comment (2026-11-26). Books made before then get the column added once.
   try { sql.exec("ALTER TABLE reports ADD COLUMN comment TEXT"); } catch { /* already there */ }
   // Replies (alex 2026-11-26): parent is the comment a reply sits under, rto who it answers. Added once to older books.
@@ -132,6 +136,8 @@ export async function friendRoutes(req, path, body, b, token, reply) {
     case "GET /a/f/find": return out(b.fFind(token, q.get("u") || ""));
     case "GET /a/f/person": return out(b.fPerson(token, q.get("u") || ""));
     case "GET /a/f/common": return out(b.fCommonAll(token, q.get("u") || ""));
+    case "GET /a/f/suggest": return out(b.fSuggest(token));
+    case "POST /a/f/nosuggest": return out(b.fNoSuggest(token, String(body.username || "")));
     case "POST /a/f/ask": return out(b.fAsk(token, String(body.username || "")));
     case "POST /a/f/answer": return out(b.fAnswer(token, String(body.username || ""), !!body.yes));
     case "POST /a/f/cancel": return out(b.fCancel(token, String(body.username || "")));
@@ -304,6 +310,46 @@ export const friendMethods = {
     const state = this.fState(me.id, them.id);
     const closed = state === "none" && !!this.fProf(them.id).closed;
     return { ok: true, found: true, person: this.fCard(them, { state, closed, ...this.fCommonShort(me.id, them.id) }) };
+  },
+
+  // People you may know (alex 2026-11-28). Someone with no friends yet, and nobody asking to be friends (so they
+  // didn't come through an invite), is shown only alex (MAKER). Everyone else: friends of their friends, grouped
+  // by how many friends they share, most first, with the same "Friends with …" line as everywhere else. Never shown:
+  // anyone blocked either way, already a friend or asked either way, not 18+, with requests off, with "Show my
+  // friends" off, or someone you tapped × on. A friend with "Show my friends" off never leads to their friends.
+  async fSuggest(token) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const me = g.u;
+    const ok = (id) => {
+      if (id === me.id || this.fBlocked(me.id, id) || this.fIsPal(me.id, id)) return false;
+      if (this.one("SELECT 1 AS x FROM asks WHERE (f = ? AND t = ?) OR (f = ? AND t = ?)", me.id, id, id, me.id)) return false;
+      if (this.one("SELECT 1 AS x FROM nosuggest WHERE owner = ? AND who = ?", me.id, id)) return false;
+      const p = this.fProf(id);
+      return !!p.adult && !p.closed && !p.hide;
+    };
+    if (!this.fCount(me.id)) {
+      if (this.one("SELECT 1 AS x FROM asks WHERE t = ?", me.id)) return { ok: true, people: [] };   // their invite waits first
+      const maker = this.fByName(MAKER);
+      return { ok: true, people: maker && ok(maker.id) ? [this.fCard(maker, { maker: true, common: [], commonN: 0 })] : [] };
+    }
+    const found = this.rows(`SELECT p.b AS id, COUNT(*) AS n FROM pals mine JOIN pals p ON p.a = mine.b
+      WHERE mine.a = ? AND p.b != ? AND mine.b NOT IN (SELECT user FROM prof WHERE hide = 1) GROUP BY p.b ORDER BY n DESC LIMIT 300`, me.id, me.id);
+    const people = [];
+    for (const r of found) {
+      if (!ok(r.id)) continue;
+      const u = this.one("SELECT * FROM users WHERE id = ?", r.id); if (!u) continue;
+      const c = this.fCommonShort(me.id, r.id); if (!c.commonN) continue;
+      people.push(this.fCard(u, c));
+    }
+    people.sort((x, y) => y.commonN - x.commonN || (x.name || x.username).localeCompare(y.name || y.username));
+    return { ok: true, people: people.slice(0, LIMITS.suggest) };
+  },
+  // × on a suggestion: that person isn't suggested again. Nobody is told.
+  async fNoSuggest(token, name) {
+    const g = await this.fGate(token); if (g.error) return g;
+    const them = this.fByName(name);
+    if (them && them.id !== g.u.id) this.sql.exec("INSERT OR IGNORE INTO nosuggest (owner, who, at) VALUES (?, ?, ?)", g.u.id, them.id, Date.now());
+    return { ok: true };
   },
 
   // A friend's profile: name, @username, picture, "This season" and how many friends (unless they hid it).
@@ -702,6 +748,7 @@ export const friendMethods = {
     this.sql.exec("DELETE FROM asks WHERE f = ? OR t = ?", id, id);
     this.sql.exec("DELETE FROM blocks WHERE owner = ? OR who = ?", id, id);
     this.sql.exec("DELETE FROM invites WHERE user = ?", id);
+    this.sql.exec("DELETE FROM nosuggest WHERE owner = ? OR who = ?", id, id);
     this.sql.exec("DELETE FROM sees WHERE who = ? OR moment IN (SELECT id FROM moments WHERE owner = ?)", id, id);
     this.sql.exec("DELETE FROM comments WHERE who = ? OR moment IN (SELECT id FROM moments WHERE owner = ?)", id, id);
     this.sql.exec("DELETE FROM csees WHERE who = ?", id);
