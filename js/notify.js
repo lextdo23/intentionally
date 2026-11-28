@@ -84,12 +84,20 @@ const amTime = (s = store.get()) => (!prefs().am.fixed && usualAM(s)) || prefs()
 // Card reminders (alex 2026-11-17): up to two on a day you kept a card and haven't done it yet. "Lunch and after
 // work": 12:30pm, then 3 hours before your evening nudge. Kept the card after 12:30? Then 3 hours after keeping
 // it, and 3 hours after that. Never within an hour of the evening nudge, never on a rest day, and none at all
-// once the card is done. Only for people who have morning or evening nudges on.
+// once the card is done. Only for people who have morning or evening nudges on. A card kept for a moment (js/when.js)
+// gets one reminder 30 minutes after it instead, and a card kept for Now none.
 export function cardTimes(s = store.get(), at = Date.now(), evenIfDone = false) {
   const n = prefs(), k = dayKey(at), d = s.days[k] || {};
   if (!n.card.on || !(n.am.on || n.pm.on) || d.rest || !d.card || !d.card.id || (d.card.done && !evenIfDone)) return [];
   const on = (hhmm) => { const [h, m] = hhmm.split(":").map(Number), x = keyDate(k); x.setHours(h, m, 0, 0); let t = x.getTime(); if (h < 4) t += DAY; return t; };
   const eve = on(n.pm.on ? n.pm.t : "21:00"), lunch = on("12:30"), kept = d.card.at || at;
+  // Choosing when (alex 2026-11-28, js/when.js): a card kept for a moment gets one backup reminder 30 minutes after
+  // it, in place of the two fixed ones; a card kept for Now gets none. Before the evening nudge only.
+  if (d.card.when) {
+    if (d.card.when === "now" || d.card.wt == null) return [];
+    const x = keyDate(k); x.setHours(0, d.card.wt + 30, 0, 0);
+    return [x.getTime()].filter((t) => t > at && t < eve);
+  }
   const times = kept <= lunch ? [lunch, eve - 3 * HOUR] : [kept + 3 * HOUR, kept + 6 * HOUR];
   return times.filter((t) => t > at && t <= eve - HOUR);
 }

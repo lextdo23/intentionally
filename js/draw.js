@@ -14,6 +14,7 @@ import { bubble } from "./path.js";
 import { pickSteps, needsRepick, repickSteps } from "./pillars.js";
 import * as library from "./library.js";
 import { now } from "./clock.js";
+import * as when from "./when.js";
 
 // Today's card moving between home and the draw (alex 2026-11-27, thread "Map the choppy morning flow"):
 // fly = home's card on its way into the hand; kept = the kept card on its way back down onto home.
@@ -114,12 +115,27 @@ function hand(st, dealIn) {
   const k = dayKey(), d = store.day(k);
   const stage = h("div.stage", { role: "group", "aria-label": "Today's three cards" });
   const hint = h("p.note.hand-hint", { "aria-live": "polite" });   // keeps its space, so the hand never moves when it fills
-  const keep = mainBtn("Keep this one", st.pick != null, () => {
+  const keepAs = (w, how) => {
+    if (st.pick == null || busy) return;
     const id = st.ids[st.pick];
+    st.when = w; st.whenHow = how;
     deck.passed(st.ids.filter((x) => x !== id));
     log("card_keep", { id: deck.tid(id), draw: d.card.hands.length });
     big(st, id);
-  });
+  };
+  const keep = mainBtn("Keep this one", st.pick != null, () => { const id = st.ids[st.pick], m = when.isSet() ? when.forCard(id) : null; keepAs(m && m !== "ask" ? m : null, "tag"); });
+  // "Keep it for" (alex 2026-11-28, js/when.js): once someone has their moments, a card that fits any time is kept for
+  // one of their next 3 moments or Now, every button one size, in the same space as "Keep this one" so nothing moves.
+  // A card tagged for one time (tonight, lunch…) or one that runs all day keeps the single button.
+  const keepRow = h("div.when-keep");
+  const drawKeep = () => {
+    keepRow.classList.toggle("set", when.isSet());   // keeps the same height whichever shows, so the hand never moves
+    if (!when.isSet()) return keepRow.replaceChildren(keep);
+    const id = st.pick != null ? st.ids[st.pick] : null;
+    if (id != null && when.forCard(id) !== "ask") return keepRow.replaceChildren(keep);
+    keepRow.replaceChildren(h("span.when-label", null, "Keep it for"), when.buttons(when.choices(k), null, (w) => keepAs(w, "keep")));
+    keepRow.querySelectorAll(".when-btn").forEach((b) => b.setAttribute("aria-disabled", id == null ? "true" : "false"));
+  };
   const lastLine = h("p.note", null, "That's your last draw for today. Pick the closest fit.");
   const again = h("button.btn-quiet", { onclick: () => redraw() }, "Draw again");
   // Extras from boxes (js/boxes.js): one more draw, a rest day beyond this week's one, and Pick my own.
@@ -153,6 +169,7 @@ function hand(st, dealIn) {
   order = els.slice();
   const allUp = () => handEls.every((e) => e.classList.contains("up"));
   const say = () => {
+    drawKeep();
     hint.textContent = !allUp() ? "Turn over all three cards" : st.pick == null ? "Tap a card to choose it" : "Keep it, or tap another";
   };
   const place = (e, t) => { e.style.transitionDuration = t + "s"; };
@@ -195,7 +212,7 @@ function hand(st, dealIn) {
   // Draw again, as one flowing move.
   const redraw = async () => {
     if (busy || d.card.hands.length >= allowed()) return;
-    busy = true; keep.setAttribute("aria-disabled", "true"); hint.textContent = "Shuffling…";
+    busy = true; keep.setAttribute("aria-disabled", "true"); st.pick = null; drawKeep(); hint.textContent = "Shuffling…";
     deck.passed(st.ids);
     const ids = deck.draw3(d.card.hands.flat(), k);
     d.card.hands.push(ids); deck.shown(ids, k); store.save();
@@ -249,7 +266,7 @@ function hand(st, dealIn) {
     log("card_never", { id: deck.tid(id), r: deck.NOT_FOR_ME.findIndex((x) => x[0] === r) });
     const e = handEls[j];
     st.pick = null; handEls.forEach((x) => x.classList.remove("sel")); apply();
-    keep.setAttribute("aria-disabled", "true"); nfm.setAttribute("aria-disabled", "true");
+    keep.setAttribute("aria-disabled", "true"); nfm.setAttribute("aria-disabled", "true"); drawKeep();
     if (to) fill(e, to); else { e.classList.remove("up"); e.style.visibility = "hidden"; }
     const undo = h("button.nfm-undo", { onclick: () => {
       clearTimeout(undoT);
@@ -262,7 +279,8 @@ function hand(st, dealIn) {
   };
 
   row.append(d.card.hands.length >= allowed() ? outOfDraws() : again, nfm);
-  const foot = [keep, row, pickOwn];
+  drawKeep();
+  const foot = [keepRow, row, pickOwn];
   show(step(
     [roundBtn("close", "Not now", () => { log("card_later"); close(false); }), where("Today's card"), rest || spacer()],
     [h("h1.q.rise", null, "Pick one for today"), h("div.rise", null, stage), h("div.rise", null, hint), testerOn() ? h("p.note.rise", null, "Testers: thumbs up if a card fits your pillar and where you're at with it. One go per card.") : null],
@@ -334,6 +352,7 @@ function big(st, id, { own = false } = {}) {
     [mainBtn("Done", true, () => {
       if (own) { if (!boxes.useExtra("pick")) return; d.card.own = true; deck.shown([id], k); log("card_keep", { id: deck.tid(id), draw: 0, own: 1 }); }
       d.card.id = id; d.card.at = Date.now(); store.save(); deck.unsave(id);
+      if (st.when && !own) when.keep(k, st.when, st.whenHow);   // the moment chosen at "Keep it for", or the card's own time
       // A copy of the card stays exactly where it is, above everything, so home can set it down in its place.
       if (!reduceMotion() && !own) {
         const r = face.getBoundingClientRect(), w = h("div.card-ghost", { style: { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" } });

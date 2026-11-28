@@ -44,7 +44,7 @@ function bars(rows, max, unit = "") {
   max = max || Math.max(1, ...rows.map((r) => r[1]));
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
-const GROUP = { "Which cards are \"Not for me\"?": "cards", "Do dates and week cards get used?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
+const GROUP = { "Do people choose when?": "cards", "Which cards are \"Not for me\"?": "cards", "Do dates and week cards get used?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
   "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do people comment?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 // The Usage tab (alex 2026-11-26, js/testers-usage.js): its sections all sit on that tab.
@@ -262,6 +262,19 @@ function drawAll(D) {
         ["Turned some switches on from it", new Set(by("notif_card_on").filter((e) => /^(am|pm|card|fr)/.test(e.val)).map((e) => e.code)).size],
         ["Said not now", new Set(by("notif_card_on").filter((e) => e.val === "later").map((e) => e.code)).size]]) : ""),
       "lots of \"No\" under Phone allows means people think nudges are coming when they aren't; the setup step asking for notifications may need to explain why.");
+  }
+  // Choosing when (alex 2026-11-28, js/when.js): which moments people keep cards for, and when they really do them.
+  { const cw = by("card_when"), dn = by("card_when_done"), stl = by("still_minute"), su = by("when_setup").filter((e) => e.val && !e.val.later);
+    const W = { breakfast: "Breakfast", way: "On the way", lunch: "Lunch", work: "After work or class", dinner: "After dinner", now: "Now" };
+    const val = (e) => (e.val && e.val.w) || "";
+    if (cw.length || su.length) html += sec("Do people choose when?", "Which moment people keep their card for, how long after it they do it, and what happens when the moment passes.",
+      bars(Object.keys(W).map((k) => [W[k], cw.filter((e) => val(e) === k).length])) +
+      `<p class="note">Kept by choosing (not from a card's own time): ${cw.filter((e) => e.val && e.val.f === "keep").length} · changed on home: ${cw.filter((e) => e.val && e.val.f === "change").length}</p>` +
+      `<p class="note">Done, by minutes after the moment</p>` + bars([["Before it", dn.filter((e) => e.val && e.val.m != null && e.val.m < 0).length], ["Within an hour", dn.filter((e) => e.val && e.val.m >= 0 && e.val.m < 60).length],
+        ["1 to 3 hours after", dn.filter((e) => e.val && e.val.m >= 60 && e.val.m < 180).length], ["Later", dn.filter((e) => e.val && e.val.m >= 180).length], ["Kept for Now", dn.filter((e) => val(e) === "now").length]]) +
+      `<p class="note">"Still got a minute?" at the end of the day</p>` + bars([["I did it", stl.filter((e) => e.val === "did").length], ["Let it rest", stl.filter((e) => e.val === "rest").length]]) +
+      `<p class="note">Moments set up: ${su.length} (from the offer ${su.filter((e) => e.val.f === "offer").length}, from Settings ${su.filter((e) => e.val.f === "settings").length})</p>`,
+      "If cards kept for a moment mostly get done well after it, the reminder is doing the work, and suggesting Now may help (build 9).");
   }
   html += sec("Do nudges bring people in?", "Who has nudges on, how often a nudge opened the app, and when people actually check in.",
     bars([["Morning nudge on", amOn], ["Evening nudge on", pmOn]], T) +

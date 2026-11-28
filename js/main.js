@@ -38,6 +38,7 @@ import * as notifCard from "./notif-card.js";
 import { wordmark } from "./wordmark.js";
 import * as setup from "./setup.js";
 import * as findings from "./findings.js";
+import * as when from "./when.js";
 
 // Cards grow with the screen: 1 at 320 wide (the card mockups' width), 1.34 at 430 (alex's phone), never more.
 const fitCards = () => document.documentElement.style.setProperty("--k", (Math.min(Math.max(innerWidth, 320), 430) / 320).toFixed(3));
@@ -201,6 +202,14 @@ function weekRow() {
   return h("div.peek-row", null, pk, cb);
 }
 // Crumbs is offered once, after an evening check-in, when home is quiet (same wait as the photos note).
+// Waits for a quiet home (no flow, sheet or camera open), then does fn.
+function whenFree(fn, tries = 0) {
+  setTimeout(() => {
+    const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam");
+    if (busy && tries < 40) return whenFree(fn, tries + 1);
+    if (!busy) fn();
+  }, tries ? 1500 : 3400);
+}
 function crumbsWhenFree(tries = 0) {
   setTimeout(() => {
     const busy = ["in-ask", "in-flow", "in-wrap", "in-photos", "in-cards", "in-settings", "in-levels", "in-acct"].some((x) => document.body.classList.contains(x)) || document.querySelector(".sheet-host, .cam, .ph-viewer, .tip-layer");
@@ -325,7 +334,7 @@ function render(moment) {
   const markDid = () => {
     const d = store.day(k), p = deck.card(c.id).pillar;
     d.card.done = true; d.pil = [p].concat((d.pil || []).filter((x) => x !== p)); store.save();
-    log("card_did", deck.tid(c.id)); notify.sync();
+    log("card_did", deck.tid(c.id)); when.doneLog(d.card); notify.sync();
     if (later.isWeek(c.id)) later.tick(k, k);   // a week card: today is its first day ticked (js/later.js)
     askFelt(card, c.id, { mid, hide: main,
       onPick: (list) => {
@@ -404,7 +413,9 @@ function render(moment) {
   // Once the day is ended, "Change today" sits in the same spot under the card (it used to sit below the middle and
   // pushed the card up).
   const changeBtn = bedtime ? h("button.btn-quiet", { onclick: changeToday }, "Change today") : null;
-  const slotEl = c && !ended ? h(`div.undo-slot${two ? ".two" : ""}${still ? ".still" : ""}`, null, addPhoto || shareLink, did ? undoBtn() : null)
+  // The moment it's kept for (js/when.js): a small chip under a card still to do; tapping it changes today's only.
+  const whenChip = c && !did && !ended ? when.chip(k, c, () => { notify.sync(); render(); }) : null;
+  const slotEl = c && !ended ? h(`div.undo-slot${two || whenChip ? ".two" : ""}${still ? ".still" : ""}`, null, whenChip || addPhoto || shareLink, did ? undoBtn() : null)
     : shareLink || changeBtn ? h(`div.undo-slot${shareLink && changeBtn ? ".two" : ""}`, null, shareLink, changeBtn) : null;
   // Cards that happen later wait in a stack behind today's card (js/stack.js, alex 2026-11-27); tapping one brings it
   // to the front. The space under the card ("Add a photo", "Not done yet") belongs to today's card only.
@@ -443,6 +454,7 @@ function render(moment) {
     h("div.col", { style: { gap: "4px" } }));   // keeps the gap above the pill the card is centred against
   placeSun(t, ended);
   if (moment === "end" && crumbs.offerOK()) crumbsWhenFree();
+  else if (moment === "end" && when.offerOK()) whenFree(() => when.offerOK() && when.setup(() => render(), "offer"));   // after the first End your day
   testBar();
   if (moment === "sleep") riseCard();   // back from the sleep check-in: the card rises out of the glow
   if (moment === "card") landCard();    // Done on the kept card: it's set down in its place
