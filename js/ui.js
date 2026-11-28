@@ -25,16 +25,57 @@ function tracker() {
 }
 const rubber = (d) => -Math.pow(-d, 0.7) * 1.6; // pulling up stretches a little, then resists
 
+// The same spring, worked out ahead of time and handed to the browser, so the motion runs on its own and stays smooth
+// even while the app is busy building the sheet or the page behind it (alex 2026-11-27: sheets lagged as they slid up).
+// It's given as a plain cubic-bezier curve on purpose: on iPhone, Safari only runs cubic-bezier animations off the app's
+// thread. A linear(...) curve, which can trace the spring exactly, quietly runs on the app's thread instead, frame by
+// frame, and stutters just like before (alex 2026-11-28: still not smooth on Comments and Crumbs). The curve starts as
+// fast as the finger was moving and settles with no bounce. Returns { ms, easing }, or null when there's nowhere to go.
+function springCurve(from, to, v, response = 0.42) {
+  const d = to - from;
+  if (Math.abs(d) < 0.5) return null;
+  // How long the spring takes to settle within half a pixel.
+  const k = (2 * Math.PI / response) ** 2, c = 4 * Math.PI / response, dt = 1 / 240;
+  let x = 0, vel = (v || 0) / d, t = 0;
+  while (t < 1.2) {
+    const a = -k * (x - 1) - c * vel; vel += a * dt; x += vel * dt; t += dt;
+    if (Math.abs(x - 1) * Math.abs(d) < 0.4 && Math.abs(vel * d) < 8) break;
+  }
+  const ms = Math.round(Math.max(0.32, t) * 1000);
+  // The app's sheet curve (quick start, calm finish). A fast flick starts steeper, to carry the finger's speed.
+  const s = Math.max(0, (v || 0) / d) * (ms / 1000);   // starting speed, in "whole distance per whole duration"
+  const x1 = s > 0.72 / 0.32 ? Math.max(0.04, 0.72 / s) : 0.32;
+  return { ms, easing: `cubic-bezier(${x1.toFixed(3)}, 0.72, 0, 1)` };
+}
+
 export function openSheet(build, { onClose, label } = {}) {
   const wrap = h("div.sheet-host", { role: "dialog", "aria-modal": "true", "aria-label": label || "" });
   const dim = h("div.sheet-dim"), panel = h("div.sheet");
-  let closed = false, y = 0, H = 1, stop = () => {};
-  const set = (v) => { y = v; panel.style.transform = `translateY(${v}px)`; dim.style.opacity = String(Math.max(0, Math.min(1, 1 - v / H))); };
+  let closed = false, y = 0, H = 1, anim = null, dimAnim = null;
+  const fade = (v) => String(Math.max(0, Math.min(1, 1 - v / H)));
+  const set = (v) => { y = v; panel.style.transform = `translateY(${v}px)`; dim.style.opacity = fade(v); };
+  // Stop a glide where it is right now (a finger caught the sheet mid-way).
+  const halt = () => {
+    if (!anim) return;
+    const at = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m42;
+    anim.cancel(); dimAnim && dimAnim.cancel(); anim = dimAnim = null; set(at);
+  };
+  // Glide to a spot with the spring, carrying the finger's speed. The browser runs it, not the app.
+  const glide = (to, v, done) => {
+    halt();
+    const from = y, cv = reduceMotion() ? null : springCurve(from, to, v);
+    set(to);
+    if (!cv) { done && done(); return; }
+    const opts = { duration: cv.ms, easing: cv.easing };
+    const a = (anim = panel.animate([{ transform: `translateY(${from}px)` }, { transform: `translateY(${to}px)` }], opts));
+    dimAnim = dim.animate([{ opacity: fade(from) }, { opacity: fade(to) }], opts);
+    a.finished.then(() => { if (anim === a) { anim = dimAnim = null; done && done(); } }, () => {});
+  };
   const close = (why, v = 0) => {
-    if (closed) return; closed = true; stop();
+    if (closed) return; closed = true;
     wrap.style.pointerEvents = "none";
-    if (reduceMotion()) { wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" }).finished.then(() => wrap.remove()); }
-    else stop = spring(y, H + 24, Math.max(0, v), set, () => wrap.remove());
+    if (reduceMotion()) { halt(); wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" }).finished.then(() => wrap.remove()); }
+    else glide(H + 24, Math.max(0, v), () => wrap.remove());
     onClose && onClose(why);
   };
   dim.addEventListener("click", () => close("outside"));
@@ -45,14 +86,14 @@ export function openSheet(build, { onClose, label } = {}) {
   wrap.classList.add("sheet-open");
   H = panel.offsetHeight;
   if (reduceMotion()) { set(0); wrap.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150 }); }
-  else { set(H + 24); stop = spring(H + 24, 0, 0, set); }
+  else { set(H + 24); glide(0, 0); }
 
   // Dragging. Touch and mouse share start / move / end. Rows moved by a handle (.grip), text fields and sliders are left alone.
   let s0 = null, dragging = false, moved = false, base = 0, tr = null, inner = null;
   const start = (x, yy, target) => {
     if (closed || target.closest(".grip, input, textarea, [data-nodrag]")) return;
     inner = target.closest(".dcard.big .front, [data-scroll]");   // a long card (or a list, like comments) scrolls inside; pulling down scrolls it back up first
-    s0 = [x, yy]; dragging = false; moved = false; base = y; tr = tracker(); tr.add(yy);
+    s0 = [x, yy]; dragging = false; moved = false; tr = tracker(); tr.add(yy);
   };
   const move = (x, yy) => {
     if (!s0) return false;
@@ -60,11 +101,13 @@ export function openSheet(build, { onClose, label } = {}) {
     if (!dragging) {
       if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return false;
       // Only take over when the pull is mostly downward and the sheet's content (and any long card in it) is scrolled to the top (or the card is already moved).
-      if (Math.abs(dy) > Math.abs(dx) && ((dy > 0 && panel.scrollTop <= 0 && !(inner && inner.scrollTop > 0)) || base !== 0)) { dragging = true; moved = true; stop(); }
+      if (Math.abs(dy) > Math.abs(dx) && ((dy > 0 && panel.scrollTop <= 0 && !(inner && inner.scrollTop > 0)) || anim || y !== 0)) {
+        dragging = true; moved = true; halt(); base = y; s0 = [x, yy];   // caught where it is, so it never jumps
+      }
       else { s0 = null; return false; }
     }
     tr.add(yy);
-    const t = base + dy; set(t >= 0 ? t : rubber(t));
+    const t = base + (yy - s0[1]); set(t >= 0 ? t : rubber(t));
     return true;
   };
   const end = () => {
@@ -72,7 +115,7 @@ export function openSheet(build, { onClose, label } = {}) {
     if (!dragging) return; dragging = false;
     const v = tr.v();
     if (y + v * 0.2 > H * 0.35 || v > 900) close("swipe", v);
-    else { stop(); stop = spring(y, 0, v, set); }
+    else glide(0, v);
   };
   panel.addEventListener("touchstart", (e) => { if (e.touches.length === 1) start(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive: true });
   panel.addEventListener("touchmove", (e) => { if (move(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault(); }, { passive: false });
