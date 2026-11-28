@@ -1513,3 +1513,20 @@ body.sunset.rising #sun { transition: top 1.1s cubic-bezier(.4, 0, .6, 1) .15s, 
 .dev-switch { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; color: rgba(239, 237, 233, .7); }
 .dev-switch b { font-size: 17px; font-weight: 500; color: var(--ink); }
 .dev-switch input { width: 24px; height: 24px; margin-top: 2px; accent-color: var(--sun); flex: none; }
+
+/* Choosing when (alex 2026-11-28, js/when.js): "Keep it for", the chip under today's card, setting up moments.
+   Every moment button is one size (DESIGN.md 13b). */
+.when-keep { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; width: 100%; }
+.when-keep.set { min-height: 82px; }
+.when-label { font-size: 13px; font-weight: 600; color: var(--dim); text-align: center; }
+.when-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; width: 100%; }
+.when-btn { min-height: 52px; border-radius: 14px; background: var(--sun); color: var(--on-sun); font-size: 15px; white-space: nowrap; letter-spacing: -0.2px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; padding: 4px; }
+.when-btn small { font-size: 12px; font-weight: 500; opacity: .75; }
+.when-btn[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+.sheet .when-btn { background: rgba(239, 237, 233, .10); color: var(--ink); }
+.sheet .when-btn.on { background: var(--sun); color: var(--on-sun); }
+.when-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; font-size: 15px; color: var(--ink2); align-self: center; }
+.when-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(239, 237, 233, .08); }
+.when-tab { min-height: 40px; border-radius: 10px; font-size: 15px; font-weight: 500; color: var(--ink2); }
+.when-tab.on { background: rgba(239, 237, 233, .16); color: var(--ink); }
+.when-keep .when-btn span { font-size: 14px; }

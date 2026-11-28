@@ -4,6 +4,7 @@ import { h, dayKey, keyDate, DAY_NAME, reduceMotion, clock12 } from "./util.js";
 import * as deck from "./deck.js";
 import * as store from "./store.js";
 import * as notify from "./notify.js";
+import * as when from "./when.js";
 import * as tester from "./tester.js";
 import { openSheet, roundBtn } from "./ui.js";
 import { openTester, testerRow } from "./tester-sheet.js";
@@ -172,7 +173,9 @@ function nudges() {
   };
   const perm = permRow(render);
   return group("Nudges", [].concat(perm ? [perm] : [], [row("am", "Start your day"), row("pm", "End your day"),
-    h("div.set-row.set-toggle", null, label("Card reminders", "If your card isn't done"), cardSw)], wind ? [windRow()] : []));
+    h("div.set-row.set-toggle", null, label("Card reminders", "If your card isn't done"), cardSw),
+    // Your moments (alex 2026-11-28, js/when.js): the times in your day you keep cards for.
+    linkRow("Your moments", when.isSet() ? "" : "Not set", { onclick: () => when.setup(() => render(), "settings") })], wind ? [windRow()] : []));
 }
 // Social: one switch for everything social, friend requests and friends' new moments (alex 2026-11-26).
 // Only once Friends is open and ticked 18+.

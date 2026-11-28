@@ -1,6 +1,6 @@
 # Handoff: the morning notification, card when-tags, and choosing when
 
-Status as of 2026-11-28: **build 1 (the morning notification) is built** on the `choose-when` branch (see "Build 1" below). Builds 2, 3 and 9 are not started; this note holds their decisions so anyone can pick them up.
+Status as of 2026-11-28: **build 1 (the morning notification) is built** on the `choose-when` branch (see "Build 1" below). **Builds 2 and 3 (card when-tags, choosing when) are built** on `claude/choose-when` (app version d165). Build 9 waits for a few weeks of tester data. The full rules are in `CLAUDE.md` under "Choosing when to do the card".
 
 - Plan doc: https://claude.ai/artifact/RkJHJcZ4mZQSZygZzqcmAZ ("Part 1" and "Card when-tags")
 - Mockup canvas: https://claude.ai/artifact/RbbLTLQtdLBHdKFvBBsr66 (Keep it for, On home, The reminder, If the moment passed)
@@ -63,7 +63,7 @@ Other decisions:
 
 ---
 
-## Build 2: a "when" tag on every card (DECIDED, not built)
+## Build 2: a "when" tag on every card (BUILT: js/card-when.js, 306 live cards; letters a / n / t:moment / d / c / s)
 
 Every one of the 301 live cards gets one tag:
 
@@ -80,7 +80,7 @@ Add the tag to `cards/RULES.md` and make the card checker require it (see "Cards
 
 ---
 
-## Build 3: choosing when (DECIDED, not built)
+## Build 3: choosing when (BUILT: js/when.js, the hand in js/draw.js, home chip in js/main.js, Still got a minute? in js/checkin.js, cardTimes in js/notify.js)
 
 - **Setting up moments:** after the first End your day, people pick their moments from a list: Breakfast, On the way, Lunch, After work or After class, After dinner. Each has a rough time they can adjust. **Separate weekday and weekend sets.**
 - **"Keep this one" becomes "Keep it for"** in the draw: their top 3 moments plus **Now**, all buttons one size (DESIGN.md 13b).
@@ -101,3 +101,8 @@ Add the tag to `cards/RULES.md` and make the card checker require it (see "Cards
 - Two other builds run in parallel and touch the same files. **Before bumping `VERSION` in `sw.js`, check main and every open PR for the highest version.** Update from main before merging.
 - Dev account @test has DEV tools (`js/dev.js`) to move the clock and fake days; use it to try the morning line and moments.
 - Run `tools/test-all.sh` before saving; the relevant single tests are `tests/recap-nudge.test.cjs`, `tests/notif-*.test.cjs`, `tests/helps.test.cjs`, `tests/sleep-pattern.test.cjs`.
+
+## Notes from building 2 and 3
+- Moments are asked after the first End your day, as the plan says. That's earlier than "night one stays quiet" (Crumbs and the tester invite wait); flagged for alex.
+- Own cards picked with an extra ("Pick my own") don't get a moment yet.
+- Moment times in the setup sheet step in 15 minutes.

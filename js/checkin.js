@@ -10,6 +10,7 @@ import { howStep, NOT_DONE } from "./draw.js";
 import { makeCard, ownArea } from "./own.js";
 import { lastNote, markUsed } from "./sleep.js";
 import { now } from "./clock.js";
+import * as when from "./when.js";
 import * as deck from "./deck.js";
 import * as levels from "./levels.js";
 import * as crumbs from "./crumbs.js";
@@ -229,10 +230,24 @@ export function evening(onDone) {
   };
   const did = !!(cid && had.card.done);
   const make = () => { at("own"); makeCard({ k, back: three, kept: three }); };
+  // The moment it was kept for has passed and it isn't done (alex 2026-11-28, js/when.js): "Still got a minute?",
+  // I did it / Let it rest, the same size. Never "missed". Asked once per evening; Back goes to the feelings.
+  let minuteAsked = false;
+  const minute = () => {
+    minuteAsked = true; at("minute");
+    const yes = h("button.btn-main", { onclick: () => { log("still_minute", "did"); minuteDid = true; three(); } }, "I did it");
+    const no = h("button.btn-main.soft", { onclick: () => { log("still_minute", "rest"); st.ans = { how: 0, felt: [] }; save(); } }, "Let it rest");
+    show(step(
+      [roundBtn("back", "Back", two), where(`End your day · 3 of ${N}`), spacer()],
+      [h("h1.q.rise", null, "Still got a minute?"), h("p.sub.rise", { style: { textAlign: "center" } }, deck.card(cid).text)],
+      [h("div.col", { style: { gap: "12px" } }, yes, no), LIFELINE()]));
+  };
+  let minuteDid = false;
   const three = () => {
+    if (cid && !did && !minuteAsked && st.ans.how == null && when.passed(had.card)) return minute();
     if (cid) {
       at("card");
-      show(howStep(cid, st.ans, two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did, extra: own ? ownArea(k, make) : null,
+      show(howStep(cid, st.ans, minuteAsked ? minute : two, (a) => { st.ans = a; save(); }, `End your day · 3 of ${N}`, { did: did || minuteDid, extra: own ? ownArea(k, make) : null,
         onChange: (f) => { st.ans = f.includes(NOT_DONE) ? { how: 0, felt: [] } : { how: deck.howFromFelt(f), felt: f }; } }));
       return;
     }

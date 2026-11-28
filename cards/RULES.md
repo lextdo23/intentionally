@@ -84,6 +84,14 @@ C9. **Awe and wonder cards get people out doing something in the real world,** n
 
 C10. **New-hobby cards are for fun:** never practising or getting better. [Claude] *Why: alex, Play review.*
 
+C11. **Every card says when it fits in someone's day,** with one tag in `js/card-when.js` (a draft carries it as
+`"when"`): **a** any time (the person picks a moment when they keep it), **n** tonight only, **t:breakfast / t:way /
+t:lunch / t:work / t:dinner** tied to one time of day, **d** runs all day, **c** happens when the moment comes up (a
+queue, a hard feeling), **s** has a date, runs over a week, or follows other people's schedule (a class, a gig; every
+card in `LATER` is s). Pick the tightest that's true: a card that says "tonight" is n, not a. [checker: a tag is there
+and valid; Claude: it's the right one] *Why: alex, 2026-11-28: people choose when they'll do their card, and a card that
+only works at one time shouldn't ask.*
+
 ## D. The why line
 
 D1. **Two parts: the takeaway, then the study.** The first few words give the point ("Long breaths out lift your

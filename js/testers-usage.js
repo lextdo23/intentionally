@@ -14,7 +14,8 @@ export const SAME_VISIT = 60e3;
 // Which part of the app a log comes from, in words alex uses.
 export function area(n) {
   if (/^am_/.test(n)) return "Morning check-in";
-  if (/^pm_/.test(n)) return "Evening check-in";
+  if (/^pm_/.test(n) || n === "still_minute") return "Evening check-in";
+  if (/^when_/.test(n)) return "Settings";
   if (n === "own_word" || n === "show_more") return "A check-in";
   if (/^sleep_(button|sound|len|pause|cancel|prefill)$/.test(n)) return "Going to sleep";
   if (/^(sleep_|days_|day_tap|acts_|lifts_|helps_|help_hide|arrange|doctor_)/.test(n)) return "Your days";
