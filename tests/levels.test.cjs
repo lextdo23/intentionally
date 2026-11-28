@@ -1,5 +1,5 @@
 // Levels and what they open (alex 2026-11-25, thread "Rework levels and what unlocks when"): level 1 takes 6 points so a
-// full first day reaches level 2 as it ends; nobody already past level 1 goes down; Your days 2, Friends 3, weekly
+// full first day reaches level 2 as it ends; nobody already past level 1 goes down; Your days 2, weekly
 // recap 4, Cards 5, own card 6; a friend's invite link opens Friends at once; Your levels names every level with what it
 // opens; Crumbs is offered after the third evening and the tester invite after the second. Made-up data only.
 const { chromium } = require("playwright");
@@ -28,6 +28,7 @@ const { serve, checker } = require("./helpers.cjs");
     // A friend's invite link: Friends opens at level 1, and stays open.
     s.levels = { reset: 2, base: 0, seen: 1, l1: 0 };
     o.friendsBefore = L.isOpen("friends"); L.openInvited(); o.friendsAfter = L.isOpen("friends"); o.daysStill = L.isOpen("days");
+    s.test = { strict: true }; o.friendsStrict = L.isOpen("friends"); s.test = {};
     // Your levels: every level named, each with what it opens, the recap's first Sunday, no "Always open" line.
     s.started = "2026-11-25"; s.wrap = { seen: {} };
     o.first = L.firstRecap();
@@ -40,12 +41,12 @@ const { serve, checker } = require("./helpers.cjs");
     return o;
   });
   check(r.l1.join() === "1,2,3", "level 1 takes 6 points: 5 is still level 1, 6 is level 2, a second full day (13) is level 3");
-  check(r.map === "2:days 3:friends 4:recap 5:library 6:own", "Your days 2, Friends 3, weekly recap 4, Cards 5, own card 6");
+  check(r.map === "2:days 4:recap 5:library 6:own", "Your days 2, weekly recap 4, Cards 5, own card 6 (Friends is no longer a level)");
   check(r.before === 2 && r.after === 3 && r.l1give === 2 && r.again === 2, "someone already past level 1 keeps their level (given the 2 points back, once)");
   check(r.newGive === 0, "someone still on level 1 takes the new 6");
-  check(!r.friendsBefore && r.friendsAfter && !r.daysStill, "a friend's invite link opens Friends straight away, and nothing else");
+  check(r.friendsBefore && r.friendsAfter && r.friendsStrict && !r.daysStill, "Friends is open at level 1 for everyone (even with Dev tools' Real levels), and nothing else is");
   check(r.first === "Sunday 6 Dec", "the weekly recap's first Sunday is the first from day 7 (" + r.first + ")");
-  check(r.steps.join("|") === "Your daily card|Your days|Friends|Weekly recap|Cards and Looks shelf|Make your own card|Something new", "Your levels names every level");
+  check(r.steps.join("|") === "Your daily card|Your days|Weekly recap|Cards and Looks shelf|Make your own card|Something new", "Your levels names every level");
   check(!r.crumbs2 && r.crumbs3, "Crumbs is offered after the third evening, not before");
   check(!r.invite1 && r.invite2, "the tester invite waits for the second evening");
 

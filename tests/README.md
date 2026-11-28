@@ -27,3 +27,4 @@ Run one from the repo folder with Node and Playwright (already on Claude's machi
     node tests/comments.test.cjs      (comments on moments: who sees which, delete and remove, reports, the bell, notifications)
     node tests/comments-app.test.cjs  (comments in the app: the bubble, the latest comment, the Comments sheet, the bell; SHOTS=1)
     node tests/crumbs.test.cjs        (Crumbs: off by default, the offer, the face button beside the week, the sheet, crumbs at the end of the day, Settings)
+    node tests/starter.test.cjs       (the starter deck: days 1 to 3 deal only easy tiny cards from your own deck)

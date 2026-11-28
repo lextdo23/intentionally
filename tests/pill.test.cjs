@@ -1,5 +1,5 @@
 // The glass pill (js/pill.js, social stage 1 step 1; alex 2026-11-20): Today · Friends · You beside the main action,
-// there from day one, with Friends as a dashed ring until level 3 (alex 2026-11-25). Made-up data only. SHOTS=1 saves a picture of each tab.
+// there from day one, with Friends open from day one (alex 2026-11-28; it was a dashed ring until level 3). Made-up data only. SHOTS=1 saves a picture of each tab.
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
 const { serve, checker } = require("./helpers.cjs");
@@ -20,45 +20,25 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   await p.goto(server.url);
   await p.evaluate((days) => localStorage.setItem("daydeck", JSON.stringify({ v: 1, started: Object.keys(days).sort()[0], days, seen: { note: "sleep", testInvite: 1, notifCard: 1 }, levels: { seen: 2, l1: 0 } })), days);
 
-  // ---- Before Friends opens (alex 2026-11-25): the pill is there from day one, Friends waits as a dashed ring ----
+  // ---- Day one (alex 2026-11-28): Friends is open from the start, no longer a level; Cards still waits as a dashed ring ----
   await p.reload(); await p.waitForTimeout(1500);
   const NY = '#pill [data-tab="friends"].not-yet';
-  check(!!(await p.$("#pill")), "the pill is there before Friends opens, so home never rearranges when it opens");
-  check(!!(await p.$(NY + " .ny-ring")), "Friends sits in the pill as an empty dashed ring");
-  check(/opens at level 3/.test(await p.getAttribute('#pill [data-tab="friends"]', "aria-label")), "and says when it opens to screen readers");
+  check(!!(await p.$("#pill")) && !(await p.$(NY)), "at level 2, Friends is already open in the pill (open from day one)");
   check(!(await p.$('#home button[aria-label="Settings"]')), "Settings lives on You from day one, not on home");
-  check(!!(await p.$("#home .dd-head .round.not-yet .ny-ring")), "the card library waits in its corner as a dashed ring too");
-  await p.click(NY); await p.waitForTimeout(400);
+  check(!!(await p.$("#home .dd-head .round.not-yet .ny-ring")), "the card library waits in its corner as a dashed ring");
+  await p.click("#home .dd-head .round.not-yet"); await p.waitForTimeout(400);
   const nyText = await p.textContent(".ny-box").catch(() => "");
-  check(/Friends opens at level 3\./.test(nyText) && /Start and end your days to get there\./.test(nyText), "tapping it says when Friends opens and what gets you there");
+  check(/Cards and Looks shelf opens at level 5\./.test(nyText) && /Start and end your days to get there\./.test(nyText), "tapping it says when Cards opens and what gets you there");
   check(!/\d+ (points|days?) to go/.test(nyText), "never a countdown");
   check(await p.evaluate(() => document.body.dataset.tab) === "today", "and you stay on Today");
   await p.waitForTimeout(3900);
   check(!(await p.$(".ny-layer")), "the bubble fades by itself");
   await p.click("#home .dd-head .round.not-yet"); await p.waitForTimeout(400);
-  check(/Cards and Looks shelf opens at level 5\./.test(await p.textContent(".ny-box").catch(() => "")), "the Cards ring says level 5");
   await p.mouse.click(215, 500); await p.waitForTimeout(400);
   check(!(await p.$(".ny-layer")), "a tap anywhere closes the bubble");
-  await p.click('#pill [data-tab="you"]'); await p.waitForTimeout(500);
-  const act = await p.$$eval("#pill .pill-act button", (b) => b.map((x) => x.textContent));
-  check(act.length === 1 && !/Share a moment/.test(act[0]), "on You, Today's action stays in the pill (nothing to share yet), so the pill keeps its shape");
+  await p.click('#pill [data-tab="friends"]'); await p.waitForTimeout(600);
+  check(await p.evaluate(() => document.body.dataset.tab) === "friends", "tapping Friends on day one opens it");
   await p.click('#pill [data-tab="today"]'); await p.waitForTimeout(500);
-
-  // ---- The service says "early" after the app has already drawn home: the pill appears without reopening ----
-  await ctx.route("https://intentionally-push.lextdo.workers.dev/a/me", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, user: { username: "mia.k", email: "mia@example.com", early: true }, passkeys: 1 }), headers: { "access-control-allow-origin": "*" } }));
-  await p.reload(); await p.waitForTimeout(2000);
-  check(!!(await p.$("#pill")) && !(await p.$(NY)), "when the service says the account is early, Friends opens straight away, without reopening the app");
-  await ctx.unroute("https://intentionally-push.lextdo.workers.dev/a/me");
-  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("daydeck")); delete s.levels.early; localStorage.setItem("daydeck", JSON.stringify(s)); const a = JSON.parse(localStorage.getItem("daydeck-account")); delete a.user.early; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
-
-  // ---- Accounts from before Friends went live get it straight away, whatever their level ----
-  await p.evaluate(() => { const a = JSON.parse(localStorage.getItem("daydeck-account")); a.user.early = true; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
-  await p.reload(); await p.waitForTimeout(1500);
-  check(!!(await p.$("#pill")) && !(await p.$(NY)), "an early account (from before Friends went live) gets Friends at level 3");
-  await p.evaluate(() => { const a = JSON.parse(localStorage.getItem("daydeck-account")); delete a.user.early; localStorage.setItem("daydeck-account", JSON.stringify(a)); });
-  await p.reload(); await p.waitForTimeout(1500);
-  check(!!(await p.$("#pill")) && !(await p.$(NY)), "and once opened, it stays open on that phone");
-  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("daydeck")); delete s.levels.early; localStorage.setItem("daydeck", JSON.stringify(s)); });
 
   // ---- Test mode: the pill ----
   await p.goto(server.url + "?test"); await p.waitForTimeout(1500);

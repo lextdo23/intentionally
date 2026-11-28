@@ -421,7 +421,7 @@ function render(moment) {
   const mid = h("div.home-mid", null, h("div.home-hold", null, area, under));
   todayL = card && frontF === null ? card : null;
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so
-  // home never rearranges when Friends opens at level 3. Until then Friends is an empty dashed ring in the pill.
+  // home never rearranges. Friends is open from day one (alex 2026-11-28; it used to wait for level 3 as a dashed ring).
   const friendsOpen = testOn || levels.isOpen("friends");
   pill.start(() => render()); pill.setFriends(friendsOpen); pill.setAction(main);
   // Today, top to bottom (alex 2026-11-23): the daydeck wordmark with Cards and Your photos in the corners, the level,
