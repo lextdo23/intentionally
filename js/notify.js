@@ -79,7 +79,7 @@ export function usualAM(s = store.get(), at = Date.now()) {
   const m = Math.min(840, Math.max(300, mins[Math.floor(mins.length / 2)] + 10)), r = Math.round(m / 5) * 5;
   return `${String(Math.floor(r / 60)).padStart(2, "0")}:${String(r % 60).padStart(2, "0")}`;
 }
-const amTime = (s = store.get()) => usualAM(s) || prefs().am.t;
+const amTime = (s = store.get()) => (!prefs().am.fixed && usualAM(s)) || prefs().am.t;   // a time they chose themselves wins
 
 // Card reminders (alex 2026-11-17): up to two on a day you kept a card and haven't done it yet. "Lunch and after
 // work": 12:30pm, then 3 hours before your evening nudge. Kept the card after 12:30? Then 3 hours after keeping

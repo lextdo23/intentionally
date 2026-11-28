@@ -1,6 +1,6 @@
 # Handoff: the morning notification, card when-tags, and choosing when
 
-Status as of 2026-11-28. Nothing in the app is built yet; this note is the plan and the decisions so far, so anyone can pick it up.
+Status as of 2026-11-28: **build 1 (the morning notification) is built** on the `choose-when` branch (see "Build 1" below). Builds 2, 3 and 9 are not started; this note holds their decisions so anyone can pick them up.
 
 - Plan doc: https://claude.ai/artifact/RkJHJcZ4mZQSZygZzqcmAZ ("Part 1" and "Card when-tags")
 - Mockup canvas: https://claude.ai/artifact/RbbLTLQtdLBHdKFvBBsr66 (Keep it for, On home, The reminder, If the moment passed)
@@ -10,7 +10,7 @@ Work in this order: build 1, then 2, then 3. Build 9 waits for a few weeks of te
 
 ---
 
-## Build 1: a morning notification worth tapping (DECIDED, not built)
+## Build 1: a morning notification worth tapping (BUILT, branch choose-when, app version d164)
 
 ### The problem
 Today's morning notification is "Good morning" / "How did you sleep?" (`show()` in `sw.js`). alex: a reason like "Your card's ready" or "3 cards waiting" is not strong enough. **Something else has to reel people in; once they're in, they flip the card because it's there.** So the notification never mentions the cards.
@@ -34,7 +34,17 @@ Other decisions:
 - **Timing (alex said yes):** send it about 10 minutes after the time they usually do the morning check-in (median of their last ~2 weeks of `days[k].sleep` check-in times); until there's a week of check-ins, use the time they set in Settings.
 - Proposed, alex hasn't answered: a "Keep notifications private" switch in Settings, off by default, that falls back to plain lines with no moods, sleep or names.
 
-### How the code works today (read before building)
+### What was built
+- `js/findings.js`: works out every true finding (`all`), picks one for a morning (`pick`: comfort only after a hard day, not the same as the last 3 days), and settles it per day in `s.finds` (`forMorning`, `today`).
+- `js/notify.js`: `usualAM()` (about 10 minutes after their usual morning check-in, from 7 check-ins; else their set time), used for the morning ping and the Monday recap / date mornings; `keepCardPlan()` saves the morning's finding to the `nudge-plan` cache as `morning`.
+- `js/checkin.js`: the sleep check-in now records when it was done (`d.sleep.at`, first time on the day only).
+- `sw.js`: `showMorning()` picks friends > finding > plain words; `friendNote()` keeps the latest friend notification as `social`; taps record which words were used.
+- `js/main.js`: `findLine()` shows the finding's answer on home in the recap line's place until the morning check-in; `seenSocial()` clears the friend record when the app opens.
+- Tester logs `am_line`, `am_line_tap`, `find_seen`; tester page "Do nudges bring people in?".
+- Tests: `tests/findings.test.cjs`, `tests/morning-nudge.test.cjs`.
+- Not done: the private switch (not agreed), a better first-week line (open question). Settings shows the learned time under "Start your day"; choosing a time there keeps it (`am.fixed`).
+
+### How the code worked before (background)
 - The service (`push/worker.js`) only sends an **empty ping** at times the phone gave it. The words are chosen in the service worker, `show()` in `sw.js`, from copies the app keeps in the `nudge-plan` cache (`keepCardPlan()` in `js/notify.js`). So **findings must be worked out in the app** (whenever it's open, usually the evening before) and saved to `nudge-plan`, e.g. key `morning`: `{ k: dayKey, title, body, id }`.
 - Friend notifications (`push/friends.js`, `pNote()`, `pDue()`) carry their own words and are **held overnight (10pm to 8am)**, so overnight news arrives around 8am, close to the morning nudge. Plan: in `friendNote()` in `sw.js`, also save the latest friend title/body and time to the cache; the app clears it when opened. At morning time:
   - unseen friend news shown in the last ~90 minutes: stay quiet (that notification already is the reel);
