@@ -138,14 +138,15 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   // ---- Add friends by @username ----
   await priya.post("/a/f/ask", { username: "sam.w" }); await sam.post("/a/f/answer", { username: "priya.k", yes: true });
   await p.click('#friends button[aria-label="Add friends"]'); await p.waitForTimeout(700);
-  await p.fill(".fr-page:last-child .fr-field", "sam"); await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(700);
+  await p.fill(".fr-page:last-child .fr-field", "sam"); await p.press(".fr-page:last-child .fr-field", "Enter"); await p.waitForTimeout(700);
   check(/No one by that name/.test(await text(".fr-page:last-child")), "part of a name finds nobody");
-  await p.fill(".fr-page:last-child .fr-field", "@Sam.W"); await p.click(".fr-page:last-child .fr-find"); await p.waitForTimeout(700);
+  await p.fill(".fr-page:last-child .fr-field", "@Sam.W"); await p.press(".fr-page:last-child .fr-field", "Enter"); await p.waitForTimeout(700);
   check(/Sam/.test(await text(".fr-page:last-child .fr-found")), "their exact @username finds them (capitals and @ don't matter)");
   check(/Friends with Priya/.test(await text(".fr-page:last-child .fr-found .fr-common-small")), "a search result says which of your friends they know");
   await shot("8-add");
-  await p.click(".fr-page:last-child .fr-found .fr-btn.main"); await p.waitForTimeout(900);
-  check(/Asked/.test(await text(".fr-page:last-child .fr-found")) && /Waiting for them/.test(await text(".fr-page:last-child")), "Add sends a request, shown as Asked and under Waiting for them");
+  check(!(await p.$(".fr-page:last-child .fr-find")) && !/Friends only see the moments/.test(await text(".fr-page:last-child")), "Add friends: no Find button (the keyboard's Search finds them) and no line at the bottom (alex 2026-11-28)");
+  await p.click(".fr-page:last-child .fr-found .fr-pill.main"); await p.waitForTimeout(900);
+  check(/Sent/.test(await text(".fr-page:last-child .fr-found")) && !/Asked/.test(await text(".fr-page:last-child")) && /Waiting for them/.test(await text(".fr-page:last-child")), "Add sends a request, shown as Sent (never Asked) and under Waiting for them");
   check((await sam.get("/a/f")).asksYou.some((x) => x.username === "mia.k"), "Sam sees Mia's request");
   await shot("9-asked");
   await mia.post("/a/f/remove", { username: "priya.k" });

@@ -17,7 +17,7 @@ Last updated: 2026-11-28.
 
 1. Friends from day one: `js/levels.js` (UNLOCKS, BASICS line), comments in `js/main.js`, `js/pill.js`, `js/friends.js`. Tests updated: `tests/levels.test.cjs`, `tests/pill.test.cjs`, `tests/friends-app.test.cjs`.
 2. Starter deck: `STARTER`, `STARTER_DAYS` and `starterPool()` in `js/deck.js`, used by `draw3`. Days 1 to 3 deal only starter cards from the person's own deck; if fewer than three, other tiny cards from their deck fill in; then the whole deck. Test: `tests/starter.test.cjs`. Every mindset has at least one starter card.
-3. `CLAUDE.md` updated (Social, Levels, Cards). `sw.js` VERSION d162.
+3. `CLAUDE.md` updated (Social, Levels, Cards). `sw.js` VERSION d165 (after merging main at d163; another open branch had d164).
 
 ## Left to do
 
