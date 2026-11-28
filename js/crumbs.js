@@ -139,7 +139,8 @@ export function row(c, onTap) {
 // Offered after the third evening check-in (alex 2026-11-25), so the first night stays quiet.
 export function offerOK() {
   const s = store.get();
-  return !isOn() && !(s.notes && s.notes.crumbsOffer) && Object.values(s.days || {}).filter((d) => d && d.mood != null).length >= 3;
+  // Not on the evening "Your first three days" showed (js/first3.js): one sheet a night, so it waits for the next.
+  return !isOn() && !(s.notes && s.notes.crumbsOffer) && !(s.notes && s.notes.first3 === dayKey()) && Object.values(s.days || {}).filter((d) => d && d.mood != null).length >= 3;
 }
 export function offer(onDone) {
   const s = store.get(); s.notes = s.notes || {}; s.notes.crumbsOffer = 1; store.save(); log("crumbs_offer");

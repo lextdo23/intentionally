@@ -227,7 +227,7 @@ input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .10), inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 30px rgba(0, 0, 0, .5); }
 .lifts-p { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
 .lifts-p i { width: 10px; height: 10px; border-radius: 3px; }
-.lifts-t { margin-top: 16px; flex-grow: 1; font-size: 20px; font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; align-self: stretch; }
+.lifts-t { margin-top: 16px; margin-bottom: auto; flex-shrink: 0; max-height: 5em; font-size: 20px; font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; align-self: stretch; } /* never taller than its 4 lines, so a long card ends at "…" with no cut-off fifth line (2026-11-28) */
 .lifts-t-wrap { flex-grow: 1; }
 .lifts-chip { align-self: flex-start; padding: 5px 10px; border-radius: 10px; font-size: 13px; font-weight: 600; }
 .lifts-n { margin-top: 8px; font-size: 13px; color: var(--faint); }

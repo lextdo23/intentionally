@@ -94,6 +94,24 @@ export function sleepPattern(days, today = dayKey()) {
   const lo = b1 < 0 ? null : HOUR_GROUPS[b1][0], hi = b2 < 0 ? null : HOUR_GROUPS[b2][1];
   return { nights, noted, kind, lo, hi, total, early, left: Math.max(0, SLEEP_READY - total) };
 }
+// The first week (alex 2026-11-28, "a So far line from day 3"): until there are enough nights for a pattern, say
+// plainly what the nights so far show, from 2 noted nights and fewer than 7 ever. Facts only, never a pattern:
+// "one": your best day came after 7h 40m; "best": your best days came after 7 to 8 hours;
+// "same": every day so far felt the same, after about 7h 30m a night. Null once a real pattern (or 7 nights) is in.
+export const SLEEP_FIRST = 7;
+export function sleepFirst(p) {
+  if (!p || p.total >= SLEEP_FIRST || p.noted.length < 2 || !["empty", "none", "steady"].includes(p.kind)) return null;
+  const top = Math.max(...p.noted.map((n) => n.m)), best = p.noted.filter((n) => n.m === top);
+  if (best.length === p.noted.length) return { kind: "same", m: top, h: p.noted.reduce((a, n) => a + n.h, 0) / p.noted.length };
+  if (best.length === 1) return { kind: "one", m: top, h: best[0].h };
+  const lo = Math.floor(Math.min(...best.map((n) => n.h))), hi = Math.ceil(Math.max(...best.map((n) => n.h)));
+  return { kind: "best", m: top, lo, hi: Math.max(hi, lo + 1) };
+}
+// "7h 40m", to the nearest 10 minutes.
+export const hm = (hr) => { const m = Math.round(hr * 6) * 10; return `${Math.floor(m / 60)}h${m % 60 ? " " + (m % 60) + "m" : ""}`; };
+export function sleepFirstWords(f) {
+  return f.kind === "one" ? hm(f.h) : f.kind === "same" ? "about " + hm(f.h) : `${f.lo} to ${f.hi} hours`;
+}
 // The pattern's hours in words: "7 hours or more", "7 to 9 hours", "under 7 hours".
 export function sleepHours(p) {
   return p.kind === "up" ? `${p.lo} hours or more` : p.kind === "down" ? `under ${p.hi} hours` : p.kind === "range" ? `${p.lo} to ${p.hi} hours` : "";

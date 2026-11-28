@@ -45,7 +45,7 @@ function bars(rows, max, unit = "") {
   return `<div class="bars">${rows.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="t"><i style="width:${Math.min(100, v / max * 100)}%"></i></span><span class="n">${v}${unit}</span></div>`).join("")}</div>`;
 }
 const GROUP = { "Which cards are \"Not for me\"?": "cards", "Do dates and week cards get used?": "cards", "Which cards need a look?": "cards", "Card thumbs": "cards", "Cards people make": "cards", "Do card reminders help?": "cards",
-  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards",
+  "How did testers feel?": "checkins", "Do nudges bring people in?": "checkins", "Who has notifications on?": "checkins", "Which words do people use, and which never?": "checkins", "Dragging the sun and moon": "checkins", "Going to sleep": "checkins", "Do the patterns feel true?": "checkins", "Is the sleep chart read?": "checkins", "Do people share with their doctor?": "checkins", "Do people use Crumbs?": "checkins", "Do people read how activities felt?": "cards", "Is \"Your first three days\" seen?": "checkins",
   "How does setup go?": "setup", "How does signing up go?": "setup", "How do people get around?": "setup", "Do people add friends?": "setup", "Do people share moments?": "setup", "Do people comment?": "setup", "Do friend notifications help?": "setup", "Which pillars and mindsets do people choose?": "setup", "How fast do people level up?": "setup", "Do people open their boxes?": "setup", "Which looks do people collect?": "setup", "Do people open their weekly wrapped?": "checkins", "Do weekly recap reminders help?": "checkins", "Do people take photos?": "cards", "Cards waiting for you": "library", "Reports waiting for you": "reports", "How the card library is used": "library" };
 // The Usage tab (alex 2026-11-26, js/testers-usage.js): its sections all sit on that tab.
 ["How long has each tester been on Daydeck?", "Do people come back after day one?", "How often do people open it?", "How long do people stay?", "What do people do each visit?", "When do people do their card?", "Recent visits", "Does it run smoothly?"].forEach((t) => (GROUP[t] = "usage"));
@@ -106,7 +106,9 @@ const SHAPE = {
   crumbs_on: (v) => ["offer", "settings", "off", "later"].includes(v), crumbs_seen: (v) => isInt(v, 1, 20),
   crumb_add: (v) => isObj(v) && isInt(v.n, 0, 1), crumb_edit: (v) => isObj(v) && isInt(v.n, 0, 1),
   doctor_made: (v) => isObj(v) && isInt(v.d, 1, 84) && typeof v.p === "string" && /^m?s?a?h?$/.test(v.p) && isInt(v.t, 0, 1) && isInt(v.n, 0, 1),
-  sleep_seen: (v) => ["up", "range", "down", "none", "steady", "empty"].includes(v), sleep_view: (v) => v === "hours" || v === "date",
+  sleep_seen: (v) => ["up", "range", "down", "none", "steady", "empty", "first_one", "first_best", "first_same"].includes(v),
+  // Your first three days (alex 2026-11-28, js/first3.js): how many cards it showed and how many lifted, never which.
+  first3_seen: (v) => isObj(v) && isInt(v.n, 1, 3) && isInt(v.l, 0, 3), first3_close: (v) => v === "done" || v === "days", sleep_view: (v) => v === "hours" || v === "date",
   repick: (v) => v === "pick" || v === "later", repick_shown: (v) => isObj(v) && isInt(v.gone, 0, 20),
 };
 const okEvent = (name, val) => typeof name === "string" && (!SHAPE[name] || SHAPE[name](val));
@@ -314,7 +316,8 @@ function drawAll(D) {
 
   // 9b. Mood and sleep card (alex 2026-11-22)
   const sk = {}; by("sleep_seen").forEach((e) => (sk[e.val] = (sk[e.val] || 0) + 1));
-  const KIND = { up: "Best days after X hours or more", range: "Best days after X to Y hours", down: "Best days after under X hours", none: "No clear link yet", steady: "Sleep has been steady", empty: "Still filling in" };
+  const KIND = { up: "Best days after X hours or more", range: "Best days after X to Y hours", down: "Best days after under X hours", none: "No clear link yet", steady: "Sleep has been steady", empty: "Still filling in",
+    first_one: "First week: so far, your best day came after X", first_best: "First week: so far, your best days came after X to Y hours", first_same: "First week: so far, your days have felt the same" };
   const sv = { hours: 0, date: 0 }; by("sleep_view").forEach((e) => (sv[e.val] = (sv[e.val] || 0) + 1));
   html += sec("Is the sleep chart read?", "What the Mood and sleep card told testers, and whether they slid across it, switched order or opened a day from it.",
     by("sleep_seen").length ? `${bars(Object.keys(KIND).map((k) => [KIND[k], sk[k] || 0]))}<div style="height:16px"></div>${bars([["Slid across the nights", who("sleep_slide")], ["Opened a day from it", who("sleep_day_open")], ["Switched to By date", who("sleep_view")], ["Followed the link to What seems to help", who("sleep_to_helps")]], T)}
@@ -329,6 +332,13 @@ function drawAll(D) {
     by("acts_seen").length ? `${bars(Object.keys(AK).map((k) => [AK[k], ak[k] || 0]))}<div style="height:16px"></div>${bars([["Opened a pillar's cards", who("acts_open")], ["Switched to Harder days", who("lifts_view")]], T)}
      <p class="note">Times What lifts you had a Harder days side to show: ${hardSide}.</p>` : `<p class="sub">Nobody has opened Your days since these cards arrived.</p>`,
     "lots of 'Still filling in' means people answer few cards. If nobody opens Harder days, it may need a gentler way in.");
+
+  // 9d. Week one (alex 2026-11-28): "Your first three days" after the third End your day.
+  const f3 = by("first3_seen").filter((e) => e.val), f3days = by("first3_close").filter((e) => e.val === "days");
+  html += sec("Is \"Your first three days\" seen?", "Who saw the look back at their first three days after their third evening, and who went on to Your days from it. Only how many cards it showed and how many lifted them.",
+    f3.length ? `${bars([["Saw it", who("first3_seen")], ["Went on to Your days", new Set(f3days.map((e) => e.code)).size]], T)}
+     <p class="note">Cards shown: ${f3.reduce((a, e) => a + e.val.n, 0)}. Lifted them: ${f3.reduce((a, e) => a + e.val.l, 0)}.</p>` : `<p class="sub">Nobody has reached their third evening since this arrived.</p>`,
+    "if few go on to Your days, the sheet may already say enough, which is fine.");
 
   const made = by("doctor_made").filter((e) => e.val);
   const partN = (c) => made.filter((e) => e.val.p.includes(c)).length;
