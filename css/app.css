@@ -755,13 +755,11 @@ body.has-pill .testbar { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px);
 /* Hidden: faded and then switched off altogether (visibility), because Safari can keep drawing the frosted glass of a
    faded-out pill (alex 2026-11-21: it still showed while rating a card). While rating a card, it's hidden only until
    Done or Not now (.ask-open, js/draw.js), and comes back as the card glides home. */
-:is(.in-flow, .in-levelup, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill, body:has(.sheet-host) #pill { opacity: 0; visibility: hidden; transform: translateY(24px); pointer-events: none;
+:is(.in-flow, .in-levelup, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill { opacity: 0; visibility: hidden; transform: translateY(24px); pointer-events: none;
   transition: opacity .3s var(--ease), transform .35s var(--ease), visibility 0s linear .35s; }
-:is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill.no-act, body:has(.sheet-host) #pill.no-act { transform: translate(-50%, 24px); }
-/* Under a sheet the pill only fades, quickly, and doesn't slide (alex 2026-11-28: sheets still felt heavy). Moving
-   frosted glass makes the phone redo the blur every frame, right while the sheet is sliding up over it. */
-body:has(.sheet-host) #pill { transform: none; transition: opacity .18s ease, visibility 0s linear .18s; }
-body:has(.sheet-host) #pill.no-act { transform: translateX(-50%); }
+:is(.in-flow, .ask-open, .in-acct, .in-settings, .in-wrap, .in-photos, .in-cards, .in-levels, .in-fpage) #pill.no-act { transform: translate(-50%, 24px); }
+/* Sheets slide up over the pill, which stays where it is under the shade (alex 2026-11-28: when it hid and came back
+   there was a beat after a sheet closed before it faded in again). The shade catches taps, so it can't be pressed. */
 /* Tab screens (alex 2026-11-23): tapping a tab switches straight away (.tab-now turns movement off for that moment).
    Swiping moves whole screens side by side (js/pill.js) like separate phone screens: rounded corners on black,
    a gap between them, the pill staying on top (.tab-drag; alex 2026-11-23, from Instagram's swipe). */
