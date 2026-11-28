@@ -95,14 +95,14 @@ export function newLevel() {
 }
 
 // ---------- What each level opens (alex 2026-11-25, thread "Rework levels and what unlocks when") ----------
-// Day one is the basics only. Your days opens as the first day ends, Friends as the second ends, then the weekly recap
-// is announced (it still comes on Sunday, from day 7: this is so there's something to look forward to), then Cards,
+// Day one is the basics, plus Friends (alex 2026-11-28, plan "Daydeck: getting people to do their card", The first days:
+// Friends is open from day one for everyone, so it's no longer a level; level 3 just brings a box). Your days opens as
+// the first day ends, then the weekly recap is announced (it still comes on Sunday, from day 7: this is so there's something to look forward to), then Cards,
 // then making your own card (it adds a step to End your day, so it waits until the evening is a habit). Photos, Going
 // to sleep, "What's been on your mind?", support, rest days, pillars and settings are never levelled.
-export const BASICS = { name: "Your daily card", line: "Start your day, your card, a photo, End your day" };
+export const BASICS = { name: "Your daily card", line: "Start your day, your card, a photo, End your day, and Friends" };
 export const UNLOCKS = [
   { level: 2, id: "days", name: "Your days", line: "See how your days have felt, and what seems to help." },
-  { level: 3, id: "friends", name: "Friends", line: "Add a few friends and cheer each other on." },
   { level: 4, id: "recap", name: "Weekly recap", line: "Every Sunday, once you end your day, a look back at your week." },
   { level: 5, id: "library", name: "Cards and Looks shelf", line: "Collect card looks, and look through every card in Daydeck." },
   { level: 6, id: "own", name: "Make your own card", line: "At the end of your day, add something else you did." },
