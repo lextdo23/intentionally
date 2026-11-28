@@ -166,8 +166,10 @@ const day = (n) => { const d = new Date(Date.now() - n * 864e5 - 4 * 3600e3); re
   { const a = await sp.locator(".mo-see svg").boundingBox(), c = await sp.locator(".mo-talk svg").boundingBox();
     check(c.x - (a.x + a.width) <= 18 && a.width >= 29 && c.width >= 26, "the sun and the speech bubble are Instagram-sized and sit close together"); }
   await sp.locator(".mo-acts").scrollIntoViewIfNeeded(); await p.evaluate(() => document.querySelector("#friends").scrollBy(0, 200)); await p.waitForTimeout(400);
+  await sp.evaluate((el) => { el.querySelector(".mo-head").nextElementSibling.dataset.kept = "1"; });
   await sp.locator(".mo-see").click(); await p.waitForTimeout(60);
   check(await sp.locator(".mo-see").getAttribute("aria-pressed") === "true" && await sp.locator(".mo-see.see-on").count() === 1, "pressing the sun marigolds it straight away, with the pop");
+  check(await sp.locator('[data-kept="1"]').count() === 1, "pressing the sun leaves the photo or card above it alone, so the pop stays smooth (alex 2026-11-28)");
   { const a = await sp.locator(".mo-see").boundingBox(), c = await sp.locator(".mo-talk").boundingBox(); check(Math.abs(a.y - c.y) < 2, "the sun stays in its row while it pops"); }
   await p.waitForTimeout(500); await shot("c6-pop"); await p.waitForTimeout(800); await shot("c6-done");
   check((await sam.get("/a/f/feed")).moments.find((x) => x.id === sm.id).seers.some((x) => x.username === "mia.k"), "and it reaches the service");

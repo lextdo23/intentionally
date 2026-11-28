@@ -449,7 +449,11 @@ function seenBy(m, onPerson) {
 export function post(m, { onChange, onPerson } = {}) {
   const el = h("article.mo-post", { "data-id": m.id });
   let anim = null, sending = false;
-  const draw = () => {
+  // The sun and "Seen by" sit in their own spot (display: contents, so the layout is unchanged). Saying "I see you"
+  // redraws only that spot, never the photo or card above it (alex 2026-11-28: pressing it still felt laggy, because
+  // the whole moment, big photo and all, was being rebuilt while the sun's animation played).
+  const seeSpot = h("div.mo-see-spot", { style: { display: "contents" } });
+  const drawSee = () => {
     // The sun on its own, no words (alex 2026-11-26): marigold once you've said it. On your own moment it's there too
     // (alex 2026-11-27), and tapping it shows who said it. Saying it: the moon slides off, the rays light up marigold
     // one by one round the sun, then its middle fills. Taking it back: the moon slides over and it fades back to white,
@@ -463,34 +467,44 @@ export function post(m, { onChange, onPerson } = {}) {
       const was = { seen: m.seen, seers: m.seers }, me = friends.meCard() || { username: account.user() || "", name: "", pic: "smile" };
       m.seen = !was.seen;
       m.seers = m.seen ? [...was.seers.filter((p) => p.username !== me.username), me] : was.seers.filter((p) => p.username !== me.username);
-      anim = m.seen ? "on" : "off"; draw();
+      anim = m.seen ? "on" : "off"; drawSee();
       sending = true;
       account.call("/a/f/see", { id: m.id, undo: !!was.seen }).then((r) => {
         sending = false;
-        if (!r.ok) { Object.assign(m, was); draw(); return friends.note(friends.say(r)); }
+        if (!r.ok) { Object.assign(m, was); drawSee(); return friends.note(friends.say(r)); }
         log("see", was.seen ? 0 : 1);
         // Only redraw if the service's answer differs from what's showing, so the animation plays through.
         const key = (x) => `${!!x.seen}|${x.seers.map((p) => p.username).join(",")}`, same = key(r.moment) === key(m);
-        Object.assign(m, r.moment); if (!same) draw(); onChange && onChange(m);
+        Object.assign(m, r.moment); if (!same) drawSee(); onChange && onChange(m);
       });
     });
     // Who said it, on its own line under the sun (alex 2026-11-27): small faces and "Seen by Josh and Sam" in body
     // text. Tap for the whole list (only your own friends among them, unless it's yours). Nothing when nobody has.
     const seers = m.seers.length ? h("button.mo-seers", { type: "button", onclick: () => seenBy(m, onPerson), "aria-label": `Seen by ${names(m.seers)}. See who` },
       h("span.mo-faces", { "aria-hidden": "true" }, m.seers.slice(0, 3).map((p) => friends.pic(p, 20))), h("span", null, "Seen by ", h("b", null, names(m.seers)))) : null;
+    seeSpot.replaceChildren(...[h("div.mo-acts", null, h("div.mo-acts-l", null, see, talk)), seers].filter(Boolean));
+  };
+  // The latest comment under the moment, in its own spot too. The comments sheet updates it as it loads and as you
+  // write, so the moment (photo and all) is never rebuilt behind the sheet while it slides (alex 2026-11-28).
+  const cmSpot = h("div.mo-cm-spot", { style: { display: "contents" } });
+  const drawCm = () => { const p = comments.preview(m, open); p ? cmSpot.replaceChildren(p) : cmSpot.replaceChildren(); };
+  const open = (from, focus) => comments.openComments(m, { from, focus, changed: (mm) => {
+    const key = (x) => `${!!x.seen}|${(x.seers || []).map((p) => p.username).join(",")}`, before = key(m);
+    Object.assign(m, mm); drawCm(); if (key(m) !== before) drawSee();
+  } });
+  const talk = h("button.mo-talk", { type: "button", "aria-label": "Comments", onclick: () => open("button", true) }, comments.bubbleIcon());
+  const draw = () => {
+    drawSee(); drawCm();
     const who = h("button.mo-who", { type: "button", onclick: () => onPerson && onPerson(m.by.username), "aria-label": `${friends.shown(m.by)}, ${ago(m.at)}` }, friends.pic(m.by, 36), h("span.mo-name", null, friends.shown(m.by)), h("span.mo-when", null, ago(m.at)));
     const more = h("button.round.mo-more", { type: "button", "aria-label": "More" }, friends.svg(20, [["circle", { cx: "5.5", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "12", cy: "12", r: ".9", fill: "currentColor" }], ["circle", { cx: "18.5", cy: "12", r: ".9", fill: "currentColor" }]], { "stroke-width": "2.2" }));
     more.addEventListener("click", () => moreMenu(m, onChange, (mm) => { pics.delete(m.id); Object.assign(m, mm); draw(); onChange && onChange(m); }));
-    const open = (from, focus) => comments.openComments(m, { from, focus, changed: (mm) => { Object.assign(m, mm); draw(); } });
-    const talk = h("button.mo-talk", { type: "button", "aria-label": "Comments", onclick: () => open("button", true) }, comments.bubbleIcon());
     el.replaceChildren(...[
       h("div.mo-head", null, who, m.pillar ? h("span.mo-pil", null, h("span.mo-dot", { style: { background: m.col || "rgba(239,237,233,.5)" } }), m.pillar) : null, more),
       m.kind === "photo" || m.kind === "week" ? photoPost(m) : m.kind === "card" || m.kind === "own" ? cardPost(m) : tile(m, { big: true }),
-      h("div.mo-acts", null, h("div.mo-acts-l", null, see, talk)),
-      seers,
+      seeSpot,
       m.cap ? h("p.mo-cap-text", null, h("b", null, friends.shown(m.by)), " ", m.cap) : null,
       m.mood ? h("p.mo-felt", null, "Felt ", h("b", null, m.mood), m.feel && m.feel.length ? " · " + m.feel.join(", ") : "") : null,
-      comments.preview(m, open)].filter(Boolean));   // replaceChildren would print "null"
+      cmSpot].filter(Boolean));   // replaceChildren would print "null"
   };
   draw();
   return el;
