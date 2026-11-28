@@ -413,7 +413,10 @@ function render(moment) {
   // middle on its own, and the space under it ("Add a photo", "Not done yet", "Change today") hangs below it without
   // pushing it up. Before, a card being done was lifted by the space kept under it, about 48 points higher than the
   // face-down card in the morning, so the card jumped up once drawn.
-  const under = frontF === null && (card || changeBtn) ? slotEl : null;
+  // With a waiting card in front, the space under today's card is kept (empty and untouchable), so the pile never
+  // shrinks or moves when cards are switched (alex 2026-11-27).
+  if (frontF !== null && card && slotEl && !ended) { slotEl.style.visibility = "hidden"; slotEl.setAttribute("aria-hidden", "true"); slotEl.inert = true; }
+  const under = card || changeBtn ? slotEl : null;
   const mid = h("div.home-mid", null, h("div.home-hold", null, area, under));
   todayL = card && frontF === null ? card : null;
   // The glass pill, from day one (alex 2026-11-25): the main action sits in it and Settings lives on the You tab, so

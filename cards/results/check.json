@@ -1,5 +1,5 @@
 {
- "made": "2026-11-25T05:31:37.760Z",
+ "made": "2026-11-27T04:55:19.406Z",
  "source": "live cards",
  "cards": [
   {
@@ -620,21 +620,27 @@
     "Deeper friendships",
     "See them more"
    ],
-   "card": "Have someone over for food",
+   "card": "Invite someone over for food, and pick the day",
    "why": "Eating together helps. In a UK survey, people who often ate with others were happier, with more friends.",
    "src": "Dunbar, 2017",
-   "issues": [],
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (4 letters too long)"
+    }
+   ],
    "fits": {
     "hand": true,
     "kept": true,
     "home": true,
-    "lifts": true
+    "lifts": false
    },
    "room": {
-    "hand": 42,
-    "kept": 55,
-    "home": 55,
-    "lifts": 11
+    "hand": 20,
+    "kept": 37,
+    "home": 37,
+    "lifts": -4
    }
   },
   {
@@ -1244,18 +1250,18 @@
    "key": "#63",
    "n": 63,
    "pillar": "Love",
-   "size": "Tiny",
+   "size": "Small",
    "for": [
     "In a relationship"
    ],
-   "card": "Thank your partner for one thing they did this week",
+   "card": "Thank your partner for one thing they did, on three days this week",
    "why": "Thanks keep you close. Couples felt more connected on days they felt grateful to their partner.",
    "src": "Algoe, Gable and Maisel, 2010",
    "issues": [
     {
      "level": "warning",
      "rule": "F1",
-     "msg": "cut off in What lifts you (5 letters too long)"
+     "msg": "cut off in What lifts you (21 letters too long)"
     }
    ],
    "fits": {
@@ -1265,10 +1271,10 @@
     "lifts": false
    },
    "room": {
-    "hand": 20,
-    "kept": 55,
-    "home": 29,
-    "lifts": -5
+    "hand": 9,
+    "kept": 42,
+    "home": 11,
+    "lifts": -21
    }
   },
   {
@@ -1622,18 +1628,18 @@
    "key": "#83",
    "n": 83,
    "pillar": "Love",
-   "size": "Small",
+   "size": "Bigger",
    "for": [
     "Just had a break-up"
    ],
-   "card": "Write for 15 minutes about anything good that's come from the break-up",
-   "why": "Looking for the good helps. People who wrote about a break-up's positives felt better afterwards.",
+   "card": "Write 15 minutes about the good in the break-up, three days running",
+   "why": "Finding the good helps. People who wrote about a break-up's upsides on three days felt better.",
    "src": "Lewandowski, 2009",
    "issues": [
     {
      "level": "warning",
      "rule": "F1",
-     "msg": "cut off in What lifts you (35 letters too long)"
+     "msg": "cut off in What lifts you (29 letters too long)"
     }
    ],
    "fits": {
@@ -1644,9 +1650,9 @@
    },
    "room": {
     "hand": 4,
-    "kept": 20,
-    "home": 4,
-    "lifts": -35
+    "kept": 37,
+    "home": 9,
+    "lifts": -29
    }
   },
   {
@@ -1701,6 +1707,11 @@
      "level": "warning",
      "rule": "F1",
      "msg": "cut off in What lifts you (28 letters too long)"
+    },
+    {
+     "level": "warning",
+     "rule": "B4",
+     "msg": "looks like #587 (Love): \"Try something new and exciting together this week, like a new walk\""
     }
    ],
    "fits": {
@@ -3237,14 +3248,14 @@
     "Part of something",
     "Just moved"
    ],
-   "card": "Go to your nearest parkrun this Saturday (run, walk or help out)",
+   "card": "Pick a Saturday for your nearest parkrun (run, walk or help out)",
    "why": "Parkrun can tie you to your community. Australian parkrunners who felt connected through it had higher wellbeing.",
    "src": "Grunseit, Richards and Merom, 2017",
    "issues": [
     {
      "level": "warning",
      "rule": "F1",
-     "msg": "cut off in What lifts you (24 letters too long)"
+     "msg": "cut off in What lifts you (18 letters too long)"
     }
    ],
    "fits": {
@@ -3256,8 +3267,8 @@
    "room": {
     "hand": 9,
     "kept": 20,
-    "home": 15,
-    "lifts": -24
+    "home": 20,
+    "lifts": -18
    }
   },
   {
@@ -4028,18 +4039,18 @@
    "key": "#413",
    "n": 413,
    "pillar": "Self",
-   "size": "Small",
+   "size": "Bigger",
    "for": [
     "Kinder to myself"
    ],
-   "card": "Write a kind letter to yourself about something that's hard right now",
-   "why": "Writing to yourself kindly helps for months. Adults who wrote a comforting letter nightly were less depressed later.",
+   "card": "Each night this week, write yourself a kind letter about a hard thing",
+   "why": "Self-kindness lasts. Adults who wrote a comforting letter nightly were less depressed later.",
    "src": "Shapira and Mongrain, 2010",
    "issues": [
     {
      "level": "warning",
      "rule": "F1",
-     "msg": "cut off in What lifts you (32 letters too long)"
+     "msg": "cut off in What lifts you (19 letters too long)"
     }
    ],
    "fits": {
@@ -4049,10 +4060,10 @@
     "lifts": false
    },
    "room": {
-    "hand": 4,
-    "kept": 20,
-    "home": 15,
-    "lifts": -32
+    "hand": 9,
+    "kept": 29,
+    "home": 11,
+    "lifts": -19
    }
   },
   {
@@ -5120,6 +5131,11 @@
      "level": "warning",
      "rule": "F1",
      "msg": "cut off in What lifts you (26 letters too long)"
+    },
+    {
+     "level": "warning",
+     "rule": "B4",
+     "msg": "looks like #585 (Meaning): \"Do one small new thing each day this week, like a new way home\""
     }
    ],
    "fits": {
@@ -8230,18 +8246,23 @@
    "key": "#547",
    "n": 547,
    "pillar": "Play and create",
-   "size": "Small",
+   "size": "Bigger",
    "for": [
     "Make something"
    ],
-   "card": "Make one small thing today, like a new recipe or a sketch",
+   "card": "Make one small thing on three days this week, like a recipe or a sketch",
    "why": "Making things today lifts you tomorrow. Students felt more energised the day after being creative.",
    "src": "Conner, DeYoung and Silvia, 2018",
    "issues": [
     {
      "level": "warning",
      "rule": "F1",
-     "msg": "cut off in What lifts you (9 letters too long)"
+     "msg": "cut off in What lifts you (26 letters too long)"
+    },
+    {
+     "level": "warning",
+     "rule": "B4",
+     "msg": "looks like #585 (Meaning): \"Do one small new thing each day this week, like a new way home\""
     }
    ],
    "fits": {
@@ -8251,10 +8272,10 @@
     "lifts": false
    },
    "room": {
-    "hand": 15,
-    "kept": 29,
-    "home": 29,
-    "lifts": -9
+    "hand": 4,
+    "kept": 15,
+    "home": 11,
+    "lifts": -26
    }
   },
   {
@@ -9402,6 +9423,181 @@
     "home": 4,
     "lifts": -18
    }
+  },
+  {
+   "key": "#585",
+   "n": 585,
+   "pillar": "Meaning",
+   "size": "Bigger",
+   "for": [
+    "Days on repeat"
+   ],
+   "card": "Do one small new thing each day this week, like a new way home",
+   "why": "New things lift your days. Adults who did something new every day for 10 days felt more satisfied with life.",
+   "src": "Buchanan and Bardi, 2010",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (13 letters too long)"
+    },
+    {
+     "level": "warning",
+     "rule": "B4",
+     "msg": "looks like #447 (Self): \"Pick one way you'd like to be, like braver, and do one small thing for it\""
+    },
+    {
+     "level": "warning",
+     "rule": "B4",
+     "msg": "looks like #547 (Play and create): \"Make one small thing on three days this week, like a recipe or a sketch\""
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 26,
+    "home": 15,
+    "lifts": -13
+   }
+  },
+  {
+   "key": "#586",
+   "n": 586,
+   "pillar": "Meaning",
+   "size": "Small",
+   "for": [
+    "Breath away"
+   ],
+   "card": "Watch a sunrise or sunset somewhere open. Pick the day",
+   "why": "Awe in nature lifts you. Students' time in nature brought awe, which lifted their wellbeing.",
+   "src": "Anderson, Monroy and Keltner, 2018",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (19 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 9,
+    "kept": 50,
+    "home": 20,
+    "lifts": -19
+   }
+  },
+  {
+   "key": "#587",
+   "n": 587,
+   "pillar": "Love",
+   "size": "Bigger",
+   "for": [
+    "In a relationship"
+   ],
+   "card": "Try something new and exciting together this week, like a new walk",
+   "why": "Exciting things help couples. Couples who did new, exciting things together each week grew more satisfied.",
+   "src": "Coulter and Malouff, 2013",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "C1",
+     "msg": "doesn't name the actual thing"
+    },
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (36 letters too long)"
+    },
+    {
+     "level": "warning",
+     "rule": "B4",
+     "msg": "looks like #87 (Love): \"Try something new together today, like a recipe neither of you knows\""
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 4,
+    "kept": 20,
+    "home": 11,
+    "lifts": -36
+   }
+  },
+  {
+   "key": "#588",
+   "n": 588,
+   "pillar": "Family",
+   "size": "Small",
+   "for": [
+    "Just moved out"
+   ],
+   "card": "Message or call family first, on two days this week",
+   "why": "Staying in touch keeps you close. First-year students felt better about their parents on days they were in contact.",
+   "src": "Duckworth and colleagues, 2024",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (5 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 20,
+    "kept": 37,
+    "home": 33,
+    "lifts": -5
+   }
+  },
+  {
+   "key": "#589",
+   "n": 589,
+   "pillar": "Work and study",
+   "size": "Small",
+   "for": [
+    "Putting things off"
+   ],
+   "card": "Give a task you're avoiding 25 minutes on three days. Pick them now",
+   "why": "Picking times helps you start. Students who chose when to start homework began earlier.",
+   "src": "Felker and Chen, 2023",
+   "issues": [
+    {
+     "level": "warning",
+     "rule": "F1",
+     "msg": "cut off in What lifts you (26 letters too long)"
+    }
+   ],
+   "fits": {
+    "hand": true,
+    "kept": true,
+    "home": true,
+    "lifts": false
+   },
+   "room": {
+    "hand": 0,
+    "kept": 33,
+    "home": 11,
+    "lifts": -26
+   }
   }
  ],
  "counts": [
@@ -9456,7 +9652,7 @@
   {
    "pillar": "Family",
    "mindset": "Just moved out",
-   "own": 10,
+   "own": 11,
    "everyone": 3,
    "missingSizes": [],
    "ok": true
@@ -9464,7 +9660,7 @@
   {
    "pillar": "Love",
    "mindset": "In a relationship",
-   "own": 11,
+   "own": 12,
    "everyone": 0,
    "missingSizes": [],
    "ok": true
@@ -9592,7 +9788,7 @@
   {
    "pillar": "Work and study",
    "mindset": "Putting things off",
-   "own": 9,
+   "own": 10,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9672,7 +9868,7 @@
   {
    "pillar": "Meaning",
    "mindset": "Days on repeat",
-   "own": 9,
+   "own": 10,
    "everyone": 1,
    "missingSizes": [],
    "ok": true
@@ -9680,7 +9876,7 @@
   {
    "pillar": "Meaning",
    "mindset": "Breath away",
-   "own": 8,
+   "own": 9,
    "everyone": 1,
    "missingSizes": [],
    "ok": true

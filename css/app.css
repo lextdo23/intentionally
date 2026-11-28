@@ -1400,12 +1400,30 @@ body.has-pill:not([data-tab="today"]) #home *, .in-flow #home *, .in-settings #h
 .when-date { width: 100%; min-height: 48px; padding: 0 16px; box-sizing: border-box; border-radius: 12px; border: 1px solid rgba(239, 237, 233, .18);
   background: rgba(239, 237, 233, .06); color: var(--ink); font: inherit; font-size: 17px; color-scheme: dark; }
 @media (prefers-reduced-motion: reduce) { .stack-top { transition: none; } }
-/* The tops float with the pile, more gently than today's card (alex 2026-11-27: floats, no glow, less noticeable). */
-@keyframes bob-soft { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
 .stack { position: relative; }
-.stack-tops { position: relative; z-index: 0; animation: bob-soft 7s ease-in-out infinite; }
+.stack-tops { position: relative; z-index: 0; }
 .stack-front { position: relative; z-index: 2; }
 .stack-ghost { position: absolute; z-index: 2; margin: 0; pointer-events: none; }
+
+/* The side-to-side switch carries a card past the screen's edge for a moment: never let the page scroll sideways. */
+.home-mid:has(.stack) { overflow-x: clip; }
+/* Each top is the top of a whole card: its body carries on down behind the cards in front of it, so when a card in
+   front moves away mid-switch, the one behind shows as a card, never an open-ended bar (alex 2026-11-27). */
+.stack-top { position: relative; }
+.stack-top::after { content: ""; position: absolute; left: -1px; right: -1px; top: 100%; height: calc(var(--w) * 1.4 - 44px); pointer-events: none;
+  background: #161618; border: 1px solid rgba(239, 237, 233, .16); border-top: none; border-radius: 0 0 16px 16px; }
+/* Separate cards, each drawn whole (alex 2026-11-27: spinning today's card showed black behind it): a small gap and a
+   soft shadow from each card onto the one behind, and the two cards behind drift and tilt in opposite directions so they
+   never move as one block. Gentler than today's card, no glow. */
+.stack-top { margin-top: 3px; box-shadow: 0 -8px 16px rgba(0, 0, 0, .5); transform-origin: 50% 100%; animation: drift-a 7s ease-in-out infinite; }
+.stack-top:nth-child(even) { animation-name: drift-b; animation-duration: 8.5s; }
+@keyframes drift-a { 0%, 100% { transform: translateY(0) rotate(0deg) } 50% { transform: translateY(-4px) rotate(-.9deg) } }
+@keyframes drift-b { 0%, 100% { transform: translateY(-3px) rotate(0deg) } 50% { transform: translateY(1px) rotate(.9deg) } }
+@media (prefers-reduced-motion: reduce) { .stack-top { animation: none; } }
+.stack-top:active::after { background: #1d1d20; }
+/* What sits under a shared date in front ("With …", "Not this time") lies over the kept, empty space under today's
+   card, so the pile still never moves up or down. */
+.home-mid > .stack:not(:last-child) > .stack-under { position: absolute; left: 0; right: 0; top: 100%; z-index: 3; }
 @media (prefers-reduced-motion: reduce) { .stack-tops { animation: none; } }
 
 /* Shared dates (alex 2026-11-27, js/stack.js and js/plans.js): a date card shared with friends. */
