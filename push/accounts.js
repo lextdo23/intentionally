@@ -27,6 +27,10 @@ const RESTART_NAMES = ["sherrie", "alex"], RESTART = "2026-11-27";
 // Kept as scrambled emails (hash() of the lowercase email), so the addresses never sit in this public code.
 // Tests can add more with the TEST_ACCOUNTS setting (commas between).
 const TEST_ACCOUNTS = ["1dzDjM55YiVadq4ts7Cd-Y5TebrhCTz_wL4IGIFwEpY"];
+// Dev accounts (alex 2026-11-28: "make @test a dev account, so it can simulate days, simulate features"): by username,
+// lowercase. They get the Dev tools button (js/dev.js) and are always test accounts too, so they never reach tester data.
+// A username change drops them off. Tests can add more with the DEV_NAMES setting (commas between).
+const DEV_NAMES = ["test"];
 const BACKUP_MAX = 1500000;                        // about 1.5 MB of days; photos stay on the phone (later: their own store, see CLAUDE.md)
 
 // ---------------- Small helpers ----------------
@@ -388,8 +392,10 @@ export class Accounts extends DurableObject {
   // test: one of alex's own test accounts (see TEST_ACCOUNTS).
   async publicUser(u) {
     const tests = TEST_ACCOUNTS.concat(String((this.env && this.env.TEST_ACCOUNTS) || "").split(",").filter(Boolean));
-    const test = tests.includes(await hash(String(u.email || "").trim().toLowerCase()));
-    return { username: u.name, email: u.email, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE) || EARLY_NAMES.includes(String(u.name || "").toLowerCase()), test,
+    const name = String(u.name || "").toLowerCase();
+    const dev = DEV_NAMES.concat(String((this.env && this.env.DEV_NAMES) || "").split(",").filter(Boolean)).includes(name);
+    const test = dev || tests.includes(await hash(String(u.email || "").trim().toLowerCase()));
+    return { username: u.name, email: u.email, dev, renameAfter: u.name_at + RENAME_EVERY, early: (u.made || 0) < (Number(this.env && this.env.EARLY_BEFORE) || EARLY_BEFORE) || EARLY_NAMES.includes(String(u.name || "").toLowerCase()), test,
       restart: RESTART_NAMES.includes(String(u.name || "").toLowerCase()) ? RESTART : undefined };   // tests can set EARLY_BEFORE
   }
 
